@@ -1,6 +1,6 @@
 # Configuration Reference
 
-The complete Ze configuration as one tree: 36 top-level sections (27 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.net/features/bgp-configuration/) for a narrative walkthrough of BGP peer config specifically.
+The complete Ze configuration as one tree: 38 top-level sections (28 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.net/features/bgp-configuration/) for a narrative walkthrough of BGP peer config specifically.
 
 ## anomaly
 
@@ -278,7 +278,7 @@ A peer inherits from its group defaults. A group inherits from this global level
     - **prefixes** `string[]`: The prefixes this peer is authorized to advertise.
       The prefixes this PEER is authorized to advertise. Ze honors a received blackhole announcement only when one of them covers it and is equal or shorter. That is RFC 7999 Section 3.3's first condition, in the RFC's own words. The announced prefix is 'covered by an equal or shorter IP prefix that the neighboring network is authorized to advertise'. The container already says blackhole, so the leaf does not repeat it. Coverage is not prefix-list membership. A list entry 192.0.2.0/24 authorizes a 192.0.2.1/32 blackhole inside it, because the /24 is a shorter covering prefix the neighbor may advertise. That is the RFC test, and it does not depend on any ge or le bound. An empty list authorizes nothing, so honoring never happens. That is the closed state on purpose: RFC 7999 Section 6 names unauthorized addition of BLACKHOLE as a denial-of-reachability vector, and an open default would let any peer discard traffic for any prefix it names.
   - **capture** `container`: Protocol event capture for this peer.
-    When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes with arrival metadata. The file also carries the config operations applied while the capture runs. Replay the file on a developer machine with 'ze-test replay <file>', which drives the same state machine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file holds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no local secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is redacted. Handle a capture file the way you handle a routing-table dump.
+    When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes with arrival metadata. The file also carries the config operations applied while the capture runs. Replay the file on a developer machine with 'le test replay <file>', which drives the same state machine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file holds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no local secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is redacted. Handle a capture file the way you handle a routing-table dump.
     - **directory** `string`: Directory that holds the capture files of this peer.
       Ze creates the directory when it is absent. Ze writes one file per peer, named bgp-<peer-address>.jsonl. Choose a filesystem with room for the configured maximum-size, and with twice that room when on-limit is rotate. 'ze doctor' reports whether the directory is writable.
     - **enabled** `boolean`: Capture this peer's inbound protocol events to a file. Off by default.
@@ -425,7 +425,7 @@ A peer inherits from its group defaults. A group inherits from this global level
       - **prefixes** `string[]`: The prefixes this peer is authorized to advertise.
         The prefixes this PEER is authorized to advertise. Ze honors a received blackhole announcement only when one of them covers it and is equal or shorter. That is RFC 7999 Section 3.3's first condition, in the RFC's own words. The announced prefix is 'covered by an equal or shorter IP prefix that the neighboring network is authorized to advertise'. The container already says blackhole, so the leaf does not repeat it. Coverage is not prefix-list membership. A list entry 192.0.2.0/24 authorizes a 192.0.2.1/32 blackhole inside it, because the /24 is a shorter covering prefix the neighbor may advertise. That is the RFC test, and it does not depend on any ge or le bound. An empty list authorizes nothing, so honoring never happens. That is the closed state on purpose: RFC 7999 Section 6 names unauthorized addition of BLACKHOLE as a denial-of-reachability vector, and an open default would let any peer discard traffic for any prefix it names.
     - **capture** `container`: Protocol event capture for this peer.
-      When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes with arrival metadata. The file also carries the config operations applied while the capture runs. Replay the file on a developer machine with 'ze-test replay <file>', which drives the same state machine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file holds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no local secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is redacted. Handle a capture file the way you handle a routing-table dump.
+      When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes with arrival metadata. The file also carries the config operations applied while the capture runs. Replay the file on a developer machine with 'le test replay <file>', which drives the same state machine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file holds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no local secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is redacted. Handle a capture file the way you handle a routing-table dump.
       - **directory** `string`: Directory that holds the capture files of this peer.
         Ze creates the directory when it is absent. Ze writes one file per peer, named bgp-<peer-address>.jsonl. Choose a filesystem with room for the configured maximum-size, and with twice that room when on-limit is rotate. 'ze doctor' reports whether the directory is writable.
       - **enabled** `boolean`: Capture this peer's inbound protocol events to a file. Off by default.
@@ -601,6 +601,16 @@ A peer inherits from its group defaults. A group inherits from this global level
       The container holds the ASN, the capabilities, the address families, the next-hop policy, and the community control. A peer inherits these from its group, and a peer value overrides the group value.
       - **accept-srv6-prefix-sid** `boolean`: Accept the BGP Prefix-SID attribute (code 40) with SRv6 TLVs from this EBGP peer.
         RFC 8669 Section 4 states that a PrefixSID from an EBGP peer outside the SR domain MUST be discarded, unless the speaker is configured to accept it. The leaf has no effect on IBGP, where Ze always accepts the attribute.
+      - **aigp** `container`: Accumulated IGP metric policy for this session.
+        RFC 7311 session boundary and origination policy. Enable external sessions only inside one AIGP administrative domain.
+        - **domain-as** `asn[]`: External AS numbers inside the AIGP domain.
+          External ASes inside the AIGP administrative domain. A newly originated attribute cannot accompany a path containing any other external AS.
+        - **enabled** `boolean`: Accept and send AIGP on this session.
+          Overrides AIGP_SESSION. Without this leaf, internal sessions enable AIGP and external sessions disable it.
+        - **link-metric** `uint64`: Non-zero metric for a link without an IGP.
+          Distance to this peer when no IGP provides one. Use units comparable to the administrative domain's IGP metrics.
+        - **originate** `boolean`: Permit AIGP attribute origination.
+          Permit explicitly supplied AIGP metrics only on domain-local routes advertised with this speaker as next hop.
       - **as-override** `boolean`: Replace the ASN of the peer with the local ASN in the outbound AS_PATH.
         Use the leaf in a VPN design, or in a multi-site design, where the same customer ASN appears at more than one site.
       - **asn** `container`: AS number configuration
@@ -900,6 +910,16 @@ A peer inherits from its group defaults. A group inherits from this global level
     The container holds the ASN, the capabilities, the address families, the next-hop policy, and the community control. A peer inherits these from its group, and a peer value overrides the group value.
     - **accept-srv6-prefix-sid** `boolean`: Accept the BGP Prefix-SID attribute (code 40) with SRv6 TLVs from this EBGP peer.
       RFC 8669 Section 4 states that a PrefixSID from an EBGP peer outside the SR domain MUST be discarded, unless the speaker is configured to accept it. The leaf has no effect on IBGP, where Ze always accepts the attribute.
+    - **aigp** `container`: Accumulated IGP metric policy for this session.
+      RFC 7311 session boundary and origination policy. Enable external sessions only inside one AIGP administrative domain.
+      - **domain-as** `asn[]`: External AS numbers inside the AIGP domain.
+        External ASes inside the AIGP administrative domain. A newly originated attribute cannot accompany a path containing any other external AS.
+      - **enabled** `boolean`: Accept and send AIGP on this session.
+        Overrides AIGP_SESSION. Without this leaf, internal sessions enable AIGP and external sessions disable it.
+      - **link-metric** `uint64`: Non-zero metric for a link without an IGP.
+        Distance to this peer when no IGP provides one. Use units comparable to the administrative domain's IGP metrics.
+      - **originate** `boolean`: Permit AIGP attribute origination.
+        Permit explicitly supplied AIGP metrics only on domain-local routes advertised with this speaker as next hop.
     - **as-override** `boolean`: Replace the ASN of the peer with the local ASN in the outbound AS_PATH.
       Use the leaf in a VPN design, or in a multi-site design, where the same customer ASN appears at more than one site.
     - **asn** `container`: AS number configuration
@@ -1222,7 +1242,7 @@ A peer inherits from its group defaults. A group inherits from this global level
     - **prefixes** `string[]`: The prefixes this peer is authorized to advertise.
       The prefixes this PEER is authorized to advertise. Ze honors a received blackhole announcement only when one of them covers it and is equal or shorter. That is RFC 7999 Section 3.3's first condition, in the RFC's own words. The announced prefix is 'covered by an equal or shorter IP prefix that the neighboring network is authorized to advertise'. The container already says blackhole, so the leaf does not repeat it. Coverage is not prefix-list membership. A list entry 192.0.2.0/24 authorizes a 192.0.2.1/32 blackhole inside it, because the /24 is a shorter covering prefix the neighbor may advertise. That is the RFC test, and it does not depend on any ge or le bound. An empty list authorizes nothing, so honoring never happens. That is the closed state on purpose: RFC 7999 Section 6 names unauthorized addition of BLACKHOLE as a denial-of-reachability vector, and an open default would let any peer discard traffic for any prefix it names.
   - **capture** `container`: Protocol event capture for this peer.
-    When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes with arrival metadata. The file also carries the config operations applied while the capture runs. Replay the file on a developer machine with 'ze-test replay <file>', which drives the same state machine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file holds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no local secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is redacted. Handle a capture file the way you handle a routing-table dump.
+    When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes with arrival metadata. The file also carries the config operations applied while the capture runs. Replay the file on a developer machine with 'le test replay <file>', which drives the same state machine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file holds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no local secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is redacted. Handle a capture file the way you handle a routing-table dump.
     - **directory** `string`: Directory that holds the capture files of this peer.
       Ze creates the directory when it is absent. Ze writes one file per peer, named bgp-<peer-address>.jsonl. Choose a filesystem with room for the configured maximum-size, and with twice that room when on-limit is rotate. 'ze doctor' reports whether the directory is writable.
     - **enabled** `boolean`: Capture this peer's inbound protocol events to a file. Off by default.
@@ -1398,6 +1418,16 @@ A peer inherits from its group defaults. A group inherits from this global level
     The container holds the ASN, the capabilities, the address families, the next-hop policy, and the community control. A peer inherits these from its group, and a peer value overrides the group value.
     - **accept-srv6-prefix-sid** `boolean`: Accept the BGP Prefix-SID attribute (code 40) with SRv6 TLVs from this EBGP peer.
       RFC 8669 Section 4 states that a PrefixSID from an EBGP peer outside the SR domain MUST be discarded, unless the speaker is configured to accept it. The leaf has no effect on IBGP, where Ze always accepts the attribute.
+    - **aigp** `container`: Accumulated IGP metric policy for this session.
+      RFC 7311 session boundary and origination policy. Enable external sessions only inside one AIGP administrative domain.
+      - **domain-as** `asn[]`: External AS numbers inside the AIGP domain.
+        External ASes inside the AIGP administrative domain. A newly originated attribute cannot accompany a path containing any other external AS.
+      - **enabled** `boolean`: Accept and send AIGP on this session.
+        Overrides AIGP_SESSION. Without this leaf, internal sessions enable AIGP and external sessions disable it.
+      - **link-metric** `uint64`: Non-zero metric for a link without an IGP.
+        Distance to this peer when no IGP provides one. Use units comparable to the administrative domain's IGP metrics.
+      - **originate** `boolean`: Permit AIGP attribute origination.
+        Permit explicitly supplied AIGP metrics only on domain-local routes advertised with this speaker as next hop.
     - **as-override** `boolean`: Replace the ASN of the peer with the local ASN in the outbound AS_PATH.
       Use the leaf in a VPN design, or in a multi-site design, where the same customer ASN appears at more than one site.
     - **asn** `container`: AS number configuration
@@ -1707,9 +1737,9 @@ A peer inherits from its group defaults. A group inherits from this global level
       - **community** `string[]`: Apply only to a route whose COMMUNITIES attribute carries this value.
         The COMMUNITIES attribute is RFC 1997, type 8. The value takes the form ASN:VAL, for example 65001:666, or a well-known name. The well-known names are blackhole, no-export, no-advertise, no-export-subconfed and nopeer. The two spellings of a well-known value are equivalent, so 65535:666 and blackhole select the same community. RFC 7999 registers that community, and RFC 7999 Section 4 names it with that suggested keyword.
       - **extended-community** `string[]`: Apply only to a route whose EXTENDED COMMUNITIES attribute carries this value.
-        The EXTENDED COMMUNITIES attribute is RFC 4360, type 16. The value takes the form target:ASN:NN or origin:ASN:NN, or it is a hex string.
+        The EXTENDED COMMUNITIES attribute is RFC 4360, type 16. The value takes the form target:ASN:NN or origin:ASN:NN, or it is a hex string. Ze validates the value at configure time and compares its eight-octet value, so named and hex spellings of the same value select the same routes.
       - **large-community** `string[]`: Apply only to a route whose LARGE COMMUNITIES attribute carries this value.
-        The LARGE COMMUNITIES attribute is RFC 8092, type 32. The value takes the form GA:LD1:LD2, for example 65001:100:200.
+        The LARGE COMMUNITIES attribute is RFC 8092, type 32. The value takes the form GA:LD1:LD2, for example 65001:100:200. Ze validates the value at configure time and compares its canonical decimal form.
     - **set** `container`: Attributes Ze sets on a matching route.
       Ze applies only the leaves that are present in this container, and keeps every other attribute unchanged.
       - **as-path-prepend** `uint8`: Prepend the local AS to AS_PATH this many times.
@@ -1797,7 +1827,7 @@ A peer inherits from its group defaults. A group inherits from this global level
   - **action** `container`: Global origin-validation actions.
     RFC 6811 Section 3 makes the action of each validation state configurable by the operator.
     - **invalid** `validation-action`: Action Ze applies to a route in the Invalid validation state.
-      The default is reject, which excludes the route from the Adj-RIB-In and the decision process.
+      The default is reject. The received route remains in Adj-RIB-In but is ineligible for the decision process until validation or configured policy admits it.
       - `accept`: Keep the route and write no log line.
       - `log-only`: Keep the route, marked with its state, and write a log line.
       - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
@@ -1811,7 +1841,7 @@ A peer inherits from its group defaults. A group inherits from this global level
     - **action** `container`: Global action Ze applies for each ASPA path state.
       invalid holds the action of an ASPA Invalid path and unknown that of an ASPA Unknown path. Both apply only while aspa validation is true. A peer or a group overrides each leaf.
       - **invalid** `validation-action`: Action Ze applies to a route in the ASPA Invalid path state.
-        The default is log-only, which keeps the route, marks it with its state, and writes a log line.
+        The default is reject. Ze retains the route in the Adj-RIB-In for re-evaluation and excludes it from route selection until the path becomes acceptable.
         - `accept`: Keep the route and write no log line.
         - `log-only`: Keep the route, marked with its state, and write a log line.
         - `reject`: Exclude the route from the Adj-RIB-In and the decision process.
@@ -1823,15 +1853,25 @@ A peer inherits from its group defaults. A group inherits from this global level
     - **validation** `boolean`: Verify the AS path of a route against the ASPA records.
       Ze reads the ASPA records over version 2 of the RTR protocol.
   - **cache-server <address>** `list`: RTR cache servers Ze reads the validated ROA and ASPA records from.
-    The list key is the address, which is an IP address or a hostname. Ze opens one RTR session to every entry at the same time, and merges what the entries send into one cache. A second entry gives redundancy. Each entry carries the port, the preference and the source address. An empty list leaves validation off.
-    - **port** `uint16`: TCP port of the RTR cache server.
-      Ze opens a TCP connection to this port on the cache server. The default is 323.
+    The list key is an IP address or a hostname. Ze tries entries in increasing preference order, publishes only a completed cache response, and replaces the selected cache's records atomically. An empty list leaves validation off.
+    - **port** `port`: TCP port of the RTR cache server.
+      The cache transport port. When omitted, unprotected TCP uses 323 and TLS uses 324.
     - **preference** `uint8`: Preference of this cache server.
-      Ze runs a session to every cache server at the same time and selects none of them, so the value changes no behavior today. show bgp rpki status reports it for each server.
+      Lower values are tried first. Each polling round starts with the most preferred cache.
     - **source-address** `ip-address`: Source IP address of an outbound RTR connection.
       Set this leaf when the RTR connection MUST leave the box from one specific local address.
+    - **tls** `container`: Authenticate the RTR cache and router with TLS.
+      Native RTR over mutual TLS (RFC 8210 Section 9.2). The router presents the named PKI certificate and its intermediate chain. The cache must request client authentication and present a trusted DNS-ID certificate; CN-ID is never used. Authentication failure never falls back to unprotected TCP.
+      - **ca-certificate** `string`: PKI CA certificate trusted for the cache.
+        Named PKI CA used to authenticate this cache. System roots are not used.
+      - **certificate** `string`: PKI certificate and private key identifying this router.
+        Named PKI router certificate with its private key and a subjectAltName iPAddress identity matching the connection's source IP address. The certificate must permit TLS client authentication.
+      - **server-name** `string`: Expected DNS name of the TLS cache.
+        Cache DNS reference identifier, matched against certificate dNSName identities. Defaults to the cache address when that address is a DNS name. Required for IP-address endpoints. An IP address, wildcard reference, or certificate common name cannot supply this identity.
+    - **trusted-network** `boolean`: Permit unprotected RTR only on an explicitly trusted network.
+      Explicit operator selection of unprotected RTR over TCP. Use only when the router and cache are on the same trusted, controlled network (RFC 8210 Section 9). This setting does not prove network trust and never permits a TLS-configured cache to fall back to plaintext.
   - **validation-timeout** `uint16`: Fail-open timeout of a route whose validation is pending.
-    The default is 30 seconds. A longer timeout holds a route in the pending state for longer.
+    The default is 30 seconds. A longer timeout holds a route in the pending state for longer. Reloading this leaf refreshes retained routes under the new timeout.
 - **session** `container`: Global BGP session defaults
   A group value overrides this global value, and a peer value overrides the group value. The container holds the local ASN and the shared-router-id switch.
   - **allow-shared-router-id** `boolean`: Accept a peer whose BGP Identifier duplicates another established peer in the same AS.
@@ -1906,6 +1946,48 @@ A peer inherits from its group defaults. A group inherits from this global level
     The leaf is optional, and an absent leaf lets only max-delay and full convergence end the hold. When these seconds elapse and one or more peers are held, Ze ends the hold and advertises to them, whether or not they sent an End-of-RIB marker. When no peer is held, Ze keeps waiting until max-delay, because there is no peer to advertise to yet. Ze refuses a configuration where this value is more than max-delay.
   - **max-delay** `uint16`: Seconds to hold the first advertisement. 0 disables the hold.
     0 is the default and disables the feature. A value of more than 0 arms the hold when the daemon starts its peers. The hold ends when every configured peer sends its End-of-RIB marker, or when establish-wait ends it early, or when these seconds elapse, whichever comes first. Ze waits for the marker and not for Established, because Established says only that the neighbor answered. RFC 4724 Section 4.1 excludes a peer that advertised no graceful-restart capability and a peer that is itself restarting, and Ze excludes the same two. A peer that never comes up cannot extend the wait past this number.
+
+## bgp-epe
+
+*Provided by `bgp-epe` ([ze-bgp-epe-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/epe/yang/ze-bgp-epe-conf.yang))*
+
+Instantiate BGP Egress Peer Engineering segments.
+
+The internal bgp-epe plugin consumes state events from attached BGP sessions. Each configured peer gets a persistent PeerNode SID index. While its session is established, the corresponding local label is popped and forwarded to the peer by the selected MPLS FIB writer. State withdrawal removes that label and its BGP-LS advertisement. Configure bgp-ls-export to advertise the native state to collectors. This SRGB must be reserved exclusively for these EPE labels and must not overlap another label producer.
+
+- **peer <address>** `list`: BGP session whose connected peer is an EPE next hop.
+  Assign one distinct SRGB index to each established session's remote peer. Removing an assignment removes its forwarding label and withdraws its native BGP-LS state.
+  - **sid-index** `uint32`: Persistent PeerNode SID index in the EPE SRGB.
+    Unique offset into the configured SRGB. The assignment remains stable across process restart and session flap.
+  - **weight** `uint8`: PeerNode SID load-balancing weight.
+    Relative load-balancing weight advertised in the PeerNode SID attribute.
+- **srgb** `container`: Reserve the local label range for EPE PeerNode segments.
+  Local SRGB reserved for EPE PeerNode segments.
+  - **lower-bound** `uint32`: First label in the EPE SRGB.
+    Inclusive lower label bound; labels below 16 are reserved by MPLS.
+  - **upper-bound** `uint32`: Last label in the EPE SRGB.
+    Inclusive upper label bound, which must be at least the lower bound.
+
+## bgp-ls-export
+
+*Provided by `bgp-ls-export` ([ze-bgp-ls-export-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/yang/ze-bgp-ls-export-conf.yang))*
+
+Export native routing state through BGP-LS.
+
+Export the running native IGP databases to BGP peers that attach this internal plugin with state/refresh receive and update send grants. Each database snapshot replaces prior node, link, prefix, and SRv6 SID advertisements. Removed identities are withdrawn before replacements. The exporter retains at most 65536 routes and refuses a replacement exceeding that bound without changing the last accepted database. This feature requires the in-process engine event bus; it does not originate from a forked plugin.
+
+- **domain <name>** `list`: Set the 64-bit BGP-LS Instance-ID of a native domain.
+  Assign a routing-universe Instance-ID to one native domain. Unmapped domains retain the source's native identifier.
+  - **instance-id** `uint64`: Eight-octet routing-universe identifier.
+    Full-width Instance-ID placed in originated NLRIs for the selected domain.
+  - **native-area** `uint32`: Numeric source area or IS-IS level.
+    Native numeric OSPF area or IS-IS level published by the source.
+  - **native-instance** `uint64`: Source instance identifier.
+    Native instance number published by the selected routing protocol.
+  - **protocol-id** `uint8`: BGP-LS source Protocol-ID.
+    Protocol identifier of the native snapshot selected by this mapping.
+  - **source** `string`: Native source namespace.
+    Registered link-state publisher namespace, such as isis, ospf, or bgp-epe.
 
 ## class-of-service
 
@@ -2089,8 +2171,6 @@ Distributed denial-of-service detection and mitigation subsystem. This module de
 
 ## environment
 
-*Provided by `bgp-bmp` ([ze-bmp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang), [ze-bmp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang)); `ntp` ([ze-ntp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ntp/yang/ze-ntp-cmd.yang), [ze-ntp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ntp/yang/ze-ntp-conf.yang))*
-
 Environment settings for API transports
 
 The api-server container under it is the shared parent of the REST and gRPC transports. ze-rest-conf and ze-grpc-conf merge their rest and grpc containers into it, so a transport compiled out leaves no container to configure.
@@ -2132,6 +2212,7 @@ The api-server container under it is the shared parent of the REST and gRPC tran
   - **openwait** `int32`: Seconds to wait for peer OPEN after TCP connect
     The environment variable ze.bgp.openwait overrides the leaf. Ze arms the hold timer with the value after it sends OPEN. Ze resets that timer to the negotiated hold time when the peer OPEN arrives.
 - **bmp** `container`: BMP receiver settings
+  *Provided by `bgp-bmp` ([ze-bmp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang), [ze-bmp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang))*
   The receiver starts only when enabled is true and the server list holds one entry at least. Ze stores each Route Monitoring message it accepts in the BMP RIB, and show bmp rib reads that RIB.
   - **enabled** `boolean`: Enable BMP receiver
     The default is false. The receiver needs this leaf true and one server entry at least, so enabled true on its own binds no address.
@@ -2252,17 +2333,17 @@ The api-server container under it is the shared parent of the REST and gRPC tran
   - **enabled** `boolean`: Start the MCP server.
     The default is false, so Ze opens no MCP listener until this leaf is true.
   - **identity <name>** `list`: Per-identity bearer entries, for auth-mode=bearer-list.
-    The token of each entry grants access to the named principal. Authentication runs on every request, so the name and the scopes of the matching entry ride that one authenticated request. A change takes effect on the next request.
+    The token of each entry grants access to the named principal. Authentication runs on every request, so the name and the scopes of the matching entry ride that one authenticated request. Changing an identity, its token or its scopes requires a daemon restart.
     - **scope** `string[]`: Scopes Ze carries on a request this identity authenticates.
       This leaf-list is optional. An empty leaf-list carries no scope.
     - **token** `string`: Bearer token value of this identity.
       Ze compares the token in constant time, so the duration of a comparison tells an attacker nothing about the value.
   - **oauth** `container`: OAuth 2.1 resource-server settings, for auth-mode=oauth.
     Ze does not run an authorization server. Ze validates a bearer token that the external authorization server issued.
-    - **audience** `string`: Canonical URL that identifies this MCP endpoint (RFC 8707).
-      Ze rejects a token whose 'aud' claim does not match this URL. Set this leaf explicitly. Ze never derives the value from the Host header of the request.
+    - **audience** `string`: Exact HTTPS identifier of this MCP endpoint.
+      Ze compares the token's 'aud' claim with this identifier exactly, without URL or Unicode normalization. Set this leaf explicitly to the HTTPS URL clients use for the MCP endpoint. Ze never derives it from the request Host header. Changing this setting on a running listener requires a restart.
     - **authorization-server** `string`: HTTPS URL of the authorization server.
-      The resource server reads the metadata of the authorization server from <url>/.well-known/oauth-authorization-server (RFC 8414), and discovers the jwks_uri there.
+      The resource server inserts /.well-known/oauth-authorization-server before the issuer URL's path (RFC 8414). The HTTPS metadata response must carry the exact configured issuer and an HTTPS jwks_uri. Ze rejects redirects to HTTP. Changing this setting on a running listener requires a restart.
     - **required-scopes** `string[]`: Scopes an accepted token MUST carry.
       Ze rejects a token that does not carry every scope in this list. An empty leaf-list accepts any valid token.
   - **server <name>** `list`: Listen endpoints of the MCP server.
@@ -2274,7 +2355,7 @@ The api-server container under it is the shared parent of the REST and gRPC tran
   - **tls** `container`: TLS certificate that serves the MCP endpoint over HTTPS.
     This container is required when auth-mode is oauth and a listen endpoint is not a loopback address. ze config verify rejects a config that leaves the cert leaf empty in that case, and one that sets cert without key.
     - **cert** `string`: Path to PEM-encoded certificate file (or a chain).
-      Ze serves the endpoint over HTTPS only when cert and key are both set, and over HTTP when one of the two is empty. Ze reads the pair at start and accepts TLS 1.2 as its lowest version. A pair that fails to load stops the MCP server, and Ze prints the reason. ze doctor reads the file and reports it missing, or near its expiry date.
+      Ze serves the endpoint over HTTPS when cert and key are both set, and over HTTP when both are absent. A partial pair is rejected. Ze reads the pair at start and accepts TLS 1.2 as its lowest version. Changing the pair requires a restart. A pair that fails to load stops the MCP server, and Ze prints the reason. ze doctor reads the file and reports it missing, or near its expiry date.
     - **key** `string`: Path to PEM-encoded private-key file.
       Ze refuses a key file that group or other can read, and refuses a symbolic link, when it runs as a user other than root. The MCP server does not start in that case. Under root Ze reads the file whatever its mode, because root reads every file anyway.
   - **token** `string`: Bearer token for auth-mode=bearer.
@@ -2284,6 +2365,7 @@ The api-server container under it is the shared parent of the REST and gRPC tran
   - **reference-address** `ip-address`: Address show mtu measures to tell a clamped circuit from a clamped peer path.
     show mtu measures the path MTU to this address beside the peers. A reference outside the tunnels is what tells a clamped access circuit from a clamped peer path: when it measures the full interface MTU the circuit is not clamped, and when it measures the same as the peers the whole circuit is. The default is 1.1.1.1. The environment variable ze.mtu.reference-address overrides this leaf.
 - **ntp** `container`: Settings of the NTP client.
+  *Provided by `ntp` ([ze-ntp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ntp/yang/ze-ntp-cmd.yang), [ze-ntp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ntp/yang/ze-ntp-conf.yang))*
   The presence of these settings does not start the client. Set the enabled leaf to true.
   - **enabled** `boolean`: Synchronize the system clock with an NTP server.
     The default is false, so Ze leaves the system clock alone until this leaf is true.
@@ -2710,11 +2792,13 @@ Flow export (sFlow, NetFlow v9, IPFIX) configuration
 Flow export configuration. Ze exports interface counters to every collector. It exports per-flow records as well when the conntrack container or the sampling container is enabled. Each collector names its own protocol, so one device can feed an sFlow collector and an IPFIX collector at the same time.
 
 - **collector <name>** `list`: A flow export collector endpoint
-  A flow export collector endpoint. Ze opens one UDP sender for each entry and encodes for the protocol that entry names. address and protocol are both mandatory, so a commit that leaves either one out is rejected. Each datagram is 1400 bytes at most, to stay under a common path MTU.
+  A flow export collector endpoint. Ze opens one UDP sender for each entry and encodes for the protocol that entry names. address and protocol are both mandatory, so a commit that leaves either one out is rejected. max-datagram-size bounds each UDP payload, including padding.
   - **address** `ip-address`: Collector IP address
     Collector IP address, and the leaf is mandatory. The address and port together are where Ze sends every datagram of this collector. A commit that gives a value Ze cannot parse as an address is rejected.
   - **agent-address** `ip-address`: sFlow agent address (device's own stable IP, e.g. loopback)
     sFlow agent address, which is the device's own stable IP address. Ze writes it into the sFlow v5 datagram header, so a collector identifies the exporter by one address whichever interface the datagram left. Left out, Ze writes 0.0.0.0. A netflow9 or ipfix collector does not read the leaf.
+  - **max-datagram-size** `uint16`: Largest UDP payload sent to this collector, in octets
+    Largest UDP payload Ze sends to this collector, in octets. Encoders include padding within this bound. RFC 7011 Section 10.3.3 recommends packets of at most 512 octets when the path MTU is unknown. The default 464 reserves 48 octets for IPv6 and UDP headers. Set a larger value only for a known path MTU, after subtracting all IP, UDP and tunnel headers. The ceiling 1400 is the encoding buffer size.
   - **observation-domain** `uint32`: IPFIX/NetFlow v9 observation domain ID
     IPFIX and NetFlow v9 observation domain ID, default 0. Ze writes it into the message header of every counter message and every flow message of those two protocols. A collector uses it to keep the record streams of one exporter apart. An sflow collector does not read the leaf.
   - **polling-interval** `uint16`: Counter polling interval in seconds
@@ -4376,8 +4460,8 @@ The presence of this container starts the IS-IS component. At least one `net` le
   Only an interface with an entry here runs IS-IS. Ze opens no circuit on an interface that this list omits, so no adjacency forms on it and its connected prefixes reach no LSP.
   - **interface <name>** `list`: Per-interface IS-IS configuration.
     Ze opens one circuit for each entry that is enabled and not passive. A link that comes up after start opens its circuit at that moment, and a link that goes down closes it. The connected prefixes of an enabled entry become TLV 135 and TLV 236 reachability in the node's own LSP.
-    - **address-family <af>** `list`: Per-interface address families on this circuit (single-topology; both ride the shared SPF tree).
-      Ze reads this list for one decision: does the circuit carry IPv6. An ipv6-unicast entry adds the IPv6 NLPID to TLV 129 and makes the hello carry TLV 232. TLV 129 carries the IPv4 NLPID on every circuit. Both families ride one SPF tree, because this IS-IS is single-topology.
+    - **address-family <af>** `list`: Enable address families on this interface.
+      An ipv6-unicast entry enables the interface's IPv6 addresses and prefixes. On any enabled interface it also adds IPv6 to the node-wide Protocols Supported set in every Hello and LSP. IPv4 is always supported. Both families use one SPF tree.
     - **circuit-type** `enumeration`: Circuit type.
       broadcast, the default, runs the DIS election and sources a pseudo-node LSP when this IS wins. It advertises the LAN as one TLV 22 entry that points at the pseudo-node. It also sources a periodic CSNP while this IS is DIS. point-to-point runs no election and no pseudo-node. It sends a point-to-point hello with TLV 240 and one initial CSNP when the adjacency reaches Up.
       - `broadcast`: LAN broadcast circuit (DIS election).
@@ -4687,6 +4771,8 @@ The engine stays idle until lsr-id carries an address, and it says so in the log
   The default is 15 seconds, which is 3 hello intervals. Ze advertises this value in each Hello, and a neighbor drops the adjacency when no Hello arrives inside it. Keep it more than hello-interval, because a hold time under one interval drops the adjacency between two Hellos.
 - **hello-interval** `uint16`: Hello message interval
   The default is 5 seconds and the range is 1 to 65535. Ze sends one Hello for each interface at this period. A shorter interval finds a neighbor faster and puts more packets on the link.
+- **hop-count-max** `uint8`: Maximum hop count a Label Mapping can carry.
+  The default is 254 and the range is 1 to 255. RFC 5036 section 3.4.4.1 makes an LSR check the Hop Count TLV of a received message against 'its configured maximum allowable value'. A Label Mapping whose hop count exceeds this value is answered with a Loop Detected Notification and its label is not used. A change here applies to the sessions that open after it.
 - **interfaces** `string[]`: Interfaces on which LDP discovery is enabled
   Ze runs one discovery listener for each interface of this list. An empty list runs one listener that the system assigns to an interface itself. A reload starts discovery on an interface added to the list and stops it on one removed, and it leaves the other interfaces alone. The connected prefixes of these interfaces are the FECs this LSR is egress for.
 - **keepalive-time** `uint16`: Session keepalive interval.
@@ -5598,6 +5684,8 @@ The presence of this container starts the OSPFv2 engine, which RFC 2328 defines.
     RFC 2328 section 2.3 states that a Type 1 external metric is in the same units as the OSPF cost. A Type 2 metric is an order of magnitude larger than any internal path. A Type 1 route always wins over a Type 2 route.
     - `type-1`: External metric in OSPF cost units, added to the internal distance.
     - `type-2`: External metric larger than any internal path, compared alone.
+  - **nssa-propagate** `boolean`: Permit translation of this source's NSSA routes into Type-5 LSAs.
+    RFC 3101 Appendix D requires configurable Type-7 propagation and defaults the P-bit to clear. Set the P-bit for this source when the router cannot originate a Type-5 directly. A P-set Type-7 requires a usable forwarding address in its NSSA; without one the LSA is withdrawn. A locally originated Type-5 always clears the P-bit.
   - **tag** `uint32`: External route tag.
     RFC 2328 Appendix A.4.5 states that the External Route Tag is not used by the OSPF protocol itself. It carries information between AS boundary routers, and a policy on another router CAN match it.
 - **reference-bandwidth** `uint32`: Auto-cost reference bandwidth in Mbps.
@@ -5887,12 +5975,12 @@ Ze builds one registry from these entries, and a static route or a policy route 
 
 RSVP-TE traffic engineering configuration
 
-RSVP-TE traffic engineering configuration. Signaling is IPv4 only. Without a router-id the engine stays idle, and no tunnel and no bypass signals. Ze has no IGP and no CSPF, so every path is given as an explicit route.
+RSVP-TE traffic engineering configuration. Signaling is IPv4 only. Without a router-id the engine stays idle, and no tunnel and no bypass signals. RSVP-TE does not consume a traffic-engineering database or run CSPF, so paths are configured explicitly.
 
 - **bypass <name>** `list`: Facility-backup bypass LSP from this PLR to a merge point (RFC 4090 Section 3.2).
-  Facility-backup bypass LSP (RFC 4090 Section 3.2): an LSP from this PLR to a merge point, explicitly routed to avoid the protected resource. A protected transit LSP is redirected onto this bypass on a local failure. The redirected LSP is one whose next hop (link protection) or next-next hop (node protection) is this bypass's merge point. The route is explicit because Ze has no IGP and no CSPF to compute a backup path.
+  Facility-backup bypass LSP (RFC 4090 Section 3.2): an LSP from this PLR to a merge point, explicitly routed to avoid the protected resource. A protected transit LSP is redirected onto this bypass on a local failure. The redirected LSP is one whose next hop (link protection) or next-next hop (node protection) is this bypass's merge point. RSVP-TE does not consume a traffic-engineering database or run CSPF to compute a backup path.
   - **explicit-route <index>** `list`: Bypass path hops (must avoid the protected resource)
-    Bypass path hops. The route has to avoid the link or the node this bypass protects, because a backup that crosses the protected resource fails with it. Ze has no IGP and no CSPF, so the operator gives the hops. The hops are ordered by the numeric index key.
+    Bypass path hops. The route has to avoid the link or the node this bypass protects, because a backup that crosses the protected resource fails with it. RSVP-TE does not run CSPF, so the operator supplies the hops. The hops are ordered by the numeric index key.
     - **address** `string`: Hop address (IPv4 prefix)
       Hop address, given as an IPv4 prefix such as 10.0.0.8/30. A commit that gives a bare address with no prefix length is rejected. The address and the prefix length both go into the ERO IPv4 prefix subobject of the bypass PATH.
     - **type** `enumeration`: Hop type (strict or loose)
@@ -5915,6 +6003,22 @@ RSVP-TE traffic engineering configuration. Signaling is IPv4 only. Without a rou
   Number of missed refreshes before state cleanup, 1 to 255, default 3. State expires when the last refresh is older than refresh-period multiplied by this number, which is 90 seconds at the defaults. Expiry releases the reserved bandwidth, the MPLS forwarding entry and the label, then sends an lsp-down event.
 - **refresh-period** `uint16`: PATH/RESV refresh interval (RFC 2205 soft-state)
   PATH and RESV refresh interval, 1 to 65535 seconds, default 30. The same 65535-second ceiling caps the period a neighbor advertises in TIME_VALUES. A neighbor therefore cannot hold state alive for years. A reload reaches the running LSPs at the next refresh tick.
+- **reservation-policy** `container`: Local reservation authorization by sender and tunnel endpoint
+  Local network-address authorization for RSVP reservations. Rules match the IPv4 sender in SENDER_TEMPLATE or FILTER_SPEC and the tunnel endpoint in SESSION. Authorization and bandwidth admission must both permit a reservation. This policy does not provide cryptographic user authentication or interpret POLICY_DATA objects.
+  - **default-action** `enumeration`: Action when no reservation rule matches
+    Action when no rule matches. The default is permit, so configurations without a reservation policy keep their existing authorization behavior.
+    - `deny`: Deny a reservation when no rule matches.
+    - `permit`: Permit a reservation when no rule matches.
+  - **rule <index>** `list`: Reservation authorization rule
+    Rules are evaluated by ascending numeric index. The first matching rule decides. Both configured prefixes must match. An omitted prefix matches every address; a rule with neither prefix matches every reservation.
+    - **action** `enumeration`: Authorization action for a matching reservation
+      Required authorization decision for a matching reservation. A permit still requires bandwidth admission.
+      - `deny`: Deny a reservation that matches this rule.
+      - `permit`: Permit a reservation that matches this rule.
+    - **endpoint-prefix** `string`: Tunnel endpoint IPv4 prefix
+      IPv4 prefix for the SESSION tunnel endpoint. A /32 matches one host and /0 matches every IPv4 endpoint. Host bits are masked before matching. Omit this leaf to match any tunnel endpoint.
+    - **sender-prefix** `string`: Sender IPv4 prefix
+      IPv4 prefix for the sender address. A /32 matches one host and /0 matches every IPv4 sender. Host bits are masked before matching. Omit this leaf to match any sender.
 - **router-id** `string`: Router identifier (IPv4 address format)
   Router identifier, in IPv4 address format. A commit that gives an IPv6 address is rejected. The address is the PATH sender address, the address the transport socket binds, and the seed of the session key each tunnel and bypass derives. A change after startup is logged and refused, and the running router-id stays in use until the daemon restarts.
 - **tunnel <name>** `list`: RSVP-TE LSP tunnel definition
@@ -5924,7 +6028,7 @@ RSVP-TE traffic engineering configuration. Signaling is IPv4 only. Without a rou
   - **destination** `string`: Tunnel endpoint (IPv4 address)
     Tunnel endpoint, an IPv4 address. The address is the SESSION tunnel endpoint the PATH carries. A node whose own router-id equals this address acts as the egress and answers with a RESV. Every other node on the path acts as a transit node.
   - **explicit-route <index>** `list`: Explicit route hops
-    Explicit route hops. The list becomes the ERO object the PATH carries (RFC 3209 Section 4.3). Ze has no IGP and no CSPF, so the operator gives every hop. A tunnel with no hop here is signaled with no ERO object. A commit that changes the list starts a make-before-break reroute.
+    Explicit route hops. The list becomes the ERO object the PATH carries (RFC 3209 Section 4.3). RSVP-TE does not run CSPF, so the operator supplies the hops. A tunnel with no hop here is signaled with no ERO object. A commit that changes the list starts a make-before-break reroute.
     - **address** `string`: Hop address (IPv4 prefix)
       Hop address, given as an IPv4 prefix such as 10.0.0.4/30. A commit that gives a bare address with no prefix length is rejected. The address and the prefix length both go into the ERO IPv4 prefix subobject.
     - **type** `enumeration`: Hop type (strict or loose)
@@ -6331,15 +6435,15 @@ The container holds the system-wide settings. This module attaches the local use
     - **timeout** `uint16`: Per-server request timeout in seconds
       The value bounds the wait for one answer from one server. Each wait after a miss doubles the one before it. The default 3 therefore waits 3 seconds, then 6, then 12, across the three transmissions the default retries allows. The range is 1 to 60 seconds. The time one login spends on RADIUS is capped at 2 minutes, whatever timeout and retries hold. The login then falls through to the local accounts.
   - **tacacs** `container`: TACACS+ server configuration (RFC 8907)
-    The TACACS+ backend joins the AAA chain at priority 100, in front of the local backend at priority 200. Ze builds the backend only where the server list holds one entry or more, so a container with no server leaves the chain unchanged. Authentication runs as soon as one server exists. The authorization leaf and the accounting leaf each turn on their own half.
-    - **accounting** `boolean`: Enable command execution accounting
-      Set it true and Ze sends an accounting record for each command a user runs. One background worker sends the records, so a slow server does not delay the command. The queue holds 64 records, and Ze counts each record it drops because the queue is full. That count is what shows a server which cannot keep up.
+    The TACACS+ backend joins the AAA chain at priority 100, in front of the local backend at priority 200. Ze builds the backend only where the server list holds one entry or more. Authorization or accounting selected without a server is a configuration error. Authentication runs as soon as one server exists. Authorization and accounting are selected independently. RFC 8907 Section 10.5 requires a network providing privacy, integrity and separation from other traffic. TACACS+ obfuscation and source-address selection do not provide those protections.
+    - **accounting** `boolean`: Enable accounting for every entered command
+      Set it true to account for every entered command, irrespective of its authorization method. A server is required. One worker sends START and STOP records from a bounded 64-record queue. A full queue delays command admission rather than losing a record; shutdown drains accepted records within the configured server timeout bounds. Transport failures are logged and do not deny command execution.
     - **authorization** `boolean`: Enable per-command TACACS+ authorization
-      The default false authorizes each command from the local profiles alone and sends the server nothing. Set it true and Ze sends an AUTHOR REQUEST for each command, with service=shell, cmd=<verb> and one cmd-arg for each argument (RFC 8907 Section 6). PASS_ADD and PASS_REPL run the command, and FAIL refuses it. Ze sends privilege level 1 on every one of these requests.
+      The default false authorizes each command from the local profiles alone and sends the server nothing. Set it true and Ze sends an AUTHOR REQUEST for each command, with service=shell, cmd=<verb> and one cmd-arg for each argument (RFC 8907 Section 6). PASS_ADD and PASS_REPL permit execution only when the effective arguments describe the original command and every mandatory policy can be enforced. FAIL refuses the command. Ze sends privilege level 1 on these requests.
     - **server <address>** `list`: TACACS+ servers, tried in configured order
       Ze tries the servers in the order you write them and moves to the next one when a connection or an exchange fails. The order is the config order, because the list is ordered-by user. Where every server fails, the AAA chain moves on to the local backend, so the local accounts still answer.
       - **key** `string`: Shared secret this server obfuscates its packets with
-        The key is the shared secret RFC 8907 Section 4.5 builds the MD5 pseudo-pad from, and both ends must hold the same value. A client with no secret has no conformant packet to send. Section 10.5.2 requires a shared secret and forbids a client to set TAC_PLUS_UNENCRYPTED_FLAG. Omitting the key refuses a commit, through the AAA rebuild rather than through the schema: a missing mandatory field is only a warning. At BOOT the same failure is logged and this backend is DROPPED from the chain. A user who exists locally still logs in, and the local profiles still govern the command. The leaf is marked sensitive, so every display path prints a placeholder. A $9$-encoded value written by hand is decoded on read, and the commit path writes back what you typed.
+        The key is the shared secret RFC 8907 Section 4.5 builds the MD5 pseudo-pad from, and both ends must hold the same value. A client with no secret has no conformant packet to send. Section 10.5.2 requires a shared secret and forbids a client to set TAC_PLUS_UNENCRYPTED_FLAG. Omitting the key refuses a commit, through the AAA rebuild rather than through the schema: a missing mandatory field is only a warning. At BOOT the same failure is logged and this backend is DROPPED from the chain. A user who exists locally still logs in, and the local profiles still govern the command. The leaf is sensitive, so display paths mask it. Keys of 32 characters or longer are supported. Use at least 16 characters; doctor warns about shorter keys. A $9$-encoded value is decoded on read; this is reversible obfuscation, not encryption. Protect configuration files, exports and backups as secrets.
       - **port** `uint16`: TCP port (default 49)
         Port 49 is the port IANA assigns to TACACS+, and RFC 8907 Section 3.4 names it. Ze opens one TCP connection to this port and reuses it where the server agrees to the single-connect flag. The type sets no lower bound, so a commit takes 0 and every connection to that server then fails.
     - **source-address** `ip-address`: Source IP for outbound TACACS+ connections
@@ -6347,11 +6451,11 @@ The container holds the system-wide settings. This module attaches the local use
     - **strict-fallback** `boolean`: Deny authorization when TACACS+ is unavailable instead of falling back to local RBAC
       The leaf decides one case: the server did not answer, or it answered ERROR or a status Ze does not know. The default false then authorizes the command from the local profiles, so a server outage does not lock the operator out. Set it true and Ze refuses the command instead. Neither value changes a FAIL from the server, which always refuses the command. The leaf reaches nothing while authorization is false.
     - **timeout** `uint16`: Per-server connection timeout in seconds
-      The value bounds two things for each server: the TCP connect, and the read of one exchange. Ze gives it to net.Dialer.Timeout and to the deadline of the connection. With four servers and the default 5, a full failover takes at most 20 seconds before the AAA chain reaches the local backend.
+      The value independently bounds a TCP connect and one request/reply exchange for each server. Servers are tried in order; a dead reused connection also permits one fresh connection attempt. Waiting for another exchange on a shared connection can add to this time.
   - **tacacs-profile <level>** `list`: Maps TACACS+ privilege level to ze authorization profile
     The list turns the privilege level Ze resolves for a session into the ze authorization profiles of that session. A level with no entry here denies the login, so this mapping is what grants access, and not the PASS from the server. Ze also removes a reserved profile name from the set, and a level that then resolves to nothing denies the login too.
     - **profile** `string[]`: Ze authorization profiles for this privilege level. At least one is required.
-      A level mapped to no profiles would authenticate the user and grant nothing. Authorization reads an empty profile set as 'no opinion' rather than 'deny'. To deny a privilege level, leave the level out of the mapping.
+      These local profiles govern the authenticated session. A missing, empty or all-reserved profile mapping denies login. To deny a privilege level, omit its mapping. Local command authorization denies when none of the named profiles exists in the local policy store.
   - **user <name>** `list`: Authenticated user (local)
     Authenticated user (local). Each entry is one local account. password carries the bcrypt hash the login compares against, and profile names the authorization profiles the account carries. A commit rejects an entry whose name is reserved for a built-in identity.
     - **password** `string`: Bcrypt-hashed password, in canonical form.
@@ -6847,7 +6951,7 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
         - `sha384`: HMAC-SHA-384-192 (RFC 4868).
         - `sha512`: HMAC-SHA-512-256 (RFC 4868).
   - **interface** `string`: WAN interface for IPsec traffic.
-    Commit refuses a name no interface on the host carries. The first IPv4 address of the interface fills the local-address of every peer that names none. It is also the address the IKE socket on port 500 and the NAT-T socket on port 4500 bind to. A reload whose interface holds no IPv4 address is refused, and the same case at startup runs and writes a warning.
+    Commit refuses a name no interface on the host carries. The first IPv4 address of the interface fills the local-address of every peer that names none. The IKE socket on port 500 binds there. The NAT-T socket on port 4500 also binds there unless live XFRM migration is available, when it listens on the wildcard and selects each SA's source address explicitly. A reload whose interface holds no IPv4 address is refused, and the same case at startup runs and writes a warning.
   - **policy <name>** `list`: Operator-authored Security Policy Database entry.
     An entry of the Security Policy Database that Ze installs directly, rather than one a Child SA negotiation produces. RFC 4301 Section 4.4.1 gives the database three dispositions: 'PROTECT, BYPASS, or DISCARD'. A peer under site-to-site produces the PROTECT entries, because those name a transform and a peer to negotiate it with. The other two name neither, so they are written here: BYPASS lets traffic cross the IPsec boundary in the clear, and DISCARD stops it at the boundary. Section 7.4 makes the discard disposition an obligation: 'All implementations MUST support DISCARDing of fragments using the normal SPD packet classification mechanisms.' This list is the management interface that Section 4.4.1 requires for it. Ze installs every entry when the configuration is applied and removes it when the entry leaves the configuration. An entry needs no peer, no key and no negotiation, so it is in force whether or not any tunnel is up.
     - **action** `enumeration`: What the entry does with the traffic its selector matches.
@@ -6979,6 +7083,10 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
         Encapsulation mode for this peer's Child SAs. RFC 7296 Section 1.3.1 states the default itself: 'Except when using this option to negotiate transport mode, all Child SAs will use tunnel mode.' Ze asks for transport mode by sending USE_TRANSPORT_MODE with the Child SA request, and the peer can decline. A declined request establishes a tunnel-mode Child SA unless transport-required is set. Transport mode constrains the traffic selectors. RFC 7296 Section 2.23.1 requires exactly one IP address in TSi and in TSr, so every traffic-selector prefix under this peer must be a single host, and a vti binding is refused because an XFRM interface carries tunnel encapsulation.
         - `transport`: Protect the payload and keep the outer IP header (RFC 4301 transport mode).
         - `tunnel`: Encapsulate the whole packet (RFC 4301 tunnel mode).
+      - **nat-traversal** `enumeration`: Whether this peer permits network address translation.
+        Allow preserves the existing NAT traversal policy. Prohibit rejects detected translation before establishing or migrating a Child SA. It includes NO_NATS_ALLOWED in the first IKE_AUTH request and every MOBIKE address update. NAT detection remains available to detect forbidden translation; supporting UDP 4500 does not override this policy. Changing the policy restarts the peer.
+        - `allow`: Allow translated paths and ESP-in-UDP when NAT is detected.
+        - `prohibit`: Reject translated paths and protect MOBIKE address updates.
       - **policy-priority** `uint32`: Rank of this peer's Security Policy Database entries, lowest searched first.
         Where this peer's Security Policy Database entries sit in the operator's ordering of that database. A LOWER value is searched FIRST, in Ze and in the Linux kernel. RFC 4301 Section 4.4.1: 'The ordering requirement arises because entries often will overlap due to the presence of (non-trivial) ranges as values for selectors. Thus, a user or administrator MUST be able to order the entries to express a desired access control policy.' The same section binds this interface: it 'MUST support (total) ordering of these entries, as seen via this interface'. Two peers whose traffic selectors overlap, 0.0.0.0/0 on both for example, describe the same traffic. Give the one that must win the lower value. Peers that share a value are ordered by whichever established last, which is what every peer did before this leaf existed, so the default 2000 keeps an unordered configuration installing exactly what it installed before. The range starts above 100, which is where the IKE control-plane bypass sits. A peer entry at or above that rank captures the IKE exchange that builds and rekeys the very SA it protects, and the tunnel could then never renegotiate. It ends at 2147483647, the largest rank Ze can carry to a dataplane.
       - **remote-address** `string`: Remote endpoint IPv4 address or DNS hostname.
@@ -7007,6 +7115,10 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
         The interface itself is declared under interfaces xfrm, where the if-id leaf carries the identifier a bound security association must match. Ze joins the two nowhere, so every Child SA is installed with if_id 0.
         - **bind** `string`: VTI interface name to bind this peer's traffic to.
           Route-based IPsec encrypts the traffic the routing table forwards into the named XFRM interface. Commit refuses a name beside mode transport, because an XFRM interface carries tunnel-mode encapsulation. No code maps the name to the if-id of that interface today. The Child SA is installed with if_id 0, and the binding carries no traffic.
+  - **unmatched** `enumeration`: Disposition of traffic no SPD entry matches: discard or bypass.
+    The disposition of the catch-all entry Ze installs last in the Security Policy Database, in every direction and for both address families. RFC 4301 Section 5: 'If no policy is found in the SPD that matches a packet (for either inbound or outbound traffic), the packet MUST be discarded.' The catch-all is that policy, so a packet no other entry names always meets one. The default is bypass, because a router's own control plane (BGP, SSH, DNS) crosses the IPsec boundary in the clear, and a default of discard would stop it the moment vpn ipsec was configured. Set discard to get the disposition the RFC names, and write a bypass entry under policy for every flow that must still cross in the clear. The IKE control plane keeps its own bypass at order 100 either way.
+    - `bypass`: Pass traffic no SPD entry matches in the clear.
+    - `discard`: Discard traffic no SPD entry matches (RFC 4301 Section 5).
 
 ## vpp
 
@@ -7041,7 +7153,7 @@ Ze reads this subtree at startup and writes /etc/vpp/startup.conf from it, then 
 - **enabled** `boolean`: Enable VPP integration, so Ze manages the VPP lifecycle.
   Enable VPP integration. When this leaf is true, Ze manages the VPP lifecycle. Ze generates startup.conf, binds the DPDK NICs, starts the VPP process, and connects through GoVPP.
 - **external** `boolean`: Let an external supervisor own the VPP process, false by default.
-  When this leaf is true, Ze does not exec or supervise the VPP process, generate startup.conf, or bind DPDK NICs. The external supervisor owns all of that. Ze only connects through GoVPP to api-socket. Use this leaf for systemd-managed VPP, for a container sidecar deployment, or for the `ze-test vpp` stub harness. The default is false, where Ze owns the VPP lifecycle.
+  When this leaf is true, Ze does not exec or supervise the VPP process, generate startup.conf, or bind DPDK NICs. The external supervisor owns all of that. Ze only connects through GoVPP to api-socket. Use this leaf for systemd-managed VPP, for a container sidecar deployment, or for the `le test vpp` stub harness. The default is false, where Ze owns the VPP lifecycle.
 - **lcp** `container`: Linux Control Plane plugin settings.
   Linux Control Plane plugin. The plugin creates TAP mirrors in Linux for VPP interfaces. A routing daemon such as ze BGP can then use Linux TCP on a VPP-managed NIC.
   - **auto-subint** `boolean`: Auto-create sub-TAPs for dot1q/QinQ sub-interfaces.

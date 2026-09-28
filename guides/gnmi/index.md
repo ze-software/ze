@@ -5,7 +5,7 @@ Ze includes a gNMI (gRPC Network Management Interface) server that exposes YANG-
 Default feature-tag lists include `ze_gnmi`. A custom minimal build that needs
 gNMI must include `-tags "ze_core ze_gnmi"`.
 <!-- source: feature-gates.txt -- ze_gnmi -->
-<!-- source: internal/le/featuretags/daemontags.go -- DaemonTags -->
+<!-- source: internal/le/repo/featuretags/daemontags.go -- DaemonTags -->
 <!-- source: cmd/ze/hub/gnmi_infra.go -- gnmiBuild -->
 <!-- source: internal/component/plugin/all/all_ze_gnmi.go -- gated gNMI imports -->
 

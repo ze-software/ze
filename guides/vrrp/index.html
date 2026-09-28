@@ -55,6 +55,7 @@ for it, the others wait. If the Active router dies, a Backup takes the address
 over, and the hosts on the segment never change their default gateway.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#ipv4-forwarding-and-redirects">IPv4 forwarding and redirects</a></li>
 <li><a href="#configuration">Configuration</a>
 <ol>
 <li><a href="#tracking-an-interface">Tracking an interface</a></li>
@@ -79,7 +80,7 @@ proven in production. See
 <a href="../../reference/rfcs/#first-hop-redundancy">RFC status</a>.</p>
 </blockquote>
 <p>The Docker interop lab runs the <code>vrrp-mastership-keepalived</code> scenario
-(<code>./le integration interop</code>). Ze at priority 200 and keepalived 2.3.1 at 100 contend
+(<code>./le test integration interop</code>). Ze at priority 200 and keepalived 2.3.1 at 100 contend
 for one virtual IP on a shared segment, VRID 10, VRRPv3 pinned on both sides
 (keepalived speaks v2 by default, and RFC 9568 Section 7.1 has a v3 router discard
 a v2 advertisement, so the two would never see each other). Every assertion reads
@@ -118,6 +119,18 @@ A compile-time check pins that path: a type assertion cannot report a break, so 
 break is a build error instead.</p>
 <!-- source: internal/plugins/vrrp/transport/transport.go -- AnnounceMaster, v6SourceWarmer -->
 <!-- source: internal/plugins/vrrp/transport/backend_linux.go -- warmV6Source, var _ v6SourceWarmer -->
+<h3 id="ipv4-forwarding-and-redirects">IPv4 forwarding and redirects</h3>
+<p>VRRP supplies the virtual gateway addresses and MACs; IPv4 forwarding must also
+be enabled for the router, including its virtual-MAC interfaces. A system-wide
+<code>net.ipv4.ip_forward=1</code> before group creation enables forwarding on those devices.</p>
+<p>When Linux emits an ICMP redirect for a packet sent to a virtual MAC, its source
+is that virtual router's VIP. Ze sets
+<code>net.ipv4.icmp_errors_use_inbound_ifaddr=1</code> while IPv4 groups exist so that the
+reverse route to a host cannot select the physical address or another group's
+VIP. This affects IPv4 ICMP error source selection throughout the network
+namespace. The prior value is restored when the last IPv4 group is removed;
+Ze does not disable redirects.</p>
+<!-- source: internal/plugins/vrrp/dataplane_linux.go -- globalDataplaneSysctls, applyDataplaneSysctls, revertDataplaneSysctls -->
 <h2 id="configuration">Configuration</h2>
 <p>A VRRP group lives under the interface unit's address family, next to the
 addresses it backs:</p>
@@ -396,18 +409,25 @@ installed with the parent's subnet prefix, and a small set of <code>arp_ignore</
 IP while letting the macvlan answer with the virtual MAC. This mirrors what
 keepalived's <code>use_vmac</code> does, and ze restores the sysctls it changed when the
 last group on an interface goes away. This behaviour is verified against
-keepalived under QEMU (<code>ze-test</code>'s VRRP interop lab).</p>
+keepalived under QEMU (<code>le test</code>'s VRRP interop lab).</p>
+<p>If Ze cannot read or set a required sysctl, the group does not start. It attempts
+to restore shared settings changed by that setup and reports both setup and
+restoration errors. Failed restores retain the original values even when no
+group started. A later config apply retries the affected restoration before
+setup; teardown also retries settings no longer held by an active group.</p>
 <p>A few consequences of this mechanism are worth knowing:</p>
 <ul>
 <li><strong>Ze owns the parent's <code>arp_ignore</code>, <code>arp_filter</code>, and <code>rp_filter</code> while a
 group is active.</strong> It re-asserts them on every config apply, so if you also set
 those knobs on the same interface unit, ze's values win for as long as VRRP
 runs there. Do not rely on a conflicting manual setting on a VRRP interface.</li>
-<li><strong><code>net.ipv4.conf.all.rp_filter</code> is set to 0</strong> (host-wide) while any IPv4 group
-is active, because a per-device <code>rp_filter</code> cannot go below the <code>all</code> value.
-Ze restores the previous value when the last group is removed, but a hard kill
-(SIGKILL, power loss) skips that cleanup and leaves it at 0. This matches
-keepalived, which never restores it.</li>
+<li><strong>Two namespace-wide settings stay changed while IPv4 groups exist.</strong>
+<code>net.ipv4.conf.all.rp_filter=0</code> lets the macvlan disable reverse-path filtering,
+and <code>net.ipv4.icmp_errors_use_inbound_ifaddr=1</code> selects the inbound virtual
+router's address for ICMP errors. Normal teardown attempts to restore both
+saved values; failures are logged and retain the originals for retry. SIGKILL
+skips cleanup and leaves the settings in place until the namespace is reset
+or an operator restores them.</li>
 <li><strong>The address owner is a special case.</strong> When the virtual IP equals a real
 address on the unit, that address already lives on the parent, so it keeps
 answering with the parent's real MAC (ze installs it as a host route on the
@@ -630,7 +650,7 @@ filters link-local multicast will break the election.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

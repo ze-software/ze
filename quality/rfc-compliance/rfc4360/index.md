@@ -102,8 +102,8 @@ No tracked gap in current source anchors.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC4360-6-1` | The Extended Communities attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops (§6) | MUST NOT | 6 - Operations | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's best-path decision (internal/component/bgp/plugins/rib/bestpath.go) selects on the RFC 4271 tie-breakers only -- LOCAL_PREF, AS_PATH length, ORIGIN, MED, ..., Router ID -- and never reads the Extended Communities attribute, so there is no ext-comm-driven path selection that could create a forwarding loop |
-| `RFC4360-7-1` | The value allocated for a regular Type MUST NOT be reused as the high-order octet when allocating an extended Type (§7) | MUST NOT | 7 - IANA Considerations | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this constrains the IANA Extended Community type-code registry allocation, not a BGP implementation; ze consumes registry type codes and does not allocate them |
+| `RFC4360-6-1` | The Extended Community attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops. (§6) | MUST NOT | 6 - Operations | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's best-path decision (internal/component/bgp/plugins/rib/bestpath.go) selects on the RFC 4271 tie-breakers only -- LOCAL_PREF, AS_PATH length, ORIGIN, MED, ..., Router ID -- and never reads the Extended Communities attribute, so there is no ext-comm-driven path selection that could create a forwarding loop |
+| `RFC4360-7-1` | The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7) | MUST NOT | 7 - IANA Considerations | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this constrains the IANA Extended Community type-code registry allocation, not a BGP implementation; ze consumes registry type codes and does not allocate them |
 | `RFC4360-7-2` | The value of the high-order octet allocated for an extended Type MUST NOT be reused when allocating a regular Type (§7) | MUST NOT | 7 - IANA Considerations | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** same as 7-1 -- an IANA type-allocation rule on the registry, not implementation behavior; ze does not allocate Extended Community type codes |
 | `RFC4360-2-1` | Two extended communities are equal only when all 8 octets are equal (§2) | MUST | 2 - BGP Extended Communities Attribute | **positive:** `unit/verify` [`TestExtendedCommunityEquality`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L297). **negative:** `unit/verify` [`TestExtendedCommunityEquality`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L299) |
 | `RFC4360-x-1` | Attribute length MUST be a multiple of 8 octets (Encoding Rules) | MUST | x | **positive:** `unit/verify` [`TestExtendedCommunitiesParse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L277). **negative:** `unit/verify` [`TestExtendedCommunitiesParseRejectsBadLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L287) |
@@ -117,8 +117,8 @@ No tracked gap in current source anchors.
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC4360-6-1`](#rfc4360-6-1) The Extended Communities attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops (§6) | no test | no test carries this requirement id; annotated {not-applicable}: ze's best-path decision (internal/component/bgp/plugins/rib/bestpath.go) selects on the RFC 4271 tie-breakers only -- LOCAL_PREF, AS_PATH length, ORIGIN, MED, ..., Router ID -- and never reads the Extended Communities attribute, so there is no ext-comm-driven path selection that could create a forwarding loop |
-| [`RFC4360-7-1`](#rfc4360-7-1) The value allocated for a regular Type MUST NOT be reused as the high-order octet when allocating an extended Type (§7) | no test | no test carries this requirement id; annotated {not-applicable}: this constrains the IANA Extended Community type-code registry allocation, not a BGP implementation; ze consumes registry type codes and does not allocate them |
+| [`RFC4360-6-1`](#rfc4360-6-1) The Extended Community attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops. (§6) | no test | no test carries this requirement id; annotated {not-applicable}: ze's best-path decision (internal/component/bgp/plugins/rib/bestpath.go) selects on the RFC 4271 tie-breakers only -- LOCAL_PREF, AS_PATH length, ORIGIN, MED, ..., Router ID -- and never reads the Extended Communities attribute, so there is no ext-comm-driven path selection that could create a forwarding loop |
+| [`RFC4360-7-1`](#rfc4360-7-1) The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7) | no test | no test carries this requirement id; annotated {not-applicable}: this constrains the IANA Extended Community type-code registry allocation, not a BGP implementation; ze consumes registry type codes and does not allocate them |
 | [`RFC4360-7-2`](#rfc4360-7-2) The value of the high-order octet allocated for an extended Type MUST NOT be reused when allocating a regular Type (§7) | no test | no test carries this requirement id; annotated {not-applicable}: same as 7-1 -- an IANA type-allocation rule on the registry, not implementation behavior; ze does not allocate Extended Community type codes |
 | [`RFC4360-x-2`](#rfc4360-x-2) Non-supporting peers MUST pass the attribute unchanged (RFC 4271 behavior for optional transitive) (Compatibility) | no test | no test carries this requirement id; annotated {not-applicable}: this governs a speaker that does NOT support Extended Communities passing the optional-transitive attribute through unchanged (RFC 4271); ze supports the attribute -- it parses and re-encodes it, ExtendedCommunities.Flags is optional-transitive (internal/core/bgp/attribute/community.go:244) -- so ze is a supporting speaker, and the general RFC 4271 optional-transitive pass-through is tracked under RFC 4271/7606 |
 
@@ -128,7 +128,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC4360-6-1`](#rfc4360-6-1)
 
-The Extended Communities attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops (§6)
+The Extended Community attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops. (§6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -136,7 +136,7 @@ No test carries RFC4360-6-1, so no unit is bound to it.
 
 ### [`RFC4360-7-1`](#rfc4360-7-1)
 
-The value allocated for a regular Type MUST NOT be reused as the high-order octet when allocating an extended Type (§7)
+The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7)
 
 Audit verdict: not audited: no reader has judged these tests
 

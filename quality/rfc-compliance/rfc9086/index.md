@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0.0% | 0 of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 72.7% | 8 of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 9.1% | 1 of 11 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 1 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 94.1% | 16 of 17 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -33,7 +33,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 90.9% | 10 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 18.2% | 2 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -62,65 +62,63 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 20 |
 | Gated MUST-level | 11 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 9 |
-| Gated with no test | 1 |
+| Declared gaps | 2 |
+| Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 1 |
-| Tagged units | 1 |
+| Test tags | 17 |
+| Tagged units | 17 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 16 |
 | Summary | `rfc/short/rfc9086.md` |
 | Requirement shard | `rfc/requirements/rfc9086.md` |
 | RFC text | `rfc/full/rfc9086.txt` |
 
 ## Enrolment
 
-Enrolled: BGP-LS Egress Peer Engineering SIDs: 2 single-polarity positive (reserved ignored on receipt) + 10 gap (EPE SID origination not implemented; decode only)
+Enrolled: BGP-LS Egress Peer Engineering SID decoding and native PeerNode SID origination from configured local SRGB assignments and established BGP sessions.
 
 ## What the public ledger says
 
 **Status:** Partial
 
-**What the ledger says is covered:**
+**What the ledger says is covered**
 
-- PeerNode/Adj/Set SID TLVs (1101-1103) and BGP Router-ID (516) / Member-ASN (517) node descriptors decode as part of BGP-LS TLV coverage
-- reserved fields ignored on receipt.
+PeerNode/Adj/Set SID TLVs and BGP Router-ID/Member-ASN descriptors decode. The native `bgp-epe` producer installs configured PeerNode labels through the MPLS FIB owner, waits for installation acknowledgement, and publishes live session identities with its SRGB. `bgp-ls-export` advertises that state and withdraws replaced or removed identities.
 
+**What the ledger says remains:**
 
-**What the ledger says remains**
-
-EPE SID origination is not implemented: no code instantiates PeerNode/Adj/Set SIDs from live sessions, the BGP-LS plugin registers decode mode only, and there is no config surface to enable or disable EPE advertisement. Same BGP-LS encode gap as RFC 7752.
+PeerAdj and PeerSet segment assignment are not implemented. Native EPE uses persistent operator-assigned indices, not three-octet label assignments. Centralized runtime verification and discrimination of the new producer remain required.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the gated population |
-| Annotated instead of tested | 10 | one part of the gated population |
+| Positive and negative tests | 8 | one part of the gated population |
+| Annotated instead of tested | 3 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 1 | one part of the gated population |
+| No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
 
-**Annotated instead of tested (10):** [`RFC9086-3-1`](#rfc9086-3-1), [`RFC9086-3-2`](#rfc9086-3-2), [`RFC9086-4.2-1`](#rfc9086-4.2-1), [`RFC9086-4.2-2`](#rfc9086-4.2-2), [`RFC9086-5-1`](#rfc9086-5-1), [`RFC9086-5.2-1`](#rfc9086-5.2-1), [`RFC9086-5-2`](#rfc9086-5-2), [`RFC9086-5-3`](#rfc9086-5-3), [`RFC9086-7-1`](#rfc9086-7-1), [`RFC9086-5-5`](#rfc9086-5-5)
+**Positive and negative tests (8):** [`RFC9086-3-1`](#rfc9086-3-1), [`RFC9086-3-2`](#rfc9086-3-2), [`RFC9086-4.2-1`](#rfc9086-4.2-1), [`RFC9086-4.2-2`](#rfc9086-4.2-2), [`RFC9086-5-1`](#rfc9086-5-1), [`RFC9086-5-3`](#rfc9086-5-3), [`RFC9086-5-10`](#rfc9086-5-10), [`RFC9086-7-1`](#rfc9086-7-1)
 
-**No test and no annotation (1):** [`RFC9086-5-10`](#rfc9086-5-10)
+**Annotated instead of tested (3):** [`RFC9086-5.2-1`](#rfc9086-5.2-1), [`RFC9086-5-2`](#rfc9086-5-2), [`RFC9086-5-5`](#rfc9086-5-5)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC9086-3-1` | Each BGP session MUST be described by a PeerNode SID (S3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze decodes PeerNode SID TLVs but no production code instantiates a PeerNode SID from a live BGP session (decoder internal/component/bgp/plugins/nlri/ls/attr_link.go:554; no non-test caller of the encoder) |
-| `RFC9086-3-2` | One PeerNode SID MUST be instantiated to describe the BGP peer session (S3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the Peer SID encoder exists but nothing instantiates one per session in any production path; the plugin registers decode only (internal/component/bgp/plugins/nlri/ls/attr_link.go:517, plugin.go:70-71) |
-| `RFC9086-4.2-1` | BGP Router-ID (TLV 516) and ASN (TLV 512) MUST be included as Local Node Descriptors (S4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the NodeDescriptor encoder emits TLV 516/512 but no origination path builds an EPE Link NLRI to carry them (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:101, :116) |
-| `RFC9086-4.2-2` | BGP Router-ID (TLV 516) and ASN (TLV 512) MUST be included as Remote Node Descriptors (S4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the same encoder covers remote descriptors, but no origination path constructs the NLRI for a live peer (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:98-128) |
-| `RFC9086-5-1` | BGP router MUST include PeerNode SID TLV in BGP-LS Attribute when EPE enabled (S5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** there is no EPE-enable path and the BGP-LS plugin never encodes or advertises the attribute (internal/component/bgp/plugins/nlri/ls/attr_link.go:517, plugin.go:70-71) |
+| `RFC9086-3-1` | Each BGP session MUST be described by a PeerNode SID (S3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC9086NativePeerIndexAdvertisesSRGB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L89). **negative:** `unit/verify` [`TestRFC9086NativeLinkWithoutPeerNodeRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L195) |
+| `RFC9086-3-2` | One PeerNode SID MUST be instantiated to describe the BGP peer session (S3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC9086NativePeerIndexAdvertisesSRGB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L90). **negative:** `unit/verify` [`TestRFC9086NativeRepeatedUpKeepsOnePeerNodeSID`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L211) |
+| `RFC9086-4.2-1` | BGP Router-ID (TLV 516) and ASN (TLV 512) MUST be included as Local Node Descriptors (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC9086NativePeerIndexAdvertisesSRGB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L92). **negative:** `unit/verify` [`TestRFC9086NativePeerRequiresNodeIdentities`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L184) |
+| `RFC9086-4.2-2` | BGP Router-ID (TLV 516) and ASN (TLV 512) MUST be included as Remote Node Descriptors (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC9086NativePeerIndexAdvertisesSRGB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L93). **negative:** `unit/verify` [`TestRFC9086NativePeerRequiresNodeIdentities`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L185) |
+| `RFC9086-5-1` | When enabled for Egress Peer Engineering, the BGP router MUST include the PeerNode SID TLV in the BGP-LS Attribute for the BGP-LS Link NLRI corresponding to its BGP peering sessions. (S5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC9086NativePeerIndexAdvertisesSRGB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L91). **negative:** `unit/verify` [`TestRFC9086NativeLinkWithoutPeerNodeRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L196) |
 | `RFC9086-5.2-1` | Link Local/Remote Identifiers (TLV 258) MUST be included in Link Descriptors for PeerAdj SID (S5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** LinkDescriptor.WriteTo emits TLV 258 but no origination path builds a PeerAdj SID advertisement (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:203-206) |
 | `RFC9086-5-2` | V-Flag and L-Flag MUST be SET for 3-octet local label encoding (S5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder writes the Flags byte verbatim and never originates a label-encoded SID, so no path sets V/L (internal/component/bgp/plugins/nlri/ls/attr_link.go:521) |
-| `RFC9086-5-3` | Reserved bits in Flags MUST be zero when originated (S5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no production path originates Peer SIDs and the encoder writes Flags unmasked (internal/component/bgp/plugins/nlri/ls/attr_link.go:521) |
-| `RFC9086-5-10` | When the SID/Index/Label field carries a 4-octet index into the Segment Routing Global Block, "the SRGB MUST be advertised using the extensions defined in [RFC9085]" (S5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9086-7-1` | Operator MUST be provided with options to configure, enable, and disable the advertisement (S7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the BGP-LS plugin augments no config schema; no YANG or CLI surface enables or disables EPE advertisement (internal/component/bgp/plugins/nlri/ls/plugin.go:94-96) |
+| `RFC9086-5-3` | - Rsvd bits: Reserved for future use and MUST be zero when originated and ignored when received. (S5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC9086NativePeerSIDReservedFlagsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L254). **negative:** `unit/verify` [`TestRFC9086NativePeerSIDReservedFlagsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L257) |
+| `RFC9086-5-10` | When the SID/Index/Label field carries a 4-octet index into the Segment Routing Global Block, "the SRGB MUST be advertised using the extensions defined in [RFC9085]" (S5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC9086NativePeerIndexAdvertisesSRGB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L88). **negative:** `unit/verify` [`TestRFC9086NativePeerIndexRequiresSRGB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L132) |
+| `RFC9086-7-1` | The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer. (S7) | MUST | 7 | **positive:** `unit/verify` [`TestRFC9086NativeConfigurationEnableDisable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L210). **negative:** `unit/verify` [`TestRFC9086NativeConfigurationEnableDisable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L211) |
 | `RFC9086-5-5` | Reserved bits in Flags ignored when received (S5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC9086PeerSIDIgnoresReservedFields`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L854). **negative:** no negative test. **{single-polarity}:** decodePeerSID reads Flags without branching on reserved bits and never rejects on them, so only a positive test is meaningful (internal/component/bgp/plugins/nlri/ls/attr_link.go:559-572) |
 | `RFC9086-5-7` | PeerNode SID, PeerAdj SID, PeerSet SID values SHOULD be persistent across router restart (S5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9086-3-3` | BGP router SHOULD NOT instantiate BGP Peering SID for IBGP sessions to route reflectors not in forwarding path (S3) | SHOULD NOT | 3 | **positive:** no positive test. **negative:** no negative test |
@@ -136,16 +134,8 @@ EPE SID origination is not implemented: no code instantiates PeerNode/Adj/Set SI
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC9086-3-1`](#rfc9086-3-1) Each BGP session MUST be described by a PeerNode SID (S3) | {gap}, no test | ze decodes PeerNode SID TLVs but no production code instantiates a PeerNode SID from a live BGP session (decoder internal/component/bgp/plugins/nlri/ls/attr_link.go:554; no non-test caller of the encoder) |
-| [`RFC9086-3-2`](#rfc9086-3-2) One PeerNode SID MUST be instantiated to describe the BGP peer session (S3) | {gap}, no test | the Peer SID encoder exists but nothing instantiates one per session in any production path; the plugin registers decode only (internal/component/bgp/plugins/nlri/ls/attr_link.go:517, plugin.go:70-71) |
-| [`RFC9086-4.2-1`](#rfc9086-4.2-1) BGP Router-ID (TLV 516) and ASN (TLV 512) MUST be included as Local Node Descriptors (S4.2) | {gap}, no test | the NodeDescriptor encoder emits TLV 516/512 but no origination path builds an EPE Link NLRI to carry them (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:101, :116) |
-| [`RFC9086-4.2-2`](#rfc9086-4.2-2) BGP Router-ID (TLV 516) and ASN (TLV 512) MUST be included as Remote Node Descriptors (S4.2) | {gap}, no test | the same encoder covers remote descriptors, but no origination path constructs the NLRI for a live peer (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:98-128) |
-| [`RFC9086-5-1`](#rfc9086-5-1) BGP router MUST include PeerNode SID TLV in BGP-LS Attribute when EPE enabled (S5) | {gap}, no test | there is no EPE-enable path and the BGP-LS plugin never encodes or advertises the attribute (internal/component/bgp/plugins/nlri/ls/attr_link.go:517, plugin.go:70-71) |
 | [`RFC9086-5.2-1`](#rfc9086-5.2-1) Link Local/Remote Identifiers (TLV 258) MUST be included in Link Descriptors for PeerAdj SID (S5.2) | {gap}, no test | LinkDescriptor.WriteTo emits TLV 258 but no origination path builds a PeerAdj SID advertisement (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:203-206) |
 | [`RFC9086-5-2`](#rfc9086-5-2) V-Flag and L-Flag MUST be SET for 3-octet local label encoding (S5) | {gap}, no test | the encoder writes the Flags byte verbatim and never originates a label-encoded SID, so no path sets V/L (internal/component/bgp/plugins/nlri/ls/attr_link.go:521) |
-| [`RFC9086-5-3`](#rfc9086-5-3) Reserved bits in Flags MUST be zero when originated (S5) | {gap}, no test | no production path originates Peer SIDs and the encoder writes Flags unmasked (internal/component/bgp/plugins/nlri/ls/attr_link.go:521) |
-| [`RFC9086-5-10`](#rfc9086-5-10) When the SID/Index/Label field carries a 4-octet index into the Segment Routing Global Block, "the SRGB MUST be advertised using the extensions defined in [RFC9085]" (S5) | no test | no test carries this requirement id |
-| [`RFC9086-7-1`](#rfc9086-7-1) Operator MUST be provided with options to configure, enable, and disable the advertisement (S7) | {gap}, no test | the BGP-LS plugin augments no config schema; no YANG or CLI surface enables or disables EPE advertisement (internal/component/bgp/plugins/nlri/ls/plugin.go:94-96) |
 
 ## Proof state
 
@@ -157,7 +147,10 @@ Each BGP session MUST be described by a PeerNode SID (S3)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9086-3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9086NativeLinkWithoutPeerNodeRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L195) | unit/verify | revert, verified |
+| positive | [`TestRFC9086NativePeerIndexAdvertisesSRGB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L89) | unit/verify | revert, verified |
 
 ### [`RFC9086-3-2`](#rfc9086-3-2)
 
@@ -165,7 +158,10 @@ One PeerNode SID MUST be instantiated to describe the BGP peer session (S3)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9086-3-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9086NativeRepeatedUpKeepsOnePeerNodeSID`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L211) | unit/verify | revert, verified |
+| positive | [`TestRFC9086NativePeerIndexAdvertisesSRGB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L90) | unit/verify | revert, verified |
 
 ### [`RFC9086-4.2-1`](#rfc9086-4.2-1)
 
@@ -173,7 +169,10 @@ BGP Router-ID (TLV 516) and ASN (TLV 512) MUST be included as Local Node Descrip
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9086-4.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9086NativePeerRequiresNodeIdentities`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L184) | unit/verify | revert, verified |
+| positive | [`TestRFC9086NativePeerIndexAdvertisesSRGB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L92) | unit/verify | revert, verified |
 
 ### [`RFC9086-4.2-2`](#rfc9086-4.2-2)
 
@@ -181,15 +180,21 @@ BGP Router-ID (TLV 516) and ASN (TLV 512) MUST be included as Remote Node Descri
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9086-4.2-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9086NativePeerRequiresNodeIdentities`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L185) | unit/verify | revert, verified |
+| positive | [`TestRFC9086NativePeerIndexAdvertisesSRGB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L93) | unit/verify | revert, verified |
 
 ### [`RFC9086-5-1`](#rfc9086-5-1)
 
-BGP router MUST include PeerNode SID TLV in BGP-LS Attribute when EPE enabled (S5)
+When enabled for Egress Peer Engineering, the BGP router MUST include the PeerNode SID TLV in the BGP-LS Attribute for the BGP-LS Link NLRI corresponding to its BGP peering sessions. (S5)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9086-5-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9086NativeLinkWithoutPeerNodeRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L196) | unit/verify | revert, verified |
+| positive | [`TestRFC9086NativePeerIndexAdvertisesSRGB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L91) | unit/verify | revert, verified |
 
 ### [`RFC9086-5.2-1`](#rfc9086-5.2-1)
 
@@ -209,11 +214,14 @@ No test carries RFC9086-5-2, so no unit is bound to it.
 
 ### [`RFC9086-5-3`](#rfc9086-5-3)
 
-Reserved bits in Flags MUST be zero when originated (S5)
+- Rsvd bits: Reserved for future use and MUST be zero when originated and ignored when received. (S5)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9086-5-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9086NativePeerSIDReservedFlagsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L257) | unit/verify | revert, verified |
+| positive | [`TestRFC9086NativePeerSIDReservedFlagsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L254) | unit/verify | revert, verified |
 
 ### [`RFC9086-5-10`](#rfc9086-5-10)
 
@@ -221,15 +229,21 @@ When the SID/Index/Label field carries a 4-octet index into the Segment Routing 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9086-5-10, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9086NativePeerIndexRequiresSRGB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L132) | unit/verify | revert, verified |
+| positive | [`TestRFC9086NativePeerIndexAdvertisesSRGB`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L88) | unit/verify | revert, verified |
 
 ### [`RFC9086-7-1`](#rfc9086-7-1)
 
-Operator MUST be provided with options to configure, enable, and disable the advertisement (S7)
+The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer. (S7)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9086-7-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9086NativeConfigurationEnableDisable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L211) | unit/verify | revert, verified |
+| positive | [`TestRFC9086NativeConfigurationEnableDisable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go#L210) | unit/verify | revert, verified |
 
 ### [`RFC9086-5-5`](#rfc9086-5-5)
 

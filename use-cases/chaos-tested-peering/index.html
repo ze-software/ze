@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Use case</span>
     <h1 id="chaos-tested-bgp-peering">Chaos-Tested BGP Peering</h1>
-    <p>Use <code>ze-chaos</code> before deployment to prove that a peer configuration converges, survives selected faults, and produces a reproducible failure record when it does not.</p>
+    <p>Use <code>le chaos run</code> before deployment to prove that a peer configuration converges, survives selected faults, and produces a reproducible failure record when it does not.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#start-from-a-validated-peer">Start from a validated peer</a></li>
@@ -64,18 +64,18 @@
 This sequence first makes the configuration inspectable, validates it, then
 runs the same four-peer shape:</p>
 <pre><code class="language-console">mkdir -p evidence/seed-42
-ze-chaos --config-only --seed 42 --peers 4 --config-out evidence/seed-42/ze.conf
+./le chaos run --config-only --seed 42 --peers 4 --config-out evidence/seed-42/ze.conf
 ze config validate evidence/seed-42/ze.conf
-ze-chaos --event-log evidence/seed-42/run.ndjson --seed 42 --peers 4 --duration 60s
+./le chaos run --event-log evidence/seed-42/run.ndjson --seed 42 --peers 4 --duration 60s
 </code></pre>
 <p>For a deterministic in-process run that also varies route activity:</p>
-<pre><code class="language-console">ze-chaos --in-process --event-log evidence/seed-42/in-process.ndjson --seed 42 --duration 60s --chaos-rate 0.1 --route-rate 0.05
+<pre><code class="language-console">./le chaos run --in-process --event-log evidence/seed-42/in-process.ndjson --seed 42 --duration 60s --chaos-rate 0.1 --route-rate 0.05
 </code></pre>
 <p>Replay the captured run before accepting the result:</p>
-<pre><code class="language-console">ze-chaos --replay evidence/seed-42/run.ndjson
+<pre><code class="language-console">./le chaos run --replay evidence/seed-42/run.ndjson
 </code></pre>
 <p>If replay preserves a failure, reduce it to the smallest event sequence:</p>
-<pre><code class="language-console">ze-chaos --shrink evidence/seed-42/run.ndjson
+<pre><code class="language-console">./le chaos run --shrink evidence/seed-42/run.ndjson
 </code></pre>
 <p>Keep <code>ze.conf</code>, the event logs, the seed, the Ze version, and the final command
 output as one evidence bundle. See the
@@ -107,8 +107,8 @@ and dashboard modes.</p>
 <p>Run one fault class at a time before combining them. This keeps failures attributable and makes shrinking more effective.</p>
 <h2 id="replay-and-shrink">Replay and shrink</h2>
 <p>When a scenario fails:</p>
-<pre><code class="language-console">ze-chaos --replay run.ndjson
-ze-chaos --shrink run.ndjson
+<pre><code class="language-console">./le chaos run --replay run.ndjson
+./le chaos run --shrink run.ndjson
 </code></pre>
 <p>Replay proves the failure is deterministic. Shrink removes unrelated events until the smallest useful reproduction remains. Keep the seed, event log, configuration, binary version, and final report together.</p>
 <h2 id="deployment-gate">Deployment gate</h2>
@@ -156,7 +156,7 @@ ze-chaos --shrink run.ndjson
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

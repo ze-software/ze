@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7684 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7684: OSPFv2 Prefix/Link Attribute Advertisement. 9 gated MUST-level requirements, 0 declared gaps, 1 with no test." />
+        <meta name="description" content="RFC 7684: OSPFv2 Prefix/Link Attribute Advertisement. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 7684 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7684: OSPFv2 Prefix/Link Attribute Advertisement. 9 gated MUST-level requirements, 0 declared gaps, 1 with no test." />
+        <meta property="og:description" content="RFC 7684: OSPFv2 Prefix/Link Attribute Advertisement. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7684 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7684: OSPFv2 Prefix/Link Attribute Advertisement. 9 gated MUST-level requirements, 0 declared gaps, 1 with no test." />
+        <meta name="twitter:description" content="RFC 7684: OSPFv2 Prefix/Link Attribute Advertisement. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,10 +116,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>55.6%</strong><b>5 of 9 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>66.7%</strong><b>6 of 9 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 15 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -129,11 +130,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>33.3%</strong><b>3 of 9 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>11.1%</strong><b>1 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -163,7 +159,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -215,16 +211,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>1</td>
+<td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>13</td>
+<td>15</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>13</td>
+<td>15</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
@@ -246,7 +242,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: OSPFv2 Prefix/Link Attribute Advertisement (Extended Prefix and Extended Link Opaque LSAs): eight MUST-level requirements, all met (five with positive+negative test tags, three not-applicable). 2.1-1 (clear the N-flag for non-host prefixes, keep it for /32 hosts), 2.1-2 (an inter-area host /32 keeps the N-flag), 2.1-3 (route type selects the LSA flooding scope), 3.1-1 (one Extended Link TLV per link; on receipt use the first and count extras), and 5-1 (bounds-checked TLV parsing returns an error, never panics, and counts and drops overruns) carry positive+negative tags in internal/plugins/ospf and internal/plugins/ospf/packet. 4-1 (carry backward-compatible empty containers) is {not-applicable}: it directs downstream application specifications (for example RFC 8665) rather than a ze wire behavior. 6.5-1 and 6.5-2 are {not-applicable}: they are IANA registry allocation and documentation policy, not ze code behavior.</p>
+<p>Enrolled: OSPFv2 Extended Prefix and Extended Link Opaque LSAs. Ze implements the container codecs, prefix flags, flooding-scope selection and receive-side malformed-LSA rejection. The checklist names the requirement producers; tagged tests cover their stated outcomes, including router ingress for RFC7684-5-3. Codec-only malformed-body tests do not establish the storage, acknowledgement or flooding prohibition.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Experimental</p>
@@ -261,7 +257,7 @@ Same OSPF experimental status.
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>5</strong></td>
+<td><strong>6</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -273,7 +269,7 @@ Same OSPF experimental status.
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>1</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -288,25 +284,24 @@ Same OSPF experimental status.
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc7684-2.1-1"><code>RFC7684-2.1-1</code></a>, <a href="#rfc7684-2.1-2"><code>RFC7684-2.1-2</code></a>, <a href="#rfc7684-2.1-3"><code>RFC7684-2.1-3</code></a>, <a href="#rfc7684-3.1-1"><code>RFC7684-3.1-1</code></a>, <a href="#rfc7684-5-1"><code>RFC7684-5-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (6):</strong> <a href="#rfc7684-5-3"><code>RFC7684-5-3</code></a>, <a href="#rfc7684-2.1-1"><code>RFC7684-2.1-1</code></a>, <a href="#rfc7684-2.1-2"><code>RFC7684-2.1-2</code></a>, <a href="#rfc7684-2.1-3"><code>RFC7684-2.1-3</code></a>, <a href="#rfc7684-3.1-1"><code>RFC7684-3.1-1</code></a>, <a href="#rfc7684-5-1"><code>RFC7684-5-1</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (3):</strong> <a href="#rfc7684-4-1"><code>RFC7684-4-1</code></a>, <a href="#rfc7684-6.5-1"><code>RFC7684-6.5-1</code></a>, <a href="#rfc7684-6.5-2"><code>RFC7684-6.5-2</code></a></p>
-<p class="rfc-id-list"><strong>No test and no annotation (1):</strong> <a href="#rfc7684-5-3"><code>RFC7684-5-3</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-5-3">RFC7684-5-3</code></td><td colspan="3"><span class="rfc-subject">Malformed LSAs (TLV/sub-TLV overruns subsuming LSA/TLV/sub-TLV, or trailing data smaller than a TLV header) MUST NOT be stored in the LSDB, acknowledged, or reflooded (§5). Ze (spec-ospf-ext-4) detects the malformed body in the Extended Prefix/Link consumer, counts it (`ze_ospf_ext_malformed_total`), and applies no attribute from it; the RFC 5250 opaque carrier (ext-1, consumed unmodified) still stores/refloods the raw opaque bytes by scope, so the &#34;not stored/reflooded&#34; aspect at the carrier would require an ext-1 pre-install validation hook (out of scope here).</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-5-3">RFC7684-5-3</code></td><td colspan="3"><span class="rfc-subject">Malformed LSAs (TLV/sub-TLV overruns subsuming LSA/TLV/sub-TLV, or trailing data smaller than a TLV header) MUST NOT be stored in the LSDB, acknowledged, or reflooded (§5). `opaque.go:wireOpaqueDelivery` installs `ext.go:validateExtLSA` through `lsdb.SetReceiveValidator`; `lsdb.ReceiveUpdate` invokes it before every scope, self-originated and MaxAge branch. `packet.ValidateExtLSABody` checks top-level and nested framing without allocating attributes, including duplicate containers. Rejection increments `ze_ospf_ext_malformed_total`. `TestExtIngressMalformedDiscard` and `TestExtIngressValidCarriage` exercise the router dispatcher, LSDB and emitted acknowledgement/flood packets. Unknown opaque applications retain carrier behaviour.</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7684-5-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_receive_test.go#L198" title="internal/plugins/ospf/ext_receive_test.go" target="_blank" rel="noopener"><code>TestExtIngressValidCarriage</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_receive_test.go#L135" title="internal/plugins/ospf/ext_receive_test.go" target="_blank" rel="noopener"><code>TestExtIngressMalformedDiscard</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-1">RFC7684-2.1-1</code></td><td colspan="3"><span class="rfc-subject">If the N-Flag is set and the prefix length is not a host prefix, the flag MUST be ignored (§2.1) -- `extNormalizeFlags` clears it on receive</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-2.1-1">RFC7684-2.1-1</code></td><td colspan="3"><span class="rfc-subject">If the flag is set and the prefix length is not a host prefix, then the flag MUST be ignored. (§2.1) -- `extNormalizeFlags` clears it on receive</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
@@ -342,7 +337,7 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/ext_link_test.go#L74" title="internal/plugins/ospf/packet/ext_link_test.go" target="_blank" rel="noopener"><code>TestExtLinkSingleTLVEnforced</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-4-1">RFC7684-4-1</code></td><td colspan="3"><span class="rfc-subject">Future OSPFv2 applications utilizing these extensions MUST address backward compatibility of the corresponding functionality (§4) -- containers only; empty-container LSAs are conformant, sub-TLV values left to RFC 8665</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7684-4-1">RFC7684-4-1</code></td><td colspan="3"><span class="rfc-subject">However, future OSPFv2 applications utilizing these extensions MUST address backward compatibility of the corresponding functionality. (§4) -- containers only; empty-container LSAs are conformant, sub-TLV values left to RFC 8665</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -489,11 +484,7 @@ Same OSPF experimental status.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc7684-5-3"><code>RFC7684-5-3</code></a> Malformed LSAs (TLV/sub-TLV overruns subsuming LSA/TLV/sub-TLV, or trailing data smaller than a TLV header) MUST NOT be stored in the LSDB, acknowledged, or reflooded (§5). Ze (spec-ospf-ext-4) detects the malformed body in the Extended Prefix/Link consumer, counts it (`ze_ospf_ext_malformed_total`), and applies no attribute from it; the RFC 5250 opaque carrier (ext-1, consumed unmodified) still stores/refloods the raw opaque bytes by scope, so the &#34;not stored/reflooded&#34; aspect at the carrier would require an ext-1 pre-install validation hook (out of scope here).</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc7684-4-1"><code>RFC7684-4-1</code></a> Future OSPFv2 applications utilizing these extensions MUST address backward compatibility of the corresponding functionality (§4) -- containers only; empty-container LSAs are conformant, sub-TLV values left to RFC 8665</td>
+<tr><td><a href="#rfc7684-4-1"><code>RFC7684-4-1</code></a> However, future OSPFv2 applications utilizing these extensions MUST address backward compatibility of the corresponding functionality. (§4) -- containers only; empty-container LSAs are conformant, sub-TLV values left to RFC 8665</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this directive binds downstream application specifications (e.g. RFC 8665 segment routing) that define the sub-TLVs these LSAs carry, not a ze wire behavior; ze originates backward-compatible empty Extended Prefix/Link containers per RFC 5250 (internal/plugins/ospf/ext_prefix.go:72-75, internal/plugins/ospf/ext_link.go:56-59)</td>
 </tr>
@@ -512,11 +503,27 @@ Same OSPF experimental status.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7684-5-3"><code>RFC7684-5-3</code></a></h3>
-<p>Malformed LSAs (TLV/sub-TLV overruns subsuming LSA/TLV/sub-TLV, or trailing data smaller than a TLV header) MUST NOT be stored in the LSDB, acknowledged, or reflooded (§5). Ze (spec-ospf-ext-4) detects the malformed body in the Extended Prefix/Link consumer, counts it (`ze_ospf_ext_malformed_total`), and applies no attribute from it; the RFC 5250 opaque carrier (ext-1, consumed unmodified) still stores/refloods the raw opaque bytes by scope, so the &#34;not stored/reflooded&#34; aspect at the carrier would require an ext-1 pre-install validation hook (out of scope here).</p>
+<p>Malformed LSAs (TLV/sub-TLV overruns subsuming LSA/TLV/sub-TLV, or trailing data smaller than a TLV header) MUST NOT be stored in the LSDB, acknowledged, or reflooded (§5). `opaque.go:wireOpaqueDelivery` installs `ext.go:validateExtLSA` through `lsdb.SetReceiveValidator`; `lsdb.ReceiveUpdate` invokes it before every scope, self-originated and MaxAge branch. `packet.ValidateExtLSABody` checks top-level and nested framing without allocating attributes, including duplicate containers. Rejection increments `ze_ospf_ext_malformed_total`. `TestExtIngressMalformedDiscard` and `TestExtIngressValidCarriage` exercise the router dispatcher, LSDB and emitted acknowledgement/flood packets. Unknown opaque applications retain carrier behaviour.</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7684-5-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_receive_test.go#L135" title="internal/plugins/ospf/ext_receive_test.go" target="_blank" rel="noopener"><code>TestExtIngressMalformedDiscard</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ext_receive_test.go#L198" title="internal/plugins/ospf/ext_receive_test.go" target="_blank" rel="noopener"><code>TestExtIngressValidCarriage</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc7684-2.1-1"><code>RFC7684-2.1-1</code></a></h3>
-<p>If the N-Flag is set and the prefix length is not a host prefix, the flag MUST be ignored (§2.1) -- `extNormalizeFlags` clears it on receive</p>
+<p>If the flag is set and the prefix length is not a host prefix, then the flag MUST be ignored. (§2.1) -- `extNormalizeFlags` clears it on receive</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -596,7 +603,7 @@ Same OSPF experimental status.
 </table>
 </div>
 <h3><a href="#rfc7684-4-1"><code>RFC7684-4-1</code></a></h3>
-<p>Future OSPFv2 applications utilizing these extensions MUST address backward compatibility of the corresponding functionality (§4) -- containers only; empty-container LSAs are conformant, sub-TLV values left to RFC 8665</p>
+<p>However, future OSPFv2 applications utilizing these extensions MUST address backward compatibility of the corresponding functionality. (§4) -- containers only; empty-container LSAs are conformant, sub-TLV values left to RFC 8665</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7684-4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7684-5-1"><code>RFC7684-5-1</code></a></h3>
@@ -832,7 +839,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0.0% | 0 of 10 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 10.0% | 1 of 10 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 10 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 27.3% | 3 of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 9.1% | 1 of 11 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Proven by a recorded break | 0.0% | 0 of 7 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| MUSTs declared | 10 | of 13 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (backlog), so every share below reads what the summary records rather than what the gate enforces |
-| Out of scope | 3 | of 10 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 30.0% | 3 of 10 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 10 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 10 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| MUSTs declared | 11 | of 13 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (backlog), so every share below reads what the summary records rather than what the gate enforces |
+| Out of scope | 0 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 60.0% | 6 of 10 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 63.6% | 7 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 10 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -60,13 +60,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Public status | No row in the public ledger |
 | Enrolment | Not enrolled (backlog) |
 | Requirements | 13 |
-| Gated MUST-level | 10 |
-| Not applicable, so out of scope | 3 |
+| Gated MUST-level | 11 |
+| Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
-| Gated with no test | 6 |
+| Gated with no test | 7 |
 | Nightly-only evidence | 0 |
-| Test tags | 0 |
-| Tagged units | 0 |
+| Test tags | 7 |
+| Tagged units | 7 |
 | Recorded audit verdicts | 0 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/draft-ietf-sidrops-8210bis.md` |
@@ -75,7 +75,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Not enrolled (backlog, the requirements have not been extracted from the document yet; this is work owed rather than a decision): The RPKI to Router Protocol, Version 2. Split out of rfc9582 on 2026-09-01 because the obligations below are stated by this draft and not by RFC 9582, which profiles the ROA certificate. It is not enrolled because its obligations are not yet proven and the draft is still in the RFC Editor queue, so a version bump can restate them.
+Not enrolled (backlog, the requirements have not been extracted from the document yet; this is work owed rather than a decision): Existing RTR v2 ledger awaiting requirement reattribution from the historical RFC 9582 identifiers. The cached authority is revision 27; proof relocation and enrolment must preserve the source requirements and their tests.
 
 ## What the public ledger says
 
@@ -85,33 +85,35 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the gated population |
-| Annotated instead of tested | 4 | one part of the gated population |
+| Positive and negative tests | 3 | one part of the gated population |
+| Annotated instead of tested | 1 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 6 | one part of the gated population |
+| No test and no annotation | 7 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **10** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
 
-**Annotated instead of tested (4):** [`DRAFT-IETF-SIDROPS-8210BIS-5.12-4`](#draft-ietf-sidrops-8210bis-5.12-4), [`DRAFT-IETF-SIDROPS-8210BIS-5.12-5`](#draft-ietf-sidrops-8210bis-5.12-5), [`DRAFT-IETF-SIDROPS-8210BIS-7-1`](#draft-ietf-sidrops-8210bis-7-1), [`DRAFT-IETF-SIDROPS-8210BIS-7-3`](#draft-ietf-sidrops-8210bis-7-3)
+**Positive and negative tests (3):** [`DRAFT-IETF-SIDROPS-8210BIS-5.12-1`](#draft-ietf-sidrops-8210bis-5.12-1), [`DRAFT-IETF-SIDROPS-8210BIS-5.12-3`](#draft-ietf-sidrops-8210bis-5.12-3), [`DRAFT-IETF-SIDROPS-8210BIS-7-2`](#draft-ietf-sidrops-8210bis-7-2)
 
-**No test and no annotation (6):** [`DRAFT-IETF-SIDROPS-8210BIS-5.12-1`](#draft-ietf-sidrops-8210bis-5.12-1), [`DRAFT-IETF-SIDROPS-8210BIS-5.12-2`](#draft-ietf-sidrops-8210bis-5.12-2), [`DRAFT-IETF-SIDROPS-8210BIS-5.12-3`](#draft-ietf-sidrops-8210bis-5.12-3), [`DRAFT-IETF-SIDROPS-8210BIS-5.12-6`](#draft-ietf-sidrops-8210bis-5.12-6), [`DRAFT-IETF-SIDROPS-8210BIS-5.12-7`](#draft-ietf-sidrops-8210bis-5.12-7), [`DRAFT-IETF-SIDROPS-8210BIS-7-2`](#draft-ietf-sidrops-8210bis-7-2)
+**Annotated instead of tested (1):** [`DRAFT-IETF-SIDROPS-8210BIS-7-1`](#draft-ietf-sidrops-8210bis-7-1)
+
+**No test and no annotation (7):** [`DRAFT-IETF-SIDROPS-8210BIS-5.12-4`](#draft-ietf-sidrops-8210bis-5.12-4), [`DRAFT-IETF-SIDROPS-8210BIS-5.12-5`](#draft-ietf-sidrops-8210bis-5.12-5), [`DRAFT-IETF-SIDROPS-8210BIS-7-3`](#draft-ietf-sidrops-8210bis-7-3), [`DRAFT-IETF-SIDROPS-8210BIS-7-4`](#draft-ietf-sidrops-8210bis-7-4), [`DRAFT-IETF-SIDROPS-8210BIS-5.12-2`](#draft-ietf-sidrops-8210bis-5.12-2), [`DRAFT-IETF-SIDROPS-8210BIS-5.12-6`](#draft-ietf-sidrops-8210bis-5.12-6), [`DRAFT-IETF-SIDROPS-8210BIS-5.12-7`](#draft-ietf-sidrops-8210bis-5.12-7)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `DRAFT-IETF-SIDROPS-8210BIS-5.12-1` | Provider AS set in ASPA PDU MUST contain at least one provider ASN (§5.12) | MUST | 5.12 | **positive:** no positive test. **negative:** no negative test |
+| `DRAFT-IETF-SIDROPS-8210BIS-5.12-1` | An ASPA announcement MUST contain at least one Provider Autonomous System Number; otherwise the router MUST return Error Report 9 (§5.12) | MUST | 5.12 | **positive:** `unit/verify` [`TestParseASPAPDU`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L230). **negative:** `unit/verify` [`TestParseASPAPDUMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L252) |
+| `DRAFT-IETF-SIDROPS-8210BIS-5.12-3` | Each Provider Autonomous System Number in a given ASPA PDU MUST be unique; the provider fields are in increasing numeric order (§5.12) | MUST | 5.12 | **positive:** `unit/verify` [`TestParseASPAPDU`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L231). **negative:** `unit/verify` [`TestParseASPAPDUUnsorted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L283) |
+| `DRAFT-IETF-SIDROPS-8210BIS-5.12-4` | The router MUST see at most one active ASPA from a particular cache for a particular Customer Autonomous System Number; the cache MUST deliver the complete data for that customer in a single PDU (§5.12) | MUST | 5.12 | **positive:** no positive test. **negative:** no negative test |
+| `DRAFT-IETF-SIDROPS-8210BIS-5.12-5` | An ASPA withdrawal MUST provide the Customer AS, contain no provider list, and have PDU Length 12; the router MUST remove that customer's entire ASPA record from that cache (§5.12) | MUST | 5.12 | **positive:** no positive test. **negative:** no negative test |
+| `DRAFT-IETF-SIDROPS-8210BIS-7-1` | Router starting a v2 session MUST send query with version=2 (§7) | MUST | 7 | **positive:** `unit/verify` [`TestRTRSessionStartsAtV2`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L31). **negative:** no negative test. **{single-polarity}:** ze constructs every session at rtrVersionMax and writes that version unconditionally into the initial query, so the emitted version byte is observable but there is no malformed input that yields a wrong-version query to test negatively |
+| `DRAFT-IETF-SIDROPS-8210BIS-7-2` | If either party receives a PDU containing an unrecognized Protocol Version (neither 0, 1, nor 2) during negotiation, it MUST either downgrade to a known version or terminate the connection, with Error Report 4 unless the received PDU is itself an Error Report (§7) | MUST | 7 | **positive:** `unit/verify` [`TestRTRUnknownNegotiationVersion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L222). **negative:** `unit/verify` [`TestRTRUnknownNegotiationVersion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L223) |
+| `DRAFT-IETF-SIDROPS-8210BIS-7-3` | A cache receiving an unsupported query version MUST send Error Report 4 with its supported version C; when Q < C and the cache supports no version <= Q, it MUST also disconnect the transport (§7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test |
+| `DRAFT-IETF-SIDROPS-8210BIS-7-4` | The router MUST initiate the session with a Reset Query or Serial Query carrying the highest protocol version it implements (§7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test |
 | `DRAFT-IETF-SIDROPS-8210BIS-5.12-2` | Customer AS MUST NOT appear in its own provider set (§5.12) | MUST NOT | 5.12 | **positive:** no positive test. **negative:** no negative test |
-| `DRAFT-IETF-SIDROPS-8210BIS-5.12-3` | Provider ASNs MUST be in ascending order within the PDU (§5.12) | MUST | 5.12 | **positive:** no positive test. **negative:** no negative test |
-| `DRAFT-IETF-SIDROPS-8210BIS-5.12-4` | Cache MUST ensure one ASPA PDU per (Customer-AS, AFI) pair (§5.12) | MUST | 5.12 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this is a cache-side emission/deduplication guarantee; ze is the RTR router that only consumes ASPA PDUs (no ASPA PDU writer exists, only query writers) and never enforces or emits this pairing (internal/component/bgp/plugins/rpki/rtr_pdu.go:92, :103) |
-| `DRAFT-IETF-SIDROPS-8210BIS-5.12-5` | Withdraw ASPA MUST match exact (Customer-AS, AFI) pair (§5.12) | MUST | 5.12 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** exact-(Customer-AS,AFI) withdraw matching binds the cache's emission and a per-AFI record model; ze consumes withdraws keyed on Customer-AS alone (the §5.12 router option to ignore AFI) and maintains no AFI dimension to match (internal/component/bgp/plugins/rpki/rtr_session.go:283, aspa_cache.go:114) |
 | `DRAFT-IETF-SIDROPS-8210BIS-5.12-6` | Router MUST ignore ASPA PDUs with unknown AFI values (§5.12) | MUST | 5.12 | **positive:** no positive test. **negative:** no negative test |
 | `DRAFT-IETF-SIDROPS-8210BIS-5.12-7` | Customer AS 0 is reserved, MUST NOT appear (§5.12) | MUST NOT | 5.12 | **positive:** no positive test. **negative:** no negative test |
-| `DRAFT-IETF-SIDROPS-8210BIS-7-1` | Router starting a v2 session MUST send query with version=2 (§7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{single-polarity}:** ze constructs every session at rtrVersionMax and writes that version unconditionally into the initial query, so the emitted version byte is observable but there is no malformed input that yields a wrong-version query to test negatively |
-| `DRAFT-IETF-SIDROPS-8210BIS-7-2` | On Unsupported Protocol Version error, router MUST downgrade or disconnect (§7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test |
-| `DRAFT-IETF-SIDROPS-8210BIS-7-3` | Cache receiving a version it does not support MUST send error code 4 (§7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the RTR cache/server role; ze runs only an RTR client that dials out and reads error reports, with no listener and no error-report writer, so it never receives queries or sends error code 4 (internal/component/bgp/plugins/rpki/rtr_session.go:125) |
-| `DRAFT-IETF-SIDROPS-8210BIS-7-4` | Router SHOULD start at highest supported version (§7) | SHOULD | 7 | **positive:** no positive test. **negative:** no negative test |
 | `DRAFT-IETF-SIDROPS-8210BIS-5.12-8` | Provider ASNs SHOULD be sorted ascending; cache MUST sort, router SHOULD verify (§5.12) | SHOULD | 5.12 | **positive:** no positive test. **negative:** no negative test |
 | `DRAFT-IETF-SIDROPS-8210BIS-5.12-9` | Router MAY ignore AFI field and apply ASPA to all address families (§5.12) | MAY | 5.12 | **positive:** no positive test. **negative:** no negative test |
 
@@ -119,16 +121,13 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`DRAFT-IETF-SIDROPS-8210BIS-5.12-1`](#draft-ietf-sidrops-8210bis-5.12-1) Provider AS set in ASPA PDU MUST contain at least one provider ASN (§5.12) | no test | no test carries this requirement id |
+| [`DRAFT-IETF-SIDROPS-8210BIS-5.12-4`](#draft-ietf-sidrops-8210bis-5.12-4) The router MUST see at most one active ASPA from a particular cache for a particular Customer Autonomous System Number; the cache MUST deliver the complete data for that customer in a single PDU (§5.12) | no test | no test carries this requirement id |
+| [`DRAFT-IETF-SIDROPS-8210BIS-5.12-5`](#draft-ietf-sidrops-8210bis-5.12-5) An ASPA withdrawal MUST provide the Customer AS, contain no provider list, and have PDU Length 12; the router MUST remove that customer's entire ASPA record from that cache (§5.12) | no test | no test carries this requirement id |
+| [`DRAFT-IETF-SIDROPS-8210BIS-7-3`](#draft-ietf-sidrops-8210bis-7-3) A cache receiving an unsupported query version MUST send Error Report 4 with its supported version C; when Q < C and the cache supports no version <= Q, it MUST also disconnect the transport (§7) | no test | no test carries this requirement id |
+| [`DRAFT-IETF-SIDROPS-8210BIS-7-4`](#draft-ietf-sidrops-8210bis-7-4) The router MUST initiate the session with a Reset Query or Serial Query carrying the highest protocol version it implements (§7) | no test | no test carries this requirement id |
 | [`DRAFT-IETF-SIDROPS-8210BIS-5.12-2`](#draft-ietf-sidrops-8210bis-5.12-2) Customer AS MUST NOT appear in its own provider set (§5.12) | no test | no test carries this requirement id |
-| [`DRAFT-IETF-SIDROPS-8210BIS-5.12-3`](#draft-ietf-sidrops-8210bis-5.12-3) Provider ASNs MUST be in ascending order within the PDU (§5.12) | no test | no test carries this requirement id |
-| [`DRAFT-IETF-SIDROPS-8210BIS-5.12-4`](#draft-ietf-sidrops-8210bis-5.12-4) Cache MUST ensure one ASPA PDU per (Customer-AS, AFI) pair (§5.12) | no test | no test carries this requirement id; annotated {not-applicable}: this is a cache-side emission/deduplication guarantee; ze is the RTR router that only consumes ASPA PDUs (no ASPA PDU writer exists, only query writers) and never enforces or emits this pairing (internal/component/bgp/plugins/rpki/rtr_pdu.go:92, :103) |
-| [`DRAFT-IETF-SIDROPS-8210BIS-5.12-5`](#draft-ietf-sidrops-8210bis-5.12-5) Withdraw ASPA MUST match exact (Customer-AS, AFI) pair (§5.12) | no test | no test carries this requirement id; annotated {not-applicable}: exact-(Customer-AS,AFI) withdraw matching binds the cache's emission and a per-AFI record model; ze consumes withdraws keyed on Customer-AS alone (the §5.12 router option to ignore AFI) and maintains no AFI dimension to match (internal/component/bgp/plugins/rpki/rtr_session.go:283, aspa_cache.go:114) |
 | [`DRAFT-IETF-SIDROPS-8210BIS-5.12-6`](#draft-ietf-sidrops-8210bis-5.12-6) Router MUST ignore ASPA PDUs with unknown AFI values (§5.12) | no test | no test carries this requirement id |
 | [`DRAFT-IETF-SIDROPS-8210BIS-5.12-7`](#draft-ietf-sidrops-8210bis-5.12-7) Customer AS 0 is reserved, MUST NOT appear (§5.12) | no test | no test carries this requirement id |
-| [`DRAFT-IETF-SIDROPS-8210BIS-7-1`](#draft-ietf-sidrops-8210bis-7-1) Router starting a v2 session MUST send query with version=2 (§7) | no test | no test carries this requirement id; annotated {single-polarity}: ze constructs every session at rtrVersionMax and writes that version unconditionally into the initial query, so the emitted version byte is observable but there is no malformed input that yields a wrong-version query to test negatively |
-| [`DRAFT-IETF-SIDROPS-8210BIS-7-2`](#draft-ietf-sidrops-8210bis-7-2) On Unsupported Protocol Version error, router MUST downgrade or disconnect (§7) | no test | no test carries this requirement id |
-| [`DRAFT-IETF-SIDROPS-8210BIS-7-3`](#draft-ietf-sidrops-8210bis-7-3) Cache receiving a version it does not support MUST send error code 4 (§7) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the RTR cache/server role; ze runs only an RTR client that dials out and reads error reports, with no listener and no error-report writer, so it never receives queries or sends error code 4 (internal/component/bgp/plugins/rpki/rtr_session.go:125) |
 
 ## Proof state
 
@@ -136,11 +135,78 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`DRAFT-IETF-SIDROPS-8210BIS-5.12-1`](#draft-ietf-sidrops-8210bis-5.12-1)
 
-Provider AS set in ASPA PDU MUST contain at least one provider ASN (§5.12)
+An ASPA announcement MUST contain at least one Provider Autonomous System Number; otherwise the router MUST return Error Report 9 (§5.12)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries DRAFT-IETF-SIDROPS-8210BIS-5.12-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestParseASPAPDUMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L252) | unit/verify | unproven |
+| positive | [`TestParseASPAPDU`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L230) | unit/verify | unproven |
+
+### [`DRAFT-IETF-SIDROPS-8210BIS-5.12-3`](#draft-ietf-sidrops-8210bis-5.12-3)
+
+Each Provider Autonomous System Number in a given ASPA PDU MUST be unique; the provider fields are in increasing numeric order (§5.12)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestParseASPAPDUUnsorted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L283) | unit/verify | unproven |
+| positive | [`TestParseASPAPDU`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L231) | unit/verify | unproven |
+
+### [`DRAFT-IETF-SIDROPS-8210BIS-5.12-4`](#draft-ietf-sidrops-8210bis-5.12-4)
+
+The router MUST see at most one active ASPA from a particular cache for a particular Customer Autonomous System Number; the cache MUST deliver the complete data for that customer in a single PDU (§5.12)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries DRAFT-IETF-SIDROPS-8210BIS-5.12-4, so no unit is bound to it.
+
+### [`DRAFT-IETF-SIDROPS-8210BIS-5.12-5`](#draft-ietf-sidrops-8210bis-5.12-5)
+
+An ASPA withdrawal MUST provide the Customer AS, contain no provider list, and have PDU Length 12; the router MUST remove that customer's entire ASPA record from that cache (§5.12)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries DRAFT-IETF-SIDROPS-8210BIS-5.12-5, so no unit is bound to it.
+
+### [`DRAFT-IETF-SIDROPS-8210BIS-7-1`](#draft-ietf-sidrops-8210bis-7-1)
+
+Router starting a v2 session MUST send query with version=2 (§7)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestRTRSessionStartsAtV2`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L31) | unit/verify | unproven |
+
+### [`DRAFT-IETF-SIDROPS-8210BIS-7-2`](#draft-ietf-sidrops-8210bis-7-2)
+
+If either party receives a PDU containing an unrecognized Protocol Version (neither 0, 1, nor 2) during negotiation, it MUST either downgrade to a known version or terminate the connection, with Error Report 4 unless the received PDU is itself an Error Report (§7)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRTRUnknownNegotiationVersion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L223) | unit/verify | unproven |
+| positive | [`TestRTRUnknownNegotiationVersion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L222) | unit/verify | unproven |
+
+### [`DRAFT-IETF-SIDROPS-8210BIS-7-3`](#draft-ietf-sidrops-8210bis-7-3)
+
+A cache receiving an unsupported query version MUST send Error Report 4 with its supported version C; when Q < C and the cache supports no version <= Q, it MUST also disconnect the transport (§7)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries DRAFT-IETF-SIDROPS-8210BIS-7-3, so no unit is bound to it.
+
+### [`DRAFT-IETF-SIDROPS-8210BIS-7-4`](#draft-ietf-sidrops-8210bis-7-4)
+
+The router MUST initiate the session with a Reset Query or Serial Query carrying the highest protocol version it implements (§7)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries DRAFT-IETF-SIDROPS-8210BIS-7-4, so no unit is bound to it.
 
 ### [`DRAFT-IETF-SIDROPS-8210BIS-5.12-2`](#draft-ietf-sidrops-8210bis-5.12-2)
 
@@ -149,30 +215,6 @@ Customer AS MUST NOT appear in its own provider set (§5.12)
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries DRAFT-IETF-SIDROPS-8210BIS-5.12-2, so no unit is bound to it.
-
-### [`DRAFT-IETF-SIDROPS-8210BIS-5.12-3`](#draft-ietf-sidrops-8210bis-5.12-3)
-
-Provider ASNs MUST be in ascending order within the PDU (§5.12)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries DRAFT-IETF-SIDROPS-8210BIS-5.12-3, so no unit is bound to it.
-
-### [`DRAFT-IETF-SIDROPS-8210BIS-5.12-4`](#draft-ietf-sidrops-8210bis-5.12-4)
-
-Cache MUST ensure one ASPA PDU per (Customer-AS, AFI) pair (§5.12)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries DRAFT-IETF-SIDROPS-8210BIS-5.12-4, so no unit is bound to it.
-
-### [`DRAFT-IETF-SIDROPS-8210BIS-5.12-5`](#draft-ietf-sidrops-8210bis-5.12-5)
-
-Withdraw ASPA MUST match exact (Customer-AS, AFI) pair (§5.12)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries DRAFT-IETF-SIDROPS-8210BIS-5.12-5, so no unit is bound to it.
 
 ### [`DRAFT-IETF-SIDROPS-8210BIS-5.12-6`](#draft-ietf-sidrops-8210bis-5.12-6)
 
@@ -189,30 +231,6 @@ Customer AS 0 is reserved, MUST NOT appear (§5.12)
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries DRAFT-IETF-SIDROPS-8210BIS-5.12-7, so no unit is bound to it.
-
-### [`DRAFT-IETF-SIDROPS-8210BIS-7-1`](#draft-ietf-sidrops-8210bis-7-1)
-
-Router starting a v2 session MUST send query with version=2 (§7)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries DRAFT-IETF-SIDROPS-8210BIS-7-1, so no unit is bound to it.
-
-### [`DRAFT-IETF-SIDROPS-8210BIS-7-2`](#draft-ietf-sidrops-8210bis-7-2)
-
-On Unsupported Protocol Version error, router MUST downgrade or disconnect (§7)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries DRAFT-IETF-SIDROPS-8210BIS-7-2, so no unit is bound to it.
-
-### [`DRAFT-IETF-SIDROPS-8210BIS-7-3`](#draft-ietf-sidrops-8210bis-7-3)
-
-Cache receiving a version it does not support MUST send error code 4 (§7)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries DRAFT-IETF-SIDROPS-8210BIS-7-3, so no unit is bound to it.
 
 ## Extraction sign-off
 

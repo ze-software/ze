@@ -111,19 +111,19 @@ Two MUST gaps gated in [`rfc/short/rfc3623.md`](https://github.com/ze-software/z
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC3623-A-1` | Additional Grace-LSA TLVs must be described in an Internet Draft and subject to OSPF WG expert review (§A) | MUST | A | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze originates only the three RFC-defined TLVs (types 1/2/3) and adds none, and its decoder ignores unrecognized types, so the IETF-process obligation for additional TLVs binds no ze behavior (internal/plugins/ospf/packet/grace_lsa.go:44, :64) |
+| `RFC3623-A-1` | Additional Grace-LSA TLVs must be described in an Internet Draft and will be subject to the expert review of the OSPF Working Group. (§A) | MUST | A | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze originates only the three RFC-defined TLVs (types 1/2/3) and adds none, and its decoder ignores unrecognized types, so the IETF-process obligation for additional TLVs binds no ze behavior (internal/plugins/ospf/packet/grace_lsa.go:44, :64) |
 | `RFC3623-A-2` | Grace Period TLV (type 1) must always appear in a grace-LSA (§A) | MUST | A | **positive:** `unit/verify` [`TestGraceLSARoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L20). **negative:** `unit/verify` [`TestGraceLSADecodeMissingMandatory`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L75) |
 | `RFC3623-A-3` | Graceful restart reason TLV (type 2) must always appear in a grace-LSA (§A) | MUST | A | **positive:** `unit/verify` [`TestGraceLSARoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L24). **negative:** `unit/verify` [`TestGraceLSADecodeMissingMandatory`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L72) |
 | `RFC3623-A-4` | IP interface address TLV (type 3) required on broadcast, NBMA and Point-to-MultiPoint segments (§A, §3.1) | MUST | A | **positive:** `unit/verify` [`TestGraceLSAv4BodyBuild`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_lsa_test.go#L18). **negative:** `unit/verify` [`TestGraceLSAv4BodyBuild`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_lsa_test.go#L22) |
 | `RFC3623-A-5` | DoNotAge is never set in a grace-LSA, even over a demand circuit (§A) | MUST | A | **positive:** `unit/verify` [`TestGraceLSANeverSetsDoNotAge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L62). **negative:** no negative test. **{single-polarity}:** Grace-LSAs originate through OriginateOpaque, whose input struct has no DoNotAge field and starts LS age at 0 with normal aging, so the bit is never set and no negative behavior exists to test (internal/plugins/ospf/lsdb/opaque_as.go:73, gr_restarter.go:314, lsdb/entry.go:87) |
 | `RFC3623-2.1-1` | Before reload, ensure forwarding table(s) are up-to-date and remain in place across the restart (§2.1) | MUST | 2.1 | **positive:** `unit/verify` [`TestPrepareRestartRetainsFIB`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L91). **negative:** no negative test. **{single-polarity}:** prepareRestart raises gracefulStop so suppressInstall makes the ensuing engine stop skip RemoveAll and retain the pre-restart FIB; the meaningful assertion is retention, with no negative behavior the requirement forbids (internal/plugins/ospf/gr_restarter.go:49, gr.go:235) |
-| `RFC3623-5-1` | An implementation providing recovery from unplanned outages must allow the operator to turn the option off (§5) | MUST | 5 | **positive:** `unit/verify` [`TestUnplannedGraceBeforeHello`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_unplanned_test.go#L40). **negative:** `unit/verify` [`TestUnplannedDisabledByDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_unplanned_test.go#L16) |
+| `RFC3623-5-1` | In any event, implementors providing the option to recover gracefully from unplanned outages must allow a network operator to turn the option off. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestUnplannedGraceBeforeHello`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_unplanned_test.go#L40). **negative:** `unit/verify` [`TestUnplannedDisabledByDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_unplanned_test.go#L16) |
 | `RFC3623-5-2` | On unplanned restart, grace-LSAs must be originated and sent before any OSPF Hello packets; on broadcast networks flooded to AllSPFRouters 224.0.0.5 (§5) | MUST | 5 | **positive:** `unit/verify` [`TestUnplannedGraceLSAFloodsToAllSPFRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L151). **negative:** no negative test. **{single-polarity}:** maybeUnplannedRestart enters in-restart then originates one Grace-LSA per interface before interface Hellos begin, and link-local LSAs flood to AllSPFRouters via the standard link-scope path (internal/plugins/ospf/gr_restarter.go:105, lsdb_flooding_test.go:47) |
 | `RFC3623-5-3` | On unplanned restart, grace-LSAs are encapsulated in Link State Update packets and sent out all interfaces (§5) | MUST | 5 | **positive:** `unit/verify` [`TestUnplannedGraceLSAPerActiveInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3623_gr_positive_test.go#L193). **negative:** no negative test. **{single-polarity}:** grOriginateGraceLSAs walks every active (non-passive) interface and floods each Grace-LSA via OriginateOpaque's standard LSU flooding (internal/plugins/ospf/gr_restarter.go:296, :315) |
-| `RFC3623-5-4` | On unplanned restart, the restart reason in grace-LSAs must be set to 0 (unknown) or 3 (switch to redundant control processor) (§5) | MUST | 5 | **positive:** `unit/verify` [`TestUnplannedGraceBeforeHello`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_unplanned_test.go#L58). **negative:** no negative test. **{single-polarity}:** grUnplannedReason returns the constant 3 (redundant control processor), an in-range unplanned reason, and there is no receive-side reason rejection to test negatively (internal/plugins/ospf/gr_restarter.go:88, gr.go:36) |
-| `RFC3623-3-1` | When helping over a virtual link, the helper must continue to set bit V in its router-LSA for the transit area (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the helper role keeps X advertised in Router/Network-LSAs but neither gr_helper.go nor gr.go has any virtual-link/transit-area handling, so the transit-area V-bit is not preserved while helping over a virtual link (internal/plugins/ospf/gr_helper.go:279) |
+| `RFC3623-5-4` | o The restart reason in the grace-LSAs must be set to 0 (unknown) or 3 (switch to redundant control processor). (§5) | MUST | 5 | **positive:** `unit/verify` [`TestUnplannedGraceBeforeHello`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_unplanned_test.go#L58). **negative:** no negative test. **{single-polarity}:** grUnplannedReason returns the constant 3 (redundant control processor), an in-range unplanned reason, and there is no receive-side reason rejection to test negatively (internal/plugins/ospf/gr_restarter.go:88, gr.go:36) |
+| `RFC3623-3-1` | When helping over a virtual link, the helper must also continue to set bit V in its router-LSA for the virtual link's transit area (Section 12.4.1 of [1]). (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the helper role keeps X advertised in Router/Network-LSAs but neither gr_helper.go nor gr.go has any virtual-link/transit-area handling, so the transit-area V-bit is not preserved while helping over a virtual link (internal/plugins/ospf/gr_helper.go:279) |
 | `RFC3623-3.1-1` | Helper must refuse to enter helper mode if LSAs on X's retransmission list have changed content (not periodic refreshes) (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the helper entry decision has an lsdb-changed branch, but the production caller hardcodes lsdbUnchanged=true, so no production path refuses entry on a changed retransmission-list LSA; the permissive entry is only mitigated by the Section 3.2 strict-checking exit (internal/plugins/ospf/gr_helper.go:40, :128) |
-| `RFC3623-3.2-1` | If Y aggregated adjacencies on entering helper mode, it must exit helper mode for all adjacencies with X when any one exit event occurs (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze tracks one helper session per (interface, router) and never aggregates adjacencies across segments, so the aggregated exit-all obligation binds a mode ze does not play (internal/plugins/ospf/gr.go:71) |
+| `RFC3623-3.2-1` | If Router Y aggregated adjacencies with Router X when entering helper mode (as described in section 3.1), it must also exit helper mode for all adjacencies with Router X when any one of the exit events occurs for an adjacency with Router X. (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze tracks one helper session per (interface, router) and never aggregates adjacencies across segments, so the aggregated exit-all obligation binds a mode ze does not play (internal/plugins/ospf/gr.go:71) |
 | `RFC3623-2.1-2` | The grace period should not exceed LSRefreshTime (1800 seconds) (§2.1) | SHOULD NOT | 2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3623-2.1-3` | Retransmit grace-LSAs until acknowledged (standard OSPF reliable flooding) (§2.1) | SHOULD | 2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3623-2.1-4` | After sending grace-LSAs, store the restart fact and grace-period length in non-volatile storage (§2.1) | SHOULD | 2.1 | **positive:** no positive test. **negative:** no negative test |
@@ -142,10 +142,10 @@ Two MUST gaps gated in [`rfc/short/rfc3623.md`](https://github.com/ze-software/z
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC3623-A-1`](#rfc3623-a-1) Additional Grace-LSA TLVs must be described in an Internet Draft and subject to OSPF WG expert review (§A) | no test | no test carries this requirement id; annotated {not-applicable}: ze originates only the three RFC-defined TLVs (types 1/2/3) and adds none, and its decoder ignores unrecognized types, so the IETF-process obligation for additional TLVs binds no ze behavior (internal/plugins/ospf/packet/grace_lsa.go:44, :64) |
-| [`RFC3623-3-1`](#rfc3623-3-1) When helping over a virtual link, the helper must continue to set bit V in its router-LSA for the transit area (§3) | {gap}, no test | the helper role keeps X advertised in Router/Network-LSAs but neither gr_helper.go nor gr.go has any virtual-link/transit-area handling, so the transit-area V-bit is not preserved while helping over a virtual link (internal/plugins/ospf/gr_helper.go:279) |
+| [`RFC3623-A-1`](#rfc3623-a-1) Additional Grace-LSA TLVs must be described in an Internet Draft and will be subject to the expert review of the OSPF Working Group. (§A) | no test | no test carries this requirement id; annotated {not-applicable}: ze originates only the three RFC-defined TLVs (types 1/2/3) and adds none, and its decoder ignores unrecognized types, so the IETF-process obligation for additional TLVs binds no ze behavior (internal/plugins/ospf/packet/grace_lsa.go:44, :64) |
+| [`RFC3623-3-1`](#rfc3623-3-1) When helping over a virtual link, the helper must also continue to set bit V in its router-LSA for the virtual link's transit area (Section 12.4.1 of [1]). (§3) | {gap}, no test | the helper role keeps X advertised in Router/Network-LSAs but neither gr_helper.go nor gr.go has any virtual-link/transit-area handling, so the transit-area V-bit is not preserved while helping over a virtual link (internal/plugins/ospf/gr_helper.go:279) |
 | [`RFC3623-3.1-1`](#rfc3623-3.1-1) Helper must refuse to enter helper mode if LSAs on X's retransmission list have changed content (not periodic refreshes) (§3.1) | {gap}, no test | the helper entry decision has an lsdb-changed branch, but the production caller hardcodes lsdbUnchanged=true, so no production path refuses entry on a changed retransmission-list LSA; the permissive entry is only mitigated by the Section 3.2 strict-checking exit (internal/plugins/ospf/gr_helper.go:40, :128) |
-| [`RFC3623-3.2-1`](#rfc3623-3.2-1) If Y aggregated adjacencies on entering helper mode, it must exit helper mode for all adjacencies with X when any one exit event occurs (§3.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze tracks one helper session per (interface, router) and never aggregates adjacencies across segments, so the aggregated exit-all obligation binds a mode ze does not play (internal/plugins/ospf/gr.go:71) |
+| [`RFC3623-3.2-1`](#rfc3623-3.2-1) If Router Y aggregated adjacencies with Router X when entering helper mode (as described in section 3.1), it must also exit helper mode for all adjacencies with Router X when any one of the exit events occurs for an adjacency with Router X. (§3.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze tracks one helper session per (interface, router) and never aggregates adjacencies across segments, so the aggregated exit-all obligation binds a mode ze does not play (internal/plugins/ospf/gr.go:71) |
 
 ## Proof state
 
@@ -153,7 +153,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC3623-A-1`](#rfc3623-a-1)
 
-Additional Grace-LSA TLVs must be described in an Internet Draft and subject to OSPF WG expert review (§A)
+Additional Grace-LSA TLVs must be described in an Internet Draft and will be subject to the expert review of the OSPF Working Group. (§A)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -214,7 +214,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3623-5-1`](#rfc3623-5-1)
 
-An implementation providing recovery from unplanned outages must allow the operator to turn the option off (§5)
+In any event, implementors providing the option to recover gracefully from unplanned outages must allow a network operator to turn the option off. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -245,7 +245,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3623-5-4`](#rfc3623-5-4)
 
-On unplanned restart, the restart reason in grace-LSAs must be set to 0 (unknown) or 3 (switch to redundant control processor) (§5)
+o The restart reason in the grace-LSAs must be set to 0 (unknown) or 3 (switch to redundant control processor). (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -255,7 +255,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3623-3-1`](#rfc3623-3-1)
 
-When helping over a virtual link, the helper must continue to set bit V in its router-LSA for the transit area (§3)
+When helping over a virtual link, the helper must also continue to set bit V in its router-LSA for the virtual link's transit area (Section 12.4.1 of [1]). (§3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -271,7 +271,7 @@ No test carries RFC3623-3.1-1, so no unit is bound to it.
 
 ### [`RFC3623-3.2-1`](#rfc3623-3.2-1)
 
-If Y aggregated adjacencies on entering helper mode, it must exit helper mode for all adjacencies with X when any one exit event occurs (§3.2)
+If Router Y aggregated adjacencies with Router X when entering helper mode (as described in section 3.1), it must also exit helper mode for all adjacencies with Router X when any one of the exit events occurs for an adjacency with Router X. (§3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 

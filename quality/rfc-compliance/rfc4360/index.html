@@ -292,7 +292,7 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4360-6-1">RFC4360-6-1</code></td><td colspan="3"><span class="rfc-subject">The Extended Communities attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4360-6-1">RFC4360-6-1</code></td><td colspan="3"><span class="rfc-subject">The Extended Community attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6 - Operations</td>
@@ -301,7 +301,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s best-path decision (internal/component/bgp/plugins/rib/bestpath.go) selects on the RFC 4271 tie-breakers only -- LOCAL_PREF, AS_PATH length, ORIGIN, MED, ..., Router ID -- and never reads the Extended Communities attribute, so there is no ext-comm-driven path selection that could create a forwarding loop</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4360-7-1">RFC4360-7-1</code></td><td colspan="3"><span class="rfc-subject">The value allocated for a regular Type MUST NOT be reused as the high-order octet when allocating an extended Type (§7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4360-7-1">RFC4360-7-1</code></td><td colspan="3"><span class="rfc-subject">The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>7 - IANA Considerations</td>
@@ -391,11 +391,11 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc4360-6-1"><code>RFC4360-6-1</code></a> The Extended Communities attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops (§6)</td>
+<tr><td><a href="#rfc4360-6-1"><code>RFC4360-6-1</code></a> The Extended Community attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops. (§6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s best-path decision (internal/component/bgp/plugins/rib/bestpath.go) selects on the RFC 4271 tie-breakers only -- LOCAL_PREF, AS_PATH length, ORIGIN, MED, ..., Router ID -- and never reads the Extended Communities attribute, so there is no ext-comm-driven path selection that could create a forwarding loop</td>
 </tr>
-<tr><td><a href="#rfc4360-7-1"><code>RFC4360-7-1</code></a> The value allocated for a regular Type MUST NOT be reused as the high-order octet when allocating an extended Type (§7)</td>
+<tr><td><a href="#rfc4360-7-1"><code>RFC4360-7-1</code></a> The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this constrains the IANA Extended Community type-code registry allocation, not a BGP implementation; ze consumes registry type codes and does not allocate them</td>
 </tr>
@@ -414,11 +414,11 @@ No tracked gap in current source anchors.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc4360-6-1"><code>RFC4360-6-1</code></a></h3>
-<p>The Extended Communities attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops (§6)</p>
+<p>The Extended Community attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4360-6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4360-7-1"><code>RFC4360-7-1</code></a></h3>
-<p>The value allocated for a regular Type MUST NOT be reused as the high-order octet when allocating an extended Type (§7)</p>
+<p>The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type. (§7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4360-7-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4360-7-2"><code>RFC4360-7-2</code></a></h3>
@@ -668,7 +668,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

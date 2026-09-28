@@ -291,7 +291,7 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-2.3-1">RFC4761-2.3-1</code></td><td colspan="3"><span class="rfc-subject">An implementation MUST maintain a separate routing storage for each service (Section 2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-2.3-1">RFC4761-2.3-1</code></td><td colspan="3"><span class="rfc-subject">Consequently, an implementation MUST maintain a separate routing storage for each service. (Section 2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3 - Interactions</td>
@@ -363,7 +363,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> computing and announcing a new label block to cover a peer&#39;s VE ID is VPLS-PE auto-discovery signaling; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI), and runs no label-block allocation or pseudowire-setup algorithm</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.3-2">RFC4761-3.2.3-2</code></td><td colspan="3"><span class="rfc-subject">If Y withdraws an NLRI for V that X was using, X MUST tear down its ends of the pseudowire between X and Y (Section 3.2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.3-2">RFC4761-3.2.3-2</code></td><td colspan="3"><span class="rfc-subject">If Y withdraws an NLRI for V that X was using, then X MUST tear down its ends of the pseudowire between X and Y. (Section 3.2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2.3 - PW Setup and Teardown</td>
@@ -372,7 +372,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> tearing down pseudowire ends when a peer withdraws its NLRI is a VPLS-PE data-plane action; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it establishes and tears down no pseudowires</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.3-1">RFC4761-3.3-1</code></td><td colspan="3"><span class="rfc-subject">PE-a MUST withdraw all its announcements for VPLS foo that contain VE ID V when V is removed from configuration (Section 3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.3-1">RFC4761-3.3-1</code></td><td colspan="3"><span class="rfc-subject">If PE-a&#39;s configuration is changed to remove VE ID V from VPLS foo, then PE-a MUST withdraw all its announcements for VPLS foo that contain VE ID V. (Section 3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3 - BGP VPLS Operation</td>
@@ -381,7 +381,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> withdrawing a PE&#39;s own VPLS announcements when a VE ID leaves the VSI configuration is a VPLS-PE lifecycle duty; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45), and has no VSI/VE configuration model that originates or withdraws such announcements</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.4.2-1">RFC4761-3.4.2-1</code></td><td colspan="3"><span class="rfc-subject">Inter-AS Method (b): Length, Route Distinguisher, VE ID, VE Block Offset, and VE Block Size MUST be the same when ASBR re-advertises (Section 3.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.4.2-1">RFC4761-3.4.2-1</code></td><td colspan="3"><span class="rfc-subject">To be precise, the Length, the Route Distinguisher, the VE ID, the VE Block Offset, and the VE Block Size MUST be the same; the Label Base may be different. (Section 3.4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.4.2</td>
@@ -390,7 +390,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> re-advertising a VPLS NLRI with unchanged Length/RD/VE-ID/VE-Block-Offset/VE-Block-Size while swapping labels is a VPLS ASBR duty (Inter-AS option b); ze is not a VPLS PE or ASBR (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), and performs no VPLS ASBR label-swap re-advertisement</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.5-1">RFC4761-3.5-1</code></td><td colspan="3"><span class="rfc-subject">When receiving equivalent NLRIs from multiple PEs, MUST pick only one via BGP path selection (Section 3.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.5-1">RFC4761-3.5-1</code></td><td colspan="3"><span class="rfc-subject">When a BGP speaker receives two equivalent NLRIs (see below for the definition), it applies standard path selection criteria such as Local Preference and AS Path Length to determine which NLRI to choose; it MUST pick only one. (Section 3.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.5 - Multi-homing and Path Selection</td>
@@ -408,7 +408,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> the same-VE-ID-implies-same-RD rule binds VPLS-PE provisioning; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI), provisions no VPLS VE identities, and holds no VE-ID-to-RD assignment to constrain</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.1-1">RFC4761-4.2.1-1</code></td><td colspan="3"><span class="rfc-subject">When a VE learns a source MAC address S on port P and later sees S on a different port P&#39;, the VE MUST update its FIB to reflect the new port (Section 4.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.1-1">RFC4761-4.2.1-1</code></td><td colspan="3"><span class="rfc-subject">If a VE learns a source MAC address S on logical port P, then later sees S on a different port P&#39;, then the VE MUST update its FIB to reflect the new port P&#39;. (Section 4.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.1 - MAC Address Learning</td>
@@ -417,7 +417,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> updating the FIB when a source MAC moves to a new port is VPLS-PE data-plane bridging; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no MAC FIB), so it performs no MAC learning or L2 forwarding</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.2-1">RFC4761-4.2.2-1</code></td><td colspan="3"><span class="rfc-subject">If the age of source MAC S exceeds aging time T, S MUST be flushed from the FIB (Section 4.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.2-1">RFC4761-4.2.2-1</code></td><td colspan="3"><span class="rfc-subject">If the age exceeds the aging time T, S MUST be flushed from the FIB. (Section 4.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2.2 - Aging</td>
@@ -435,7 +435,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> split-horizon flooding (never sending a PE-sourced frame back to other PEs) is VPLS-PE data-plane forwarding; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VPLS forwarding data path), so it floods no VPLS frames</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-6-1">RFC4761-6-1</code></td><td colspan="3"><span class="rfc-subject">Any implementation using MPLS-in-IP/GRE tunnels for VPLS MUST contain an IPsec implementation (Section 6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-6-1">RFC4761-6-1</code></td><td colspan="3"><span class="rfc-subject">Any implementation of VPLS that allows VPLS packets to be tunneled as described in that document MUST contain an implementation of IPsec that can be used as therein described. (Section 6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6 - Security Considerations</td>
@@ -489,7 +489,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.7-1">RFC4761-4.2.7-1</code></td><td colspan="3"><span class="rfc-subject">An implementation SHOULD allow the 802.1p to EXP mapping function to be different for each VPLS (Section 4.2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.7-1">RFC4761-4.2.7-1</code></td><td colspan="3"><span class="rfc-subject">To be useful, an implementation SHOULD allow this mapping function to be different for each VPLS, as each VPLS customer may have its own view of the required behavior for a given setting of 802.1p bits. (Section 4.2.7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>4.2.7 - Class of Service</td>
@@ -543,7 +543,7 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc4761-2.3-1"><code>RFC4761-2.3-1</code></a> An implementation MUST maintain a separate routing storage for each service (Section 2.3)</td>
+<tr><td><a href="#rfc4761-2.3-1"><code>RFC4761-2.3-1</code></a> Consequently, an implementation MUST maintain a separate routing storage for each service. (Section 2.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: maintaining a separate routing/forwarding store per VPLS service is a VPLS-PE VSI duty; ze is not a VPLS PE: its RFC 4761 support is a control-plane L2VPN/VPLS (AFI 25, SAFI 65) NLRI codec (internal/component/bgp/plugins/nlri/vpls/vpls.go:45 Mode decode; types.go:82 ParseVPLS, types.go:163 WriteTo) plus route-injection encoders, with no VPLS instance (VSI), no pseudowire signaling, no MAC FIB, and no VPLS forwarding data path, so there is no per-service VSI store to maintain</td>
 </tr>
@@ -575,19 +575,19 @@ No tracked gap in current source anchors.
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: computing and announcing a new label block to cover a peer&#39;s VE ID is VPLS-PE auto-discovery signaling; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI), and runs no label-block allocation or pseudowire-setup algorithm</td>
 </tr>
-<tr><td><a href="#rfc4761-3.2.3-2"><code>RFC4761-3.2.3-2</code></a> If Y withdraws an NLRI for V that X was using, X MUST tear down its ends of the pseudowire between X and Y (Section 3.2.3)</td>
+<tr><td><a href="#rfc4761-3.2.3-2"><code>RFC4761-3.2.3-2</code></a> If Y withdraws an NLRI for V that X was using, then X MUST tear down its ends of the pseudowire between X and Y. (Section 3.2.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: tearing down pseudowire ends when a peer withdraws its NLRI is a VPLS-PE data-plane action; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it establishes and tears down no pseudowires</td>
 </tr>
-<tr><td><a href="#rfc4761-3.3-1"><code>RFC4761-3.3-1</code></a> PE-a MUST withdraw all its announcements for VPLS foo that contain VE ID V when V is removed from configuration (Section 3.3)</td>
+<tr><td><a href="#rfc4761-3.3-1"><code>RFC4761-3.3-1</code></a> If PE-a&#39;s configuration is changed to remove VE ID V from VPLS foo, then PE-a MUST withdraw all its announcements for VPLS foo that contain VE ID V. (Section 3.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: withdrawing a PE&#39;s own VPLS announcements when a VE ID leaves the VSI configuration is a VPLS-PE lifecycle duty; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45), and has no VSI/VE configuration model that originates or withdraws such announcements</td>
 </tr>
-<tr><td><a href="#rfc4761-3.4.2-1"><code>RFC4761-3.4.2-1</code></a> Inter-AS Method (b): Length, Route Distinguisher, VE ID, VE Block Offset, and VE Block Size MUST be the same when ASBR re-advertises (Section 3.4.2)</td>
+<tr><td><a href="#rfc4761-3.4.2-1"><code>RFC4761-3.4.2-1</code></a> To be precise, the Length, the Route Distinguisher, the VE ID, the VE Block Offset, and the VE Block Size MUST be the same; the Label Base may be different. (Section 3.4.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: re-advertising a VPLS NLRI with unchanged Length/RD/VE-ID/VE-Block-Offset/VE-Block-Size while swapping labels is a VPLS ASBR duty (Inter-AS option b); ze is not a VPLS PE or ASBR (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), and performs no VPLS ASBR label-swap re-advertisement</td>
 </tr>
-<tr><td><a href="#rfc4761-3.5-1"><code>RFC4761-3.5-1</code></a> When receiving equivalent NLRIs from multiple PEs, MUST pick only one via BGP path selection (Section 3.5)</td>
+<tr><td><a href="#rfc4761-3.5-1"><code>RFC4761-3.5-1</code></a> When a BGP speaker receives two equivalent NLRIs (see below for the definition), it applies standard path selection criteria such as Local Preference and AS Path Length to determine which NLRI to choose; it MUST pick only one. (Section 3.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: selecting exactly one among equivalent VPLS NLRIs (same RD, VE ID, VE Block Offset) for pseudowire setup is a VPLS-PE control duty; ze is not a VPLS PE: received L2VPN routes are stored as opaque raw NLRI blobs (internal/component/bgp/plugins/adj_rib_in/rib.go:850-851), with no VPLS-specific equivalence or best-path over the (RD, VE ID, VBO) tuple, and no VSI to install a chosen pseudowire</td>
 </tr>
@@ -595,11 +595,11 @@ No tracked gap in current source anchors.
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the same-VE-ID-implies-same-RD rule binds VPLS-PE provisioning; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI), provisions no VPLS VE identities, and holds no VE-ID-to-RD assignment to constrain</td>
 </tr>
-<tr><td><a href="#rfc4761-4.2.1-1"><code>RFC4761-4.2.1-1</code></a> When a VE learns a source MAC address S on port P and later sees S on a different port P&#39;, the VE MUST update its FIB to reflect the new port (Section 4.2.1)</td>
+<tr><td><a href="#rfc4761-4.2.1-1"><code>RFC4761-4.2.1-1</code></a> If a VE learns a source MAC address S on logical port P, then later sees S on a different port P&#39;, then the VE MUST update its FIB to reflect the new port P&#39;. (Section 4.2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: updating the FIB when a source MAC moves to a new port is VPLS-PE data-plane bridging; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no MAC FIB), so it performs no MAC learning or L2 forwarding</td>
 </tr>
-<tr><td><a href="#rfc4761-4.2.2-1"><code>RFC4761-4.2.2-1</code></a> If the age of source MAC S exceeds aging time T, S MUST be flushed from the FIB (Section 4.2.2)</td>
+<tr><td><a href="#rfc4761-4.2.2-1"><code>RFC4761-4.2.2-1</code></a> If the age exceeds the aging time T, S MUST be flushed from the FIB. (Section 4.2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: flushing an aged-out source MAC from the FIB is VPLS-PE data-plane bridging; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45), and maintains no MAC FIB to age</td>
 </tr>
@@ -607,7 +607,7 @@ No tracked gap in current source anchors.
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: split-horizon flooding (never sending a PE-sourced frame back to other PEs) is VPLS-PE data-plane forwarding; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VPLS forwarding data path), so it floods no VPLS frames</td>
 </tr>
-<tr><td><a href="#rfc4761-6-1"><code>RFC4761-6-1</code></a> Any implementation using MPLS-in-IP/GRE tunnels for VPLS MUST contain an IPsec implementation (Section 6)</td>
+<tr><td><a href="#rfc4761-6-1"><code>RFC4761-6-1</code></a> Any implementation of VPLS that allows VPLS packets to be tunneled as described in that document MUST contain an implementation of IPsec that can be used as therein described. (Section 6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it tunnels no VPLS packets over MPLS-in-IP/GRE and the must-contain-IPsec trigger never fires (the IKE/IPsec engine in internal/component/ike is unrelated to VPLS tunneling)</td>
 </tr>
@@ -622,7 +622,7 @@ No tracked gap in current source anchors.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc4761-2.3-1"><code>RFC4761-2.3-1</code></a></h3>
-<p>An implementation MUST maintain a separate routing storage for each service (Section 2.3)</p>
+<p>Consequently, an implementation MUST maintain a separate routing storage for each service. (Section 2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-2.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-3.2.4-1"><code>RFC4761-3.2.4-1</code></a></h3>
@@ -654,19 +654,19 @@ No tracked gap in current source anchors.
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-3.2.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-3.2.3-2"><code>RFC4761-3.2.3-2</code></a></h3>
-<p>If Y withdraws an NLRI for V that X was using, X MUST tear down its ends of the pseudowire between X and Y (Section 3.2.3)</p>
+<p>If Y withdraws an NLRI for V that X was using, then X MUST tear down its ends of the pseudowire between X and Y. (Section 3.2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-3.2.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-3.3-1"><code>RFC4761-3.3-1</code></a></h3>
-<p>PE-a MUST withdraw all its announcements for VPLS foo that contain VE ID V when V is removed from configuration (Section 3.3)</p>
+<p>If PE-a&#39;s configuration is changed to remove VE ID V from VPLS foo, then PE-a MUST withdraw all its announcements for VPLS foo that contain VE ID V. (Section 3.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-3.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-3.4.2-1"><code>RFC4761-3.4.2-1</code></a></h3>
-<p>Inter-AS Method (b): Length, Route Distinguisher, VE ID, VE Block Offset, and VE Block Size MUST be the same when ASBR re-advertises (Section 3.4.2)</p>
+<p>To be precise, the Length, the Route Distinguisher, the VE ID, the VE Block Offset, and the VE Block Size MUST be the same; the Label Base may be different. (Section 3.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-3.4.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-3.5-1"><code>RFC4761-3.5-1</code></a></h3>
-<p>When receiving equivalent NLRIs from multiple PEs, MUST pick only one via BGP path selection (Section 3.5)</p>
+<p>When a BGP speaker receives two equivalent NLRIs (see below for the definition), it applies standard path selection criteria such as Local Preference and AS Path Length to determine which NLRI to choose; it MUST pick only one. (Section 3.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-3.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-3.5-2"><code>RFC4761-3.5-2</code></a></h3>
@@ -674,11 +674,11 @@ No tracked gap in current source anchors.
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-3.5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-4.2.1-1"><code>RFC4761-4.2.1-1</code></a></h3>
-<p>When a VE learns a source MAC address S on port P and later sees S on a different port P&#39;, the VE MUST update its FIB to reflect the new port (Section 4.2.1)</p>
+<p>If a VE learns a source MAC address S on logical port P, then later sees S on a different port P&#39;, then the VE MUST update its FIB to reflect the new port P&#39;. (Section 4.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-4.2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-4.2.2-1"><code>RFC4761-4.2.2-1</code></a></h3>
-<p>If the age of source MAC S exceeds aging time T, S MUST be flushed from the FIB (Section 4.2.2)</p>
+<p>If the age exceeds the aging time T, S MUST be flushed from the FIB. (Section 4.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-4.2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-4.2.5-1"><code>RFC4761-4.2.5-1</code></a></h3>
@@ -686,7 +686,7 @@ No tracked gap in current source anchors.
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-4.2.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-6-1"><code>RFC4761-6-1</code></a></h3>
-<p>Any implementation using MPLS-in-IP/GRE tunnels for VPLS MUST contain an IPsec implementation (Section 6)</p>
+<p>Any implementation of VPLS that allows VPLS packets to be tunneled as described in that document MUST contain an implementation of IPsec that can be used as therein described. (Section 6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4761-6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4761-6-2"><code>RFC4761-6-2</code></a></h3>
@@ -1169,7 +1169,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

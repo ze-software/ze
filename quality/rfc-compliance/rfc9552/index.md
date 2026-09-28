@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 37.3% | 22 of 59 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 6.8% | 4 of 59 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 76.3% | 45 of 59 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 11.9% | 7 of 59 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 59 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 61 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 44.7% | 55 of 123 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,8 +22,8 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 59 | of 88 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 21 | of 59 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 35.6% | 21 of 59 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Out of scope | 5 | of 59 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 8.5% | 5 of 59 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 59 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 59 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
@@ -33,7 +33,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 20.3% | 12 of 59 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 3.4% | 2 of 59 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 7 shares marked as a part above are the whole of the 59 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -61,14 +61,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 88 |
 | Gated MUST-level | 59 |
-| Not applicable, so out of scope | 21 |
-| Declared gaps | 1 |
-| Gated with no test | 11 |
+| Not applicable, so out of scope | 5 |
+| Declared gaps | 2 |
+| Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 61 |
-| Tagged units | 61 |
+| Test tags | 123 |
+| Tagged units | 123 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 55 |
 | Summary | `rfc/short/rfc9552.md` |
 | Requirement shard | `rfc/requirements/rfc9552.md` |
 | RFC text | `rfc/full/rfc9552.txt` |
@@ -83,94 +83,94 @@ Enrolled: Distribution of Link-State and TE Information Using BGP
 
 **What the ledger says is covered**
 
-Same wire format as RFC 7752 and the same role: ze is a BGP-LS Consumer-side decoder and Propagator, never a Producer. Node/Link/Prefix NLRI and node, link and prefix attribute TLV decode (`internal/component/bgp/plugins/nlri/ls`), (AFI 16388, SAFI 71/72) family registration and Multiprotocol capability negotiation, unknown NLRI types framed by Total NLRI Length alone and propagated byte-identically under both SAFI 71 and SAFI 72 (`GetNLRISizeFunc`, [`internal/component/bgp/message/chunk_mp_nlri.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/chunk_mp_nlri.go)), unknown and unexpected attribute TLVs preserved, unordered BGP-LS Attribute TLVs accepted as RFC 9552 now requires, no semantic validation on the propagation path, RFC 9552 §8.2.2 syntactic validation of the BGP-LS Attribute on the receive path (`validateBGPLSAttr`, [`internal/component/bgp/message/rfc7606_bgpls.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_bgpls.go)) with 'Attribute Discard' handling for a malformed one, RFC 9552 §8.2.2 syntactic validation of the Link-State NLRI on the receive path (`validateBGPLSNLRISyntax` and `RetainWellFormedNLRI`, [`internal/component/bgp/message/rfc7606_bgpls_nlri.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_bgpls_nlri.go)) with 'NLRI discard' for a skipable error and session reset for a length error that leaves the UPDATE unprocessable, every descriptor's sub-TLVs emitted in the canonical order Section 5.1 defines -- ascending by TLV type across node, link and prefix descriptors, and, among repeated sub-TLVs of one type, ascending by Length then by Value (`addressTLVs` and `srv6SIDsOrdered`, [`internal/component/bgp/plugins/nlri/ls/types_descriptor.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/types_descriptor.go)) -- so one node never encodes to two keys, RFC 4760 next-hop encoding, zero-padded TE Default Metric and a 1-octet IS-IS small metric whose two high bits are always zero. Requirements bound per line in [`rfc/short/rfc9552.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc9552.md).
+- Consumer decoding and syntactic propagation remain separate from native origination. `bgp-ls-export` consumes registered IS-IS, OSPF, and EPE snapshots, emits distinct topology identities, enforces opaque LSA provenance, clears originated reserved flags, reconciles withdrawals and replacements, and supports per-domain 64-bit Instance-ID configuration. Native SPF-unreachable origins are withdrawn and re-advertised on native SPF recovery, including unchanged LSDB objects
+- reachable-origin half-links remain advertised. Native EPE index advertisements require a matching advertised SRGB.
+
 
 **What the ledger says remains**
 
-Twelve MUST-level gaps. [`RFC9552-5.3-2`](#rfc9552-5.3-2): an oversized forwarded UPDATE that cannot be split is dropped whole instead of having the BGP-LS Attribute discarded first. Eleven rows the 2026-09-21 extraction walk added from sentences the checklist did not carry, none of them tested: [`RFC9552-5.2.2.1-2`](#rfc9552-5.2.2.1-2), [`RFC9552-5.2.3-2`](#rfc9552-5.2.3-2), [`RFC9552-5.3.1.1-1`](#rfc9552-5.3.1.1-1), [`RFC9552-5.3.1.5-1`](#rfc9552-5.3.1.5-1), [`RFC9552-5.3.2.2-3`](#rfc9552-5.3.2.2-3), [`RFC9552-5.3.2.6-1`](#rfc9552-5.3.2.6-1), [`RFC9552-5.3.2.6-2`](#rfc9552-5.3.2.6-2), [`RFC9552-5.3.3.1-1`](#rfc9552-5.3.3.1-1), [`RFC9552-5.3.3.6-1`](#rfc9552-5.3.3.6-1), [`RFC9552-5.3.3.6-2`](#rfc9552-5.3.3.6-2) and [`RFC9552-5.4-2`](#rfc9552-5.4-2).
+Two MUST rows carry {gap}. [`RFC9552-5.3-2`](#rfc9552-5.3-2) still requires oversized propagation to discard the BGP-LS Attribute first. The owner selected **Standard origination only**: `encodeTopology` emits standard NLRI types and `originateAttributes` refuses private-use TLV types; no native vendor-private producer is enabled. Section 5.4's Enterprise Code duties are conditional on private origination; received unknown/private NLRIs remain opaque on the propagation path. New native origination proofs require centralized execution and discrimination; no conformance claim follows from the source additions alone. The native exporter does not bound a BGP-LS Attribute by the collector session's maximum UPDATE size ([`RFC9552-5.3-1`](#rfc9552-5.3-1)).
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 22 | one part of the gated population |
-| Annotated instead of tested | 26 | one part of the gated population |
+| Positive and negative tests | 45 | one part of the gated population |
+| Annotated instead of tested | 14 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 11 | one part of the gated population |
+| No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **59** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (22):** [`RFC9552-5.1-1`](#rfc9552-5.1-1), [`RFC9552-5.1-2`](#rfc9552-5.1-2), [`RFC9552-5.1-3`](#rfc9552-5.1-3), [`RFC9552-5.1-4`](#rfc9552-5.1-4), [`RFC9552-5.1-5`](#rfc9552-5.1-5), [`RFC9552-5.1-6`](#rfc9552-5.1-6), [`RFC9552-5.2-1`](#rfc9552-5.2-1), [`RFC9552-5.2-2`](#rfc9552-5.2-2), [`RFC9552-5.2-7`](#rfc9552-5.2-7), [`RFC9552-5.2-8`](#rfc9552-5.2-8), [`RFC9552-5.2.1.4-1`](#rfc9552-5.2.1.4-1), [`RFC9552-5.3.2.3-2`](#rfc9552-5.3.2.3-2), [`RFC9552-8.2.2-1`](#rfc9552-8.2.2-1), [`RFC9552-8.2.2-2`](#rfc9552-8.2.2-2), [`RFC9552-8.2.2-4`](#rfc9552-8.2.2-4), [`RFC9552-8.2.2-5`](#rfc9552-8.2.2-5), [`RFC9552-8.2.2-6`](#rfc9552-8.2.2-6), [`RFC9552-8.2.6-1`](#rfc9552-8.2.6-1), [`RFC9552-5.2.1.1-1`](#rfc9552-5.2.1.1-1), [`RFC9552-5.2.1.1-2`](#rfc9552-5.2.1.1-2), [`RFC9552-8.2.2-9`](#rfc9552-8.2.2-9), [`RFC9552-8.2.2-10`](#rfc9552-8.2.2-10)
+**Positive and negative tests (45):** [`RFC9552-5.1-1`](#rfc9552-5.1-1), [`RFC9552-5.1-2`](#rfc9552-5.1-2), [`RFC9552-5.1-3`](#rfc9552-5.1-3), [`RFC9552-5.1-4`](#rfc9552-5.1-4), [`RFC9552-5.1-5`](#rfc9552-5.1-5), [`RFC9552-5.1-6`](#rfc9552-5.1-6), [`RFC9552-5.2-1`](#rfc9552-5.2-1), [`RFC9552-5.2-2`](#rfc9552-5.2-2), [`RFC9552-5.2-3`](#rfc9552-5.2-3), [`RFC9552-5.2-6`](#rfc9552-5.2-6), [`RFC9552-5.2-7`](#rfc9552-5.2-7), [`RFC9552-5.2-8`](#rfc9552-5.2-8), [`RFC9552-5.2.1.4-1`](#rfc9552-5.2.1.4-1), [`RFC9552-5.2.2-1`](#rfc9552-5.2.2-1), [`RFC9552-5.2.2-2`](#rfc9552-5.2.2-2), [`RFC9552-5.2.2-3`](#rfc9552-5.2.2-3), [`RFC9552-5.2.2-5`](#rfc9552-5.2.2-5), [`RFC9552-5.3.2.1-1`](#rfc9552-5.3.2.1-1), [`RFC9552-5.3.2.2-1`](#rfc9552-5.3.2.2-1), [`RFC9552-5.9-1`](#rfc9552-5.9-1), [`RFC9552-5.2.3-1`](#rfc9552-5.2.3-1), [`RFC9552-5.3.2.3-2`](#rfc9552-5.3.2.3-2), [`RFC9552-8.2.2-1`](#rfc9552-8.2.2-1), [`RFC9552-8.2.2-2`](#rfc9552-8.2.2-2), [`RFC9552-8.2.2-4`](#rfc9552-8.2.2-4), [`RFC9552-8.2.2-5`](#rfc9552-8.2.2-5), [`RFC9552-8.2.2-6`](#rfc9552-8.2.2-6), [`RFC9552-8.2.6-1`](#rfc9552-8.2.6-1), [`RFC9552-5.2.2-6`](#rfc9552-5.2.2-6), [`RFC9552-5.2.1.1-1`](#rfc9552-5.2.1.1-1), [`RFC9552-5.2.1.1-2`](#rfc9552-5.2.1.1-2), [`RFC9552-5.2.2.1-1`](#rfc9552-5.2.2.1-1), [`RFC9552-8.2.2-9`](#rfc9552-8.2.2-9), [`RFC9552-8.2.2-10`](#rfc9552-8.2.2-10), [`RFC9552-8.2.3-5`](#rfc9552-8.2.3-5), [`RFC9552-5.2.2.1-2`](#rfc9552-5.2.2.1-2), [`RFC9552-5.2.3-2`](#rfc9552-5.2.3-2), [`RFC9552-5.3.1.1-1`](#rfc9552-5.3.1.1-1), [`RFC9552-5.3.1.5-1`](#rfc9552-5.3.1.5-1), [`RFC9552-5.3.2.2-3`](#rfc9552-5.3.2.2-3), [`RFC9552-5.3.2.6-1`](#rfc9552-5.3.2.6-1), [`RFC9552-5.3.2.6-2`](#rfc9552-5.3.2.6-2), [`RFC9552-5.3.3.1-1`](#rfc9552-5.3.3.1-1), [`RFC9552-5.3.3.6-1`](#rfc9552-5.3.3.6-1), [`RFC9552-5.3.3.6-2`](#rfc9552-5.3.3.6-2)
 
-**Annotated instead of tested (26):** [`RFC9552-5.2-3`](#rfc9552-5.2-3), [`RFC9552-5.2-4`](#rfc9552-5.2-4), [`RFC9552-5.2-5`](#rfc9552-5.2-5), [`RFC9552-5.2-6`](#rfc9552-5.2-6), [`RFC9552-5.2.1.4-2`](#rfc9552-5.2.1.4-2), [`RFC9552-5.2.2-1`](#rfc9552-5.2.2-1), [`RFC9552-5.2.2-2`](#rfc9552-5.2.2-2), [`RFC9552-5.2.2-3`](#rfc9552-5.2.2-3), [`RFC9552-5.2.2-4`](#rfc9552-5.2.2-4), [`RFC9552-5.2.2-5`](#rfc9552-5.2.2-5), [`RFC9552-5.2.3.1-1`](#rfc9552-5.2.3.1-1), [`RFC9552-5.2.1-1`](#rfc9552-5.2.1-1), [`RFC9552-5.3.2.1-1`](#rfc9552-5.3.2.1-1), [`RFC9552-5.3.2.2-1`](#rfc9552-5.3.2.2-1), [`RFC9552-5.3.2.3-1`](#rfc9552-5.3.2.3-1), [`RFC9552-5.5-1`](#rfc9552-5.5-1), [`RFC9552-5.3-1`](#rfc9552-5.3-1), [`RFC9552-5.9-1`](#rfc9552-5.9-1), [`RFC9552-5.4-1`](#rfc9552-5.4-1), [`RFC9552-5.2.3-1`](#rfc9552-5.2.3-1), [`RFC9552-5.3-2`](#rfc9552-5.3-2), [`RFC9552-5.2.2-6`](#rfc9552-5.2.2-6), [`RFC9552-5.1-7`](#rfc9552-5.1-7), [`RFC9552-5.2.2.1-1`](#rfc9552-5.2.2.1-1), [`RFC9552-8.2.3-5`](#rfc9552-8.2.3-5), [`RFC9552-8.2.6-2`](#rfc9552-8.2.6-2)
-
-**No test and no annotation (11):** [`RFC9552-5.2.2.1-2`](#rfc9552-5.2.2.1-2), [`RFC9552-5.2.3-2`](#rfc9552-5.2.3-2), [`RFC9552-5.3.1.1-1`](#rfc9552-5.3.1.1-1), [`RFC9552-5.3.1.5-1`](#rfc9552-5.3.1.5-1), [`RFC9552-5.3.2.2-3`](#rfc9552-5.3.2.2-3), [`RFC9552-5.3.2.6-1`](#rfc9552-5.3.2.6-1), [`RFC9552-5.3.2.6-2`](#rfc9552-5.3.2.6-2), [`RFC9552-5.3.3.1-1`](#rfc9552-5.3.3.1-1), [`RFC9552-5.3.3.6-1`](#rfc9552-5.3.3.6-1), [`RFC9552-5.3.3.6-2`](#rfc9552-5.3.3.6-2), [`RFC9552-5.4-2`](#rfc9552-5.4-2)
+**Annotated instead of tested (14):** [`RFC9552-5.2-4`](#rfc9552-5.2-4), [`RFC9552-5.2-5`](#rfc9552-5.2-5), [`RFC9552-5.2.1.4-2`](#rfc9552-5.2.1.4-2), [`RFC9552-5.2.2-4`](#rfc9552-5.2.2-4), [`RFC9552-5.2.3.1-1`](#rfc9552-5.2.3.1-1), [`RFC9552-5.2.1-1`](#rfc9552-5.2.1-1), [`RFC9552-5.3.2.3-1`](#rfc9552-5.3.2.3-1), [`RFC9552-5.5-1`](#rfc9552-5.5-1), [`RFC9552-5.3-1`](#rfc9552-5.3-1), [`RFC9552-5.4-1`](#rfc9552-5.4-1), [`RFC9552-5.3-2`](#rfc9552-5.3-2), [`RFC9552-5.1-7`](#rfc9552-5.1-7), [`RFC9552-8.2.6-2`](#rfc9552-8.2.6-2), [`RFC9552-5.4-2`](#rfc9552-5.4-2)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC9552-5.1-1` | All TLVs within the NLRI MUST be ordered in ascending order by TLV Type (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestLinkDescriptorOrdersMixedFamilyAddressesAscending`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go#L39). **negative:** `unit/verify` [`TestNoDescriptorEmitsADescendingTLVSequence`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go#L73) |
-| `RFC9552-5.1-2` | Same-type TLVs MUST be ordered ascending by Length, then ascending by Value (lexicographic binary) (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestNodeDescriptorOrdersRepeatedSRv6SIDs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go#L124). **negative:** `unit/verify` [`TestSRv6SIDOrderIsLengthBeforeValue`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go#L170) |
-| `RFC9552-5.1-3` | Unknown and unsupported TLV types MUST be preserved and propagated within both the NLRI and the BGP-LS Attribute (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestRFC7752UnknownTLVPreservedAndPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L65). **negative:** `unit/verify` [`TestRFC7752MalformedTLVNotPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L103) |
-| `RFC9552-5.1-4` | Presence of unknown or unexpected TLVs MUST NOT result in the NLRI or BGP-LS Attribute being considered malformed (§5.1) | MUST NOT | 5.1 | **positive:** `unit/verify` [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L53). **negative:** `unit/verify` [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L94) |
-| `RFC9552-5.1-5` | NLRIs having TLVs that do not follow ordering rules MUST be considered malformed by a BGP-LS Propagator (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L165). **negative:** `unit/verify` [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L53) |
+| `RFC9552-5.1-1` | To compare NLRIs with unknown TLVs, all TLVs within the NLRI MUST be ordered in ascending order by TLV Type. (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestLinkDescriptorOrdersMixedFamilyAddressesAscending`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go#L39). **negative:** `unit/verify` [`TestNoDescriptorEmitsADescendingTLVSequence`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go#L73) |
+| `RFC9552-5.1-2` | If there are multiple TLVs of the same type within a single NLRI, then the TLVs sharing the same type MUST be first in ascending order based on the Length field followed by ascending order based on the Value field. (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestNodeDescriptorOrdersRepeatedSRv6SIDs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go#L124). **negative:** `unit/verify` [`TestSRv6SIDOrderIsLengthBeforeValue`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go#L170) |
+| `RFC9552-5.1-3` | Unknown and unsupported types MUST be preserved and propagated within both the NLRI and the BGP-LS Attribute. (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestRFC7752UnknownTLVPreservedAndPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L65). **negative:** `unit/verify` [`TestRFC7752MalformedTLVNotPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L103) |
+| `RFC9552-5.1-4` | The presence of unknown or unexpected TLVs MUST NOT result in the NLRI or the BGP-LS Attribute being considered malformed. (§5.1) | MUST NOT | 5.1 | **positive:** `unit/verify` [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L53). **negative:** `unit/verify` [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L94) |
+| `RFC9552-5.1-5` | NLRIs having TLVs that do not follow the above ordering rules MUST be considered as malformed by a BGP-LS Propagator. (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L165). **negative:** `unit/verify` [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L53) |
 | `RFC9552-5.1-6` | BGP-LS Attribute with unordered TLVs MUST NOT be considered malformed (§5.1) | MUST NOT | 5.1 | **positive:** `unit/verify` [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L52). **negative:** `unit/verify` [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L93) |
 | `RFC9552-5.2-1` | All non-VPN link, node, and prefix information SHALL be encoded using AFI 16388 / SAFI 71 (§5.2) | SHALL | 5.2 | **positive:** `unit/verify` [`TestRFC7752NonVPNFamilyIsAFI16388SAFI71`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L230). **negative:** `unit/verify` [`TestRFC7752NonLinkStateFamilyRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L267) |
 | `RFC9552-5.2-2` | VPN link, node, and prefix information SHALL be encoded using AFI 16388 / SAFI 72 (§5.2) | SHALL | 5.2 | **positive:** `unit/verify` [`TestRFC7752VPNFamilyIsAFI16388SAFI72`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L248). **positive:** `unit/verify` [`TestRFC9552BGPLSVPNNLRIFramedByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L135). **negative:** `unit/verify` [`TestRFC7752NonLinkStateFamilyRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L268) |
-| `RFC9552-5.2-3` | For all information derived from other protocols, the corresponding Protocol-ID MUST be used (§5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze selects no Protocol-ID because it derives no link-state from an IGP. ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions; the Protocol-ID on every BGP-LS route ze holds arrives on the wire and is parsed at internal/component/bgp/plugins/nlri/ls/types.go:316 |
-| `RFC9552-5.2-4` | The network operator MUST assign the same BGP-LS Instance-IDs on all BGP-LS Producers within a given IGP domain (§5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze assigns no BGP-LS Instance-ID on any Producer because it runs none. The 8-octet Identifier is only ever read from the wire (internal/component/bgp/plugins/nlri/ls/types.go:317), there is no config surface that sets it (grep -rn "bgp-ls" --include=*.yang returns nothing), and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| `RFC9552-5.2-5` | Unique BGP-LS Instance-IDs MUST be assigned to routing protocol instances operating in different IGP domains (§5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze assigns no BGP-LS Instance-ID to any routing protocol instance, so it cannot make two domains collide. The Identifier is only ever read from the wire (internal/component/bgp/plugins/nlri/ls/types.go:317), no config surface sets it (grep -rn "bgp-ls" --include=*.yang returns nothing), and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| `RFC9552-5.2-6` | When modifying TLVs in NLRI, Producer MUST withdraw the old NLRI via MP_UNREACH_NLRI first (§5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze modifies no TLV in any NLRI because it builds none. The NLRI bytes it re-advertises are the received bytes: ParseBGPLS caches the wire slice (internal/component/bgp/plugins/nlri/ls/types.go:333), WriteTo copies it back out (internal/component/bgp/plugins/nlri/ls/types_nlri.go:63) and the transit path forwards the payload verbatim (internal/component/bgp/reactor/forward_body.go:64); ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| `RFC9552-5.2-7` | BGP speakers MUST use BGP Capabilities Advertisement to ensure both peers can process Link-State NLRIs (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7752_bgpls_test.go#L29). **negative:** `unit/verify` [`TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7752_bgpls_test.go#L63) |
+| `RFC9552-5.2-3` | For all information derived from other protocols, the corresponding Protocol-ID MUST be used (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestRFC9552NativeProtocolIDFollowsSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L25). **negative:** `unit/verify` [`TestRFC9552NativeProtocolIDFollowsSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L38) |
+| `RFC9552-5.2-4` | The network operator MUST assign the same BGP-LS Instance-IDs on all BGP-LS Producers within a given IGP domain (§5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the sentence binds the network operator, who assigns Instance-IDs across Producers; ze carries the per-domain value the operator configures unchanged into the NLRI (internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig) and cannot see which IGP domain another Producer reports |
+| `RFC9552-5.2-5` | Unique BGP-LS Instance-IDs MUST be assigned to routing protocol instances operating in different IGP domains (§5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the sentence binds the network operator, who assigns Instance-IDs to IGP domains; ze carries the per-domain value the operator configures unchanged into the NLRI (internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig) and cannot see the domains of other routers |
+| `RFC9552-5.2-6` | When adding, removing, or modifying a TLV/sub-TLV from a Link-State NLRI, the BGP-LS Producer MUST withdraw the old NLRI by including it in the MP_UNREACH_NLRI. (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestRFC9552NativeDescriptorChangeWithdrawsFirst`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L60). **negative:** `unit/verify` [`TestRFC9552NativeDescriptorChangeWithdrawsFirst`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L71) |
+| `RFC9552-5.2-7` | For two BGP Speakers to exchange Link-State NLRI, they MUST use BGP Capabilities Advertisement to ensure that they are both capable of properly processing such NLRI. (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7752_bgpls_test.go#L29). **negative:** `unit/verify` [`TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7752_bgpls_test.go#L63) |
 | `RFC9552-5.2-8` | An implementation MUST handle unknown Link-State NLRI types as opaque objects and MUST preserve and propagate them (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestRFC9552BGPLSVPNNLRIFramedByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L136). **positive:** `unit/verify` [`TestRFC9552UnknownBGPLSNLRITypeIsOpaque`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L46). **negative:** `unit/verify` [`TestRFC9552MalformedBGPLSNLRIRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L90). **positive:** `functional/verify` [`rfc9552-52-rs-opaque-withdraw-peer-down.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc9552-52-rs-opaque-withdraw-peer-down.ci#L3) |
-| `RFC9552-5.2.1.4-1` | At most one instance of each sub-TLV type MUST be present in any Node Descriptor (§5.2.1.4) | MUST | 5.2.1.4 | **positive:** `unit/verify` [`TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L127). **negative:** `unit/verify` [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L54) |
-| `RFC9552-5.2.1.4-2` | Sub-TLVs within a Node Descriptor MUST be arranged in ascending order by sub-TLV type (§5.2.1.4) | MUST | 5.2.1.4 | **positive:** `unit/verify` [`TestRFC7752NodeDescriptorSubTLVsAscending`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L165). **negative:** no negative test. **{single-polarity}:** NodeDescriptor.WriteTo emits sub-TLVs 512, 513, 514, 515, 516 and 517 in that fixed ascending order (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:98), and the ordering duty falls on the sender: parseNodeDescriptorTLVs (internal/component/bgp/plugins/nlri/ls/types.go:391) accepts sub-TLVs in any order on receipt, so there is no out-of-order input for ze to reject |
-| `RFC9552-5.2.2-1` | When interface/neighbor addresses are present, address TLVs MUST be included in Link Descriptors (§5.2.2) | MUST | 5.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze derives no link from an IGP, so it fills no Link Descriptor: LinkDescriptor.WriteTo (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:200) runs only from BGPLSLink.WriteTo (internal/component/bgp/plugins/nlri/ls/types_nlri.go:181), and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions, so no interface or neighbor address ever reaches a Link Descriptor ze builds |
-| `RFC9552-5.2.2-2` | Link Local/Remote Identifiers TLV MUST NOT be included in Link Descriptor when addresses are present (§5.2.2) | MUST NOT | 5.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze derives no link from an IGP, so it fills no Link Descriptor: LinkDescriptor.WriteTo (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:200) runs only from BGPLSLink.WriteTo (internal/component/bgp/plugins/nlri/ls/types_nlri.go:181), and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions, so ze never faces the choice between address TLVs and the Link Local/Remote Identifiers TLV |
-| `RFC9552-5.2.2-3` | IPv4/IPv6 link-local addresses MUST NOT be carried in TLVs 259/260/261/262 (§5.2.2) | MUST NOT | 5.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze derives no link from an IGP, so it fills no Link Descriptor: LinkDescriptor.WriteTo (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:200) runs only from BGPLSLink.WriteTo (internal/component/bgp/plugins/nlri/ls/types_nlri.go:181), and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions, so ze places no address, link-local or otherwise, in TLV 259, 260, 261 or 262 |
-| `RFC9552-5.2.2-4` | Link Local/Remote Identifiers TLV MUST be included when only link-local identifiers are available (§5.2.2) | MUST | 5.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze derives no link from an IGP, so it fills no Link Descriptor: LinkDescriptor.WriteTo (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:200) runs only from BGPLSLink.WriteTo (internal/component/bgp/plugins/nlri/ls/types_nlri.go:181), and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions, so ze never has a link with only link-local identifiers to describe |
-| `RFC9552-5.2.2-5` | Multi-Topology Identifier TLV MUST be included as Link Descriptor if link is associated with non-default topology (§5.2.2) | MUST | 5.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze emits no Multi-Topology Identifier TLV at all. LinkDescriptor.WriteTo (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:200) and PrefixDescriptor.WriteTo (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:264) write no TLV 263, grep -rn "TLVMultiTopologyID" --include=*.go matches only the constant declaration at internal/component/bgp/plugins/nlri/ls/types.go:207, and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| `RFC9552-5.2.3.1-1` | OSPF Route Type TLV MUST be included when the route type is signaled in the underlying LSA or determinable from another LSA (§5.2.3.1) | MUST | 5.2.3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 9552 raises the OSPF Route Type TLV from optional to mandatory, but ze advertises no OSPF prefix through BGP-LS and writes no TLV 264: PrefixDescriptor.WriteTo emits only the IP Reachability Information TLV (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:264) and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| `RFC9552-5.2.1-1` | Auxiliary TE Router-IDs (TLVs 1028/1029) MUST be included in the node attribute (§5.2.1) | MUST | 5.2.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze assembles no BGP-LS Attribute: every Ls*TLV struct is built only inside its own decode function (internal/component/bgp/plugins/nlri/ls/attr_node.go:179, internal/component/bgp/plugins/nlri/ls/attr_link.go:59) and a grep for composite-literal construction of LsIPv4RouterIDRemote, LsIPv4RouterIDLocal, LsIGPFlags and LsPrefixMetric outside _test.go finds only those decode functions, and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| `RFC9552-5.3.2.1-1` | All auxiliary Router-IDs of both local and remote nodes MUST be included in the link attribute of each Link NLRI (§5.3.2.1) | MUST | 5.3.2.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze assembles no BGP-LS Attribute: every Ls*TLV struct is built only inside its own decode function (internal/component/bgp/plugins/nlri/ls/attr_node.go:179, internal/component/bgp/plugins/nlri/ls/attr_link.go:59) and a grep for composite-literal construction of LsIPv4RouterIDRemote, LsIPv4RouterIDLocal, LsIGPFlags and LsPrefixMetric outside _test.go finds only those decode functions, and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| `RFC9552-5.3.2.2-1` | MPLS Protocol Mask TLV MUST NOT be included in NLRIs with Protocol-IDs 1-3, 6 (IS-IS, OSPF) (§5.3.2.2) | MUST NOT | 5.3.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze has no MPLS Protocol Mask TLV. TLV 1094 is neither encoded nor registered for decode: grep -rn "1094" over internal/component/bgp/plugins/nlri/ls/ returns nothing and register_attr.go (internal/component/bgp/plugins/nlri/ls/register_attr.go:8) registers no 1094 decoder, so no NLRI ze emits or reads carries the TLV this clause restricts |
-| `RFC9552-5.3.2.3-1` | High-order bits of TE Default Metric MUST be padded with zero if source is less than 32 bits (§5.3.2.3) | MUST | 5.3.2.3 | **positive:** `unit/verify` [`TestRFC7752TEDefaultMetricZeroPadded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L204). **negative:** no negative test. **{single-polarity}:** LsTEDefaultMetric.WriteTo always emits a 4-octet value (internal/component/bgp/plugins/nlri/ls/attr_link.go:226), so a metric sourced from a narrower width lands zero-padded in the high-order octets and ze owns no short-form TE metric encoder whose output could be rejected |
-| `RFC9552-5.5-1` | The next-hop address MUST be encoded as described in RFC 4760 (§5.5) | MUST | 5.5 | **positive:** `unit/verify` [`TestRFC7752BGPLSNextHopFollowsRFC4760`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7752_bgpls_test.go#L25). **negative:** no negative test. **{single-polarity}:** MPReachNLRI.WriteTo is family agnostic and lays out AFI, SAFI, next-hop length, next-hop, the zero reserved octet and then the NLRI for AFI 16388 exactly as RFC 4760 Section 3 specifies (internal/core/bgp/attribute/mpnlri.go:154); ValidNextHopLens returns nil for AFI 16388 (internal/core/bgp/attribute/mpnlri.go:305), so ze runs no BGP-LS next-hop length check and holds no rejection path to drive negatively |
-| `RFC9552-5.3-1` | BGP-LS Producers MUST ensure TLVs in BGP-LS Attribute do not cause UPDATE to exceed maximum message size (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze puts no TLV in a BGP-LS Attribute, so it cannot push an UPDATE past the maximum message size that way. ze assembles no BGP-LS Attribute: every Ls*TLV struct is built only inside its own decode function (internal/component/bgp/plugins/nlri/ls/attr_node.go:179, internal/component/bgp/plugins/nlri/ls/attr_link.go:59) and a grep for composite-literal construction of LsIPv4RouterIDRemote, LsIPv4RouterIDLocal, LsIGPFlags and LsPrefixMetric outside _test.go finds only those decode functions, and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| `RFC9552-5.9-1` | Producer MUST re-advertise link-state objects after an unreachable node becomes reachable again (§5.9) | MUST | 5.9 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze tracks no IGP node reachability for BGP-LS and therefore neither withdraws nor re-advertises link-state objects on a reachability change. ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| `RFC9552-5.4-1` | Private Use TLV value MUST include 4-octet Enterprise Code as first field (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze emits no Private Use TLV. No encoder writes a type in the 65000-65535 range (register_attr.go registers only assigned code points, internal/component/bgp/plugins/nlri/ls/register_attr.go:8), grep -rni "enterprise" over internal/component/bgp/plugins/nlri/ls/ returns nothing, and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| `RFC9552-5.2.3-1` | Trailing bits of IP prefix in IP Reachability Information TLV MUST be 0 (§5.2.3) | MUST | 5.2.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze builds no IP Reachability Information TLV. PrefixDescriptor.IPReachabilityInfo is copied verbatim from whatever its caller supplied (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:266), no non-test caller supplies one, and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions; a received prefix is read as sent (internal/component/bgp/plugins/nlri/ls/plugin.go:593) |
+| `RFC9552-5.2.1.4-1` | At most, there MUST be one instance of each sub-TLV type present in any Node Descriptor. (§5.2.1.4) | MUST | 5.2.1.4 | **positive:** `unit/verify` [`TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L127). **negative:** `unit/verify` [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L54) |
+| `RFC9552-5.2.1.4-2` | The sub-TLVs within a Node Descriptor MUST be arranged in ascending order by sub-TLV type. (§5.2.1.4) | MUST | 5.2.1.4 | **positive:** `unit/verify` [`TestRFC7752NodeDescriptorSubTLVsAscending`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L165). **negative:** no negative test. **{single-polarity}:** NodeDescriptor.WriteTo emits sub-TLVs 512, 513, 514, 515, 516 and 517 in that fixed ascending order (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:98), and the ordering duty falls on the sender: parseNodeDescriptorTLVs (internal/component/bgp/plugins/nlri/ls/types.go:391) accepts sub-TLVs in any order on receipt, so there is no out-of-order input for ze to reject |
+| `RFC9552-5.2.2-1` | When interface/neighbor addresses are present, address TLVs MUST be included in Link Descriptors (§5.2.2) | MUST | 5.2.2 | **positive:** `unit/verify` [`TestRFC9552NativeLinkIdentitySelection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L242). **negative:** `unit/verify` [`TestRFC9552NativeLinkDescriptorComplements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L101) |
+| `RFC9552-5.2.2-2` | Link Local/Remote Identifiers TLV MUST NOT be included in Link Descriptor when addresses are present (§5.2.2) | MUST NOT | 5.2.2 | **positive:** `unit/verify` [`TestRFC9552NativeLinkDescriptorComplements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L97). **negative:** `unit/verify` [`TestRFC9552NativeLinkIdentitySelection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L243) |
+| `RFC9552-5.2.2-3` | IPv4/IPv6 link-local addresses MUST NOT be carried in the IPv4/IPv6 interface/neighbor address TLVs (259/260/261/262) as descriptors of a link since they are not considered unique. (§5.2.2) | MUST NOT | 5.2.2 | **positive:** `unit/verify` [`TestRFC9552NativeLinkDescriptorComplements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L98). **negative:** `unit/verify` [`TestRFC9552NativeLinkIdentitySelection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L244) |
+| `RFC9552-5.2.2-4` | Link Local/Remote Identifiers TLV MUST be included when only link-local identifiers are available (§5.2.2) | MUST | 5.2.2 | **positive:** `unit/verify` [`TestRFC9552NativeLinkIdentitySelection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L245). **negative:** no negative test. **{single-polarity}:** the only non-conforming output is a link-local-only link without TLV 258, which is the positive test's own assertion; internal/component/bgp/plugins/ls_export/export_encode.go::encodeNativeLink appends TLV 258 whenever no global address descriptor was produced and the source holds link identifiers, so no input exists for a refusal |
+| `RFC9552-5.2.2-5` | The Multi-Topology Identifier TLV MUST be included as a Link Descriptor if the underlying IGP link object is associated with a non-default topology. (§5.2.2) | MUST | 5.2.2 | **positive:** `unit/verify` [`TestRFC9552NativeLinkNonDefaultTopology`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L120). **negative:** `unit/verify` [`TestRFC9552NativeLinkNonDefaultTopology`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L122) |
+| `RFC9552-5.2.3.1-1` | OSPF Route Type TLV MUST be included when the route type is signaled in the underlying LSA or determinable from another LSA (§5.2.3.1) | MUST | 5.2.3.1 | **positive:** `unit/verify` [`TestRFC9552NativeOSPFRouteType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L134). **negative:** no negative test. **{single-polarity}:** a zero RouteType is the source's statement that no route type is signaled, where the requirement does not bind, and every non-zero type is emitted as TLV 264 (internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology), so no input exists for a refusal |
+| `RFC9552-5.2.1-1` | Auxiliary TE Router-IDs (TLVs 1028/1029) MUST be included in the node attribute (§5.2.1) | MUST | 5.2.1 | **positive:** `unit/verify` [`TestRFC9552ISISNodeRouterID`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9552_test.go#L49). **negative:** no negative test. **{single-polarity}:** the obligation is to include the Router-IDs the IGP carries, so its only failure is omission, which the positive test asserts per node; no input exists that ze could refuse |
+| `RFC9552-5.3.2.1-1` | All auxiliary Router-IDs of both the local and the remote node MUST be included in the link attribute of each Link NLRI. (§5.3.2.1) | MUST | 5.3.2.1 | **positive:** `unit/verify` [`TestRFC9552ISISLinkRouterIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9552_test.go#L72). **negative:** `unit/verify` [`TestRFC9552ISISLinkRouterIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9552_test.go#L77) |
+| `RFC9552-5.3.2.2-1` | MPLS Protocol Mask TLV MUST NOT be included in NLRIs with Protocol-IDs 1-3, 6 (IS-IS, OSPF) (§5.3.2.2) | MUST NOT | 5.3.2.2 | **positive:** `unit/verify` [`TestRFC9552NativeDefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L200). **negative:** `unit/verify` [`TestRFC9552NativeIGPMPLSMaskRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L223) |
+| `RFC9552-5.3.2.3-1` | If a source protocol uses a metric width of fewer than 32 bits, then the high- order bits of this field MUST be padded with zero. (§5.3.2.3) | MUST | 5.3.2.3 | **positive:** `unit/verify` [`TestRFC7752TEDefaultMetricZeroPadded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L204). **negative:** no negative test. **{single-polarity}:** lsTEDefaultMetric.WriteTo always emits a 4-octet value (internal/component/bgp/plugins/nlri/ls/attr_link.go:226), so a metric sourced from a narrower width lands zero-padded in the high-order octets and ze owns no short-form TE metric encoder whose output could be rejected |
+| `RFC9552-5.5-1` | The next-hop address MUST be encoded as described in [RFC4760]. (§5.5) | MUST | 5.5 | **positive:** `unit/verify` [`TestRFC7752BGPLSNextHopFollowsRFC4760`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7752_bgpls_test.go#L25). **negative:** no negative test. **{single-polarity}:** MPReachNLRI.WriteTo is family agnostic and lays out AFI, SAFI, next-hop length, next-hop, the zero reserved octet and then the NLRI for AFI 16388 exactly as RFC 4760 Section 3 specifies (internal/core/bgp/attribute/mpnlri.go:154); ValidNextHopLens returns nil for AFI 16388 (internal/core/bgp/attribute/mpnlri.go:305), so ze runs no BGP-LS next-hop length check and holds no rejection path to drive negatively |
+| `RFC9552-5.3-1` | BGP-LS Producers MUST ensure that the TLVs included in the BGP-LS Attribute does not result in a BGP UPDATE message for a single Link-State NLRI that crosses the maximum limit for a BGP message. (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the native exporter bounds a BGP-LS Attribute only at the 65535-octet TLV length and never against the maximum UPDATE size of the collector session; internal/component/bgp/plugins/ls_export/export_encode.go::originateAttributes |
+| `RFC9552-5.9-1` | If the BGP-LS Producer does withdraw link-state objects associated with an IGP node based on the failure of reachability check for that node, then it MUST re-advertise those link-state objects after that node becomes reachable again in the IGP domain. (§5.9) | MUST | 5.9 | **positive:** `unit/verify` [`TestBGPLSNativeSPFInterAreaASBROrigin`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/bgpls_export_test.go#L738). **positive:** `unit/verify` [`TestBGPLSNativeSPFPartitionRestoresStaleOrigins`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/bgpls_export_test.go#L631). **positive:** `unit/verify` [`TestBGPLSNativeV3SPFPseudonodeRestoration`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/bgpls_export_test.go#L800). **positive:** `unit/verify` [`TestISISBGPLSNativeSPFReachability`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_test.go#L442). **positive:** `unit/verify` [`TestRFC9552NativeReachabilityWithdrawalAndRestoration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L322). **negative:** `unit/verify` [`TestBGPLSNativeSPFPartitionRestoresStaleOrigins`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/bgpls_export_test.go#L633). **negative:** `unit/verify` [`TestBGPLSNativeSPFUnknownOriginsWaitForComputation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/bgpls_export_test.go#L862). **negative:** `unit/verify` [`TestISISBGPLSNativeSPFReachability`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_test.go#L443). **negative:** `unit/verify` [`TestRFC9552NativeReachabilityWithdrawalAndRestoration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L323) |
+| `RFC9552-5.4-1` | For such TLV use in the NLRI or BGP-LS Attribute, the format described in Section 5.1 is to be used and a 4-octet field MUST be included as the first field in the value to carry the Enterprise Code. (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** `unit/verify` [`TestRFC9552NativePrivateUseWithoutEnterpriseRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L183). **{single-polarity}:** ze originates no private-use TLV, because internal/component/bgp/plugins/ls_export/export_encode.go::originateAttributes refuses every type from 65000, so no emitted private-use TLV exists for a positive case |
+| `RFC9552-5.2.3-1` | Trailing bits of IP prefix in IP Reachability Information TLV MUST be 0 (§5.2.3) | MUST | 5.2.3 | **positive:** `unit/verify` [`TestRFC9552NativeMaskedPrefixUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L148). **negative:** `unit/verify` [`TestRFC9552NativeTopologySeparation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L86) |
 | `RFC9552-5.3.2.3-2` | IS-IS small metric (1-byte IGP Metric): 2 MSBs MUST be set to 0 by originator (§5.3.2.3) | MUST | 5.3.2.3 | **positive:** `unit/verify` [`TestRFC9552ISISSmallMetricTwoMSBsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L218). **negative:** `unit/verify` [`TestRFC9552IGPMetricWidthGrowsInsteadOfTruncating`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L252) |
-| `RFC9552-8.2.2-1` | A Link-State NLRI MUST NOT be considered malformed or invalid based on inclusion/exclusion of TLVs or contents of TLV fields (§8.2.2) | MUST NOT | 8.2.2 | **positive:** `unit/verify` [`TestRFC9552NLRIContentsNeverMakeItMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L147). **negative:** `unit/verify` [`TestRFC9552NLRIFramingErrorsRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L181) |
-| `RFC9552-8.2.2-2` | A BGP-LS Attribute MUST NOT be considered malformed or invalid based on inclusion/exclusion of TLVs or contents of TLV fields (§8.2.2) | MUST NOT | 8.2.2 | **positive:** `unit/verify` [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L54). **negative:** `unit/verify` [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L95) |
+| `RFC9552-8.2.2-1` | A Link-State NLRI MUST NOT be considered malformed or invalid based on the inclusion/exclusion of TLVs or contents of the TLV fields (i.e., semantic errors), as described in Sections 5.1 and 5.2. (§8.2.2) | MUST NOT | 8.2.2 | **positive:** `unit/verify` [`TestRFC9552NLRIContentsNeverMakeItMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L147). **negative:** `unit/verify` [`TestRFC9552NLRIFramingErrorsRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L181) |
+| `RFC9552-8.2.2-2` | A BGP-LS Attribute MUST NOT be considered malformed or invalid based on the inclusion/exclusion of TLVs or contents of the TLV fields (i.e., semantic errors), as described in Sections 5.1 and 5.3. (§8.2.2) | MUST NOT | 8.2.2 | **positive:** `unit/verify` [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L54). **negative:** `unit/verify` [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L95) |
 | `RFC9552-8.2.2-3` | A BGP-LS Propagator should not perform semantic validation of the Link-State NLRI or the BGP-LS Attribute (§8.2.2) | SHOULD NOT | 8.2.2 | **positive:** `unit/verify` [`TestRFC9552NLRIContentsNeverMakeItMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L148). **positive:** `unit/verify` [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L55). **negative:** `unit/verify` [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L96). **negative:** `unit/verify` [`TestRFC9552NLRIFramingErrorsRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L182) |
-| `RFC9552-8.2.2-4` | Skipable malformed NLRIs MUST be handled as "NLRI discard" (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC9552LinkStateNLRITLVOverrunIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L90). **positive:** `unit/verify` [`TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L128). **negative:** `unit/verify` [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L51) |
-| `RFC9552-8.2.2-5` | Non-skipable malformed NLRIs MUST cause session reset when session is BGP-LS only or AFI/SAFI disable is not possible (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC9552LinkStateNLRILengthOverrunResetsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L204). **negative:** `unit/verify` [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L52) |
-| `RFC9552-8.2.2-6` | Skipable malformed BGP-LS Attribute MUST be handled as "Attribute Discard" (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC9552BGPLSAttributeTLVOverrunDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L121). **positive:** `unit/verify` [`TestRFC9552BGPLSAttributeTrailingOctetsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L162). **negative:** `unit/verify` [`TestRFC9552BGPLSAttributeWellFormedIsKept`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L88) |
-| `RFC9552-5.3-2` | When BGP-LS Attribute exceeds max message during propagation, MUST apply Attribute Discard and MUST discard BGP-LS Attribute first (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** when a forwarded UPDATE exceeds the destination's maximum message size and the split fails -- which is what a single BGP-LS NLRI larger than the limit produces (internal/component/bgp/message/chunk_mp_nlri.go:133) -- fwdBody logs the failure and drops the whole UPDATE (internal/component/bgp/reactor/forward_body.go:57-60, :95-97). Nothing discards the BGP-LS Attribute first, so the Attribute Discard this clause mandates never happens |
+| `RFC9552-8.2.2-4` | When the error that is determined allows for the router to skip the malformed NLRI(s) and continue the processing of the rest of the BGP UPDATE message (e.g., when the TLV ordering rule is violated), then it MUST handle such malformed NLRIs as 'NLRI discard' (i.e., processing similar to what is described in Section 5.4 of [RFC7606]). (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC9552LinkStateNLRITLVOverrunIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L90). **positive:** `unit/verify` [`TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L128). **negative:** `unit/verify` [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L51) |
+| `RFC9552-8.2.2-5` | Alternately, the router MUST perform a 'session reset' when the session is only being used for BGP-LS or if 'AFI/SAFI disable' action is not possible. (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC9552LinkStateNLRILengthOverrunResetsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L204). **negative:** `unit/verify` [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L52) |
+| `RFC9552-8.2.2-6` | When the error that is determined allows for the router to skip the malformed BGP-LS Attribute and continue the processing of the rest of the BGP UPDATE message (e.g., when the BGP-LS Attribute length and the total Path Attribute Length are correct but some TLV/sub-TLV length within the BGP-LS Attribute is invalid), then it MUST handle such malformed BGP-LS Attribute as 'Attribute Discard'. (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC9552BGPLSAttributeTLVOverrunDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L121). **positive:** `unit/verify` [`TestRFC9552BGPLSAttributeTrailingOctetsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L162). **negative:** `unit/verify` [`TestRFC9552BGPLSAttributeWellFormedIsKept`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L88) |
+| `RFC9552-5.3-2` | When a BGP-LS Propagator finds that it is exceeding the maximum BGP message size due to the addition or update of some other BGP Attribute (e.g., AS_PATH), it MUST consider the BGP-LS Attribute to be malformed, apply the 'Attribute Discard' error-handling approach [RFC7606], and handle the propagation as described in Section 8.2.2. (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** when a forwarded UPDATE exceeds the destination's maximum message size and the split fails -- which is what a single BGP-LS NLRI larger than the limit produces (internal/component/bgp/message/chunk_mp_nlri.go:133) -- fwdBody logs the failure and drops the whole UPDATE (internal/component/bgp/reactor/forward_body.go:57-60, :95-97). Nothing discards the BGP-LS Attribute first, so the Attribute Discard this clause mandates never happens |
 | `RFC9552-8.2.6-1` | An implementation MUST have the means to limit inbound updates (§8.2.6) | MUST | 8.2.6 | **positive:** `unit/verify` [`TestBGPLSPrefixCountCountsNLRIsNotPrefixBytes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_prefix_limit_test.go#L39). **negative:** `unit/verify` [`TestBGPLSPrefixLimitActuallyFires`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_prefix_limit_test.go#L100) |
-| `RFC9552-5.2.2-6` | Upper bits of OSPF Multi-Topology ID MUST be 0, values 0-127 only (§5.2.2) | MUST | 5.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze sets no bit of a Multi-Topology ID because it emits no TLV 263. LinkDescriptor.WriteTo (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:200) and PrefixDescriptor.WriteTo (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:264) write none, grep -rn "TLVMultiTopologyID" --include=*.go matches only the constant declaration at internal/component/bgp/plugins/nlri/ls/types.go:207, and on receipt the MT-ID is masked to its low 12 bits rather than rejected (internal/component/bgp/plugins/nlri/ls/plugin.go:379); ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| `RFC9552-5.1-7` | BGP-LS Consumer MUST NOT send information back to BGP-LS Producers/Propagators (§5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 9552 Section 5.1 defines the BGP-LS Consumer as an application or process that is not a BGP Speaker; ze is a BGP Speaker and implements no Consumer that could feed link-state information back. It holds no BGP-LS content of its own to send: ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
+| `RFC9552-5.2.2-6` | If the value in the MT-ID TLV is derived from OSPF, then the upper R bits of the MT-ID field MUST be set to 0 and only the values from 0 to 127 are valid for the MT-ID (§5.2.2.1) | MUST | 5.2.2.1 | **positive:** `unit/verify` [`TestRFC9552NativeOSPFTopologyBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L111). **negative:** `unit/verify` [`TestRFC9552NativeOSPFTopologyBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L112) |
+| `RFC9552-5.1-7` | BGP-LS Consumer MUST NOT send information back to BGP-LS Producers/Propagators (§5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 9552 Section 5.1 defines the BGP-LS Consumer as an application or process that is not a BGP Speaker. Ze's native topology exporter is a BGP-LS Producer, not a Consumer feeding received BGP-LS information back into Producers or Propagators; the selected implementation does not provide that Consumer role |
 | `RFC9552-5.2.1.1-1` | The same node MUST NOT be represented by two keys (§5.2.1.1) | MUST NOT | 5.2.1.1 | **positive:** `unit/verify` [`TestSameNodeHasOneKeyWhateverTheStorageOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/types_descriptor_key_test.go#L186). **negative:** `unit/verify` [`TestNodeDescriptorWriteToMatchesBytes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/types_descriptor_key_test.go#L156) |
 | `RFC9552-5.2.1.1-2` | Two different nodes MUST NOT be represented by the same key (§5.2.1.1) | MUST NOT | 5.2.1.1 | **positive:** `unit/verify` [`TestNodeDescriptorEncodesLegalZeroKeyFields`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/types_descriptor_key_test.go#L20). **negative:** `unit/verify` [`TestNodeDescriptorKeepsBackboneDistinctFromAreaLess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/types_descriptor_key_test.go#L57) |
-| `RFC9552-5.2.2.1-1` | When used as a Link or Prefix Descriptor for IS-IS, the Bits R are reserved and MUST be set to 0 when originated and ignored on receipt (§5.2.2.1) | MUST | 5.2.2.1 | **positive:** `unit/verify` [`TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L314). **negative:** no negative test. **{single-polarity}:** ze writes no Multi-Topology Identifier TLV, so no originated R bit exists for a negative case -- LinkDescriptor.WriteTo and PrefixDescriptor.WriteTo emit no TLV 263 (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:200, internal/component/bgp/plugins/nlri/ls/types_descriptor.go:264). On receipt the R bits are masked off rather than rejected, in both the prefix and the link descriptor walk (internal/component/bgp/plugins/nlri/ls/plugin.go:405, internal/component/bgp/plugins/nlri/ls/plugin.go:519), so there is no rejection path a negative test could exercise |
-| `RFC9552-8.2.2-9` | A BGP-LS Speaker MUST perform the listed syntactic validation of the Link-State NLRI to determine if it is malformed (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC9552LinkStateNLRILengthOverrunResetsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L203). **positive:** `unit/verify` [`TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L164). **positive:** `unit/verify` [`TestRFC9552LinkStateNLRITLVOverrunIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L89). **positive:** `unit/verify` [`TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L126). **negative:** `unit/verify` [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L50) |
-| `RFC9552-8.2.2-10` | A BGP-LS Speaker MUST perform the listed syntactic validation of the BGP-LS Attribute to determine if it is malformed (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC9552BGPLSAttributeTLVOverrunDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L120). **positive:** `unit/verify` [`TestRFC9552BGPLSAttributeTrailingOctetsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L161). **negative:** `unit/verify` [`TestRFC9552BGPLSAttributeWellFormedIsKept`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L87) |
-| `RFC9552-8.2.3-5` | An implementation MUST allow the operator to configure an 8-octet BGP-LS Instance-ID (§8.2.3) | MUST | 8.2.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the Instance-ID is a BGP-LS Producer's configuration -- it is the value a Producer stamps into the 8-octet Identifier field of the Link-State NLRI, and Section 5.2 assigns it so that each IGP domain a Producer reports is uniquely identified. ze is never a Producer: the four NLRI constructors that take the Identifier, NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:102,:192,:204), have no caller outside their own package, the bgp-ls families register no InProcessRouteEncoder (internal/component/bgp/plugins/nlri/ls/register.go), and ze derives no link-state from its IS-IS or OSPF. Same ground as the other Producer-side obligations of this summary. Disclosed in docs/features/rfc-status.md |
+| `RFC9552-5.2.2.1-1` | When used as a Link or Prefix Descriptor for IS-IS, the Bits R are reserved and MUST be set to 0 (as per Section 7.2 of [RFC5120]) when originated and ignored on receipt. (§5.2.2.1) | MUST | 5.2.2.1 | **positive:** `unit/verify` [`TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L314). **negative:** `unit/verify` [`TestRFC9552NativeISISTopologyReservedBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L161) |
+| `RFC9552-8.2.2-9` | A BGP-LS Speaker MUST perform the following syntactic validation of the Link-State NLRI to determine if it is malformed. (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC9552LinkStateNLRILengthOverrunResetsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L203). **positive:** `unit/verify` [`TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L164). **positive:** `unit/verify` [`TestRFC9552LinkStateNLRITLVOverrunIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L89). **positive:** `unit/verify` [`TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L126). **negative:** `unit/verify` [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L50) |
+| `RFC9552-8.2.2-10` | A BGP-LS Speaker MUST perform the following syntactic validation of the BGP-LS Attribute to determine if it is malformed. (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC9552BGPLSAttributeTLVOverrunDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L120). **positive:** `unit/verify` [`TestRFC9552BGPLSAttributeTrailingOctetsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L161). **negative:** `unit/verify` [`TestRFC9552BGPLSAttributeWellFormedIsKept`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L87) |
+| `RFC9552-8.2.3-5` | An implementation MUST allow the operator to configure an 8-octet BGP-LS Instance-ID (§8.2.3) | MUST | 8.2.3 | **positive:** `unit/verify` [`TestRFC9552NativeInstanceIDFullWidth`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L277). **negative:** `unit/verify` [`TestRFC9552NativeInstanceIDOverflowRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L174) |
 | `RFC9552-8.2.6-2` | An operator MUST define an import policy that drops all updates from peers that are only serving BGP-LS Consumers (§8.2.6) | MUST | 8.2.6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the sentence binds the operator, not the implementation -- Section 8.2.6 reads "An operator MUST define an import policy to limit inbound updates", and assigns the implementation's own share to the next sentence, "An implementation MUST have the means to limit inbound updates", which this summary gates separately as RFC9552-8.2.6-1. ze provides the means this policy needs: a bgp/policy/family-filter instance naming the bgp-ls family with action remove, referenced from a peer's import chain, rejects every BGP-LS UPDATE that peer sends (parseFamilyFilters and handleFilterUpdate, internal/component/bgp/plugins/filter_family/config.go:30, handler.go:49). Which peers only serve BGP-LS Consumers is knowledge ze does not hold and cannot derive. Disclosed in docs/features/rfc-status.md |
-| `RFC9552-5.2.2.1-2` | In case one wants to advertise multiple topologies for a given Link or Prefix Descriptor, multiple NLRIs MUST be generated where each NLRI contains a single unique MT-ID (§5.2.2.1) | MUST | 5.2.2.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9552-5.2.3-2` | The Multi-Topology Identifier TLV MUST be included in the Prefix Descriptor if the underlying IGP prefix object is associated with a non-default topology (§5.2.3) | MUST | 5.2.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9552-5.3.1.1-1` | In the Node Flag Bits TLV the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.1.1) | MUST | 5.3.1.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9552-5.3.1.5-1` | In the case of OSPF, the Node Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPF Router Information (RI) LSA (§5.3.1.5) | MUST NOT | 5.3.1.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9552-5.3.2.2-3` | In the MPLS Protocol Mask TLV the reserved bits MUST be set to zero and SHOULD be ignored on receipt, and the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.2.2) | MUST | 5.3.2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9552-5.3.2.6-1` | In the case of OSPFv2, the Link Opaque Attribute TLV MUST NOT be used to advertise information carried using TLVs other than those in the OSPFv2 Extended Link Opaque LSA (§5.3.2.6) | MUST NOT | 5.3.2.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9552-5.3.2.6-2` | In the case of OSPFv3, the Link Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPFv3 E-Router-LSA or E-Link-LSA (§5.3.2.6) | MUST NOT | 5.3.2.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9552-5.3.3.1-1` | In the IGP Flags TLV the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.3.1) | MUST | 5.3.3.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9552-5.3.3.6-1` | In the case of OSPFv2, the Prefix Opaque Attribute TLV MUST NOT be used to advertise information carried using TLVs other than those in the OSPFv2 Extended Prefix Opaque LSA (§5.3.3.6) | MUST NOT | 5.3.3.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9552-5.3.3.6-2` | In the case of OSPFv3, the Prefix Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPFv3 E-Inter-Area-Prefix-LSA, E-Intra-Area-Prefix-LSA, E-AS-External-LSA, and E-NSSA-LSA (§5.3.3.6) | MUST NOT | 5.3.3.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9552-5.4-2` | For a private use NLRI type, a 4-octet field MUST be included as the first field in the NLRI immediately following the Total NLRI Length field of the Link-State NLRI format to carry the Enterprise Number (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9552-5.2.2.1-2` | In case one wants to advertise multiple topologies for a given Link or Prefix Descriptor, multiple NLRIs MUST be generated where each NLRI contains a single unique MT-ID (§5.2.2.1) | MUST | 5.2.2.1 | **positive:** `unit/verify` [`TestRFC9552NativeTopologySeparation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L83). **negative:** `unit/verify` [`TestRFC9552NativeTopologyReplacement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L146) |
+| `RFC9552-5.2.3-2` | The Multi-Topology Identifier TLV MUST be included in the Prefix Descriptor if the underlying IGP prefix object is associated with a non-default topology (§5.2.3) | MUST | 5.2.3 | **positive:** `unit/verify` [`TestRFC9552NativeTopologySeparation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L84). **negative:** `unit/verify` [`TestRFC9552NativeTopologyReplacement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L147) |
+| `RFC9552-5.3.1.1-1` | The bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver. (§5.3.1.1) | MUST | 5.3.1.1 | **positive:** `unit/verify` [`TestRFC9552NativeDefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L197). **positive:** `unit/verify` [`TestRFC9552NodeFlagBitsUndefinedBitsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go#L61). **negative:** `unit/verify` [`TestRFC9552NativeReservedFlagsCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L210). **negative:** `unit/verify` [`TestRFC9552UndefinedNodeBitsDoNotSetDefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go#L126) |
+| `RFC9552-5.3.1.5-1` | In the case of OSPF, this TLV MUST NOT be used to advertise TLVs other than those in the OSPF Router Information (RI) LSA [RFC7770]. (§5.3.1.5) | MUST NOT | 5.3.1.5 | **positive:** `unit/verify` [`TestRFC9552NativeOpaqueNodeProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L51). **negative:** `unit/verify` [`TestRFC9552NativeOpaqueNodeProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L52) |
+| `RFC9552-5.3.2.2-3` | In the MPLS Protocol Mask TLV the reserved bits MUST be set to zero and SHOULD be ignored on receipt, and the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.2.2) | MUST | 5.3.2.2 | **positive:** `unit/verify` [`TestRFC9552MPLSProtocolMaskDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go#L154). **positive:** `unit/verify` [`TestRFC9552NativeDefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L199). **negative:** `unit/verify` [`TestRFC9552MPLSProtocolMaskReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go#L164). **negative:** `unit/verify` [`TestRFC9552NativeReservedFlagsCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L212) |
+| `RFC9552-5.3.2.6-1` | In the case of OSPFv2, this TLV MUST NOT be used to advertise information carried using TLVs other than those in the OSPFv2 Extended Link Opaque LSA [RFC7684]. (§5.3.2.6) | MUST NOT | 5.3.2.6 | **positive:** `unit/verify` [`TestRFC9552NativeOpaqueOSPFv2LinkProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L59). **negative:** `unit/verify` [`TestRFC9552NativeOpaqueOSPFv2LinkProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L60) |
+| `RFC9552-5.3.2.6-2` | In the case of OSPFv3, this TLV MUST NOT be used to advertise TLVs other than those in the OSPFv3 E- Router-LSA or E-Link-LSA [RFC8362]. (§5.3.2.6) | MUST NOT | 5.3.2.6 | **positive:** `unit/verify` [`TestRFC9552NativeOpaqueOSPFv3LinkProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L67). **negative:** `unit/verify` [`TestRFC9552NativeOpaqueOSPFv3LinkProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L68) |
+| `RFC9552-5.3.3.1-1` | The bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver. (§5.3.3.1) | MUST | 5.3.3.1 | **positive:** `unit/verify` [`TestRFC9552IGPFlagsUndefinedBitsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go#L98). **positive:** `unit/verify` [`TestRFC9552NativeDefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L198). **negative:** `unit/verify` [`TestRFC9552NativeReservedFlagsCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L211). **negative:** `unit/verify` [`TestRFC9552UndefinedIGPBitsDoNotSetDefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go#L140) |
+| `RFC9552-5.3.3.6-1` | In the case of OSPFv2, this TLV MUST NOT be used to advertise information carried using TLVs other than those in the OSPFv2 Extended Prefix Opaque LSA [RFC7684]. (§5.3.3.6) | MUST NOT | 5.3.3.6 | **positive:** `unit/verify` [`TestRFC9552NativeOpaqueOSPFv2PrefixProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L75). **negative:** `unit/verify` [`TestRFC9552NativeOpaqueOSPFv2PrefixProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L76) |
+| `RFC9552-5.3.3.6-2` | In the case of OSPFv3, this TLV MUST NOT be used to advertise TLVs other than those in the OSPFv3 E-Inter-Area-Prefix-LSA, E-Intra-Area-Prefix-LSA, E-AS-External-LSA, and E-NSSA-LSA [RFC8362]. (§5.3.3.6) | MUST NOT | 5.3.3.6 | **positive:** `unit/verify` [`TestRFC9552NativeOpaqueOSPFv3PrefixProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L83). **negative:** `unit/verify` [`TestRFC9552NativeOpaqueOSPFv3PrefixProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L84) |
+| `RFC9552-5.4-2` | For a private use NLRI type, a 4-octet field MUST be included as the first field in the NLRI immediately following the Total NLRI Length field of the Link-State NLRI format as described in Section 5.2 to carry the Enterprise Code [ENTNUM]. (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze originates no private-use NLRI type: internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology builds only Node (1), Link (2), IPv4 and IPv6 Prefix (3, 4) and SRv6 SID (6) NLRIs |
 | `RFC9552-5.1-8` | TLVs within the BGP-LS Attribute SHOULD be ordered ascending by Type (§5.1) | SHOULD | 5.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9552-5.2-9` | "Direct" and "Static configuration" protocol types SHOULD be used when BGP-LS is sourcing local information (§5.2) | SHOULD | 5.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9552-5.2.1.4-3` | Implementations SHOULD support advertisement of BGP-LS Identifier sub-TLV (513) for backward compatibility (§5.2.1.4) | SHOULD | 5.2.1.4 | **positive:** no positive test. **negative:** no negative test |
@@ -204,39 +204,13 @@ Twelve MUST-level gaps. [`RFC9552-5.3-2`](#rfc9552-5.3-2): an oversized forwarde
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC9552-5.2-3`](#rfc9552-5.2-3) For all information derived from other protocols, the corresponding Protocol-ID MUST be used (§5.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze selects no Protocol-ID because it derives no link-state from an IGP. ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions; the Protocol-ID on every BGP-LS route ze holds arrives on the wire and is parsed at internal/component/bgp/plugins/nlri/ls/types.go:316 |
-| [`RFC9552-5.2-4`](#rfc9552-5.2-4) The network operator MUST assign the same BGP-LS Instance-IDs on all BGP-LS Producers within a given IGP domain (§5.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze assigns no BGP-LS Instance-ID on any Producer because it runs none. The 8-octet Identifier is only ever read from the wire (internal/component/bgp/plugins/nlri/ls/types.go:317), there is no config surface that sets it (grep -rn "bgp-ls" --include=*.yang returns nothing), and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| [`RFC9552-5.2-5`](#rfc9552-5.2-5) Unique BGP-LS Instance-IDs MUST be assigned to routing protocol instances operating in different IGP domains (§5.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze assigns no BGP-LS Instance-ID to any routing protocol instance, so it cannot make two domains collide. The Identifier is only ever read from the wire (internal/component/bgp/plugins/nlri/ls/types.go:317), no config surface sets it (grep -rn "bgp-ls" --include=*.yang returns nothing), and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| [`RFC9552-5.2-6`](#rfc9552-5.2-6) When modifying TLVs in NLRI, Producer MUST withdraw the old NLRI via MP_UNREACH_NLRI first (§5.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze modifies no TLV in any NLRI because it builds none. The NLRI bytes it re-advertises are the received bytes: ParseBGPLS caches the wire slice (internal/component/bgp/plugins/nlri/ls/types.go:333), WriteTo copies it back out (internal/component/bgp/plugins/nlri/ls/types_nlri.go:63) and the transit path forwards the payload verbatim (internal/component/bgp/reactor/forward_body.go:64); ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| [`RFC9552-5.2.2-1`](#rfc9552-5.2.2-1) When interface/neighbor addresses are present, address TLVs MUST be included in Link Descriptors (§5.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze derives no link from an IGP, so it fills no Link Descriptor: LinkDescriptor.WriteTo (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:200) runs only from BGPLSLink.WriteTo (internal/component/bgp/plugins/nlri/ls/types_nlri.go:181), and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions, so no interface or neighbor address ever reaches a Link Descriptor ze builds |
-| [`RFC9552-5.2.2-2`](#rfc9552-5.2.2-2) Link Local/Remote Identifiers TLV MUST NOT be included in Link Descriptor when addresses are present (§5.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze derives no link from an IGP, so it fills no Link Descriptor: LinkDescriptor.WriteTo (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:200) runs only from BGPLSLink.WriteTo (internal/component/bgp/plugins/nlri/ls/types_nlri.go:181), and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions, so ze never faces the choice between address TLVs and the Link Local/Remote Identifiers TLV |
-| [`RFC9552-5.2.2-3`](#rfc9552-5.2.2-3) IPv4/IPv6 link-local addresses MUST NOT be carried in TLVs 259/260/261/262 (§5.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze derives no link from an IGP, so it fills no Link Descriptor: LinkDescriptor.WriteTo (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:200) runs only from BGPLSLink.WriteTo (internal/component/bgp/plugins/nlri/ls/types_nlri.go:181), and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions, so ze places no address, link-local or otherwise, in TLV 259, 260, 261 or 262 |
-| [`RFC9552-5.2.2-4`](#rfc9552-5.2.2-4) Link Local/Remote Identifiers TLV MUST be included when only link-local identifiers are available (§5.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze derives no link from an IGP, so it fills no Link Descriptor: LinkDescriptor.WriteTo (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:200) runs only from BGPLSLink.WriteTo (internal/component/bgp/plugins/nlri/ls/types_nlri.go:181), and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions, so ze never has a link with only link-local identifiers to describe |
-| [`RFC9552-5.2.2-5`](#rfc9552-5.2.2-5) Multi-Topology Identifier TLV MUST be included as Link Descriptor if link is associated with non-default topology (§5.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze emits no Multi-Topology Identifier TLV at all. LinkDescriptor.WriteTo (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:200) and PrefixDescriptor.WriteTo (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:264) write no TLV 263, grep -rn "TLVMultiTopologyID" --include=*.go matches only the constant declaration at internal/component/bgp/plugins/nlri/ls/types.go:207, and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| [`RFC9552-5.2.3.1-1`](#rfc9552-5.2.3.1-1) OSPF Route Type TLV MUST be included when the route type is signaled in the underlying LSA or determinable from another LSA (§5.2.3.1) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 9552 raises the OSPF Route Type TLV from optional to mandatory, but ze advertises no OSPF prefix through BGP-LS and writes no TLV 264: PrefixDescriptor.WriteTo emits only the IP Reachability Information TLV (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:264) and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| [`RFC9552-5.2.1-1`](#rfc9552-5.2.1-1) Auxiliary TE Router-IDs (TLVs 1028/1029) MUST be included in the node attribute (§5.2.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze assembles no BGP-LS Attribute: every Ls*TLV struct is built only inside its own decode function (internal/component/bgp/plugins/nlri/ls/attr_node.go:179, internal/component/bgp/plugins/nlri/ls/attr_link.go:59) and a grep for composite-literal construction of LsIPv4RouterIDRemote, LsIPv4RouterIDLocal, LsIGPFlags and LsPrefixMetric outside _test.go finds only those decode functions, and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| [`RFC9552-5.3.2.1-1`](#rfc9552-5.3.2.1-1) All auxiliary Router-IDs of both local and remote nodes MUST be included in the link attribute of each Link NLRI (§5.3.2.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze assembles no BGP-LS Attribute: every Ls*TLV struct is built only inside its own decode function (internal/component/bgp/plugins/nlri/ls/attr_node.go:179, internal/component/bgp/plugins/nlri/ls/attr_link.go:59) and a grep for composite-literal construction of LsIPv4RouterIDRemote, LsIPv4RouterIDLocal, LsIGPFlags and LsPrefixMetric outside _test.go finds only those decode functions, and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| [`RFC9552-5.3.2.2-1`](#rfc9552-5.3.2.2-1) MPLS Protocol Mask TLV MUST NOT be included in NLRIs with Protocol-IDs 1-3, 6 (IS-IS, OSPF) (§5.3.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze has no MPLS Protocol Mask TLV. TLV 1094 is neither encoded nor registered for decode: grep -rn "1094" over internal/component/bgp/plugins/nlri/ls/ returns nothing and register_attr.go (internal/component/bgp/plugins/nlri/ls/register_attr.go:8) registers no 1094 decoder, so no NLRI ze emits or reads carries the TLV this clause restricts |
-| [`RFC9552-5.3-1`](#rfc9552-5.3-1) BGP-LS Producers MUST ensure TLVs in BGP-LS Attribute do not cause UPDATE to exceed maximum message size (§5.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze puts no TLV in a BGP-LS Attribute, so it cannot push an UPDATE past the maximum message size that way. ze assembles no BGP-LS Attribute: every Ls*TLV struct is built only inside its own decode function (internal/component/bgp/plugins/nlri/ls/attr_node.go:179, internal/component/bgp/plugins/nlri/ls/attr_link.go:59) and a grep for composite-literal construction of LsIPv4RouterIDRemote, LsIPv4RouterIDLocal, LsIGPFlags and LsPrefixMetric outside _test.go finds only those decode functions, and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| [`RFC9552-5.9-1`](#rfc9552-5.9-1) Producer MUST re-advertise link-state objects after an unreachable node becomes reachable again (§5.9) | no test | no test carries this requirement id; annotated {not-applicable}: ze tracks no IGP node reachability for BGP-LS and therefore neither withdraws nor re-advertises link-state objects on a reachability change. ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| [`RFC9552-5.4-1`](#rfc9552-5.4-1) Private Use TLV value MUST include 4-octet Enterprise Code as first field (§5.4) | no test | no test carries this requirement id; annotated {not-applicable}: ze emits no Private Use TLV. No encoder writes a type in the 65000-65535 range (register_attr.go registers only assigned code points, internal/component/bgp/plugins/nlri/ls/register_attr.go:8), grep -rni "enterprise" over internal/component/bgp/plugins/nlri/ls/ returns nothing, and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| [`RFC9552-5.2.3-1`](#rfc9552-5.2.3-1) Trailing bits of IP prefix in IP Reachability Information TLV MUST be 0 (§5.2.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze builds no IP Reachability Information TLV. PrefixDescriptor.IPReachabilityInfo is copied verbatim from whatever its caller supplied (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:266), no non-test caller supplies one, and ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions; a received prefix is read as sent (internal/component/bgp/plugins/nlri/ls/plugin.go:593) |
-| [`RFC9552-5.3-2`](#rfc9552-5.3-2) When BGP-LS Attribute exceeds max message during propagation, MUST apply Attribute Discard and MUST discard BGP-LS Attribute first (§5.3) | {gap}, no test | when a forwarded UPDATE exceeds the destination's maximum message size and the split fails -- which is what a single BGP-LS NLRI larger than the limit produces (internal/component/bgp/message/chunk_mp_nlri.go:133) -- fwdBody logs the failure and drops the whole UPDATE (internal/component/bgp/reactor/forward_body.go:57-60, :95-97). Nothing discards the BGP-LS Attribute first, so the Attribute Discard this clause mandates never happens |
-| [`RFC9552-5.2.2-6`](#rfc9552-5.2.2-6) Upper bits of OSPF Multi-Topology ID MUST be 0, values 0-127 only (§5.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze sets no bit of a Multi-Topology ID because it emits no TLV 263. LinkDescriptor.WriteTo (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:200) and PrefixDescriptor.WriteTo (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:264) write none, grep -rn "TLVMultiTopologyID" --include=*.go matches only the constant declaration at internal/component/bgp/plugins/nlri/ls/types.go:207, and on receipt the MT-ID is masked to its low 12 bits rather than rejected (internal/component/bgp/plugins/nlri/ls/plugin.go:379); ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| [`RFC9552-5.1-7`](#rfc9552-5.1-7) BGP-LS Consumer MUST NOT send information back to BGP-LS Producers/Propagators (§5.1) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 9552 Section 5.1 defines the BGP-LS Consumer as an application or process that is not a BGP Speaker; ze is a BGP Speaker and implements no Consumer that could feed link-state information back. It holds no BGP-LS content of its own to send: ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
-| [`RFC9552-8.2.3-5`](#rfc9552-8.2.3-5) An implementation MUST allow the operator to configure an 8-octet BGP-LS Instance-ID (§8.2.3) | no test | no test carries this requirement id; annotated {not-applicable}: the Instance-ID is a BGP-LS Producer's configuration -- it is the value a Producer stamps into the 8-octet Identifier field of the Link-State NLRI, and Section 5.2 assigns it so that each IGP domain a Producer reports is uniquely identified. ze is never a Producer: the four NLRI constructors that take the Identifier, NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:102,:192,:204), have no caller outside their own package, the bgp-ls families register no InProcessRouteEncoder (internal/component/bgp/plugins/nlri/ls/register.go), and ze derives no link-state from its IS-IS or OSPF. Same ground as the other Producer-side obligations of this summary. Disclosed in docs/features/rfc-status.md |
+| [`RFC9552-5.2-4`](#rfc9552-5.2-4) The network operator MUST assign the same BGP-LS Instance-IDs on all BGP-LS Producers within a given IGP domain (§5.2) | no test | no test carries this requirement id; annotated {not-applicable}: the sentence binds the network operator, who assigns Instance-IDs across Producers; ze carries the per-domain value the operator configures unchanged into the NLRI (internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig) and cannot see which IGP domain another Producer reports |
+| [`RFC9552-5.2-5`](#rfc9552-5.2-5) Unique BGP-LS Instance-IDs MUST be assigned to routing protocol instances operating in different IGP domains (§5.2) | no test | no test carries this requirement id; annotated {not-applicable}: the sentence binds the network operator, who assigns Instance-IDs to IGP domains; ze carries the per-domain value the operator configures unchanged into the NLRI (internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig) and cannot see the domains of other routers |
+| [`RFC9552-5.3-1`](#rfc9552-5.3-1) BGP-LS Producers MUST ensure that the TLVs included in the BGP-LS Attribute does not result in a BGP UPDATE message for a single Link-State NLRI that crosses the maximum limit for a BGP message. (§5.3) | {gap}, no test | the native exporter bounds a BGP-LS Attribute only at the 65535-octet TLV length and never against the maximum UPDATE size of the collector session; internal/component/bgp/plugins/ls_export/export_encode.go::originateAttributes |
+| [`RFC9552-5.3-2`](#rfc9552-5.3-2) When a BGP-LS Propagator finds that it is exceeding the maximum BGP message size due to the addition or update of some other BGP Attribute (e.g., AS_PATH), it MUST consider the BGP-LS Attribute to be malformed, apply the 'Attribute Discard' error-handling approach [RFC7606], and handle the propagation as described in Section 8.2.2. (§5.3) | {gap}, no test | when a forwarded UPDATE exceeds the destination's maximum message size and the split fails -- which is what a single BGP-LS NLRI larger than the limit produces (internal/component/bgp/message/chunk_mp_nlri.go:133) -- fwdBody logs the failure and drops the whole UPDATE (internal/component/bgp/reactor/forward_body.go:57-60, :95-97). Nothing discards the BGP-LS Attribute first, so the Attribute Discard this clause mandates never happens |
+| [`RFC9552-5.1-7`](#rfc9552-5.1-7) BGP-LS Consumer MUST NOT send information back to BGP-LS Producers/Propagators (§5.1) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 9552 Section 5.1 defines the BGP-LS Consumer as an application or process that is not a BGP Speaker. Ze's native topology exporter is a BGP-LS Producer, not a Consumer feeding received BGP-LS information back into Producers or Propagators; the selected implementation does not provide that Consumer role |
 | [`RFC9552-8.2.6-2`](#rfc9552-8.2.6-2) An operator MUST define an import policy that drops all updates from peers that are only serving BGP-LS Consumers (§8.2.6) | no test | no test carries this requirement id; annotated {not-applicable}: the sentence binds the operator, not the implementation -- Section 8.2.6 reads "An operator MUST define an import policy to limit inbound updates", and assigns the implementation's own share to the next sentence, "An implementation MUST have the means to limit inbound updates", which this summary gates separately as RFC9552-8.2.6-1. ze provides the means this policy needs: a bgp/policy/family-filter instance naming the bgp-ls family with action remove, referenced from a peer's import chain, rejects every BGP-LS UPDATE that peer sends (parseFamilyFilters and handleFilterUpdate, internal/component/bgp/plugins/filter_family/config.go:30, handler.go:49). Which peers only serve BGP-LS Consumers is knowledge ze does not hold and cannot derive. Disclosed in docs/features/rfc-status.md |
-| [`RFC9552-5.2.2.1-2`](#rfc9552-5.2.2.1-2) In case one wants to advertise multiple topologies for a given Link or Prefix Descriptor, multiple NLRIs MUST be generated where each NLRI contains a single unique MT-ID (§5.2.2.1) | no test | no test carries this requirement id |
-| [`RFC9552-5.2.3-2`](#rfc9552-5.2.3-2) The Multi-Topology Identifier TLV MUST be included in the Prefix Descriptor if the underlying IGP prefix object is associated with a non-default topology (§5.2.3) | no test | no test carries this requirement id |
-| [`RFC9552-5.3.1.1-1`](#rfc9552-5.3.1.1-1) In the Node Flag Bits TLV the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.1.1) | no test | no test carries this requirement id |
-| [`RFC9552-5.3.1.5-1`](#rfc9552-5.3.1.5-1) In the case of OSPF, the Node Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPF Router Information (RI) LSA (§5.3.1.5) | no test | no test carries this requirement id |
-| [`RFC9552-5.3.2.2-3`](#rfc9552-5.3.2.2-3) In the MPLS Protocol Mask TLV the reserved bits MUST be set to zero and SHOULD be ignored on receipt, and the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.2.2) | no test | no test carries this requirement id |
-| [`RFC9552-5.3.2.6-1`](#rfc9552-5.3.2.6-1) In the case of OSPFv2, the Link Opaque Attribute TLV MUST NOT be used to advertise information carried using TLVs other than those in the OSPFv2 Extended Link Opaque LSA (§5.3.2.6) | no test | no test carries this requirement id |
-| [`RFC9552-5.3.2.6-2`](#rfc9552-5.3.2.6-2) In the case of OSPFv3, the Link Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPFv3 E-Router-LSA or E-Link-LSA (§5.3.2.6) | no test | no test carries this requirement id |
-| [`RFC9552-5.3.3.1-1`](#rfc9552-5.3.3.1-1) In the IGP Flags TLV the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.3.1) | no test | no test carries this requirement id |
-| [`RFC9552-5.3.3.6-1`](#rfc9552-5.3.3.6-1) In the case of OSPFv2, the Prefix Opaque Attribute TLV MUST NOT be used to advertise information carried using TLVs other than those in the OSPFv2 Extended Prefix Opaque LSA (§5.3.3.6) | no test | no test carries this requirement id |
-| [`RFC9552-5.3.3.6-2`](#rfc9552-5.3.3.6-2) In the case of OSPFv3, the Prefix Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPFv3 E-Inter-Area-Prefix-LSA, E-Intra-Area-Prefix-LSA, E-AS-External-LSA, and E-NSSA-LSA (§5.3.3.6) | no test | no test carries this requirement id |
-| [`RFC9552-5.4-2`](#rfc9552-5.4-2) For a private use NLRI type, a 4-octet field MUST be included as the first field in the NLRI immediately following the Total NLRI Length field of the Link-State NLRI format to carry the Enterprise Number (§5.4) | no test | no test carries this requirement id |
+| [`RFC9552-5.4-2`](#rfc9552-5.4-2) For a private use NLRI type, a 4-octet field MUST be included as the first field in the NLRI immediately following the Total NLRI Length field of the Link-State NLRI format as described in Section 5.2 to carry the Enterprise Code [ENTNUM]. (§5.4) | no test | no test carries this requirement id; annotated {not-applicable}: ze originates no private-use NLRI type: internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology builds only Node (1), Link (2), IPv4 and IPv6 Prefix (3, 4) and SRv6 SID (6) NLRIs |
 
 ## Proof state
 
@@ -244,7 +218,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC9552-5.1-1`](#rfc9552-5.1-1)
 
-All TLVs within the NLRI MUST be ordered in ascending order by TLV Type (§5.1)
+To compare NLRIs with unknown TLVs, all TLVs within the NLRI MUST be ordered in ascending order by TLV Type. (§5.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -255,7 +229,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-5.1-2`](#rfc9552-5.1-2)
 
-Same-type TLVs MUST be ordered ascending by Length, then ascending by Value (lexicographic binary) (§5.1)
+If there are multiple TLVs of the same type within a single NLRI, then the TLVs sharing the same type MUST be first in ascending order based on the Length field followed by ascending order based on the Value field. (§5.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -266,7 +240,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-5.1-3`](#rfc9552-5.1-3)
 
-Unknown and unsupported TLV types MUST be preserved and propagated within both the NLRI and the BGP-LS Attribute (§5.1)
+Unknown and unsupported types MUST be preserved and propagated within both the NLRI and the BGP-LS Attribute. (§5.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -277,7 +251,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-5.1-4`](#rfc9552-5.1-4)
 
-Presence of unknown or unexpected TLVs MUST NOT result in the NLRI or BGP-LS Attribute being considered malformed (§5.1)
+The presence of unknown or unexpected TLVs MUST NOT result in the NLRI or the BGP-LS Attribute being considered malformed. (§5.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -288,7 +262,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-5.1-5`](#rfc9552-5.1-5)
 
-NLRIs having TLVs that do not follow ordering rules MUST be considered malformed by a BGP-LS Propagator (§5.1)
+NLRIs having TLVs that do not follow the above ordering rules MUST be considered as malformed by a BGP-LS Propagator. (§5.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -337,7 +311,10 @@ For all information derived from other protocols, the corresponding Protocol-ID 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.2-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeProtocolIDFollowsSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L38) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeProtocolIDFollowsSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L25) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.2-4`](#rfc9552-5.2-4)
 
@@ -357,15 +334,18 @@ No test carries RFC9552-5.2-5, so no unit is bound to it.
 
 ### [`RFC9552-5.2-6`](#rfc9552-5.2-6)
 
-When modifying TLVs in NLRI, Producer MUST withdraw the old NLRI via MP_UNREACH_NLRI first (§5.2)
+When adding, removing, or modifying a TLV/sub-TLV from a Link-State NLRI, the BGP-LS Producer MUST withdraw the old NLRI by including it in the MP_UNREACH_NLRI. (§5.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.2-6, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeDescriptorChangeWithdrawsFirst`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L71) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeDescriptorChangeWithdrawsFirst`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L60) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.2-7`](#rfc9552-5.2-7)
 
-BGP speakers MUST use BGP Capabilities Advertisement to ensure both peers can process Link-State NLRIs (§5.2)
+For two BGP Speakers to exchange Link-State NLRI, they MUST use BGP Capabilities Advertisement to ensure that they are both capable of properly processing such NLRI. (§5.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -389,7 +369,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-5.2.1.4-1`](#rfc9552-5.2.1.4-1)
 
-At most one instance of each sub-TLV type MUST be present in any Node Descriptor (§5.2.1.4)
+At most, there MUST be one instance of each sub-TLV type present in any Node Descriptor. (§5.2.1.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -400,7 +380,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-5.2.1.4-2`](#rfc9552-5.2.1.4-2)
 
-Sub-TLVs within a Node Descriptor MUST be arranged in ascending order by sub-TLV type (§5.2.1.4)
+The sub-TLVs within a Node Descriptor MUST be arranged in ascending order by sub-TLV type. (§5.2.1.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -414,7 +394,10 @@ When interface/neighbor addresses are present, address TLVs MUST be included in 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.2.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeLinkDescriptorComplements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L101) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeLinkIdentitySelection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L242) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.2.2-2`](#rfc9552-5.2.2-2)
 
@@ -422,15 +405,21 @@ Link Local/Remote Identifiers TLV MUST NOT be included in Link Descriptor when a
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.2.2-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeLinkIdentitySelection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L243) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeLinkDescriptorComplements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L97) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.2.2-3`](#rfc9552-5.2.2-3)
 
-IPv4/IPv6 link-local addresses MUST NOT be carried in TLVs 259/260/261/262 (§5.2.2)
+IPv4/IPv6 link-local addresses MUST NOT be carried in the IPv4/IPv6 interface/neighbor address TLVs (259/260/261/262) as descriptors of a link since they are not considered unique. (§5.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.2.2-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeLinkIdentitySelection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L244) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeLinkDescriptorComplements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L98) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.2.2-4`](#rfc9552-5.2.2-4)
 
@@ -438,15 +427,20 @@ Link Local/Remote Identifiers TLV MUST be included when only link-local identifi
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.2.2-4, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestRFC9552NativeLinkIdentitySelection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L245) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.2.2-5`](#rfc9552-5.2.2-5)
 
-Multi-Topology Identifier TLV MUST be included as Link Descriptor if link is associated with non-default topology (§5.2.2)
+The Multi-Topology Identifier TLV MUST be included as a Link Descriptor if the underlying IGP link object is associated with a non-default topology. (§5.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.2.2-5, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeLinkNonDefaultTopology`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L122) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeLinkNonDefaultTopology`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L120) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.2.3.1-1`](#rfc9552-5.2.3.1-1)
 
@@ -454,7 +448,9 @@ OSPF Route Type TLV MUST be included when the route type is signaled in the unde
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.2.3.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestRFC9552NativeOSPFRouteType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L134) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.2.1-1`](#rfc9552-5.2.1-1)
 
@@ -462,15 +458,20 @@ Auxiliary TE Router-IDs (TLVs 1028/1029) MUST be included in the node attribute 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.2.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestRFC9552ISISNodeRouterID`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9552_test.go#L49) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.3.2.1-1`](#rfc9552-5.3.2.1-1)
 
-All auxiliary Router-IDs of both local and remote nodes MUST be included in the link attribute of each Link NLRI (§5.3.2.1)
+All auxiliary Router-IDs of both the local and the remote node MUST be included in the link attribute of each Link NLRI. (§5.3.2.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.3.2.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552ISISLinkRouterIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9552_test.go#L77) | unit/verify | revert, verified |
+| positive | [`TestRFC9552ISISLinkRouterIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_rfc9552_test.go#L72) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.3.2.2-1`](#rfc9552-5.3.2.2-1)
 
@@ -478,11 +479,14 @@ MPLS Protocol Mask TLV MUST NOT be included in NLRIs with Protocol-IDs 1-3, 6 (I
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.3.2.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeIGPMPLSMaskRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L223) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeDefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L200) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.3.2.3-1`](#rfc9552-5.3.2.3-1)
 
-High-order bits of TE Default Metric MUST be padded with zero if source is less than 32 bits (§5.3.2.3)
+If a source protocol uses a metric width of fewer than 32 bits, then the high- order bits of this field MUST be padded with zero. (§5.3.2.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -492,7 +496,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-5.5-1`](#rfc9552-5.5-1)
 
-The next-hop address MUST be encoded as described in RFC 4760 (§5.5)
+The next-hop address MUST be encoded as described in [RFC4760]. (§5.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -502,7 +506,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-5.3-1`](#rfc9552-5.3-1)
 
-BGP-LS Producers MUST ensure TLVs in BGP-LS Attribute do not cause UPDATE to exceed maximum message size (§5.3)
+BGP-LS Producers MUST ensure that the TLVs included in the BGP-LS Attribute does not result in a BGP UPDATE message for a single Link-State NLRI that crosses the maximum limit for a BGP message. (§5.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -510,19 +514,31 @@ No test carries RFC9552-5.3-1, so no unit is bound to it.
 
 ### [`RFC9552-5.9-1`](#rfc9552-5.9-1)
 
-Producer MUST re-advertise link-state objects after an unreachable node becomes reachable again (§5.9)
+If the BGP-LS Producer does withdraw link-state objects associated with an IGP node based on the failure of reachability check for that node, then it MUST re-advertise those link-state objects after that node becomes reachable again in the IGP domain. (§5.9)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.9-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeReachabilityWithdrawalAndRestoration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L323) | unit/verify | revert, verified |
+| negative | [`TestISISBGPLSNativeSPFReachability`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_test.go#L443) | unit/verify | unproven |
+| negative | [`TestBGPLSNativeSPFPartitionRestoresStaleOrigins`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/bgpls_export_test.go#L633) | unit/verify | unproven |
+| negative | [`TestBGPLSNativeSPFUnknownOriginsWaitForComputation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/bgpls_export_test.go#L862) | unit/verify | unproven |
+| positive | [`TestRFC9552NativeReachabilityWithdrawalAndRestoration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L322) | unit/verify | revert, verified |
+| positive | [`TestISISBGPLSNativeSPFReachability`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/bgpls_export_test.go#L442) | unit/verify | unproven |
+| positive | [`TestBGPLSNativeSPFInterAreaASBROrigin`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/bgpls_export_test.go#L738) | unit/verify | unproven |
+| positive | [`TestBGPLSNativeSPFPartitionRestoresStaleOrigins`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/bgpls_export_test.go#L631) | unit/verify | unproven |
+| positive | [`TestBGPLSNativeV3SPFPseudonodeRestoration`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/bgpls_export_test.go#L800) | unit/verify | unproven |
 
 ### [`RFC9552-5.4-1`](#rfc9552-5.4-1)
 
-Private Use TLV value MUST include 4-octet Enterprise Code as first field (§5.4)
+For such TLV use in the NLRI or BGP-LS Attribute, the format described in Section 5.1 is to be used and a 4-octet field MUST be included as the first field in the value to carry the Enterprise Code. (§5.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.4-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativePrivateUseWithoutEnterpriseRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L183) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.2.3-1`](#rfc9552-5.2.3-1)
 
@@ -530,7 +546,10 @@ Trailing bits of IP prefix in IP Reachability Information TLV MUST be 0 (§5.2.3
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.2.3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeTopologySeparation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L86) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeMaskedPrefixUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L148) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.3.2.3-2`](#rfc9552-5.3.2.3-2)
 
@@ -545,7 +564,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-8.2.2-1`](#rfc9552-8.2.2-1)
 
-A Link-State NLRI MUST NOT be considered malformed or invalid based on inclusion/exclusion of TLVs or contents of TLV fields (§8.2.2)
+A Link-State NLRI MUST NOT be considered malformed or invalid based on the inclusion/exclusion of TLVs or contents of the TLV fields (i.e., semantic errors), as described in Sections 5.1 and 5.2. (§8.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -556,7 +575,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-8.2.2-2`](#rfc9552-8.2.2-2)
 
-A BGP-LS Attribute MUST NOT be considered malformed or invalid based on inclusion/exclusion of TLVs or contents of TLV fields (§8.2.2)
+A BGP-LS Attribute MUST NOT be considered malformed or invalid based on the inclusion/exclusion of TLVs or contents of the TLV fields (i.e., semantic errors), as described in Sections 5.1 and 5.3. (§8.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -580,7 +599,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-8.2.2-4`](#rfc9552-8.2.2-4)
 
-Skipable malformed NLRIs MUST be handled as "NLRI discard" (§8.2.2)
+When the error that is determined allows for the router to skip the malformed NLRI(s) and continue the processing of the rest of the BGP UPDATE message (e.g., when the TLV ordering rule is violated), then it MUST handle such malformed NLRIs as 'NLRI discard' (i.e., processing similar to what is described in Section 5.4 of [RFC7606]). (§8.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -592,7 +611,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-8.2.2-5`](#rfc9552-8.2.2-5)
 
-Non-skipable malformed NLRIs MUST cause session reset when session is BGP-LS only or AFI/SAFI disable is not possible (§8.2.2)
+Alternately, the router MUST perform a 'session reset' when the session is only being used for BGP-LS or if 'AFI/SAFI disable' action is not possible. (§8.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -603,7 +622,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-8.2.2-6`](#rfc9552-8.2.2-6)
 
-Skipable malformed BGP-LS Attribute MUST be handled as "Attribute Discard" (§8.2.2)
+When the error that is determined allows for the router to skip the malformed BGP-LS Attribute and continue the processing of the rest of the BGP UPDATE message (e.g., when the BGP-LS Attribute length and the total Path Attribute Length are correct but some TLV/sub-TLV length within the BGP-LS Attribute is invalid), then it MUST handle such malformed BGP-LS Attribute as 'Attribute Discard'. (§8.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -615,7 +634,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-5.3-2`](#rfc9552-5.3-2)
 
-When BGP-LS Attribute exceeds max message during propagation, MUST apply Attribute Discard and MUST discard BGP-LS Attribute first (§5.3)
+When a BGP-LS Propagator finds that it is exceeding the maximum BGP message size due to the addition or update of some other BGP Attribute (e.g., AS_PATH), it MUST consider the BGP-LS Attribute to be malformed, apply the 'Attribute Discard' error-handling approach [RFC7606], and handle the propagation as described in Section 8.2.2. (§5.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -634,11 +653,14 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-5.2.2-6`](#rfc9552-5.2.2-6)
 
-Upper bits of OSPF Multi-Topology ID MUST be 0, values 0-127 only (§5.2.2)
+If the value in the MT-ID TLV is derived from OSPF, then the upper R bits of the MT-ID field MUST be set to 0 and only the values from 0 to 127 are valid for the MT-ID (§5.2.2.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.2.2-6, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeOSPFTopologyBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L112) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeOSPFTopologyBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L111) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.1-7`](#rfc9552-5.1-7)
 
@@ -672,17 +694,18 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-5.2.2.1-1`](#rfc9552-5.2.2.1-1)
 
-When used as a Link or Prefix Descriptor for IS-IS, the Bits R are reserved and MUST be set to 0 when originated and ignored on receipt (§5.2.2.1)
+When used as a Link or Prefix Descriptor for IS-IS, the Bits R are reserved and MUST be set to 0 (as per Section 7.2 of [RFC5120]) when originated and ignored on receipt. (§5.2.2.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestRFC9552NativeISISTopologyReservedBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L161) | unit/verify | revert, verified |
 | positive | [`TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L314) | unit/verify | unproven |
 
 ### [`RFC9552-8.2.2-9`](#rfc9552-8.2.2-9)
 
-A BGP-LS Speaker MUST perform the listed syntactic validation of the Link-State NLRI to determine if it is malformed (§8.2.2)
+A BGP-LS Speaker MUST perform the following syntactic validation of the Link-State NLRI to determine if it is malformed. (§8.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -696,7 +719,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9552-8.2.2-10`](#rfc9552-8.2.2-10)
 
-A BGP-LS Speaker MUST perform the listed syntactic validation of the BGP-LS Attribute to determine if it is malformed (§8.2.2)
+A BGP-LS Speaker MUST perform the following syntactic validation of the BGP-LS Attribute to determine if it is malformed. (§8.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -712,7 +735,10 @@ An implementation MUST allow the operator to configure an 8-octet BGP-LS Instanc
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-8.2.3-5, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeInstanceIDOverflowRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L174) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeInstanceIDFullWidth`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L277) | unit/verify | revert, verified |
 
 ### [`RFC9552-8.2.6-2`](#rfc9552-8.2.6-2)
 
@@ -728,7 +754,10 @@ In case one wants to advertise multiple topologies for a given Link or Prefix De
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.2.2.1-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeTopologyReplacement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L146) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeTopologySeparation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L83) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.2.3-2`](#rfc9552-5.2.3-2)
 
@@ -736,23 +765,34 @@ The Multi-Topology Identifier TLV MUST be included in the Prefix Descriptor if t
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.2.3-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeTopologyReplacement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L147) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeTopologySeparation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L84) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.3.1.1-1`](#rfc9552-5.3.1.1-1)
 
-In the Node Flag Bits TLV the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.1.1)
+The bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver. (§5.3.1.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.3.1.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeReservedFlagsCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L210) | unit/verify | revert, verified |
+| negative | [`TestRFC9552UndefinedNodeBitsDoNotSetDefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go#L126) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeDefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L197) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NodeFlagBitsUndefinedBitsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go#L61) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.3.1.5-1`](#rfc9552-5.3.1.5-1)
 
-In the case of OSPF, the Node Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPF Router Information (RI) LSA (§5.3.1.5)
+In the case of OSPF, this TLV MUST NOT be used to advertise TLVs other than those in the OSPF Router Information (RI) LSA [RFC7770]. (§5.3.1.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.3.1.5-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeOpaqueNodeProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L52) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeOpaqueNodeProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L51) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.3.2.2-3`](#rfc9552-5.3.2.2-3)
 
@@ -760,51 +800,73 @@ In the MPLS Protocol Mask TLV the reserved bits MUST be set to zero and SHOULD b
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.3.2.2-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeReservedFlagsCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L212) | unit/verify | revert, verified |
+| negative | [`TestRFC9552MPLSProtocolMaskReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go#L164) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeDefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L199) | unit/verify | revert, verified |
+| positive | [`TestRFC9552MPLSProtocolMaskDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go#L154) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.3.2.6-1`](#rfc9552-5.3.2.6-1)
 
-In the case of OSPFv2, the Link Opaque Attribute TLV MUST NOT be used to advertise information carried using TLVs other than those in the OSPFv2 Extended Link Opaque LSA (§5.3.2.6)
+In the case of OSPFv2, this TLV MUST NOT be used to advertise information carried using TLVs other than those in the OSPFv2 Extended Link Opaque LSA [RFC7684]. (§5.3.2.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.3.2.6-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeOpaqueOSPFv2LinkProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L60) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeOpaqueOSPFv2LinkProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L59) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.3.2.6-2`](#rfc9552-5.3.2.6-2)
 
-In the case of OSPFv3, the Link Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPFv3 E-Router-LSA or E-Link-LSA (§5.3.2.6)
+In the case of OSPFv3, this TLV MUST NOT be used to advertise TLVs other than those in the OSPFv3 E- Router-LSA or E-Link-LSA [RFC8362]. (§5.3.2.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.3.2.6-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeOpaqueOSPFv3LinkProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L68) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeOpaqueOSPFv3LinkProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L67) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.3.3.1-1`](#rfc9552-5.3.3.1-1)
 
-In the IGP Flags TLV the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.3.1)
+The bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver. (§5.3.3.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.3.3.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeReservedFlagsCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L211) | unit/verify | revert, verified |
+| negative | [`TestRFC9552UndefinedIGPBitsDoNotSetDefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go#L140) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeDefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_test.go#L198) | unit/verify | revert, verified |
+| positive | [`TestRFC9552IGPFlagsUndefinedBitsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go#L98) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.3.3.6-1`](#rfc9552-5.3.3.6-1)
 
-In the case of OSPFv2, the Prefix Opaque Attribute TLV MUST NOT be used to advertise information carried using TLVs other than those in the OSPFv2 Extended Prefix Opaque LSA (§5.3.3.6)
+In the case of OSPFv2, this TLV MUST NOT be used to advertise information carried using TLVs other than those in the OSPFv2 Extended Prefix Opaque LSA [RFC7684]. (§5.3.3.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.3.3.6-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeOpaqueOSPFv2PrefixProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L76) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeOpaqueOSPFv2PrefixProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L75) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.3.3.6-2`](#rfc9552-5.3.3.6-2)
 
-In the case of OSPFv3, the Prefix Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPFv3 E-Inter-Area-Prefix-LSA, E-Intra-Area-Prefix-LSA, E-AS-External-LSA, and E-NSSA-LSA (§5.3.3.6)
+In the case of OSPFv3, this TLV MUST NOT be used to advertise TLVs other than those in the OSPFv3 E-Inter-Area-Prefix-LSA, E-Intra-Area-Prefix-LSA, E-AS-External-LSA, and E-NSSA-LSA [RFC8362]. (§5.3.3.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9552-5.3.3.6-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC9552NativeOpaqueOSPFv3PrefixProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L84) | unit/verify | revert, verified |
+| positive | [`TestRFC9552NativeOpaqueOSPFv3PrefixProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_provenance_test.go#L83) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.4-2`](#rfc9552-5.4-2)
 
-For a private use NLRI type, a 4-octet field MUST be included as the first field in the NLRI immediately following the Total NLRI Length field of the Link-State NLRI format to carry the Enterprise Number (§5.4)
+For a private use NLRI type, a 4-octet field MUST be included as the first field in the NLRI immediately following the Total NLRI Length field of the Link-State NLRI format as described in Section 5.2 to carry the Enterprise Code [ENTNUM]. (§5.4)
 
 Audit verdict: not audited: no reader has judged these tests
 

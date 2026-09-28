@@ -102,18 +102,18 @@ No tracked gap in current source anchors.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8654-3-1` | Peers using BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per RFC 7606 (§3) | MUST | 3 - BGP Extended Message Capability | **positive:** `unit/verify` [`TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L124). **negative:** `unit/verify` [`TestRFC7606AttributeLengthConflictTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L238) |
+| `RFC8654-3-1` | Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606]. (§3) | MUST | 3 - BGP Extended Message Capability | **positive:** `unit/verify` [`TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L124). **negative:** `unit/verify` [`TestRFC7606AttributeLengthConflictTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L238) |
 | `RFC8654-3-2` | Capability Code MUST be 6 (§3, Wire Format) | MUST | 3 - BGP Extended Message Capability | **positive:** `unit/verify` [`TestCapabilityCodeConstants`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L29). **negative:** no negative test. **{single-polarity}:** the capability-code assignment is a single fixed value, so the only falsifiable check is that CodeExtendedMessage encodes as 6; there is no distinct rejection behavior for a negative case to exercise |
-| `RFC8654-3-3` | Capability Length MUST be 0 (§3, Wire Format) | MUST | 3 - BGP Extended Message Capability | **positive:** `unit/verify` [`TestCapabilityRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L467). **negative:** no negative test. **{single-polarity}:** the capability's value is fixed at zero length, so the enforceable behavior is that WriteTo emits Cap Len 0 and Parse round-trips it; there is no separate malformed form of this fixed-zero-length capability for a negative to drive |
+| `RFC8654-3-3` | Capability Length MUST be 0 (§3, Wire Format) | MUST | 3 - BGP Extended Message Capability | **positive:** `unit/verify` [`TestCapabilityRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L502). **negative:** no negative test. **{single-polarity}:** the capability's value is fixed at zero length, so the enforceable behavior is that WriteTo emits Cap Len 0 and Parse round-trips it; there is no separate malformed form of this fixed-zero-length capability for a negative to drive |
 | `RFC8654-4-1` | An implementation that advertises the BGP Extended Message Capability MUST be capable of receiving a message with a length up to and including 65,535 octets (§4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L265). **negative:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L256) |
-| `RFC8654-4-2` | Applications generating information encapsulated within BGP messages MUST limit the size of their payload to take the maximum message size into account (§4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestBuildUnicast_MaxSize_Fits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1613). **positive:** `unit/verify` [`TestSendPluginRoutesLeavesAFittingGroupWhole`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L366). **positive:** `unit/verify` [`TestSendPluginRoutesTracksTheNegotiatedMaximum`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L394). **positive:** `unit/verify` [`TestSendUpdateWithSplitLeavesAFittingPayloadWhole`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L187). **positive:** `unit/verify` [`TestSendUpdateWithSplitTracksTheNegotiatedMaximum`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L224). **positive:** `unit/verify` [`TestSplitUpdate_VPNChunksFitMaxMessageSize`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_split_test.go#L1416). **negative:** `unit/verify` [`TestBuildUnicast_MaxSize_TooLarge`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1585). **negative:** `unit/verify` [`TestSendPluginRoutesBoundsAnOversizeGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L330). **negative:** `unit/verify` [`TestSendUpdateWithSplitBoundsAnOversizePayload`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L143) |
+| `RFC8654-4-2` | Applications generating information that might be encapsulated within BGP messages MUST limit the size of their payload to take the maximum message size into account. (§4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestBuildUnicast_MaxSize_Fits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1613). **positive:** `unit/verify` [`TestSendPluginRoutesLeavesAFittingGroupWhole`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L366). **positive:** `unit/verify` [`TestSendPluginRoutesTracksTheNegotiatedMaximum`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L394). **positive:** `unit/verify` [`TestSendUpdateWithSplitLeavesAFittingPayloadWhole`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L187). **positive:** `unit/verify` [`TestSendUpdateWithSplitTracksTheNegotiatedMaximum`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L224). **positive:** `unit/verify` [`TestSplitUpdate_VPNChunksFitMaxMessageSize`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_split_test.go#L1416). **negative:** `unit/verify` [`TestBuildUnicast_MaxSize_TooLarge`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L1585). **negative:** `unit/verify` [`TestSendPluginRoutesBoundsAnOversizeGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L330). **negative:** `unit/verify` [`TestSendUpdateWithSplitBoundsAnOversizePayload`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_max_message_size_test.go#L143) |
 | `RFC8654-4-3` | OPEN and KEEPALIVE messages MUST NOT exceed 4,096 octets regardless of capability (§4, §6) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestMaxMessageLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L321). **negative:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L241) |
 | `RFC8654-6-1` | The value of the Length field MUST always be at least 19 and no greater than 65,535 for UPDATE/NOTIFICATION/ROUTE-REFRESH when extended, or 4,096 otherwise (§6) | MUST | 6 - Changes to RFC 4271 | **positive:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L253). **negative:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L248) |
-| `RFC8654-5-1` | A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the capability MUST NOT accept a BGP Extended Message (§5) | MUST NOT | 5 - Error Handling | **positive:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L267). **negative:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L259) |
+| `RFC8654-5-1` | A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message. (§5) | MUST NOT | 5 - Error Handling | **positive:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L267). **negative:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L259) |
 | `RFC8654-5-2` | A speaker MUST NOT implement a more liberal policy accepting BGP Extended Messages (§5) | MUST NOT | 5 - Error Handling | **positive:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L269). **negative:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L261) |
-| `RFC8654-5-3` | If a NOTIFICATION is to be sent to a peer that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets (§5) | MUST NOT | 5 - Error Handling | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never generates a NOTIFICATION near 4096 octets -- notification.go:191 sizes it as 19 + 2 + len(Data) and the Administrative Shutdown Communication is truncated to 128 octets (internal/component/bgp/message/notification.go:311-313), so there is no over-4096 NOTIFICATION code path to cap |
-| `RFC8654-5-4` | Any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of RFC 4271 (§5) | MUST | 5 - Error Handling | **positive:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L298). **negative:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L290) |
-| `RFC8654-5-5` | A protocol specification that defines new BGP message types MUST describe how to handle peers that can only accommodate 4,096 octet messages (§5) | MUST | 5 - Error Handling | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this obligation binds the author of a specification that defines a new BGP message type to state its extended-message eligibility; it is not a runtime behavior ze implements |
+| `RFC8654-5-3` | However, if a NOTIFICATION is to be sent to a BGP speaker that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets. (§5) | MUST NOT | 5 - Error Handling | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never generates a NOTIFICATION near 4096 octets -- notification.go:191 sizes it as 19 + 2 + len(Data) and the Administrative Shutdown Communication is truncated to 128 octets (internal/component/bgp/message/notification.go:311-313), so there is no over-4096 NOTIFICATION code path to cap |
+| `RFC8654-5-4` | Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]. (§5) | MUST | 5 - Error Handling | **positive:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L298). **negative:** `unit/verify` [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L290) |
+| `RFC8654-5-5` | Future protocol specifications MUST describe how to handle peers that can only accommodate 4,096 octet messages. (§5) | MUST | 5 - Error Handling | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this obligation binds the author of a specification that defines a new BGP message type to state its extended-message eligibility; it is not a runtime behavior ze implements |
 | `RFC8654-4-4` | A BGP speaker capable of receiving BGP Extended Messages SHOULD advertise the BGP Extended Message Capability to its peers (§4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
 | `RFC8654-4-5` | When propagating an UPDATE to a neighbor that has not advertised the BGP Extended Message Capability, the speaker SHOULD try to reduce the outgoing message size by removing attributes eligible under the "attribute discard" approach of RFC 7606 (§4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
 | `RFC8654-5-6` | BGP protocol developers and implementers are conservative in their application and use of BGP Extended Messages (§5) | RECOMMENDED | 5 - Error Handling | **positive:** no positive test. **negative:** no negative test |
@@ -123,8 +123,8 @@ No tracked gap in current source anchors.
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC8654-5-3`](#rfc8654-5-3) If a NOTIFICATION is to be sent to a peer that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets (§5) | no test | no test carries this requirement id; annotated {not-applicable}: ze never generates a NOTIFICATION near 4096 octets -- notification.go:191 sizes it as 19 + 2 + len(Data) and the Administrative Shutdown Communication is truncated to 128 octets (internal/component/bgp/message/notification.go:311-313), so there is no over-4096 NOTIFICATION code path to cap |
-| [`RFC8654-5-5`](#rfc8654-5-5) A protocol specification that defines new BGP message types MUST describe how to handle peers that can only accommodate 4,096 octet messages (§5) | no test | no test carries this requirement id; annotated {not-applicable}: this obligation binds the author of a specification that defines a new BGP message type to state its extended-message eligibility; it is not a runtime behavior ze implements |
+| [`RFC8654-5-3`](#rfc8654-5-3) However, if a NOTIFICATION is to be sent to a BGP speaker that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets. (§5) | no test | no test carries this requirement id; annotated {not-applicable}: ze never generates a NOTIFICATION near 4096 octets -- notification.go:191 sizes it as 19 + 2 + len(Data) and the Administrative Shutdown Communication is truncated to 128 octets (internal/component/bgp/message/notification.go:311-313), so there is no over-4096 NOTIFICATION code path to cap |
+| [`RFC8654-5-5`](#rfc8654-5-5) Future protocol specifications MUST describe how to handle peers that can only accommodate 4,096 octet messages. (§5) | no test | no test carries this requirement id; annotated {not-applicable}: this obligation binds the author of a specification that defines a new BGP message type to state its extended-message eligibility; it is not a runtime behavior ze implements |
 
 ## Proof state
 
@@ -132,7 +132,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC8654-3-1`](#rfc8654-3-1)
 
-Peers using BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per RFC 7606 (§3)
+Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606]. (§3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -159,7 +159,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestCapabilityRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L467) | unit/verify | unproven |
+| positive | [`TestCapabilityRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L502) | unit/verify | unproven |
 
 ### [`RFC8654-4-1`](#rfc8654-4-1)
 
@@ -174,7 +174,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8654-4-2`](#rfc8654-4-2)
 
-Applications generating information encapsulated within BGP messages MUST limit the size of their payload to take the maximum message size into account (§4)
+Applications generating information that might be encapsulated within BGP messages MUST limit the size of their payload to take the maximum message size into account. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -214,7 +214,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8654-5-1`](#rfc8654-5-1)
 
-A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the capability MUST NOT accept a BGP Extended Message (§5)
+A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -236,7 +236,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8654-5-3`](#rfc8654-5-3)
 
-If a NOTIFICATION is to be sent to a peer that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets (§5)
+However, if a NOTIFICATION is to be sent to a BGP speaker that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -244,7 +244,7 @@ No test carries RFC8654-5-3, so no unit is bound to it.
 
 ### [`RFC8654-5-4`](#rfc8654-5-4)
 
-Any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of RFC 4271 (§5)
+Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -255,7 +255,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8654-5-5`](#rfc8654-5-5)
 
-A protocol specification that defines new BGP message types MUST describe how to handle peers that can only accommodate 4,096 octet messages (§5)
+Future protocol specifications MUST describe how to handle peers that can only accommodate 4,096 octet messages. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 

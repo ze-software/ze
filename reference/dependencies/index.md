@@ -1,6 +1,6 @@
 # Dependencies
 
-Ze is Go, and Go code leans on packages. 49 direct dependencies, read straight from `go.mod` so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.
+Ze is Go, and Go code leans on packages. 50 direct dependencies, read straight from `go.mod` so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.
 
 ## Terminal, Web & SSH Interfaces (9)
 
@@ -65,7 +65,7 @@ Ze is Go, and Go code leans on packages. 49 direct dependencies, read straight f
 | `github.com/prometheus/procfs` | `v0.22.0` | Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet. |
 | `github.com/sirupsen/logrus` | `v1.10.2` | Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger. |
 
-## Standard Library Extensions (golang.org/x) (7)
+## Standard Library Extensions (golang.org/x) (8)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
@@ -74,6 +74,7 @@ Ze is Go, and Go code leans on packages. 49 direct dependencies, read straight f
 | `golang.org/x/net` | `v0.58.0` | Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth. |
 | `golang.org/x/sys` | `v0.47.0` | Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components. |
 | `golang.org/x/term` | `v0.45.0` | Reads passwords without echo and detects an interactive terminal during CLI login. |
+| `golang.org/x/text` | `v0.41.0` | Prepares TACACS+ usernames with the PRECIS UsernameCasePreserved profile that RFC 8907 Section 3.7 requires. |
 | `golang.org/x/tools` | `v0.49.0` | Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries. |
 | `golang.org/x/vuln` | `v1.7.0` | Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors. |
 
@@ -86,7 +87,7 @@ Ze is Go, and Go code leans on packages. 49 direct dependencies, read straight f
 | `github.com/gokrazy/updater` | `v0.0.0-20260620140544-0a84d8ab3878` | Referenced only in a regression test against Ze's own vendored update-push logic, written locally after a bug was found upstream. Not used in production. |
 | `github.com/sivchari/gomu` | `v0.2.1` | Mutation-testing tool, run as a native Go command to advisory-score how well the test suite exercises the code. Not a build or CI gate. |
 | `gopkg.in/yaml.v3` | `v3.0.1` | Parses GitHub Actions workflow YAML in verification tests so aliases, duplicate keys, and malformed trigger structures fail closed. |
-| `github.com/golangci/golangci-lint/v2` | `v2.13.2` | The linter behind `./le verify lint run`, pinned through the tools.go tracking file so every machine and every CI job lints with one version. |
+| `github.com/golangci/golangci-lint/v2` | `v2.13.2` | The linter behind `./le go lint run`, pinned through the tools.go tracking file so every machine and every CI job lints with one version. |
 | `honnef.co/go/tools` | `v0.8.1` | Staticcheck, run beside golangci-lint from the same tools.go pin, for the analyses golangci-lint does not carry. |
 | `github.com/yuin/goldmark` | `v1.8.5` | Renders the Markdown of `docs/` and the website into the published HTML pages, in the Go site build that replaced the retired Python renderers. |
 | `github.com/anmitsu/go-shlex` | `v0.0.0-20200514113438-38f4b401e2be` | Splits an operator-typed command line into words for the stress-reproduction runner, so a quoted argument survives. |

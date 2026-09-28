@@ -292,7 +292,7 @@ Same BFD partial status.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.1-1">RFC5882-4.1-1</code></td><td colspan="3"><span class="rfc-subject">If local or remote session state is AdminDown, establishment of a control protocol adjacency must be allowed (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.1-1">RFC5882-4.1-1</code></td><td colspan="3"><span class="rfc-subject">If the session state on either the local or remote system (if known) is AdminDown, BFD has been administratively disabled, and the establishment of a control protocol adjacency MUST be allowed. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -301,7 +301,7 @@ Same BFD partial status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze never conditions control-protocol adjacency establishment on BFD session state. The BFD client is attached only AFTER the adjacency is already up -- BGP starts it on StateEstablished (internal/component/bgp/reactor/peer_bfd.go:51-52,61-73) and OSPF opens the session only when a neighbor reaches Full (internal/plugins/ospf/bfd_client.go:124-138, onNeighborFull -&gt; bfdNeighborFull) -- and it is strictly additive: a failure detector, never a bring-up gate (peer_bfd.go:59-60, bfd_client.go:12-13). With no BFD-gated establishment path anywhere in Ze, a session in AdminDown (or any state) cannot block establishment, so this AdminDown carve-out to establishment-blocking has no applicable code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.4-1">RFC5882-4.4-1</code></td><td colspan="3"><span class="rfc-subject">If multiple control protocols want a BFD session to the same remote system for the same data protocol, all must share a single BFD session (§4.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5882-4.4-1">RFC5882-4.4-1</code></td><td colspan="3"><span class="rfc-subject">If multiple control protocols wish to establish BFD sessions with the same remote system for the same data protocol, all MUST share a single BFD session. (§4.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4</td>
@@ -558,7 +558,7 @@ Same BFD partial status.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc5882-4.1-1"><code>RFC5882-4.1-1</code></a> If local or remote session state is AdminDown, establishment of a control protocol adjacency must be allowed (§4.1)</td>
+<tr><td><a href="#rfc5882-4.1-1"><code>RFC5882-4.1-1</code></a> If the session state on either the local or remote system (if known) is AdminDown, BFD has been administratively disabled, and the establishment of a control protocol adjacency MUST be allowed. (§4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Ze never conditions control-protocol adjacency establishment on BFD session state. The BFD client is attached only AFTER the adjacency is already up -- BGP starts it on StateEstablished (internal/component/bgp/reactor/peer_bfd.go:51-52,61-73) and OSPF opens the session only when a neighbor reaches Full (internal/plugins/ospf/bfd_client.go:124-138, onNeighborFull -&gt; bfdNeighborFull) -- and it is strictly additive: a failure detector, never a bring-up gate (peer_bfd.go:59-60, bfd_client.go:12-13). With no BFD-gated establishment path anywhere in Ze, a session in AdminDown (or any state) cannot block establishment, so this AdminDown carve-out to establishment-blocking has no applicable code path</td>
 </tr>
@@ -573,11 +573,11 @@ Same BFD partial status.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5882-4.1-1"><code>RFC5882-4.1-1</code></a></h3>
-<p>If local or remote session state is AdminDown, establishment of a control protocol adjacency must be allowed (§4.1)</p>
+<p>If the session state on either the local or remote system (if known) is AdminDown, BFD has been administratively disabled, and the establishment of a control protocol adjacency MUST be allowed. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5882-4.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5882-4.4-1"><code>RFC5882-4.4-1</code></a></h3>
-<p>If multiple control protocols want a BFD session to the same remote system for the same data protocol, all must share a single BFD session (§4.4)</p>
+<p>If multiple control protocols wish to establish BFD sessions with the same remote system for the same data protocol, all MUST share a single BFD session. (§4.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -973,7 +973,7 @@ Same BFD partial status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 60.8% | 76 of 125 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 80.0% | 100 of 125 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 2.4% | 3 of 125 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 125 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 1.7% | 4 of 235 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 10.0% | 29 of 289 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -33,7 +33,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 31.2% | 39 of 125 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 12.0% | 15 of 125 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 7 shares marked as a part above are the whole of the 125 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -63,12 +63,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 125 |
 | Not applicable, so out of scope | 7 |
 | Declared gaps | 15 |
-| Gated with no test | 24 |
+| Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 235 |
-| Tagged units | 235 |
+| Test tags | 289 |
+| Tagged units | 289 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 4 |
+| Discrimination records | 29 |
 | Summary | `rfc/short/rfc4271.md` |
 | Requirement shard | `rfc/requirements/rfc4271.md` |
 | RFC text | `rfc/full/rfc4271.txt` |
@@ -110,63 +110,61 @@ Fifteen MUST/SHALL-level gaps, each annotated in [`rfc/short/rfc4271.md`](https:
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 76 | one part of the gated population |
+| Positive and negative tests | 100 | one part of the gated population |
 | Annotated instead of tested | 25 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 24 | one part of the gated population |
+| No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **125** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (76):** [`RFC4271-4.1-1`](#rfc4271-4.1-1), [`RFC4271-4.1-2`](#rfc4271-4.1-2), [`RFC4271-4.1-3`](#rfc4271-4.1-3), [`RFC4271-4.3-1`](#rfc4271-4.3-1), [`RFC4271-4.3-2`](#rfc4271-4.3-2), [`RFC4271-4.3-4`](#rfc4271-4.3-4), [`RFC4271-4.4-1`](#rfc4271-4.4-1), [`RFC4271-4.4-2`](#rfc4271-4.4-2), [`RFC4271-6-1`](#rfc4271-6-1), [`RFC4271-4.2-1`](#rfc4271-4.2-1), [`RFC4271-4.2-2`](#rfc4271-4.2-2), [`RFC4271-6.2-1`](#rfc4271-6.2-1), [`RFC4271-6.2-2`](#rfc4271-6.2-2), [`RFC4271-5-1`](#rfc4271-5-1), [`RFC4271-5-2`](#rfc4271-5-2), [`RFC4271-5-3`](#rfc4271-5-3), [`RFC4271-5-4`](#rfc4271-5-4), [`RFC4271-5-5`](#rfc4271-5-5), [`RFC4271-5-6`](#rfc4271-5-6), [`RFC4271-5.1.3-1`](#rfc4271-5.1.3-1), [`RFC4271-5.1.3-2`](#rfc4271-5.1.3-2), [`RFC4271-5.1.3-3`](#rfc4271-5.1.3-3), [`RFC4271-5.1.4-1`](#rfc4271-5.1.4-1), [`RFC4271-5.1.4-4`](#rfc4271-5.1.4-4), [`RFC4271-5.1.4-2`](#rfc4271-5.1.4-2), [`RFC4271-5.1.5-1`](#rfc4271-5.1.5-1), [`RFC4271-5.1.5-2`](#rfc4271-5.1.5-2), [`RFC4271-5.1.5-3`](#rfc4271-5.1.5-3), [`RFC4271-5.1.5-4`](#rfc4271-5.1.5-4), [`RFC4271-6.3-1`](#rfc4271-6.3-1), [`RFC4271-6.7-1`](#rfc4271-6.7-1), [`RFC4271-8.2.1-1`](#rfc4271-8.2.1-1), [`RFC4271-8.2.1-2`](#rfc4271-8.2.1-2), [`RFC4271-8.2.2-1`](#rfc4271-8.2.2-1), [`RFC4271-8.2.2-2`](#rfc4271-8.2.2-2), [`RFC4271-8.2.2-3`](#rfc4271-8.2.2-3), [`RFC4271-8.2.2-4`](#rfc4271-8.2.2-4), [`RFC4271-8.2.2-5`](#rfc4271-8.2.2-5), [`RFC4271-8.2.2-7`](#rfc4271-8.2.2-7), [`RFC4271-8.2.2-8`](#rfc4271-8.2.2-8), [`RFC4271-8.2.2-9`](#rfc4271-8.2.2-9), [`RFC4271-8.2.2-10`](#rfc4271-8.2.2-10), [`RFC4271-8.2.2-11`](#rfc4271-8.2.2-11), [`RFC4271-8.2.2-12`](#rfc4271-8.2.2-12), [`RFC4271-8.2.2-13`](#rfc4271-8.2.2-13), [`RFC4271-8.2.2-14`](#rfc4271-8.2.2-14), [`RFC4271-8.2.2-15`](#rfc4271-8.2.2-15), [`RFC4271-8.2.2-16`](#rfc4271-8.2.2-16), [`RFC4271-8.2.2-17`](#rfc4271-8.2.2-17), [`RFC4271-8.2.2-18`](#rfc4271-8.2.2-18), [`RFC4271-10-1`](#rfc4271-10-1), [`RFC4271-5.1.2-2`](#rfc4271-5.1.2-2), [`RFC4271-5.1.2-3`](#rfc4271-5.1.2-3), [`RFC4271-5.1.5-5`](#rfc4271-5.1.5-5), [`RFC4271-6.7-4`](#rfc4271-6.7-4), [`RFC4271-6.8-1`](#rfc4271-6.8-1), [`RFC4271-6.8-2`](#rfc4271-6.8-2), [`RFC4271-9-1`](#rfc4271-9-1), [`RFC4271-9-2`](#rfc4271-9-2), [`RFC4271-9-3`](#rfc4271-9-3), [`RFC4271-9.1.1-1`](#rfc4271-9.1.1-1), [`RFC4271-9.1.1-2`](#rfc4271-9.1.1-2), [`RFC4271-9.1.2-2`](#rfc4271-9.1.2-2), [`RFC4271-9.1.2-3`](#rfc4271-9.1.2-3), [`RFC4271-9.1.2.1-1`](#rfc4271-9.1.2.1-1), [`RFC4271-9.1.2.2-1`](#rfc4271-9.1.2.2-1), [`RFC4271-9.1.2.2-3`](#rfc4271-9.1.2.2-3), [`RFC4271-9.1.2.2-4`](#rfc4271-9.1.2.2-4), [`RFC4271-9.2-4`](#rfc4271-9.2-4), [`RFC4271-9.2-5`](#rfc4271-9.2-5), [`RFC4271-Security-1`](#rfc4271-security-1), [`RFC4271-9.2-6`](#rfc4271-9.2-6), [`RFC4271-9.2-7`](#rfc4271-9.2-7), [`RFC4271-9.2-8`](#rfc4271-9.2-8), [`RFC4271-9.2-9`](#rfc4271-9.2-9), [`RFC4271-9.2-10`](#rfc4271-9.2-10)
+**Positive and negative tests (100):** [`RFC4271-4.1-1`](#rfc4271-4.1-1), [`RFC4271-4.1-2`](#rfc4271-4.1-2), [`RFC4271-4.1-3`](#rfc4271-4.1-3), [`RFC4271-4.3-1`](#rfc4271-4.3-1), [`RFC4271-4.3-2`](#rfc4271-4.3-2), [`RFC4271-4.3-4`](#rfc4271-4.3-4), [`RFC4271-4.4-1`](#rfc4271-4.4-1), [`RFC4271-4.4-2`](#rfc4271-4.4-2), [`RFC4271-6-1`](#rfc4271-6-1), [`RFC4271-4.2-1`](#rfc4271-4.2-1), [`RFC4271-4.2-2`](#rfc4271-4.2-2), [`RFC4271-6.2-1`](#rfc4271-6.2-1), [`RFC4271-6.2-2`](#rfc4271-6.2-2), [`RFC4271-5-1`](#rfc4271-5-1), [`RFC4271-5-2`](#rfc4271-5-2), [`RFC4271-5-3`](#rfc4271-5-3), [`RFC4271-5-4`](#rfc4271-5-4), [`RFC4271-5-5`](#rfc4271-5-5), [`RFC4271-5-6`](#rfc4271-5-6), [`RFC4271-5.1.3-1`](#rfc4271-5.1.3-1), [`RFC4271-5.1.3-2`](#rfc4271-5.1.3-2), [`RFC4271-5.1.3-3`](#rfc4271-5.1.3-3), [`RFC4271-5.1.4-1`](#rfc4271-5.1.4-1), [`RFC4271-5.1.4-4`](#rfc4271-5.1.4-4), [`RFC4271-5.1.4-2`](#rfc4271-5.1.4-2), [`RFC4271-5.1.5-1`](#rfc4271-5.1.5-1), [`RFC4271-5.1.5-2`](#rfc4271-5.1.5-2), [`RFC4271-5.1.5-3`](#rfc4271-5.1.5-3), [`RFC4271-5.1.5-4`](#rfc4271-5.1.5-4), [`RFC4271-6.3-1`](#rfc4271-6.3-1), [`RFC4271-6.7-1`](#rfc4271-6.7-1), [`RFC4271-8.2.1-1`](#rfc4271-8.2.1-1), [`RFC4271-8.2.1-2`](#rfc4271-8.2.1-2), [`RFC4271-8.2.2-1`](#rfc4271-8.2.2-1), [`RFC4271-8.2.2-2`](#rfc4271-8.2.2-2), [`RFC4271-8.2.2-3`](#rfc4271-8.2.2-3), [`RFC4271-8.2.2-4`](#rfc4271-8.2.2-4), [`RFC4271-8.2.2-5`](#rfc4271-8.2.2-5), [`RFC4271-8.2.2-7`](#rfc4271-8.2.2-7), [`RFC4271-8.2.2-8`](#rfc4271-8.2.2-8), [`RFC4271-8.2.2-9`](#rfc4271-8.2.2-9), [`RFC4271-8.2.2-10`](#rfc4271-8.2.2-10), [`RFC4271-8.2.2-11`](#rfc4271-8.2.2-11), [`RFC4271-8.2.2-12`](#rfc4271-8.2.2-12), [`RFC4271-8.2.2-13`](#rfc4271-8.2.2-13), [`RFC4271-8.2.2-14`](#rfc4271-8.2.2-14), [`RFC4271-8.2.2-15`](#rfc4271-8.2.2-15), [`RFC4271-8.2.2-16`](#rfc4271-8.2.2-16), [`RFC4271-8.2.2-17`](#rfc4271-8.2.2-17), [`RFC4271-8.2.2-18`](#rfc4271-8.2.2-18), [`RFC4271-10-1`](#rfc4271-10-1), [`RFC4271-5.1.2-2`](#rfc4271-5.1.2-2), [`RFC4271-5.1.2-3`](#rfc4271-5.1.2-3), [`RFC4271-5.1.5-5`](#rfc4271-5.1.5-5), [`RFC4271-6.7-4`](#rfc4271-6.7-4), [`RFC4271-6.8-1`](#rfc4271-6.8-1), [`RFC4271-6.8-2`](#rfc4271-6.8-2), [`RFC4271-9-1`](#rfc4271-9-1), [`RFC4271-9-2`](#rfc4271-9-2), [`RFC4271-9-3`](#rfc4271-9-3), [`RFC4271-9.1.1-1`](#rfc4271-9.1.1-1), [`RFC4271-9.1.1-2`](#rfc4271-9.1.1-2), [`RFC4271-9.1.2-2`](#rfc4271-9.1.2-2), [`RFC4271-9.1.2-3`](#rfc4271-9.1.2-3), [`RFC4271-9.1.2.1-1`](#rfc4271-9.1.2.1-1), [`RFC4271-9.1.2.2-1`](#rfc4271-9.1.2.2-1), [`RFC4271-9.1.2.2-3`](#rfc4271-9.1.2.2-3), [`RFC4271-9.1.2.2-4`](#rfc4271-9.1.2.2-4), [`RFC4271-9.2-4`](#rfc4271-9.2-4), [`RFC4271-9.2-5`](#rfc4271-9.2-5), [`RFC4271-Security-1`](#rfc4271-security-1), [`RFC4271-9.2-6`](#rfc4271-9.2-6), [`RFC4271-9.2-7`](#rfc4271-9.2-7), [`RFC4271-9.2-8`](#rfc4271-9.2-8), [`RFC4271-9.2-9`](#rfc4271-9.2-9), [`RFC4271-9.2-10`](#rfc4271-9.2-10), [`RFC4271-5-8`](#rfc4271-5-8), [`RFC4271-6.2-5`](#rfc4271-6.2-5), [`RFC4271-6.2-6`](#rfc4271-6.2-6), [`RFC4271-6.2-7`](#rfc4271-6.2-7), [`RFC4271-6.2-8`](#rfc4271-6.2-8), [`RFC4271-6.2-9`](#rfc4271-6.2-9), [`RFC4271-6.2-10`](#rfc4271-6.2-10), [`RFC4271-6.3-4`](#rfc4271-6.3-4), [`RFC4271-6.3-5`](#rfc4271-6.3-5), [`RFC4271-6.3-6`](#rfc4271-6.3-6), [`RFC4271-6.3-7`](#rfc4271-6.3-7), [`RFC4271-6.3-8`](#rfc4271-6.3-8), [`RFC4271-6.3-9`](#rfc4271-6.3-9), [`RFC4271-6.3-10`](#rfc4271-6.3-10), [`RFC4271-6.3-11`](#rfc4271-6.3-11), [`RFC4271-6.3-12`](#rfc4271-6.3-12), [`RFC4271-6.3-13`](#rfc4271-6.3-13), [`RFC4271-6.3-14`](#rfc4271-6.3-14), [`RFC4271-6.3-15`](#rfc4271-6.3-15), [`RFC4271-6.3-16`](#rfc4271-6.3-16), [`RFC4271-6.3-17`](#rfc4271-6.3-17), [`RFC4271-8.2.2-19`](#rfc4271-8.2.2-19), [`RFC4271-9-4`](#rfc4271-9-4), [`RFC4271-10-4`](#rfc4271-10-4)
 
 **Annotated instead of tested (25):** [`RFC4271-4.3-3`](#rfc4271-4.3-3), [`RFC4271-4.3-5`](#rfc4271-4.3-5), [`RFC4271-5.1.6-1`](#rfc4271-5.1.6-1), [`RFC4271-6.1-1`](#rfc4271-6.1-1), [`RFC4271-6.1-2`](#rfc4271-6.1-2), [`RFC4271-6.1-3`](#rfc4271-6.1-3), [`RFC4271-6.1-4`](#rfc4271-6.1-4), [`RFC4271-6.2-3`](#rfc4271-6.2-3), [`RFC4271-8.2.1-3`](#rfc4271-8.2.1-3), [`RFC4271-3.1-2`](#rfc4271-3.1-2), [`RFC4271-5.1.4-3`](#rfc4271-5.1.4-3), [`RFC4271-5.1.7-1`](#rfc4271-5.1.7-1), [`RFC4271-9.1.2-1`](#rfc4271-9.1.2-1), [`RFC4271-9.1.2-4`](#rfc4271-9.1.2-4), [`RFC4271-9.1.2.1-2`](#rfc4271-9.1.2.1-2), [`RFC4271-9.1.2.2-2`](#rfc4271-9.1.2.2-2), [`RFC4271-9.2-2`](#rfc4271-9.2-2), [`RFC4271-9.2-3`](#rfc4271-9.2-3), [`RFC4271-9.2.1.1-2`](#rfc4271-9.2.1.1-2), [`RFC4271-9.2.2.2-1`](#rfc4271-9.2.2.2-1), [`RFC4271-9.2.2.2-2`](#rfc4271-9.2.2.2-2), [`RFC4271-9.2.2.2-3`](#rfc4271-9.2.2.2-3), [`RFC4271-9.2.2.2-4`](#rfc4271-9.2.2.2-4), [`RFC4271-9.2.2.2-5`](#rfc4271-9.2.2.2-5), [`RFC4271-9.2.1.1-3`](#rfc4271-9.2.1.1-3)
-
-**No test and no annotation (24):** [`RFC4271-5-8`](#rfc4271-5-8), [`RFC4271-6.2-5`](#rfc4271-6.2-5), [`RFC4271-6.2-6`](#rfc4271-6.2-6), [`RFC4271-6.2-7`](#rfc4271-6.2-7), [`RFC4271-6.2-8`](#rfc4271-6.2-8), [`RFC4271-6.2-9`](#rfc4271-6.2-9), [`RFC4271-6.2-10`](#rfc4271-6.2-10), [`RFC4271-6.3-4`](#rfc4271-6.3-4), [`RFC4271-6.3-5`](#rfc4271-6.3-5), [`RFC4271-6.3-6`](#rfc4271-6.3-6), [`RFC4271-6.3-7`](#rfc4271-6.3-7), [`RFC4271-6.3-8`](#rfc4271-6.3-8), [`RFC4271-6.3-9`](#rfc4271-6.3-9), [`RFC4271-6.3-10`](#rfc4271-6.3-10), [`RFC4271-6.3-11`](#rfc4271-6.3-11), [`RFC4271-6.3-12`](#rfc4271-6.3-12), [`RFC4271-6.3-13`](#rfc4271-6.3-13), [`RFC4271-6.3-14`](#rfc4271-6.3-14), [`RFC4271-6.3-15`](#rfc4271-6.3-15), [`RFC4271-6.3-16`](#rfc4271-6.3-16), [`RFC4271-6.3-17`](#rfc4271-6.3-17), [`RFC4271-8.2.2-19`](#rfc4271-8.2.2-19), [`RFC4271-9-4`](#rfc4271-9-4), [`RFC4271-10-4`](#rfc4271-10-4)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC4271-4.1-1` | Marker field MUST be set to all ones (16 bytes of 0xFF) (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC4271MarkerAllOnesOnSend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L19). **negative:** `unit/verify` [`TestRFC4271MarkerNotAllOnesRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L42) |
-| `RFC4271-4.1-2` | Length field MUST have the smallest value required given the rest of the message (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC4271SmallestLengthOnSend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L62). **negative:** `unit/verify` [`TestRFC4271NonSmallestLengthRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L95) |
+| `RFC4271-4.1-2` | Therefore, the Length field MUST have the smallest value required, given the rest of the message. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC4271SmallestLengthOnSend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L62). **negative:** `unit/verify` [`TestRFC4271NonSmallestLengthRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L95) |
 | `RFC4271-4.1-3` | Message Length MUST be between 19 and 4096 octets (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC4271MessageLengthWithinBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L124). **negative:** `unit/verify` [`TestRFC4271MessageLengthOutOfBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L150) |
 | `RFC4271-4.3-1` | For well-known attributes, the Transitive bit MUST be set to 1 (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC4271WellKnownAttributesAreTransitive`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L31). **negative:** `unit/verify` [`TestRFC4271WellKnownAttributeErrorsAreCaught`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L500) |
-| `RFC4271-4.3-2` | Partial bit MUST be set to 0 for well-known and optional non-transitive attributes (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC4271PartialBitClearOnSend`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L55). **positive:** `unit/verify` [`TestRFC4271PartialClearedOnTheRelayedWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_relay_partial_test.go#L48). **positive:** `unit/verify` [`TestRFC4271PartialNotSetOnRecognizedOrNonTransitive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1116). **negative:** `unit/verify` [`TestRFC4271PartialBitClearedOnReadvertisedWellKnown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L47). **negative:** `unit/verify` [`TestRFC4271PartialClearedWhenTheRailReadvertises`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc4271_partial_test.go#L75). **negative:** `unit/verify` [`TestRFC4271PartialNotStampedOnExcludedClasses`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L170) |
+| `RFC4271-4.3-2` | For well-known attributes and for optional non-transitive attributes, the Partial bit MUST be set to 0. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC4271PartialBitClearOnSend`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L55). **positive:** `unit/verify` [`TestRFC4271PartialClearedOnTheRelayedWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_relay_partial_test.go#L48). **positive:** `unit/verify` [`TestRFC4271PartialNotSetOnRecognizedOrNonTransitive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1116). **negative:** `unit/verify` [`TestRFC4271PartialBitClearedOnReadvertisedWellKnown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L47). **negative:** `unit/verify` [`TestRFC4271PartialClearedWhenTheRailReadvertises`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc4271_partial_test.go#L75). **negative:** `unit/verify` [`TestRFC4271PartialNotStampedOnExcludedClasses`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L170) |
 | `RFC4271-4.3-3` | Lower-order four bits of attribute flags MUST be zero when sent (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC4271AttributeFlagsLowNibbleZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L80). **negative:** no negative test. **{single-polarity}:** the obligation is on the sender -- the flags octet ze writes must have its low-order four bits zero -- so there is no non-conformant input to reject. The receive-side mirror of the same rule ("MUST be ignored when received") is RFC4271-4.3-4 and is proven both ways there |
 | `RFC4271-4.3-4` | Lower-order four bits of attribute flags MUST be ignored when received (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L232). **negative:** `unit/verify` [`TestRFC4271AttrFlagsHighBitsNotIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L259) |
 | `RFC4271-4.4-1` | KEEPALIVE messages MUST NOT be sent more frequently than one per second (§4.4) | MUST NOT | 4.4 | **positive:** `unit/verify` [`TestRFC4271KeepaliveNotFasterThanOnePerSecond`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_test.go#L18). **negative:** `unit/verify` [`TestRFC4271KeepaliveIntervalNeverSubSecond`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_test.go#L50) |
-| `RFC4271-4.4-2` | If the negotiated Hold Time is zero, periodic KEEPALIVE messages MUST NOT be sent (§4.4) | MUST NOT | 4.4 | **positive:** `unit/verify` [`TestTimersKeepaliveTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/timer_test.go#L144). **negative:** `unit/verify` [`TestKeepaliveWithZeroHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/timer_test.go#L411) |
-| `RFC4271-6-1` | If no Error Subcode is specified, a zero MUST be used (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC4271NotificationUnspecifiedSubcodeIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L353). **negative:** `unit/verify` [`TestRFC4271NotificationSpecifiedSubcodePreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L376) |
+| `RFC4271-4.4-2` | If the negotiated Hold Time interval is zero, then periodic KEEPALIVE messages MUST NOT be sent. (§4.4) | MUST NOT | 4.4 | **positive:** `unit/verify` [`TestTimersKeepaliveTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/timer_test.go#L144). **negative:** `unit/verify` [`TestKeepaliveWithZeroHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/timer_test.go#L365) |
+| `RFC4271-6-1` | If no Error Subcode is specified, then a zero MUST be used. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC4271NotificationUnspecifiedSubcodeIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L353). **negative:** `unit/verify` [`TestRFC4271NotificationSpecifiedSubcodePreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L376) |
 | `RFC4271-4.2-1` | Hold Time MUST be either zero or at least three seconds (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestOpenValidateHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L339). **negative:** `unit/verify` [`TestOpenValidateHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L341). **positive:** `functional/verify` [`open-hold-time-peer-lower-wins.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/open-hold-time-peer-lower-wins.ci#L3) |
-| `RFC4271-4.2-2` | BGP speaker MUST calculate Hold Timer by using the smaller of its configured Hold Time and the received Hold Time (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestNegotiateWith_HoldTimeMinOfBoth`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L45). **negative:** `unit/verify` [`TestNegotiateWith_HoldTimeZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L74) |
+| `RFC4271-4.2-2` | Upon receipt of an OPEN message, a BGP speaker MUST calculate the value of the Hold Timer by using the smaller of its configured Hold Time and the Hold Time received in the OPEN message. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestNegotiateWith_HoldTimeMinOfBoth`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L45). **negative:** `unit/verify` [`TestNegotiateWith_HoldTimeZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L74) |
 | `RFC4271-6.2-1` | An implementation MUST reject Hold Time values of one or two seconds (§6.2) | MUST | 6.2 | **positive:** `unit/verify` [`TestOpenValidateHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L343). **negative:** `unit/verify` [`TestOpenValidateHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L345) |
 | `RFC4271-6.2-2` | An implementation that accepts a Hold Time MUST use the negotiated value (§6.2) | MUST | 6.2 | **positive:** `unit/verify` [`TestRFC4271NegotiatedHoldTimeDrivesTimers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L171). **negative:** `unit/verify` [`TestRFC4271LocalHoldTimeNotUsedWhenPeerProposesSmaller`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L192) |
 | `RFC4271-5-1` | BGP implementations MUST recognize all well-known attributes (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC4271WellKnownAttributesAreRecognized`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L463). **negative:** `unit/verify` [`TestRFC4271WellKnownAttributeErrorsAreCaught`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L492) |
-| `RFC4271-5-2` | Well-known mandatory attributes MUST be included in every UPDATE containing NLRI (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC4271WellKnownAttributesAreRecognized`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L466). **negative:** `unit/verify` [`TestRFC4271WellKnownAttributeErrorsAreCaught`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L497) |
-| `RFC4271-5-3` | Unrecognized transitive optional attributes MUST be passed along with the Partial bit set to 1 (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC4271PartialSetOnUnrecognizedTransitiveOptional`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1084). **positive:** `unit/verify` [`TestRFC4271PartialStampedOnUnrecognizedTransitive`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L132). **negative:** `unit/verify` [`TestRFC4271PartialNotSetOnRecognizedOrNonTransitive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1113). **negative:** `unit/verify` [`TestRFC4271PartialNotStampedOnExcludedClasses`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L167). **positive:** `functional/verify` [`rfc4271-partial-unknown-transitive.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc4271-partial-unknown-transitive.ci#L27) |
-| `RFC4271-5-4` | Partial bit set to 1 by a previous AS MUST NOT be set back to 0 (§5) | MUST NOT | 5 | **positive:** `unit/verify` [`TestRFC4271PartialBitPreservedOnUnknownTransitive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L82). **positive:** `unit/verify` [`TestRFC4271PartialFromPreviousASNeverCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1152). **negative:** `unit/verify` [`TestRFC4271PartialBitSurvivesLengthReframing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L115). **negative:** `unit/verify` [`TestRFC4271PartialFromPreviousASNotCleared`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L197) |
+| `RFC4271-5-2` | Some of these attributes are mandatory and MUST be included in every UPDATE message that contains NLRI. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC4271WellKnownAttributesAreRecognized`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L466). **negative:** `unit/verify` [`TestRFC4271WellKnownAttributeErrorsAreCaught`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L497) |
+| `RFC4271-5-3` | If a path with an unrecognized transitive optional attribute is accepted and passed to other BGP peers, then the unrecognized transitive optional attribute of that path MUST be passed, along with the path, to other BGP peers with the Partial bit in the Attribute Flags octet set to 1. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC4271PartialSetOnUnrecognizedTransitiveOptional`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1084). **positive:** `unit/verify` [`TestRFC4271PartialStampedOnUnrecognizedTransitive`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L132). **negative:** `unit/verify` [`TestRFC4271PartialNotSetOnRecognizedOrNonTransitive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1113). **negative:** `unit/verify` [`TestRFC4271PartialNotStampedOnExcludedClasses`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L167). **positive:** `functional/verify` [`rfc4271-partial-unknown-transitive.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc4271-partial-unknown-transitive.ci#L27) |
+| `RFC4271-5-4` | If a path with a recognized, transitive optional attribute is accepted and passed along to other BGP peers and the Partial bit in the Attribute Flags octet is set to 1 by some previous AS, it MUST NOT be set back to 0 by the current AS. (§5) | MUST NOT | 5 | **positive:** `unit/verify` [`TestRFC4271PartialBitPreservedOnUnknownTransitive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L82). **positive:** `unit/verify` [`TestRFC4271PartialFromPreviousASNeverCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1152). **negative:** `unit/verify` [`TestRFC4271PartialBitSurvivesLengthReframing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L115). **negative:** `unit/verify` [`TestRFC4271PartialFromPreviousASNotCleared`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4271_test.go#L197) |
 | `RFC4271-5-5` | Unrecognized non-transitive optional attributes MUST be quietly ignored (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC4271UnrecognizedNonTransitiveIsNotPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1210). **negative:** `unit/verify` [`TestRFC4271TheNonTransitiveDropSparesEveryOtherClass`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L1251) |
-| `RFC4271-5-6` | Receiver of an UPDATE MUST be prepared to handle path attributes that are out of order (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC4271AttributesOutOfOrderAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L293). **negative:** `unit/verify` [`TestRFC4271OutOfOrderDoesNotMaskMalformation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L323) |
-| `RFC4271-4.3-5` | A BGP speaker MUST be able to process UPDATE messages with the same prefix in both WITHDRAWN and NLRI (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRIBInjectSamePrefixInWithdrawnAndNLRIInstallsTheRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go#L119). **positive:** `unit/verify` [`TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go#L85). **positive:** `unit/verify` [`TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go#L39). **negative:** no negative test. **{single-polarity}:** the obligation is to ACCEPT a message shape, so there is no non-conformant input to reject -- every UPDATE of this form must be processed, and a negative case would have to assert the absence of an error, which proves nothing (ai/rules/testing.md). The consequence the same paragraph asks for, treating the UPDATE as though WITHDRAWN did not contain the prefix, is RFC4271-4.3-7 and is proven by the same test |
-| `RFC4271-5.1.3-1` | A route originated by a BGP speaker SHALL NOT be advertised to a peer using that peer's address as NEXT_HOP (§5.1.3) | SHALL NOT | 5.1.3 | **positive:** `unit/verify` [`TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L282). **positive:** `unit/verify` [`TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L252). **positive:** `unit/verify` [`TestForwardWithdrawsFromDestinationWhoseNextHopIsItsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L217). **positive:** `unit/verify` [`TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L181). **positive:** `unit/verify` [`TestSendAnnounceWithholdsRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L464). **positive:** `unit/verify` [`TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L425). **negative:** `unit/verify` [`TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L286). **negative:** `unit/verify` [`TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L255). **negative:** `unit/verify` [`TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L186). **negative:** `unit/verify` [`TestSendAnnounceWithholdsRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L466). **negative:** `unit/verify` [`TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L429). **positive:** `functional/verify` [`originated-nexthop-peer-own.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/originated-nexthop-peer-own.ci#L7). **negative:** `functional/verify` [`originated-nexthop-peer-own.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/originated-nexthop-peer-own.ci#L10). **positive:** `interop/nightly` [`checkSelfNextHopWithheld`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L961). **negative:** `interop/nightly` [`checkSelfNextHopWithheld`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L962) |
+| `RFC4271-5-6` | The receiver of an UPDATE message MUST be prepared to handle path attributes within UPDATE messages that are out of order. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC4271AttributesOutOfOrderAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L293). **negative:** `unit/verify` [`TestRFC4271OutOfOrderDoesNotMaskMalformation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L323) |
+| `RFC4271-4.3-5` | However, a BGP speaker MUST be able to process UPDATE messages in this form. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRIBInjectSamePrefixInWithdrawnAndNLRIInstallsTheRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go#L119). **positive:** `unit/verify` [`TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go#L85). **positive:** `unit/verify` [`TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go#L39). **negative:** no negative test. **{single-polarity}:** the obligation is to ACCEPT a message shape, so there is no non-conformant input to reject -- every UPDATE of this form must be processed, and a negative case would have to assert the absence of an error, which proves nothing (ai/rules/testing.md). The consequence the same paragraph asks for, treating the UPDATE as though WITHDRAWN did not contain the prefix, is RFC4271-4.3-7 and is proven by the same test |
+| `RFC4271-5.1.3-1` | A route originated by a BGP speaker SHALL NOT be advertised to a peer using an address of that peer as NEXT_HOP. (§5.1.3) | SHALL NOT | 5.1.3 | **positive:** `unit/verify` [`TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L282). **positive:** `unit/verify` [`TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L252). **positive:** `unit/verify` [`TestForwardWithdrawsFromDestinationWhoseNextHopIsItsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L217). **positive:** `unit/verify` [`TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L181). **positive:** `unit/verify` [`TestSendAnnounceWithholdsRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L464). **positive:** `unit/verify` [`TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L425). **negative:** `unit/verify` [`TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L286). **negative:** `unit/verify` [`TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L255). **negative:** `unit/verify` [`TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L186). **negative:** `unit/verify` [`TestSendAnnounceWithholdsRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L466). **negative:** `unit/verify` [`TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L429). **positive:** `functional/verify` [`originated-nexthop-peer-own.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/originated-nexthop-peer-own.ci#L7). **negative:** `functional/verify` [`originated-nexthop-peer-own.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/originated-nexthop-peer-own.ci#L10). **positive:** `interop/nightly` [`checkSelfNextHopWithheld`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L959). **negative:** `interop/nightly` [`checkSelfNextHopWithheld`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L960) |
 | `RFC4271-5.1.3-2` | A BGP speaker SHALL NOT install a route with itself as the next hop (§5.1.3) | SHALL NOT | 5.1.3 | **positive:** `unit/verify` [`TestRFC4271SelfNextHopRouteIsNotInstalled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go#L43). **positive:** `unit/verify` [`TestRFC4271SelfNextHopSetComesFromPeerEvents`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go#L122). **negative:** `unit/verify` [`TestRFC4271SelfNextHopDoesNotShadowASoundAlternative`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go#L89). **negative:** `unit/verify` [`TestRFC4271SelfNextHopRouteIsNotInstalled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go#L47). **negative:** `unit/verify` [`TestRFC4271SelfNextHopSetComesFromPeerEvents`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go#L126) |
-| `RFC4271-5.1.3-3` | A BGP speaker MUST be able to support disabling advertisement of third-party NEXT_HOP attributes (§5.1.3) | MUST | 5.1.3 | **positive:** `unit/verify` [`TestRFC4271ThirdPartyNextHopCanBeDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L341). **negative:** `unit/verify` [`TestRFC4271ThirdPartyNextHopDisableFailsClosed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L373) |
-| `RFC4271-5.1.4-1` | MULTI_EXIT_DISC received from a neighboring AS MUST NOT be propagated to other neighboring ASes (§5.1.4) | MUST NOT | 5.1.4 | **positive:** `unit/verify` [`TestForwardSuppressesReceivedMEDToAnotherAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L221). **negative:** `unit/verify` [`TestForwardKeepsFilterSetMED`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L322). **negative:** `unit/verify` [`TestForwardSuppressesReceivedMEDToAnotherAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L226). **negative:** `unit/verify` [`TestForwardWritesLocallySetMED`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L289). **negative:** `unit/verify` [`TestMEDPropagationAllowedTo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L426). **positive:** `functional/verify` [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L4). **negative:** `functional/verify` [`med-locally-set-reaches-peer.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-locally-set-reaches-peer.ci#L4). **negative:** `functional/verify` [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L8). **positive:** `interop/nightly` [`checkMEDAcrossAS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L196). **negative:** `interop/nightly` [`checkMEDAcrossAS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L200) |
-| `RFC4271-5.1.4-4` | A BGP speaker MUST implement a mechanism (based on local configuration) that allows the MULTI_EXIT_DISC attribute to be removed from a route (§5.1.4) | MUST | 5.1.4 | **positive:** `unit/verify` [`TestMEDRemovalMechanismIsConfigurable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L468). **positive:** `unit/verify` [`TestParseModifyDefsMEDRemove`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L642). **negative:** `unit/verify` [`TestMEDRemovalMechanismIsConfigurable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L475). **negative:** `unit/verify` [`TestMEDRemoveDirectiveIsValueless`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L568). **negative:** `unit/verify` [`TestParseModifyDefsMEDRemove`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L647). **positive:** `functional/verify` [`med-removal-configured.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-configured.ci#L4). **positive:** `interop/nightly` [`checkMEDRemovalConfiguration`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L318). **negative:** `interop/nightly` [`checkMEDRemovalConfiguration`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L322) |
-| `RFC4271-5.1.4-2` | MULTI_EXIT_DISC removal from routes MUST be done before the route is used in Phase 2 of the decision process (§5.1.4) | MUST | 5.1.4 | **positive:** `unit/verify` [`TestHandleFilterUpdateMEDRemoveIsImportOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L715). **positive:** `unit/verify` [`TestMEDRemovalMechanismIsConfigurable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L480). **negative:** `unit/verify` [`TestHandleFilterUpdateMEDRemoveIsImportOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L722). **negative:** `unit/verify` [`TestMEDRemovalMechanismIsConfigurable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L488). **positive:** `functional/verify` [`med-removal-before-decision.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-before-decision.ci#L4). **positive:** `functional/verify` [`med-removal-configured.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-configured.ci#L8). **negative:** `functional/verify` [`med-removal-before-decision.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-before-decision.ci#L10). **negative:** `functional/verify` [`med-removal-export-refused.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-export-refused.ci#L4) |
-| `RFC4271-5.1.5-1` | LOCAL_PREF SHALL be included in all UPDATE messages sent to internal peers (§5.1.5) | SHALL | 5.1.5 | **positive:** `unit/verify` [`TestRFC4271LocalPrefIncludedForInternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L81). **negative:** `unit/verify` [`TestAnnounceStripsLocalPrefTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_origin_test.go#L307). **negative:** `unit/verify` [`TestForwardLocalPrefStrippedToExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_local_pref_test.go#L45). **negative:** `unit/verify` [`TestRFC4271LocalPrefOmittedForExternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L107) |
-| `RFC4271-5.1.5-2` | A BGP speaker MUST NOT include LOCAL_PREF in UPDATE messages sent to external peers (§5.1.5) | MUST NOT | 5.1.5 | **positive:** `unit/verify` [`TestAnnounceStripsLocalPrefTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_origin_test.go#L305). **positive:** `unit/verify` [`TestForwardLocalPrefStripBeatsAFilterSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_local_pref_test.go#L113). **positive:** `unit/verify` [`TestForwardLocalPrefStrippedToExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_local_pref_test.go#L41). **positive:** `unit/verify` [`TestRFC4271LocalPrefOmittedForExternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L104). **negative:** `unit/verify` [`TestLocalPrefAllowedToIsTheOnlyAnswer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_local_pref_test.go#L146). **negative:** `unit/verify` [`TestRFC4271LocalPrefIncludedForInternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L83). **positive:** `functional/verify` [`local-pref-strip-ebgp.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/local-pref-strip-ebgp.ci#L14). **negative:** `functional/verify` [`local-pref-strip-ebgp.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/local-pref-strip-ebgp.ci#L19). **positive:** `interop/nightly` [`checkLocalPrefStrip`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L96) |
+| `RFC4271-5.1.3-3` | A BGP speaker MUST be able to support the disabling advertisement of third party NEXT_HOP attributes in order to handle imperfectly bridged media. (§5.1.3) | MUST | 5.1.3 | **positive:** `unit/verify` [`TestRFC4271ThirdPartyNextHopCanBeDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L341). **negative:** `unit/verify` [`TestRFC4271ThirdPartyNextHopDisableFailsClosed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L373) |
+| `RFC4271-5.1.4-1` | The MULTI_EXIT_DISC attribute received from a neighboring AS MUST NOT be propagated to other neighboring ASes. (§5.1.4) | MUST NOT | 5.1.4 | **positive:** `unit/verify` [`TestForwardSuppressesReceivedMEDToAnotherAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L221). **negative:** `unit/verify` [`TestForwardKeepsFilterSetMED`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L322). **negative:** `unit/verify` [`TestForwardSuppressesReceivedMEDToAnotherAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L226). **negative:** `unit/verify` [`TestForwardWritesLocallySetMED`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L289). **negative:** `unit/verify` [`TestMEDPropagationAllowedTo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L426). **positive:** `functional/verify` [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L4). **negative:** `functional/verify` [`med-locally-set-reaches-peer.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-locally-set-reaches-peer.ci#L4). **negative:** `functional/verify` [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L8). **positive:** `interop/nightly` [`checkMEDAcrossAS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L194). **negative:** `interop/nightly` [`checkMEDAcrossAS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L198) |
+| `RFC4271-5.1.4-4` | A BGP speaker MUST implement a mechanism (based on local configuration) that allows the MULTI_EXIT_DISC attribute to be removed from a route (§5.1.4) | MUST | 5.1.4 | **positive:** `unit/verify` [`TestMEDRemovalMechanismIsConfigurable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L468). **positive:** `unit/verify` [`TestParseModifyDefsMEDRemove`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L642). **negative:** `unit/verify` [`TestMEDRemovalMechanismIsConfigurable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L475). **negative:** `unit/verify` [`TestMEDRemoveDirectiveIsValueless`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L568). **negative:** `unit/verify` [`TestParseModifyDefsMEDRemove`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L647). **positive:** `functional/verify` [`med-removal-configured.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-configured.ci#L4). **positive:** `interop/nightly` [`checkMEDRemovalConfiguration`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L316). **negative:** `interop/nightly` [`checkMEDRemovalConfiguration`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L320) |
+| `RFC4271-5.1.4-2` | If a BGP speaker is configured to remove the MULTI_EXIT_DISC attribute from a route, then this removal MUST be done prior to determining the degree of preference of the route and prior to performing route selection (Decision Process phases 1 and 2). (§5.1.4) | MUST | 5.1.4 | **positive:** `unit/verify` [`TestHandleFilterUpdateMEDRemoveIsImportOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L715). **positive:** `unit/verify` [`TestMEDRemovalMechanismIsConfigurable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L480). **negative:** `unit/verify` [`TestHandleFilterUpdateMEDRemoveIsImportOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L722). **negative:** `unit/verify` [`TestMEDRemovalMechanismIsConfigurable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L488). **positive:** `functional/verify` [`med-removal-before-decision.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-before-decision.ci#L4). **positive:** `functional/verify` [`med-removal-configured.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-configured.ci#L8). **negative:** `functional/verify` [`med-removal-before-decision.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-before-decision.ci#L10). **negative:** `functional/verify` [`med-removal-export-refused.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-export-refused.ci#L4) |
+| `RFC4271-5.1.5-1` | LOCAL_PREF is a well-known attribute that SHALL be included in all UPDATE messages that a given BGP speaker sends to other internal peers. (§5.1.5) | SHALL | 5.1.5 | **positive:** `unit/verify` [`TestRFC4271LocalPrefIncludedForInternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L81). **negative:** `unit/verify` [`TestAnnounceStripsLocalPrefTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_origin_test.go#L307). **negative:** `unit/verify` [`TestForwardLocalPrefStrippedToExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_local_pref_test.go#L45). **negative:** `unit/verify` [`TestRFC4271LocalPrefOmittedForExternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L107) |
+| `RFC4271-5.1.5-2` | A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065]. (§5.1.5) | MUST NOT | 5.1.5 | **positive:** `unit/verify` [`TestAnnounceStripsLocalPrefTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_origin_test.go#L305). **positive:** `unit/verify` [`TestForwardLocalPrefStripBeatsAFilterSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_local_pref_test.go#L113). **positive:** `unit/verify` [`TestForwardLocalPrefStrippedToExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_local_pref_test.go#L41). **positive:** `unit/verify` [`TestRFC4271LocalPrefOmittedForExternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L104). **negative:** `unit/verify` [`TestLocalPrefAllowedToIsTheOnlyAnswer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_local_pref_test.go#L146). **negative:** `unit/verify` [`TestRFC4271LocalPrefIncludedForInternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L83). **positive:** `functional/verify` [`local-pref-strip-ebgp.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/local-pref-strip-ebgp.ci#L14). **negative:** `functional/verify` [`local-pref-strip-ebgp.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/local-pref-strip-ebgp.ci#L19). **positive:** `interop/nightly` [`checkLocalPrefStrip`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L94) |
 | `RFC4271-5.1.5-3` | If LOCAL_PREF is received over EBGP, it MUST be ignored (§5.1.5) | MUST | 5.1.5 | **positive:** `unit/verify` [`TestRFC4271LocalPrefKeptOnInternalSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L566). **negative:** `unit/verify` [`TestRFC4271LocalPrefIgnoredOnExternalSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L589) |
-| `RFC4271-5.1.5-4` | The higher degree of preference (LOCAL_PREF) MUST be preferred (§5.1.5) | MUST | 5.1.5 | **positive:** `unit/verify` [`TestBestPath_LocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L197). **negative:** `unit/verify` [`TestBestPath_LocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L199) |
-| `RFC4271-5.1.6-1` | A BGP speaker that receives a route with the ATOMIC_AGGREGATE attribute MUST NOT make any NLRI of that route more specific when advertising this route to other BGP speakers (§5.1.6) | MUST NOT | 5.1.6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the obligation binds the RECEIVER/re-advertiser, and ze is one -- it stores a received ATOMIC_AGGREGATE and copies it through on readvertisement (internal/component/bgp/reactor/peer_rib_routes.go:141) -- but the prohibited act has no producer. `grep -rniE "more specific\|deaggregat\|de-aggregat\|disaggregat" --include=*.go internal/component/bgp/ \| grep -v _test` returns only substring hits inside `encodeAggregatorValue` and `attrCodeAggregator` (internal/component/bgp/reactor/filter_delta.go:294,396, internal/component/bgp/message/rfc7606.go:64,421); no code path splits a prefix. Both readvertisement encoders write the stored route's own prefix verbatim through nlri.WriteNLRI (internal/component/bgp/reactor/peer_rib_routes.go:103-104), so the advertised NLRI is byte-identical to what was received and can be neither more nor less specific. With no length-altering producer there is no behavior to exercise in either polarity |
-| `RFC4271-6.1-1` | All header errors MUST be indicated by sending NOTIFICATION with Error Code Message Header Error (§6.1) | MUST | 6.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** one class of header error is detected but never reported. A bad marker or a Length below 19 makes ParseHeader return a bare sentinel (internal/component/bgp/message/header.go:96-108), and the read loop turns that into an FSM event and a returned error with no NOTIFICATION sent (internal/component/bgp/reactor/session_read.go:98-102). The per-type and over-maximum length errors on the following lines do send Message Header Error (session_read.go:105-117) |
-| `RFC4271-6.1-2` | Marker not all ones: Error Subcode MUST be Connection Not Synchronized (§6.1) | MUST | 6.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** NotifyHeaderConnectionNotSync is declared (internal/component/bgp/message/notification.go:52) but no producer ever sends it. ParseHeader returns ErrInvalidMarker, a plain sentinel carrying no NOTIFICATION (internal/component/bgp/message/header.go:96-99), and the read loop's marker-error branch sends nothing before returning (internal/component/bgp/reactor/session_read.go:98-102) |
-| `RFC4271-6.1-3` | Invalid length: Error Subcode MUST be Bad Message Length; Data field MUST contain the erroneous Length field (§6.1) | MUST | 6.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** RFC 4271 §6.1 lists five length conditions and ze reports only four of them. The per-type minima and the 4096/65535 ceiling do produce a conformant Notification -- ValidateLength and ValidateLengthWithMax return a *Notification carrying NotifyHeaderBadLength and the two big-endian octets of the offending Length (internal/component/bgp/message/header.go:155-171 and :207-213), which the read loop sends before closing (internal/component/bgp/reactor/session_read.go:105-117). The first listed condition, "Length field of the message header is less than 19", does not: ParseHeader returns the bare sentinel ErrInvalidLength with no Notification and no Data (internal/component/bgp/message/header.go:106-108), and the read loop logs an FSM event and returns without writing anything (internal/component/bgp/reactor/session_read.go:98-102). The same code fact is recorded as the NOTIFICATION-absence gap on RFC4271-6.1-1. Disclosed in docs/features/rfc-status.md RFC 4271 row |
+| `RFC4271-5.1.5-4` | The higher degree of preference MUST be preferred. (§5.1.5) | MUST | 5.1.5 | **positive:** `unit/verify` [`TestBestPath_LocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L197). **negative:** `unit/verify` [`TestBestPath_LocalPref`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L199) |
+| `RFC4271-5.1.6-1` | A BGP speaker that receives a route with the ATOMIC_AGGREGATE attribute MUST NOT make any NLRI of that route more specific (as defined in 9.1.4) when advertising this route to other BGP speakers. (§5.1.6) | MUST NOT | 5.1.6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the obligation binds the RECEIVER/re-advertiser, and ze is one -- it stores a received ATOMIC_AGGREGATE and copies it through on readvertisement (internal/component/bgp/reactor/peer_rib_routes.go:141) -- but the prohibited act has no producer. `grep -rniE "more specific\|deaggregat\|de-aggregat\|disaggregat" --include=*.go internal/component/bgp/ \| grep -v _test` returns only substring hits inside `encodeAggregatorValue` and `attrCodeAggregator` (internal/component/bgp/reactor/filter_delta.go:294,396, internal/component/bgp/message/rfc7606.go:64,421); no code path splits a prefix. Both readvertisement encoders write the stored route's own prefix verbatim through nlri.WriteNLRI (internal/component/bgp/reactor/peer_rib_routes.go:103-104), so the advertised NLRI is byte-identical to what was received and can be neither more nor less specific. With no length-altering producer there is no behavior to exercise in either polarity |
+| `RFC4271-6.1-1` | All errors detected while processing the Message Header MUST be indicated by sending the NOTIFICATION message with the Error Code Message Header Error. (§6.1) | MUST | 6.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** one class of header error is detected but never reported. A bad marker or a Length below 19 makes ParseHeader return a bare sentinel (internal/component/bgp/message/header.go:96-108), and the read loop turns that into an FSM event and a returned error with no NOTIFICATION sent (internal/component/bgp/reactor/session_read.go:98-102). The per-type and over-maximum length errors on the following lines do send Message Header Error (session_read.go:105-117) |
+| `RFC4271-6.1-2` | If the Marker field of the message header is not as expected, then a synchronization error has occurred and the Error Subcode MUST be set to Connection Not Synchronized. (§6.1) | MUST | 6.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** NotifyHeaderConnectionNotSync is declared (internal/component/bgp/message/notification.go:52) but no producer ever sends it. ParseHeader returns ErrInvalidMarker, a plain sentinel carrying no NOTIFICATION (internal/component/bgp/message/header.go:96-99), and the read loop's marker-error branch sends nothing before returning (internal/component/bgp/reactor/session_read.go:98-102) |
+| `RFC4271-6.1-3` | then the Error Subcode MUST be set to Bad Message Length. (§6.1) | MUST | 6.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** RFC 4271 §6.1 lists five length conditions and ze reports only four of them. The per-type minima and the 4096/65535 ceiling do produce a conformant Notification -- ValidateLength and ValidateLengthWithMax return a *Notification carrying NotifyHeaderBadLength and the two big-endian octets of the offending Length (internal/component/bgp/message/header.go:155-171 and :207-213), which the read loop sends before closing (internal/component/bgp/reactor/session_read.go:105-117). The first listed condition, "Length field of the message header is less than 19", does not: ParseHeader returns the bare sentinel ErrInvalidLength with no Notification and no Data (internal/component/bgp/message/header.go:106-108), and the read loop logs an FSM event and returns without writing anything (internal/component/bgp/reactor/session_read.go:98-102). The same code fact is recorded as the NOTIFICATION-absence gap on RFC4271-6.1-1. Disclosed in docs/features/rfc-status.md RFC 4271 row |
 | `RFC4271-6.1-4` | Invalid type: Error Subcode MUST be Bad Message Type; Data field MUST contain the erroneous Type field (§6.1) | MUST | 6.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** an unknown message type is reported with the wrong subcode and the wrong Data. handleUnknownType sends Message Header Error with subcode 0 and a human-readable text string rather than subcode 3 (Bad Message Type) with the erroneous Type octet (internal/component/bgp/reactor/session_handlers.go:20-36); NotifyHeaderBadType is declared at internal/component/bgp/message/notification.go:54 and has no producer |
-| `RFC4271-6.2-3` | All OPEN errors MUST be indicated by NOTIFICATION with Error Code OPEN Message Error (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** one class of OPEN error is detected and never reported. UnpackOpen returns the bare sentinel ErrShortRead when the body is under 10 octets or when the Optional Parameters Length (standard or RFC 9072 extended) overruns the body (internal/component/bgp/message/open.go:167-168, :193-194, :199-200, :209-210), and handleOpen turns that into an FSM event and a returned error, writing no NOTIFICATION and not even closing the connection (internal/component/bgp/reactor/session_handlers.go:43-47); session_read.go:264 only propagates it. Every other OPEN error path does send Error Code 2 -- unsupported version (session_handlers.go:54-60), unacceptable Hold Time (:70-77) and a malformed capability (rejectOpenCapabilityError, :185-199) -- so the obligation holds everywhere except the decode failure. Disclosed in docs/features/rfc-status.md RFC 4271 row |
-| `RFC4271-6.3-1` | All UPDATE errors MUST be indicated by NOTIFICATION with Error Code UPDATE Message Error (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestRFC4271UpdateErrorReportedAsUpdateMessageError`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L633). **negative:** `unit/verify` [`TestRFC4271ConformantUpdateSendsNoUpdateError`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L696) |
-| `RFC4271-6.7-1` | Cease NOTIFICATION MUST NOT be used when a fatal error does exist (§6.7) | MUST NOT | 6.7 | **positive:** `unit/verify` [`TestPrefixExceedTeardown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_prefix_test.go#L110). **negative:** `unit/verify` [`TestRFC4271UpdateErrorReportedAsUpdateMessageError`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L636) |
+| `RFC4271-6.2-3` | All errors detected while processing the OPEN message MUST be indicated by sending the NOTIFICATION message with the Error Code OPEN Message Error. (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** one class of OPEN error is detected and never reported. UnpackOpen returns the bare sentinel ErrShortRead when the body is under 10 octets or when the Optional Parameters Length (standard or RFC 9072 extended) overruns the body (internal/component/bgp/message/open.go:167-168, :193-194, :199-200, :209-210), and handleOpen turns that into an FSM event and a returned error, writing no NOTIFICATION and not even closing the connection (internal/component/bgp/reactor/session_handlers.go:43-47); session_read.go:264 only propagates it. Every other OPEN error path does send Error Code 2 -- unsupported version (session_handlers.go:54-60), unacceptable Hold Time (:70-77) and a malformed capability (rejectOpenCapabilityError, :185-199) -- so the obligation holds everywhere except the decode failure. Disclosed in docs/features/rfc-status.md RFC 4271 row |
+| `RFC4271-6.3-1` | All errors detected while processing the UPDATE message MUST be indicated by sending the NOTIFICATION message with the Error Code UPDATE Message Error. (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestRFC4271UpdateErrorReportedAsUpdateMessageError`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L633). **negative:** `unit/verify` [`TestRFC4271ConformantUpdateSendsNoUpdateError`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L696) |
+| `RFC4271-6.7-1` | However, the Cease NOTIFICATION message MUST NOT be used when a fatal error indicated by this section does exist. (§6.7) | MUST NOT | 6.7 | **positive:** `unit/verify` [`TestPrefixExceedTeardown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_prefix_test.go#L110). **negative:** `unit/verify` [`TestRFC4271UpdateErrorReportedAsUpdateMessageError`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L636) |
 | `RFC4271-8.2.1-1` | BGP MUST maintain a separate FSM for each configured peer (§8.2.1) | MUST | 8.2.1 | **positive:** `unit/verify` [`TestRFC4271SeparateFSMPerPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L213). **negative:** `unit/verify` [`TestRFC4271PerPeerFSMDoesNotShareTimers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L237) |
 | `RFC4271-8.2.1-2` | A BGP implementation MUST connect to and listen on TCP port 179 (§8.2.1) | MUST | 8.2.1 | **positive:** `unit/verify` [`TestRFC4271DefaultBGPPortIs179`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L306). **negative:** `unit/verify` [`TestRFC4271ExplicitPortOverridesDefault`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L322) |
 | `RFC4271-8.2.1-3` | For each incoming connection, a state machine MUST be instantiated (§8.2.1) | MUST | 8.2.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** an incoming connection does not get its own state machine. acceptOrReject hands the accepted connection to the peer's existing session (internal/component/bgp/reactor/reactor_connection.go:117-163), and a connection queued for collision resolution is read raw by handlePendingCollision with no FSM behind it (internal/component/bgp/reactor/reactor_connection.go:196-249). An FSM is created per session, i.e. per connection attempt of a configured peer (internal/component/bgp/reactor/session.go:396), not per inbound connection |
@@ -207,46 +205,46 @@ Fifteen MUST/SHALL-level gaps, each annotated in [`rfc/short/rfc4271.md`](https:
 | `RFC4271-6.2-4` | An implementation MAY reject any proposed Hold Time (§6.2) | MAY | 6.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4271-6.7-3` | The speaker MAY also log a Cease locally (§6.7) | MAY | 6.7 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4271-3.1-2` | Next hop for routes in Loc-RIB MUST be resolvable via the local BGP speaker's Routing Table (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the BGP Loc-RIB install performs no reachability check on the route's next hop. mirrorToLocRIB inserts the winning path with whatever next-hop address the attribute carried (internal/component/bgp/plugins/rib/rib_bestchange.go:797-830), and the candidate gather step filters only on SRv6 ineligibility (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057). Resolvability is enforced downstream at FIB-install time, which removes the route from the routing table but leaves it in the Loc-RIB |
-| `RFC4271-5.1.2-2` | When advertising a route to an internal peer, the speaker SHALL NOT modify the AS_PATH attribute (§5.1.2) | SHALL NOT | 5.1.2 | **positive:** `unit/verify` [`TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L569). **positive:** `unit/verify` [`TestRFC4271ASPathUnmodifiedTowardInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L131). **negative:** `unit/verify` [`TestRFC4271ASPathPrependedTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L148) |
-| `RFC4271-5.1.2-3` | When advertising a route to an external peer, the speaker prepends its own AS number to the leading AS_SEQUENCE of AS_PATH (creating one when the path is empty or led by an AS_SET) (§5.1.2) | SHALL | 5.1.2 | **positive:** `unit/verify` [`TestASPathSlotPrependOnlyWhenAdvertising`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/advertise_test.go#L97). **positive:** `unit/verify` [`TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L543). **negative:** `unit/verify` [`TestASPathSlotPrependOnlyWhenAdvertising`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/advertise_test.go#L99). **negative:** `unit/verify` [`TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L567). **positive:** `interop/nightly` [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L431). **negative:** `interop/nightly` [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L432) |
-| `RFC4271-5.1.4-3` | If altering MULTI_EXIT_DISC received over EBGP, alteration MUST be done prior to decision process phases 1 and 2 (§5.1.4) | MUST | 5.1.4 | **positive:** `unit/verify` [`TestRFC4271MEDAlterationHappensAtIngress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L452). **negative:** no negative test. **{single-polarity}:** the requirement constrains only the ORDER of an alteration that a speaker chooses to make, so there is no non-conformant input a receiver could reject. ze's only place to alter a received MULTI_EXIT_DISC is the ingress filter chain, whose rewritten payload replaces the WireUpdate before the UPDATE is dispatched to the RIB plugin that runs phases 1 and 2 (internal/component/bgp/reactor/reactor_notify.go:427-466) |
-| `RFC4271-5.1.5-5` | A BGP speaker SHALL calculate the degree of preference for each external route based on locally-configured policy (§5.1.5) | SHALL | 5.1.5 | **positive:** `unit/verify` [`TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L141). **negative:** `unit/verify` [`TestRFC4271DegreeOfPreferenceNotAHardcodedConstant`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L168) |
+| `RFC4271-5.1.2-2` | a) When a given BGP speaker advertises the route to an internal peer, the advertising speaker SHALL NOT modify the AS_PATH attribute associated with the route. (§5.1.2) | SHALL NOT | 5.1.2 | **positive:** `unit/verify` [`TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L569). **positive:** `unit/verify` [`TestRFC4271ASPathUnmodifiedTowardInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L131). **negative:** `unit/verify` [`TestRFC4271ASPathPrependedTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L148) |
+| `RFC4271-5.1.2-3` | When advertising a route to an external peer, the speaker prepends its own AS number to the leading AS_SEQUENCE of AS_PATH (creating one when the path is empty or led by an AS_SET) (§5.1.2) | SHALL | 5.1.2 | **positive:** `unit/verify` [`TestASPathSlotPrependOnlyWhenAdvertising`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/advertise_test.go#L97). **positive:** `unit/verify` [`TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L543). **negative:** `unit/verify` [`TestASPathSlotPrependOnlyWhenAdvertising`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/advertise_test.go#L99). **negative:** `unit/verify` [`TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L567). **positive:** `interop/nightly` [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L429). **negative:** `interop/nightly` [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L430) |
+| `RFC4271-5.1.4-3` | If a BGP speaker is configured to alter the value of the MULTI_EXIT_DISC attribute received over EBGP, then altering the value MUST be done prior to determining the degree of preference of the route and prior to performing route selection (Decision Process phases 1 and 2). (§5.1.4) | MUST | 5.1.4 | **positive:** `unit/verify` [`TestRFC4271MEDAlterationHappensAtIngress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L452). **negative:** no negative test. **{single-polarity}:** the requirement constrains only the ORDER of an alteration that a speaker chooses to make, so there is no non-conformant input a receiver could reject. ze's only place to alter a received MULTI_EXIT_DISC is the ingress filter chain, whose rewritten payload replaces the WireUpdate before the UPDATE is dispatched to the RIB plugin that runs phases 1 and 2 (internal/component/bgp/reactor/reactor_notify.go:427-466) |
+| `RFC4271-5.1.5-5` | A BGP speaker SHALL calculate the degree of preference for each external route based on the locally-configured policy, and include the degree of preference when advertising a route to its internal peers. (§5.1.5) | SHALL | 5.1.5 | **positive:** `unit/verify` [`TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L141). **negative:** `unit/verify` [`TestRFC4271DegreeOfPreferenceNotAHardcodedConstant`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L168) |
 | `RFC4271-5.1.7-1` | A BGP speaker that performs aggregation and adds AGGREGATOR SHALL include its own AS number and IP address (§5.1.7) | SHALL | 5.1.7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never performs aggregation, so it never adds an AGGREGATOR of its own. The same grep as RFC4271-5.1.6-1 finds no aggregation producer; AGGREGATOR is only interned from the wire (internal/component/bgp/plugins/rib/storage/attrparse.go:96-102), replayed on readvertise (internal/component/bgp/plugins/rib/storage/familyrib.go:817-819) or emitted from operator configuration (internal/component/bgp/message/update_build_grouped.go:141-148) |
-| `RFC4271-6.7-4` | When terminating due to prefix limit, speaker MUST send NOTIFICATION with Error Code Cease (§6.7) | MUST | 6.7 | **positive:** `unit/verify` [`TestPrefixExceedTeardown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_prefix_test.go#L107). **negative:** `unit/verify` [`TestPrefixExceedDrop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_prefix_test.go#L144) |
-| `RFC4271-6.8-1` | In the event of connection collision, one of the connections MUST be closed (§6.8) | MUST | 6.8 | **positive:** `unit/verify` [`TestCollisionOpenConfirmLocalWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L127). **negative:** `unit/verify` [`TestCollisionOpenSentNoCollision`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L177) |
-| `RFC4271-6.8-2` | Upon receipt of an OPEN message, the local system MUST examine all connections in OpenConfirm state for collision (§6.8) | MUST | 6.8 | **positive:** `unit/verify` [`TestCollisionOpenConfirmLocalWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L130). **negative:** `unit/verify` [`TestCollisionNonCollisionStates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L536) |
-| `RFC4271-9-1` | Withdrawn routes SHALL be removed from the Adj-RIB-In and the Decision Process SHALL be run (§9) | SHALL | 9 | **positive:** `unit/verify` [`TestRFC4271WithdrawRemovesFromAdjRIBIn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L215). **negative:** `unit/verify` [`TestRFC4271WithdrawRemovesFromAdjRIBIn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L220) |
-| `RFC4271-9-2` | A new route with identical NLRI to an existing route SHALL replace the older route in Adj-RIB-In (§9) | SHALL | 9 | **positive:** `unit/verify` [`TestRFC4271SamePrefixReplacesRatherThanAccumulates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L189). **negative:** `unit/verify` [`TestRFC4271WithdrawRemovesFromAdjRIBIn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L217) |
-| `RFC4271-9-3` | Once the Adj-RIB-In is updated, the speaker SHALL run its Decision Process (§9) | SHALL | 9 | **positive:** `unit/verify` [`TestRIBBestChangeWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L686). **negative:** `unit/verify` [`TestRIBBestChangeNoPublishSameBest`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L650) |
+| `RFC4271-6.7-4` | If the BGP speaker decides to terminate its BGP connection with a neighbor because the number of address prefixes received from the neighbor exceeds the locally-configured, upper bound, then the speaker MUST send the neighbor a NOTIFICATION message with the Error Code Cease. (§6.7) | MUST | 6.7 | **positive:** `unit/verify` [`TestPrefixExceedTeardown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_prefix_test.go#L107). **negative:** `unit/verify` [`TestPrefixExceedDrop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_prefix_test.go#L144) |
+| `RFC4271-6.8-1` | In the event of connection collision, one of the connections MUST be closed (§6.8) | MUST | 6.8 | **positive:** `unit/verify` [`TestRFC4271CollisionClosesExactlyOneConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go#L44). **negative:** `unit/verify` [`TestCollisionOpenSentNoCollision`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L176) |
+| `RFC4271-6.8-2` | Upon receipt of an OPEN message, the local system MUST examine all of its connections that are in the OpenConfirm state. (§6.8) | MUST | 6.8 | **positive:** `unit/verify` [`TestCollisionOpenConfirmLocalWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L129). **negative:** `unit/verify` [`TestCollisionNonCollisionStates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L535) |
+| `RFC4271-9-1` | If the UPDATE message contains a non-empty WITHDRAWN ROUTES field, the previously advertised routes, whose destinations (expressed as IP prefixes) are contained in this field, SHALL be removed from the Adj-RIB-In. (§9) | SHALL | 9 | **positive:** `unit/verify` [`TestRFC4271WithdrawRemovesFromAdjRIBIn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L215). **negative:** `unit/verify` [`TestRFC4271WithdrawRemovesFromAdjRIBIn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L220) |
+| `RFC4271-9-2` | If the UPDATE message contains a feasible route, the Adj-RIB-In will be updated with this route as follows: if the NLRI of the new route is identical to the one the route currently has stored in the Adj- RIB-In, then the new route SHALL replace the older route in the Adj- RIB-In, thus implicitly withdrawing the older route from service. (§9) | SHALL | 9 | **positive:** `unit/verify` [`TestRFC4271SamePrefixReplacesRatherThanAccumulates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L189). **negative:** `unit/verify` [`TestRFC4271WithdrawRemovesFromAdjRIBIn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L217) |
+| `RFC4271-9-3` | Once the BGP speaker updates the Adj-RIB-In, the speaker SHALL run its Decision Process. (§9) | SHALL | 9 | **positive:** `unit/verify` [`TestRIBBestChangeWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L686). **negative:** `unit/verify` [`TestRIBBestChangeNoPublishSameBest`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L650) |
 | `RFC4271-9.1.1-1` | The degree of preference function SHALL NOT use the existence or attributes of other routes as inputs (§9.1.1) | SHALL NOT | 9.1.1 | **positive:** `unit/verify` [`TestRFC4271DegreeOfPreferenceIgnoresOtherRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L33). **negative:** `unit/verify` [`TestRFC4271DegreeOfPreferenceFollowsOwnAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L68) |
 | `RFC4271-9.1.1-2` | For external routes, the computed degree of preference MUST be used as the LOCAL_PREF value in IBGP readvertisement (§9.1.1) | MUST | 9.1.1 | **positive:** `unit/verify` [`TestRFC4271LocalPrefIncludedForInternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L86). **negative:** `unit/verify` [`TestRFC4271LocalPrefOmittedForExternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L110) |
-| `RFC4271-9.1.2-1` | If NEXT_HOP is not resolvable, the BGP route MUST be excluded from Phase 2 decision function (§9.1.2) | MUST | 9.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** an unresolvable NEXT_HOP does not exclude the route from Phase 2. gatherCandidatesLocked skips only SRv6-ineligible entries (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057), and extractCandidate uses the next hop solely to look up an IGP cost (internal/component/bgp/plugins/rib/rib_commands.go:1123-1131), so an unreachable next hop yields a cost of zero and the route competes normally |
-| `RFC4271-9.1.2-2` | The local speaker SHALL install the best route in the Loc-RIB (§9.1.2) | SHALL | 9.1.2 | **positive:** `unit/verify` [`TestLocRIBMirror`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1513). **negative:** `unit/verify` [`TestRIBBestChangeWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L691) |
+| `RFC4271-9.1.2-1` | If the NEXT_HOP attribute of a BGP route depicts an address that is not resolvable, or if it would become unresolvable if the route was installed in the routing table, the BGP route MUST be excluded from the Phase 2 decision function. (§9.1.2) | MUST | 9.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** an unresolvable NEXT_HOP does not exclude the route from Phase 2. gatherCandidatesLocked skips only SRv6-ineligible entries (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057), and extractCandidate uses the next hop solely to look up an IGP cost (internal/component/bgp/plugins/rib/rib_commands.go:1123-1131), so an unreachable next hop yields a cost of zero and the route competes normally |
+| `RFC4271-9.1.2-2` | The local speaker SHALL then install that route in the Loc-RIB, replacing any route to the same destination that is currently being held in the Loc-RIB. (§9.1.2) | SHALL | 9.1.2 | **positive:** `unit/verify` [`TestLocRIBMirror`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1513). **negative:** `unit/verify` [`TestRIBBestChangeWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L691) |
 | `RFC4271-9.1.2-3` | The local speaker MUST determine the immediate next-hop address from the NEXT_HOP attribute (§9.1.2) | MUST | 9.1.2 | **positive:** `unit/verify` [`TestLocRIBMirror`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1515). **negative:** `unit/verify` [`TestRFC4271LocRIBNextHopComesFromNextHopAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L94) |
-| `RFC4271-9.1.2-4` | If immediate next-hop or IGP cost to NEXT_HOP changes, Phase 2 Route Selection MUST be performed again (§9.1.2) | MUST | 9.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** nothing re-runs Phase 2 when the immediate next-hop or the IGP cost to the NEXT_HOP changes. The only entry points to checkBestPathChange are the UPDATE ingest path and the peer-state paths (internal/component/bgp/plugins/rib/rib_structured.go:271-286), and the IGP cost function is a passive lookup registered once with no invalidation callback (internal/component/bgp/plugins/rib/bestpath.go:30-43) |
+| `RFC4271-9.1.2-4` | If either the immediate next-hop or the IGP cost to the NEXT_HOP (where the NEXT_HOP is resolved through an IGP route) changes, Phase 2 Route Selection MUST be performed again. (§9.1.2) | MUST | 9.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** nothing re-runs Phase 2 when the immediate next-hop or the IGP cost to the NEXT_HOP changes. The only entry points to checkBestPathChange are the UPDATE ingest path and the peer-state paths (internal/component/bgp/plugins/rib/rib_structured.go:271-286), and the IGP cost function is a passive lookup registered once with no invalidation callback (internal/component/bgp/plugins/rib/bestpath.go:30-43) |
 | `RFC4271-9.1.2.1-1` | When installing a BGP route in the Routing Table, implementations MUST recalculate and take into account next-hops (§9.1.2.1) | MUST | 9.1.2.1 | **positive:** `unit/verify` [`TestLocRIBMirror`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1518). **negative:** `unit/verify` [`TestRFC4271LocRIBNextHopComesFromNextHopAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L98) |
 | `RFC4271-9.1.2.1-2` | Unresolvable routes SHALL be removed from the Loc-RIB and the routing table (§9.1.2.1) | SHALL | 9.1.2.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** an unresolvable route is not removed from the Loc-RIB. The only Loc-RIB removal in the BGP plugin is the no-candidate-remains branch of checkBestPathChange (internal/component/bgp/plugins/rib/rib_bestchange.go:766-782), which is driven by the Adj-RIB-In losing its last path and never by next-hop resolvability; nothing in the plugin consults a resolver |
-| `RFC4271-9.1.2.2-1` | The tie-breaking criteria MUST be applied in the order specified (§9.1.2.2) | MUST | 9.1.2.2 | **positive:** `unit/verify` [`TestBestPathStepFComparesThePeerBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go#L88). **positive:** `unit/verify` [`TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go#L78). **positive:** `unit/verify` [`TestBestPath_FullTiebreak`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L530). **negative:** `unit/verify` [`TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go#L116). **negative:** `unit/verify` [`TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go#L106). **negative:** `unit/verify` [`TestBestPath_MED_SameNeighborAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L315) |
-| `RFC4271-9.1.2.2-2` | If MULTI_EXIT_DISC is removed before IBGP readvertisement, the optional MED comparison MUST be performed only among EBGP-learned routes (§9.1.2.2) | MUST | 9.1.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the common egress guard is implemented, but normal BGP selected-route readvertisement has no runnable producer and no discriminating proof. `bgp-rib` records selected Loc-RIB state (internal/component/bgp/plugins/rib/rib_bestchange.go:738-790), route-server and route-reflector plugins forward cached UPDATEs instead (internal/component/bgp/plugins/rs/server.go:433-434 and internal/component/bgp/plugins/rr/rr.go:188-195), and BGP-to-BGP redistribution is rejected as same-protocol redistribution (internal/core/redistevents/registry.go:144-146) |
-| `RFC4271-9.1.2.2-3` | For IBGP-learned routes, MULTI_EXIT_DISC MUST be used in comparisons that reach the MED step (§9.1.2.2) | MUST | 9.1.2.2 | **positive:** `unit/verify` [`TestBestPath_MED_SameNeighborAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L319). **negative:** `unit/verify` [`TestBestPath_MED_SameNeighborAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L322) |
+| `RFC4271-9.1.2.2-1` | The criteria MUST be applied in the order specified. (§9.1.2.2) | MUST | 9.1.2.2 | **positive:** `unit/verify` [`TestBestPathStepFComparesThePeerBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go#L88). **positive:** `unit/verify` [`TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go#L78). **positive:** `unit/verify` [`TestBestPath_FullTiebreak`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L530). **negative:** `unit/verify` [`TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go#L116). **negative:** `unit/verify` [`TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go#L106). **negative:** `unit/verify` [`TestBestPath_MED_SameNeighborAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L315) |
+| `RFC4271-9.1.2.2-2` | If an implementation chooses to remove MULTI_EXIT_DISC, then the optional comparison on MULTI_EXIT_DISC, if performed, MUST be performed only among EBGP-learned routes. (§9.1.2.2) | MUST | 9.1.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the common egress guard is implemented, but normal BGP selected-route readvertisement has no runnable producer and no discriminating proof. `bgp-rib` records selected Loc-RIB state (internal/component/bgp/plugins/rib/rib_bestchange.go:738-790), route-server and route-reflector plugins forward cached UPDATEs instead (internal/component/bgp/plugins/rs/server.go:433-434 and internal/component/bgp/plugins/rr/rr.go:188-195), and BGP-to-BGP redistribution is rejected as same-protocol redistribution (internal/core/redistevents/registry.go:144-146) |
+| `RFC4271-9.1.2.2-3` | For IBGP- learned routes, the MULTI_EXIT_DISC MUST be used in route comparisons that reach this step in the Decision Process. (§9.1.2.2) | MUST | 9.1.2.2 | **positive:** `unit/verify` [`TestBestPath_MED_SameNeighborAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L319). **negative:** `unit/verify` [`TestBestPath_MED_SameNeighborAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L322) |
 | `RFC4271-9.1.2.2-4` | Routes that do not have the MULTI_EXIT_DISC attribute are considered to have the lowest possible MULTI_EXIT_DISC value (§9.1.2.2) | MUST | 9.1.2.2 | **positive:** `unit/verify` [`TestAbsentMedStillComparesAsZeroInPhaseTwo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L225). **negative:** `unit/verify` [`TestAbsentMedTiesAnExplicitMedOfZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_test.go#L257) |
 | `RFC4271-9.2-2` | A route SHALL NOT be installed in Adj-RIB-Out unless its destination and NEXT_HOP may be forwarded by the Routing Table (§9.2) | SHALL NOT | 9.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** nothing gates Adj-RIB-Out installation on the destination and NEXT_HOP being forwardable. QueueAnnounce records the route unconditionally (internal/component/bgp/rib/outgoing.go:65-101), and the forwarding rails decide only on filters, family negotiation and the route-reflection rules (internal/component/bgp/reactor/forward_rs.go:295-333) |
 | `RFC4271-9.2-3` | If a route in Loc-RIB is excluded from a particular Adj-RIB-Out, the previously advertised route MUST be withdrawn (§9.2) | MUST | 9.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** a route excluded from a peer's Adj-RIB-Out by an egress filter is skipped silently, leaving the peer's previous advertisement in place instead of withdrawing it. Both forwarding rails `continue` on suppression with no withdrawal built (internal/component/bgp/reactor/forward_rs.go:320-333 and internal/component/bgp/reactor/reactor_api_forward.go:496-506); the one announce-to-withdraw conversion is LLGR-specific and filter-requested, not exclusion-driven (internal/component/bgp/reactor/reactor_api_forward.go:588-601) |
 | `RFC4271-9.2-4` | The Decision Process MUST consider both overlapping routes based on acceptance policy (§9.2) | MUST | 9.2 | **positive:** `unit/verify` [`TestRFC4271OverlappingRoutesBothInstalled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L148). **negative:** `unit/verify` [`TestRFC4271SamePrefixReplacesRatherThanAccumulates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L182) |
 | `RFC4271-9.2-5` | If both less and more specific overlapping routes are accepted, the Decision Process MUST install both or an aggregate in Loc-RIB (§9.2) | MUST | 9.2 | **positive:** `unit/verify` [`TestRFC4271OverlappingRoutesBothInstalled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L151). **negative:** `unit/verify` [`TestRFC4271SamePrefixReplacesRatherThanAccumulates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc4271_test.go#L186) |
-| `RFC4271-9.2.1.1-2` | Two UPDATE messages advertising to common destinations MUST be separated by at least MinRouteAdvertisementIntervalTimer (§9.2.1.1) | MUST | 9.2.1.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze has no MinRouteAdvertisementIntervalTimer, so successive UPDATEs to a common set of destinations are not spaced. The timer set implements only ConnectRetry, Hold and Keepalive and records the omission in its own doc comment (internal/component/bgp/fsm/timer.go:34-42, "MinRouteAdvertisementIntervalTimer (Section 9.2.1.1) - not implemented here"); `grep -rniE 'minroute\|mrai' --include=*.go internal/` finds no producer |
-| `RFC4271-9.2.2.2-1` | Routes with different MULTI_EXIT_DISC attributes SHALL NOT be aggregated (§9.2.2.2) | SHALL NOT | 9.2.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never aggregates routes, so no producer can aggregate two routes with different MULTI_EXIT_DISC values. `grep -rniE 'aggregate-address\|AggregateRoute\|route aggregation' --include=*.go .` returns no hit outside rfc/ and plan/, and no code path synthesizes an aggregate route from more-specifics |
-| `RFC4271-9.2.2.2-2` | If any aggregated route has ORIGIN INCOMPLETE, the aggregate MUST have ORIGIN INCOMPLETE; else if any has EGP, the aggregate MUST have ORIGIN EGP (§9.2.2.2) | MUST | 9.2.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never aggregates routes, so no producer computes an aggregate ORIGIN. ORIGIN is only parsed (internal/core/bgp/attribute/origin.go:146-160), interned (internal/component/bgp/plugins/rib/storage/attrparse.go) and re-emitted verbatim (internal/component/bgp/plugins/rib/storage/familyrib.go:799-801); the same aggregation grep returns nothing |
-| `RFC4271-9.2.2.2-3` | When aggregating routes with different NEXT_HOP, the aggregated NEXT_HOP SHALL identify an interface on the aggregating speaker (§9.2.2.2) | SHALL | 9.2.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never aggregates routes, so no producer chooses an aggregated NEXT_HOP. The only next-hop selection is per-route egress policy (internal/component/bgp/reactor/peer_forward_facts.go:153-193); the same aggregation grep returns nothing |
-| `RFC4271-9.2.2.2-4` | If at least one aggregated route has ATOMIC_AGGREGATE, the aggregate SHALL have it as well (§9.2.2.2) | SHALL | 9.2.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never aggregates routes, so no producer decides whether an aggregate carries ATOMIC_AGGREGATE. The attribute is only decoded, stored and replayed (internal/core/bgp/attribute/simple.go:175-195, internal/component/bgp/plugins/rib/storage/familyrib.go:815-817); the same aggregation grep returns nothing |
-| `RFC4271-9.2.2.2-5` | AGGREGATOR attributes from aggregated routes MUST NOT be included in the aggregated route (§9.2.2.2) | MUST NOT | 9.2.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never aggregates routes, so no producer builds an aggregated route from which a contributing AGGREGATOR would have to be excluded. AGGREGATOR is only interned from the wire or emitted from operator configuration (internal/component/bgp/plugins/rib/storage/attrparse.go:96-102, internal/component/bgp/message/update_build_grouped.go:141-148); the same aggregation grep returns nothing |
+| `RFC4271-9.2.1.1-2` | Two UPDATE messages sent by a BGP speaker to a peer that advertise feasible routes and/or withdrawal of unfeasible routes to some common set of destinations MUST be separated by at least MinRouteAdvertisementIntervalTimer. (§9.2.1.1) | MUST | 9.2.1.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze has no MinRouteAdvertisementIntervalTimer, so successive UPDATEs to a common set of destinations are not spaced. The timer set implements only ConnectRetry, Hold and Keepalive and records the omission in its own doc comment (internal/component/bgp/fsm/timer.go:34-42, "MinRouteAdvertisementIntervalTimer (Section 9.2.1.1) - not implemented here"); `grep -rniE 'minroute\|mrai' --include=*.go internal/` finds no producer |
+| `RFC4271-9.2.2.2-1` | Routes that have different MULTI_EXIT_DISC attributes SHALL NOT be aggregated. (§9.2.2.2) | SHALL NOT | 9.2.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never aggregates routes, so no producer can aggregate two routes with different MULTI_EXIT_DISC values. `grep -rniE 'aggregate-address\|AggregateRoute\|route aggregation' --include=*.go .` returns no hit outside rfc/ and plan/, and no code path synthesizes an aggregate route from more-specifics |
+| `RFC4271-9.2.2.2-2` | ORIGIN attribute: If at least one route among routes that are aggregated has ORIGIN with the value INCOMPLETE, then the aggregated route MUST have the ORIGIN attribute with the value INCOMPLETE. (§9.2.2.2) | MUST | 9.2.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never aggregates routes, so no producer computes an aggregate ORIGIN. ORIGIN is only parsed (internal/core/bgp/attribute/origin.go:146-160), interned (internal/component/bgp/plugins/rib/storage/attrparse.go) and re-emitted verbatim (internal/component/bgp/plugins/rib/storage/familyrib.go:799-801); the same aggregation grep returns nothing |
+| `RFC4271-9.2.2.2-3` | NEXT_HOP: When aggregating routes that have different NEXT_HOP attributes, the NEXT_HOP attribute of the aggregated route SHALL identify an interface on the BGP speaker that performs the aggregation. (§9.2.2.2) | SHALL | 9.2.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never aggregates routes, so no producer chooses an aggregated NEXT_HOP. The only next-hop selection is per-route egress policy (internal/component/bgp/reactor/peer_forward_facts.go:153-193); the same aggregation grep returns nothing |
+| `RFC4271-9.2.2.2-4` | ATOMIC_AGGREGATE: If at least one of the routes to be aggregated has ATOMIC_AGGREGATE path attribute, then the aggregated route SHALL have this attribute as well. (§9.2.2.2) | SHALL | 9.2.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never aggregates routes, so no producer decides whether an aggregate carries ATOMIC_AGGREGATE. The attribute is only decoded, stored and replayed (internal/core/bgp/attribute/simple.go:175-195, internal/component/bgp/plugins/rib/storage/familyrib.go:815-817); the same aggregation grep returns nothing |
+| `RFC4271-9.2.2.2-5` | AGGREGATOR: Any AGGREGATOR attributes from the routes to be aggregated MUST NOT be included in the aggregated route. (§9.2.2.2) | MUST NOT | 9.2.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never aggregates routes, so no producer builds an aggregated route from which a contributing AGGREGATOR would have to be excluded. AGGREGATOR is only interned from the wire or emitted from operator configuration (internal/component/bgp/plugins/rib/storage/attrparse.go:96-102, internal/component/bgp/message/update_build_grouped.go:141-148); the same aggregation grep returns nothing |
 | `RFC4271-Security-1` | A BGP implementation MUST support TCP MD5 authentication (RFC 2385) (§Security, Appendix E) | MUST | Security | **positive:** `unit/verify` [`TestMD5PeersForListener`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_test.go#L2357). **negative:** `unit/verify` [`TestMD5PeersForListener`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_test.go#L2360) |
-| `RFC4271-9.2.1.1-3` | The last route selected while awaiting MinRouteAdvertisementIntervalTimer SHALL be advertised at expiry (§9.2.1.1) | SHALL | 9.2.1.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** with no MinRouteAdvertisementIntervalTimer there is no expiry at which a last-selected route could be advertised. The timer is absent by design note (internal/component/bgp/fsm/timer.go:39) and no producer buffers a pending best-route advertisement against such a timer; best-path changes are published as they are computed (internal/component/bgp/plugins/rib/rib_bestchange.go:832-880) |
-| `RFC4271-9.2-6` | A BGP speaker SHALL NOT redistribute routing information from an internal peer to other internal peers (unless route reflector) (§9.2) | SHALL NOT | 9.2 | **positive:** `unit/verify` [`TestRFC4271NoIBGPToIBGPRedistribution`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L508). **negative:** `unit/verify` [`TestRFC4271IBGPRedistributionAllowedForReflectorClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L567) |
-| `RFC4271-9.2-7` | Newly unfeasible routes for which there is no replacement SHALL be advertised via UPDATE (§9.2) | SHALL | 9.2 | **positive:** `unit/verify` [`TestRIBBestChangeWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L689). **negative:** `unit/verify` [`TestRIBBestChangeNoPublishSameBest`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L653) |
+| `RFC4271-9.2.1.1-3` | If new routes are selected multiple times while awaiting the expiration of MinRouteAdvertisementIntervalTimer, the last route selected SHALL be advertised at the end of MinRouteAdvertisementIntervalTimer. (§9.2.1.1) | SHALL | 9.2.1.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** with no MinRouteAdvertisementIntervalTimer there is no expiry at which a last-selected route could be advertised. The timer is absent by design note (internal/component/bgp/fsm/timer.go:39) and no producer buffers a pending best-route advertisement against such a timer; best-path changes are published as they are computed (internal/component/bgp/plugins/rib/rib_bestchange.go:832-880) |
+| `RFC4271-9.2-6` | When a BGP speaker receives an UPDATE message from an internal peer, the receiving BGP speaker SHALL NOT re-distribute the routing information contained in that UPDATE message to other internal peers (unless the speaker acts as a BGP Route Reflector [RFC2796]). (§9.2) | SHALL NOT | 9.2 | **positive:** `unit/verify` [`TestRFC4271NoIBGPToIBGPRedistribution`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L508). **negative:** `unit/verify` [`TestRFC4271IBGPRedistributionAllowedForReflectorClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L567) |
+| `RFC4271-9.2-7` | All newly installed routes and all newly unfeasible routes for which there is no replacement route SHALL be advertised to its peers by means of an UPDATE message. (§9.2) | SHALL | 9.2 | **positive:** `unit/verify` [`TestRIBBestChangeWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L689). **negative:** `unit/verify` [`TestRIBBestChangeNoPublishSameBest`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L653) |
 | `RFC4271-9.2-8` | Any routes in the Loc-RIB marked as unfeasible SHALL be removed (§9.2) | SHALL | 9.2 | **positive:** `unit/verify` [`TestLocRIBMirror`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L1521). **negative:** `unit/verify` [`TestRIBBestChangeNoPublishSameBest`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange_test.go#L655) |
-| `RFC4271-9.2-9` | Changes to reachable destinations within the speaker's own AS SHALL be advertised in an UPDATE (§9.2) | SHALL | 9.2 | **positive:** `unit/verify` [`TestRFC4271OwnASReachabilityChangeAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L398). **negative:** `unit/verify` [`TestRFC4271OwnASUnreachabilityChangeAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L426) |
-| `RFC4271-9.2-10` | If a single route does not fit in an UPDATE message, the speaker MUST NOT advertise it and MAY log an error (§9.2) | MUST | 9.2 | **positive:** `unit/verify` [`TestRFC4271OversizeSingleRouteNotAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L402). **negative:** `unit/verify` [`TestRFC4271FittingRouteIsAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L431) |
+| `RFC4271-9.2-9` | Changes to the reachable destinations within its own autonomous system SHALL also be advertised in an UPDATE message. (§9.2) | SHALL | 9.2 | **positive:** `unit/verify` [`TestRFC4271OwnASReachabilityChangeAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L398). **negative:** `unit/verify` [`TestRFC4271OwnASUnreachabilityChangeAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L426) |
+| `RFC4271-9.2-10` | If, due to the limits on the maximum size of an UPDATE message (see Section 4), a single route doesn't fit into the message, the BGP speaker MUST not advertise the route to its peers and MAY choose to log an error locally. (§9.2) | MUST | 9.2 | **positive:** `unit/verify` [`TestRFC4271OversizeSingleRouteNotAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L402). **negative:** `unit/verify` [`TestRFC4271FittingRouteIsAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L431) |
 | `RFC4271-Appendix-1` | Each BGP message SHOULD be transmitted with the TCP PUSH flag set (§Appendix E) | SHOULD | Appendix | **positive:** no positive test. **negative:** no negative test |
 | `RFC4271-Appendix-2` | The TCP connection used by BGP SHOULD be opened with DSCP bits 0-2 set to 110 (§Appendix E) | SHOULD | Appendix | **positive:** no positive test. **negative:** no negative test |
 | `RFC4271-9.3-1` | An AS SHOULD avoid using unstable routes (§9.3) | SHOULD | 9.3 | **positive:** no positive test. **negative:** no negative test |
@@ -263,81 +261,57 @@ Fifteen MUST/SHALL-level gaps, each annotated in [`rfc/short/rfc4271.md`](https:
 | `RFC4271-9.2-11` | A BGP speaker that chooses to aggregate SHOULD either include all ASes in an AS_SET or add ATOMIC_AGGREGATE (§9.2) | SHOULD | 9.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4271-9.2-12` | Routes SHOULD NOT be de-aggregated (§9.2) | SHOULD NOT | 9.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4271-9.2.2.2-6` | If aggregated AS_PATH begins with AS_SET, the originator SHOULD NOT advertise MULTI_EXIT_DISC (§9.2.2.2) | SHOULD NOT | 9.2.2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-5-8` | Once a BGP peer has updated any well-known attributes, it MUST pass these attributes to its peers in any updates it transmits (§5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.2-5` | If the version number in the Version field of the received OPEN message is not supported, then the Error Subcode MUST be set to Unsupported Version Number (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.2-6` | If the Autonomous System field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Bad Peer AS (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.2-7` | If the Hold Time field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Unacceptable Hold Time (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.2-8` | If the BGP Identifier field of the OPEN message is syntactically incorrect, then the Error Subcode MUST be set to Bad BGP Identifier (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.2-9` | If one of the Optional Parameters in the OPEN message is not recognized, then the Error Subcode MUST be set to Unsupported Optional Parameters (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.2-10` | If one of the Optional Parameters in the OPEN message is recognized, but is malformed, then the Error Subcode MUST be set to 0 (Unspecific) (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.3-4` | If the Withdrawn Routes Length or Total Attribute Length is too large (Withdrawn Routes Length + Total Attribute Length + 23 exceeds the message Length), then the Error Subcode MUST be set to Malformed Attribute List (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.3-5` | If any recognized attribute has Attribute Flags that conflict with the Attribute Type Code, then the Error Subcode MUST be set to Attribute Flags Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.3-6` | If any recognized attribute has an Attribute Length that conflicts with the expected length, then the Error Subcode MUST be set to Attribute Length Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.3-7` | If any of the well-known mandatory attributes are not present, then the Error Subcode MUST be set to Missing Well-known Attribute; the Data field MUST contain the Attribute Type Code of the missing, well-known attribute (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.3-8` | If any of the well-known mandatory attributes are not recognized, then the Error Subcode MUST be set to Unrecognized Well-known Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.3-9` | If the ORIGIN attribute has an undefined value, then the Error Subcode MUST be set to Invalid Origin Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.3-10` | If the NEXT_HOP attribute field is syntactically incorrect, then the Error Subcode MUST be set to Invalid NEXT_HOP Attribute; the Data field MUST contain the incorrect attribute (type, length, and value) (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.3-11` | The IP address in the NEXT_HOP MUST meet two criteria to be considered semantically correct: it MUST NOT be the IP address of the receiving speaker, and on a one-hop EBGP session either the IP address in the NEXT_HOP MUST be the sender's IP address used to establish the BGP connection, or the interface associated with the NEXT_HOP IP address MUST share a common subnet with the receiving BGP speaker (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.3-12` | If the AS_PATH is syntactically incorrect, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.3-13` | If the optional leftmost-AS check on an UPDATE from an external peer determines the leftmost AS is not the peer's autonomous system number, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.3-14` | If an optional attribute is recognized, then the value of this attribute MUST be checked; if an error is detected, the attribute MUST be discarded, the Error Subcode MUST be set to Optional Attribute Error, and the Data field MUST contain the attribute (type, length, and value) (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.3-15` | If any attribute appears more than once in the UPDATE message, then the Error Subcode MUST be set to Malformed Attribute List (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.3-16` | If the NLRI field is syntactically incorrect, then the Error Subcode MUST be set to Invalid Network Field (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-6.3-17` | An UPDATE message that contains correct path attributes, but no NLRI, SHALL be treated as a valid UPDATE message (§6.3) | SHALL | 6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-8.2.2-19` | In response to an indication that the TCP connection is successfully established (Event 16 or Event 17), the second connection SHALL be tracked until it sends an OPEN message (§8.2.2) | SHALL | 8.2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-9-4` | If the Adj-RIB-In has no route with NLRI identical to the new route, the new route SHALL be placed in the Adj-RIB-In (§9) | SHALL | 9 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4271-10-4` | The suggested default amount of jitter SHALL be determined by multiplying the base value of the appropriate timer by a random factor, which is uniformly distributed in the range from 0.75 to 1.0 (§10) | SHALL | 10 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-5-8` | Once a BGP peer has updated any well-known attributes, it MUST pass these attributes to its peers in any updates it transmits (§5) | MUST | 5 | **positive:** `unit/verify` [`TestForwardTransmitsUpdatedWellKnownAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rfc4271_section5_test.go#L145). **negative:** `unit/verify` [`TestForwardNeverTransmitsTheSupersededWellKnownAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rfc4271_section5_test.go#L166) |
+| `RFC4271-6.2-5` | If the version number in the Version field of the received OPEN message is not supported, then the Error Subcode MUST be set to Unsupported Version Number (§6.2) | MUST | 6.2 | **positive:** `unit/verify` [`TestRFC4271OpenErrorSubcodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_error_rfc4271_test.go#L64). **negative:** `unit/verify` [`TestRFC4271OpenErrorSubcodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_error_rfc4271_test.go#L66) |
+| `RFC4271-6.2-6` | If the Autonomous System field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Bad Peer AS (§6.2) | MUST | 6.2 | **positive:** `unit/verify` [`TestRFC4271OpenErrorSubcodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_error_rfc4271_test.go#L67). **negative:** `unit/verify` [`TestRFC4271OpenErrorSubcodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_error_rfc4271_test.go#L69) |
+| `RFC4271-6.2-7` | If the Hold Time field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Unacceptable Hold Time (§6.2) | MUST | 6.2 | **positive:** `unit/verify` [`TestRFC4271OpenErrorSubcodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_error_rfc4271_test.go#L71). **negative:** `unit/verify` [`TestRFC4271OpenErrorSubcodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_error_rfc4271_test.go#L73) |
+| `RFC4271-6.2-8` | If the BGP Identifier field of the OPEN message is syntactically incorrect, then the Error Subcode MUST be set to Bad BGP Identifier (§6.2) | MUST | 6.2 | **positive:** `unit/verify` [`TestRFC4271OpenErrorSubcodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_error_rfc4271_test.go#L74). **negative:** `unit/verify` [`TestRFC4271OpenErrorSubcodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_error_rfc4271_test.go#L76) |
+| `RFC4271-6.2-9` | If one of the Optional Parameters in the OPEN message is not recognized, then the Error Subcode MUST be set to Unsupported Optional Parameters (§6.2) | MUST | 6.2 | **positive:** `unit/verify` [`TestSessionRFC4271OptionalParameterErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L36). **negative:** `unit/verify` [`TestSessionRFC4271OptionalParameterErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L37) |
+| `RFC4271-6.2-10` | If one of the Optional Parameters in the OPEN message is recognized, but is malformed, then the Error Subcode MUST be set to 0 (Unspecific) (§6.2) | MUST | 6.2 | **positive:** `unit/verify` [`TestSessionRFC4271OptionalParameterErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L38). **negative:** `unit/verify` [`TestSessionRFC4271OptionalParameterErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L39) |
+| `RFC4271-6.3-4` | If the Withdrawn Routes Length or Total Attribute Length is too large (i.e., if Withdrawn Routes Length + Total Attribute Length + 23 exceeds the message Length), then the Error Subcode MUST be set to Malformed Attribute List. (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestRFC4271UpdateMalformedAttributeList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_update_error_rfc4271_test.go#L54). **negative:** `unit/verify` [`TestRFC4271UpdateMalformedAttributeList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_update_error_rfc4271_test.go#L57) |
+| `RFC4271-6.3-5` | If any recognized attribute has Attribute Flags that conflict with the Attribute Type Code, then the Error Subcode MUST be set to Attribute Flags Error. (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L102). **negative:** `unit/verify` [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L103) |
+| `RFC4271-6.3-6` | If any recognized attribute has an Attribute Length that conflicts with the expected length (based on the attribute type code), then the Error Subcode MUST be set to Attribute Length Error. (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L104). **negative:** `unit/verify` [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L105) |
+| `RFC4271-6.3-7` | If any of the well-known mandatory attributes are not present, then the Error Subcode MUST be set to Missing Well-known Attribute. (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestRFC4271MandatoryAttributesAcrossUpdateForms`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_mandatory_test.go#L10). **positive:** `unit/verify` [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L106). **negative:** `unit/verify` [`TestRFC4271MandatoryAttributesAcrossUpdateForms`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_mandatory_test.go#L11). **negative:** `unit/verify` [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L107) |
+| `RFC4271-6.3-8` | If any of the well-known mandatory attributes are not recognized, then the Error Subcode MUST be set to Unrecognized Well-known Attribute. (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestSessionRFC4271RetainedUpdateNotifications`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L156). **negative:** `unit/verify` [`TestSessionRFC4271RetainedUpdateNotifications`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L157) |
+| `RFC4271-6.3-9` | If the ORIGIN attribute has an undefined value, then the Error Sub- code MUST be set to Invalid Origin Attribute. (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L108). **negative:** `unit/verify` [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L109) |
+| `RFC4271-6.3-10` | If the NEXT_HOP attribute field is syntactically incorrect, then the Error Subcode MUST be set to Invalid NEXT_HOP Attribute. (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L110). **negative:** `unit/verify` [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L111) |
+| `RFC4271-6.3-11` | The IP address in the NEXT_HOP MUST meet two criteria to be considered semantically correct: it MUST NOT be the IP address of the receiving speaker, and on a one-hop EBGP session either the IP address in the NEXT_HOP MUST be the sender's IP address used to establish the BGP connection, or the interface associated with the NEXT_HOP IP address MUST share a common subnet with the receiving BGP speaker (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestSessionRFC4271IBGPNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_next_hop_test.go#L62). **positive:** `unit/verify` [`TestSessionRFC4271NextHopMixedUpdateAndAddressChange`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_next_hop_test.go#L15). **positive:** `unit/verify` [`TestSessionRFC4271NextHopSemantics`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L205). **negative:** `unit/verify` [`TestSessionRFC4271IBGPNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_next_hop_test.go#L63). **negative:** `unit/verify` [`TestSessionRFC4271NextHopMixedUpdateAndAddressChange`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_next_hop_test.go#L16). **negative:** `unit/verify` [`TestSessionRFC4271NextHopSemantics`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L206) |
+| `RFC4271-6.3-12` | If the path is syntactically incorrect, then the Error Subcode MUST be set to Malformed AS_PATH. (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L112). **negative:** `unit/verify` [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L113) |
+| `RFC4271-6.3-13` | If the optional leftmost-AS check on an UPDATE from an external peer determines the leftmost AS is not the peer's autonomous system number, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestRFC4271LeftmostASMismatchIsMalformedASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go#L29). **negative:** `unit/verify` [`TestRFC4271LeftmostASMismatchIsMalformedASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go#L32) |
+| `RFC4271-6.3-14` | If an optional attribute is recognized, then the value of this attribute MUST be checked; if an error is detected, the attribute MUST be discarded, the Error Subcode MUST be set to Optional Attribute Error, and the Data field MUST contain the attribute (type, length, and value) (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L114). **negative:** `unit/verify` [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L115) |
+| `RFC4271-6.3-15` | If any attribute appears more than once in the UPDATE message, then the Error Subcode MUST be set to Malformed Attribute List (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestRFC4271UpdateMalformedAttributeList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_update_error_rfc4271_test.go#L59). **negative:** `unit/verify` [`TestRFC4271UpdateMalformedAttributeList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_update_error_rfc4271_test.go#L61) |
+| `RFC4271-6.3-16` | If the field is syntactically incorrect, then the Error Subcode MUST be set to Invalid Network Field. (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestSessionRFC4271RetainedUpdateNotifications`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L158). **negative:** `unit/verify` [`TestSessionRFC4271RetainedUpdateNotifications`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L159) |
+| `RFC4271-6.3-17` | An UPDATE message that contains correct path attributes, but no NLRI, SHALL be treated as a valid UPDATE message (§6.3) | SHALL | 6.3 | **positive:** `unit/verify` [`TestRFC4271UpdateWithoutNLRIIsValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_update_error_rfc4271_test.go#L125). **negative:** `unit/verify` [`TestRFC4271UpdateWithoutNLRIIsValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_update_error_rfc4271_test.go#L128) |
+| `RFC4271-8.2.2-19` | In response to an indication that the TCP connection is successfully established (Event 16 or Event 17), the second connection SHALL be tracked until it sends an OPEN message (§8.2.2) | SHALL | 8.2.2 | **positive:** `unit/verify` [`TestSessionRFC4271EstablishedCollisionWaitsForOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L246). **negative:** `unit/verify` [`TestSessionRFC4271EstablishedCollisionWaitsForOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L247) |
+| `RFC4271-9-4` | Otherwise, if the Adj-RIB-In has no route with NLRI identical to the new route, the new route SHALL be placed in the Adj-RIB-In. (§9) | SHALL | 9 | **positive:** `unit/verify` [`TestRFC4271AdjRIBInPlacesNewRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_rfc4271_test.go#L41). **negative:** `unit/verify` [`TestRFC4271AdjRIBInPlacesNewRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_rfc4271_test.go#L44) |
+| `RFC4271-10-4` | The suggested default amount of jitter SHALL be determined by multiplying the base value of the appropriate timer by a random factor, which is uniformly distributed in the range from 0.75 to 1.0 (§10) | SHALL | 10 | **positive:** `unit/verify` [`TestTimersRFC4271Jitter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/timer_jitter_test.go#L11). **negative:** `unit/verify` [`TestTimersRFC4271Jitter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/timer_jitter_test.go#L12) |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC4271-5.1.6-1`](#rfc4271-5.1.6-1) A BGP speaker that receives a route with the ATOMIC_AGGREGATE attribute MUST NOT make any NLRI of that route more specific when advertising this route to other BGP speakers (§5.1.6) | no test | no test carries this requirement id; annotated {not-applicable}: the obligation binds the RECEIVER/re-advertiser, and ze is one -- it stores a received ATOMIC_AGGREGATE and copies it through on readvertisement (internal/component/bgp/reactor/peer_rib_routes.go:141) -- but the prohibited act has no producer. `grep -rniE "more specific\|deaggregat\|de-aggregat\|disaggregat" --include=*.go internal/component/bgp/ \| grep -v _test` returns only substring hits inside `encodeAggregatorValue` and `attrCodeAggregator` (internal/component/bgp/reactor/filter_delta.go:294,396, internal/component/bgp/message/rfc7606.go:64,421); no code path splits a prefix. Both readvertisement encoders write the stored route's own prefix verbatim through nlri.WriteNLRI (internal/component/bgp/reactor/peer_rib_routes.go:103-104), so the advertised NLRI is byte-identical to what was received and can be neither more nor less specific. With no length-altering producer there is no behavior to exercise in either polarity |
-| [`RFC4271-6.1-1`](#rfc4271-6.1-1) All header errors MUST be indicated by sending NOTIFICATION with Error Code Message Header Error (§6.1) | {gap}, no test | one class of header error is detected but never reported. A bad marker or a Length below 19 makes ParseHeader return a bare sentinel (internal/component/bgp/message/header.go:96-108), and the read loop turns that into an FSM event and a returned error with no NOTIFICATION sent (internal/component/bgp/reactor/session_read.go:98-102). The per-type and over-maximum length errors on the following lines do send Message Header Error (session_read.go:105-117) |
-| [`RFC4271-6.1-2`](#rfc4271-6.1-2) Marker not all ones: Error Subcode MUST be Connection Not Synchronized (§6.1) | {gap}, no test | NotifyHeaderConnectionNotSync is declared (internal/component/bgp/message/notification.go:52) but no producer ever sends it. ParseHeader returns ErrInvalidMarker, a plain sentinel carrying no NOTIFICATION (internal/component/bgp/message/header.go:96-99), and the read loop's marker-error branch sends nothing before returning (internal/component/bgp/reactor/session_read.go:98-102) |
-| [`RFC4271-6.1-3`](#rfc4271-6.1-3) Invalid length: Error Subcode MUST be Bad Message Length; Data field MUST contain the erroneous Length field (§6.1) | {gap}, no test | RFC 4271 §6.1 lists five length conditions and ze reports only four of them. The per-type minima and the 4096/65535 ceiling do produce a conformant Notification -- ValidateLength and ValidateLengthWithMax return a *Notification carrying NotifyHeaderBadLength and the two big-endian octets of the offending Length (internal/component/bgp/message/header.go:155-171 and :207-213), which the read loop sends before closing (internal/component/bgp/reactor/session_read.go:105-117). The first listed condition, "Length field of the message header is less than 19", does not: ParseHeader returns the bare sentinel ErrInvalidLength with no Notification and no Data (internal/component/bgp/message/header.go:106-108), and the read loop logs an FSM event and returns without writing anything (internal/component/bgp/reactor/session_read.go:98-102). The same code fact is recorded as the NOTIFICATION-absence gap on RFC4271-6.1-1. Disclosed in docs/features/rfc-status.md RFC 4271 row |
+| [`RFC4271-5.1.6-1`](#rfc4271-5.1.6-1) A BGP speaker that receives a route with the ATOMIC_AGGREGATE attribute MUST NOT make any NLRI of that route more specific (as defined in 9.1.4) when advertising this route to other BGP speakers. (§5.1.6) | no test | no test carries this requirement id; annotated {not-applicable}: the obligation binds the RECEIVER/re-advertiser, and ze is one -- it stores a received ATOMIC_AGGREGATE and copies it through on readvertisement (internal/component/bgp/reactor/peer_rib_routes.go:141) -- but the prohibited act has no producer. `grep -rniE "more specific\|deaggregat\|de-aggregat\|disaggregat" --include=*.go internal/component/bgp/ \| grep -v _test` returns only substring hits inside `encodeAggregatorValue` and `attrCodeAggregator` (internal/component/bgp/reactor/filter_delta.go:294,396, internal/component/bgp/message/rfc7606.go:64,421); no code path splits a prefix. Both readvertisement encoders write the stored route's own prefix verbatim through nlri.WriteNLRI (internal/component/bgp/reactor/peer_rib_routes.go:103-104), so the advertised NLRI is byte-identical to what was received and can be neither more nor less specific. With no length-altering producer there is no behavior to exercise in either polarity |
+| [`RFC4271-6.1-1`](#rfc4271-6.1-1) All errors detected while processing the Message Header MUST be indicated by sending the NOTIFICATION message with the Error Code Message Header Error. (§6.1) | {gap}, no test | one class of header error is detected but never reported. A bad marker or a Length below 19 makes ParseHeader return a bare sentinel (internal/component/bgp/message/header.go:96-108), and the read loop turns that into an FSM event and a returned error with no NOTIFICATION sent (internal/component/bgp/reactor/session_read.go:98-102). The per-type and over-maximum length errors on the following lines do send Message Header Error (session_read.go:105-117) |
+| [`RFC4271-6.1-2`](#rfc4271-6.1-2) If the Marker field of the message header is not as expected, then a synchronization error has occurred and the Error Subcode MUST be set to Connection Not Synchronized. (§6.1) | {gap}, no test | NotifyHeaderConnectionNotSync is declared (internal/component/bgp/message/notification.go:52) but no producer ever sends it. ParseHeader returns ErrInvalidMarker, a plain sentinel carrying no NOTIFICATION (internal/component/bgp/message/header.go:96-99), and the read loop's marker-error branch sends nothing before returning (internal/component/bgp/reactor/session_read.go:98-102) |
+| [`RFC4271-6.1-3`](#rfc4271-6.1-3) then the Error Subcode MUST be set to Bad Message Length. (§6.1) | {gap}, no test | RFC 4271 §6.1 lists five length conditions and ze reports only four of them. The per-type minima and the 4096/65535 ceiling do produce a conformant Notification -- ValidateLength and ValidateLengthWithMax return a *Notification carrying NotifyHeaderBadLength and the two big-endian octets of the offending Length (internal/component/bgp/message/header.go:155-171 and :207-213), which the read loop sends before closing (internal/component/bgp/reactor/session_read.go:105-117). The first listed condition, "Length field of the message header is less than 19", does not: ParseHeader returns the bare sentinel ErrInvalidLength with no Notification and no Data (internal/component/bgp/message/header.go:106-108), and the read loop logs an FSM event and returns without writing anything (internal/component/bgp/reactor/session_read.go:98-102). The same code fact is recorded as the NOTIFICATION-absence gap on RFC4271-6.1-1. Disclosed in docs/features/rfc-status.md RFC 4271 row |
 | [`RFC4271-6.1-4`](#rfc4271-6.1-4) Invalid type: Error Subcode MUST be Bad Message Type; Data field MUST contain the erroneous Type field (§6.1) | {gap}, no test | an unknown message type is reported with the wrong subcode and the wrong Data. handleUnknownType sends Message Header Error with subcode 0 and a human-readable text string rather than subcode 3 (Bad Message Type) with the erroneous Type octet (internal/component/bgp/reactor/session_handlers.go:20-36); NotifyHeaderBadType is declared at internal/component/bgp/message/notification.go:54 and has no producer |
-| [`RFC4271-6.2-3`](#rfc4271-6.2-3) All OPEN errors MUST be indicated by NOTIFICATION with Error Code OPEN Message Error (§6.2) | {gap}, no test | one class of OPEN error is detected and never reported. UnpackOpen returns the bare sentinel ErrShortRead when the body is under 10 octets or when the Optional Parameters Length (standard or RFC 9072 extended) overruns the body (internal/component/bgp/message/open.go:167-168, :193-194, :199-200, :209-210), and handleOpen turns that into an FSM event and a returned error, writing no NOTIFICATION and not even closing the connection (internal/component/bgp/reactor/session_handlers.go:43-47); session_read.go:264 only propagates it. Every other OPEN error path does send Error Code 2 -- unsupported version (session_handlers.go:54-60), unacceptable Hold Time (:70-77) and a malformed capability (rejectOpenCapabilityError, :185-199) -- so the obligation holds everywhere except the decode failure. Disclosed in docs/features/rfc-status.md RFC 4271 row |
+| [`RFC4271-6.2-3`](#rfc4271-6.2-3) All errors detected while processing the OPEN message MUST be indicated by sending the NOTIFICATION message with the Error Code OPEN Message Error. (§6.2) | {gap}, no test | one class of OPEN error is detected and never reported. UnpackOpen returns the bare sentinel ErrShortRead when the body is under 10 octets or when the Optional Parameters Length (standard or RFC 9072 extended) overruns the body (internal/component/bgp/message/open.go:167-168, :193-194, :199-200, :209-210), and handleOpen turns that into an FSM event and a returned error, writing no NOTIFICATION and not even closing the connection (internal/component/bgp/reactor/session_handlers.go:43-47); session_read.go:264 only propagates it. Every other OPEN error path does send Error Code 2 -- unsupported version (session_handlers.go:54-60), unacceptable Hold Time (:70-77) and a malformed capability (rejectOpenCapabilityError, :185-199) -- so the obligation holds everywhere except the decode failure. Disclosed in docs/features/rfc-status.md RFC 4271 row |
 | [`RFC4271-8.2.1-3`](#rfc4271-8.2.1-3) For each incoming connection, a state machine MUST be instantiated (§8.2.1) | {gap}, no test | an incoming connection does not get its own state machine. acceptOrReject hands the accepted connection to the peer's existing session (internal/component/bgp/reactor/reactor_connection.go:117-163), and a connection queued for collision resolution is read raw by handlePendingCollision with no FSM behind it (internal/component/bgp/reactor/reactor_connection.go:196-249). An FSM is created per session, i.e. per connection attempt of a configured peer (internal/component/bgp/reactor/session.go:396), not per inbound connection |
 | [`RFC4271-3.1-2`](#rfc4271-3.1-2) Next hop for routes in Loc-RIB MUST be resolvable via the local BGP speaker's Routing Table (§3.1) | {gap}, no test | the BGP Loc-RIB install performs no reachability check on the route's next hop. mirrorToLocRIB inserts the winning path with whatever next-hop address the attribute carried (internal/component/bgp/plugins/rib/rib_bestchange.go:797-830), and the candidate gather step filters only on SRv6 ineligibility (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057). Resolvability is enforced downstream at FIB-install time, which removes the route from the routing table but leaves it in the Loc-RIB |
 | [`RFC4271-5.1.7-1`](#rfc4271-5.1.7-1) A BGP speaker that performs aggregation and adds AGGREGATOR SHALL include its own AS number and IP address (§5.1.7) | no test | no test carries this requirement id; annotated {not-applicable}: ze never performs aggregation, so it never adds an AGGREGATOR of its own. The same grep as RFC4271-5.1.6-1 finds no aggregation producer; AGGREGATOR is only interned from the wire (internal/component/bgp/plugins/rib/storage/attrparse.go:96-102), replayed on readvertise (internal/component/bgp/plugins/rib/storage/familyrib.go:817-819) or emitted from operator configuration (internal/component/bgp/message/update_build_grouped.go:141-148) |
-| [`RFC4271-9.1.2-1`](#rfc4271-9.1.2-1) If NEXT_HOP is not resolvable, the BGP route MUST be excluded from Phase 2 decision function (§9.1.2) | {gap}, no test | an unresolvable NEXT_HOP does not exclude the route from Phase 2. gatherCandidatesLocked skips only SRv6-ineligible entries (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057), and extractCandidate uses the next hop solely to look up an IGP cost (internal/component/bgp/plugins/rib/rib_commands.go:1123-1131), so an unreachable next hop yields a cost of zero and the route competes normally |
-| [`RFC4271-9.1.2-4`](#rfc4271-9.1.2-4) If immediate next-hop or IGP cost to NEXT_HOP changes, Phase 2 Route Selection MUST be performed again (§9.1.2) | {gap}, no test | nothing re-runs Phase 2 when the immediate next-hop or the IGP cost to the NEXT_HOP changes. The only entry points to checkBestPathChange are the UPDATE ingest path and the peer-state paths (internal/component/bgp/plugins/rib/rib_structured.go:271-286), and the IGP cost function is a passive lookup registered once with no invalidation callback (internal/component/bgp/plugins/rib/bestpath.go:30-43) |
+| [`RFC4271-9.1.2-1`](#rfc4271-9.1.2-1) If the NEXT_HOP attribute of a BGP route depicts an address that is not resolvable, or if it would become unresolvable if the route was installed in the routing table, the BGP route MUST be excluded from the Phase 2 decision function. (§9.1.2) | {gap}, no test | an unresolvable NEXT_HOP does not exclude the route from Phase 2. gatherCandidatesLocked skips only SRv6-ineligible entries (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057), and extractCandidate uses the next hop solely to look up an IGP cost (internal/component/bgp/plugins/rib/rib_commands.go:1123-1131), so an unreachable next hop yields a cost of zero and the route competes normally |
+| [`RFC4271-9.1.2-4`](#rfc4271-9.1.2-4) If either the immediate next-hop or the IGP cost to the NEXT_HOP (where the NEXT_HOP is resolved through an IGP route) changes, Phase 2 Route Selection MUST be performed again. (§9.1.2) | {gap}, no test | nothing re-runs Phase 2 when the immediate next-hop or the IGP cost to the NEXT_HOP changes. The only entry points to checkBestPathChange are the UPDATE ingest path and the peer-state paths (internal/component/bgp/plugins/rib/rib_structured.go:271-286), and the IGP cost function is a passive lookup registered once with no invalidation callback (internal/component/bgp/plugins/rib/bestpath.go:30-43) |
 | [`RFC4271-9.1.2.1-2`](#rfc4271-9.1.2.1-2) Unresolvable routes SHALL be removed from the Loc-RIB and the routing table (§9.1.2.1) | {gap}, no test | an unresolvable route is not removed from the Loc-RIB. The only Loc-RIB removal in the BGP plugin is the no-candidate-remains branch of checkBestPathChange (internal/component/bgp/plugins/rib/rib_bestchange.go:766-782), which is driven by the Adj-RIB-In losing its last path and never by next-hop resolvability; nothing in the plugin consults a resolver |
-| [`RFC4271-9.1.2.2-2`](#rfc4271-9.1.2.2-2) If MULTI_EXIT_DISC is removed before IBGP readvertisement, the optional MED comparison MUST be performed only among EBGP-learned routes (§9.1.2.2) | {gap}, no test | the common egress guard is implemented, but normal BGP selected-route readvertisement has no runnable producer and no discriminating proof. `bgp-rib` records selected Loc-RIB state (internal/component/bgp/plugins/rib/rib_bestchange.go:738-790), route-server and route-reflector plugins forward cached UPDATEs instead (internal/component/bgp/plugins/rs/server.go:433-434 and internal/component/bgp/plugins/rr/rr.go:188-195), and BGP-to-BGP redistribution is rejected as same-protocol redistribution (internal/core/redistevents/registry.go:144-146) |
+| [`RFC4271-9.1.2.2-2`](#rfc4271-9.1.2.2-2) If an implementation chooses to remove MULTI_EXIT_DISC, then the optional comparison on MULTI_EXIT_DISC, if performed, MUST be performed only among EBGP-learned routes. (§9.1.2.2) | {gap}, no test | the common egress guard is implemented, but normal BGP selected-route readvertisement has no runnable producer and no discriminating proof. `bgp-rib` records selected Loc-RIB state (internal/component/bgp/plugins/rib/rib_bestchange.go:738-790), route-server and route-reflector plugins forward cached UPDATEs instead (internal/component/bgp/plugins/rs/server.go:433-434 and internal/component/bgp/plugins/rr/rr.go:188-195), and BGP-to-BGP redistribution is rejected as same-protocol redistribution (internal/core/redistevents/registry.go:144-146) |
 | [`RFC4271-9.2-2`](#rfc4271-9.2-2) A route SHALL NOT be installed in Adj-RIB-Out unless its destination and NEXT_HOP may be forwarded by the Routing Table (§9.2) | {gap}, no test | nothing gates Adj-RIB-Out installation on the destination and NEXT_HOP being forwardable. QueueAnnounce records the route unconditionally (internal/component/bgp/rib/outgoing.go:65-101), and the forwarding rails decide only on filters, family negotiation and the route-reflection rules (internal/component/bgp/reactor/forward_rs.go:295-333) |
 | [`RFC4271-9.2-3`](#rfc4271-9.2-3) If a route in Loc-RIB is excluded from a particular Adj-RIB-Out, the previously advertised route MUST be withdrawn (§9.2) | {gap}, no test | a route excluded from a peer's Adj-RIB-Out by an egress filter is skipped silently, leaving the peer's previous advertisement in place instead of withdrawing it. Both forwarding rails `continue` on suppression with no withdrawal built (internal/component/bgp/reactor/forward_rs.go:320-333 and internal/component/bgp/reactor/reactor_api_forward.go:496-506); the one announce-to-withdraw conversion is LLGR-specific and filter-requested, not exclusion-driven (internal/component/bgp/reactor/reactor_api_forward.go:588-601) |
-| [`RFC4271-9.2.1.1-2`](#rfc4271-9.2.1.1-2) Two UPDATE messages advertising to common destinations MUST be separated by at least MinRouteAdvertisementIntervalTimer (§9.2.1.1) | {gap}, no test | ze has no MinRouteAdvertisementIntervalTimer, so successive UPDATEs to a common set of destinations are not spaced. The timer set implements only ConnectRetry, Hold and Keepalive and records the omission in its own doc comment (internal/component/bgp/fsm/timer.go:34-42, "MinRouteAdvertisementIntervalTimer (Section 9.2.1.1) - not implemented here"); `grep -rniE 'minroute\|mrai' --include=*.go internal/` finds no producer |
-| [`RFC4271-9.2.2.2-1`](#rfc4271-9.2.2.2-1) Routes with different MULTI_EXIT_DISC attributes SHALL NOT be aggregated (§9.2.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze never aggregates routes, so no producer can aggregate two routes with different MULTI_EXIT_DISC values. `grep -rniE 'aggregate-address\|AggregateRoute\|route aggregation' --include=*.go .` returns no hit outside rfc/ and plan/, and no code path synthesizes an aggregate route from more-specifics |
-| [`RFC4271-9.2.2.2-2`](#rfc4271-9.2.2.2-2) If any aggregated route has ORIGIN INCOMPLETE, the aggregate MUST have ORIGIN INCOMPLETE; else if any has EGP, the aggregate MUST have ORIGIN EGP (§9.2.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze never aggregates routes, so no producer computes an aggregate ORIGIN. ORIGIN is only parsed (internal/core/bgp/attribute/origin.go:146-160), interned (internal/component/bgp/plugins/rib/storage/attrparse.go) and re-emitted verbatim (internal/component/bgp/plugins/rib/storage/familyrib.go:799-801); the same aggregation grep returns nothing |
-| [`RFC4271-9.2.2.2-3`](#rfc4271-9.2.2.2-3) When aggregating routes with different NEXT_HOP, the aggregated NEXT_HOP SHALL identify an interface on the aggregating speaker (§9.2.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze never aggregates routes, so no producer chooses an aggregated NEXT_HOP. The only next-hop selection is per-route egress policy (internal/component/bgp/reactor/peer_forward_facts.go:153-193); the same aggregation grep returns nothing |
-| [`RFC4271-9.2.2.2-4`](#rfc4271-9.2.2.2-4) If at least one aggregated route has ATOMIC_AGGREGATE, the aggregate SHALL have it as well (§9.2.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze never aggregates routes, so no producer decides whether an aggregate carries ATOMIC_AGGREGATE. The attribute is only decoded, stored and replayed (internal/core/bgp/attribute/simple.go:175-195, internal/component/bgp/plugins/rib/storage/familyrib.go:815-817); the same aggregation grep returns nothing |
-| [`RFC4271-9.2.2.2-5`](#rfc4271-9.2.2.2-5) AGGREGATOR attributes from aggregated routes MUST NOT be included in the aggregated route (§9.2.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze never aggregates routes, so no producer builds an aggregated route from which a contributing AGGREGATOR would have to be excluded. AGGREGATOR is only interned from the wire or emitted from operator configuration (internal/component/bgp/plugins/rib/storage/attrparse.go:96-102, internal/component/bgp/message/update_build_grouped.go:141-148); the same aggregation grep returns nothing |
-| [`RFC4271-9.2.1.1-3`](#rfc4271-9.2.1.1-3) The last route selected while awaiting MinRouteAdvertisementIntervalTimer SHALL be advertised at expiry (§9.2.1.1) | {gap}, no test | with no MinRouteAdvertisementIntervalTimer there is no expiry at which a last-selected route could be advertised. The timer is absent by design note (internal/component/bgp/fsm/timer.go:39) and no producer buffers a pending best-route advertisement against such a timer; best-path changes are published as they are computed (internal/component/bgp/plugins/rib/rib_bestchange.go:832-880) |
-| [`RFC4271-5-8`](#rfc4271-5-8) Once a BGP peer has updated any well-known attributes, it MUST pass these attributes to its peers in any updates it transmits (§5) | no test | no test carries this requirement id |
-| [`RFC4271-6.2-5`](#rfc4271-6.2-5) If the version number in the Version field of the received OPEN message is not supported, then the Error Subcode MUST be set to Unsupported Version Number (§6.2) | no test | no test carries this requirement id |
-| [`RFC4271-6.2-6`](#rfc4271-6.2-6) If the Autonomous System field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Bad Peer AS (§6.2) | no test | no test carries this requirement id |
-| [`RFC4271-6.2-7`](#rfc4271-6.2-7) If the Hold Time field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Unacceptable Hold Time (§6.2) | no test | no test carries this requirement id |
-| [`RFC4271-6.2-8`](#rfc4271-6.2-8) If the BGP Identifier field of the OPEN message is syntactically incorrect, then the Error Subcode MUST be set to Bad BGP Identifier (§6.2) | no test | no test carries this requirement id |
-| [`RFC4271-6.2-9`](#rfc4271-6.2-9) If one of the Optional Parameters in the OPEN message is not recognized, then the Error Subcode MUST be set to Unsupported Optional Parameters (§6.2) | no test | no test carries this requirement id |
-| [`RFC4271-6.2-10`](#rfc4271-6.2-10) If one of the Optional Parameters in the OPEN message is recognized, but is malformed, then the Error Subcode MUST be set to 0 (Unspecific) (§6.2) | no test | no test carries this requirement id |
-| [`RFC4271-6.3-4`](#rfc4271-6.3-4) If the Withdrawn Routes Length or Total Attribute Length is too large (Withdrawn Routes Length + Total Attribute Length + 23 exceeds the message Length), then the Error Subcode MUST be set to Malformed Attribute List (§6.3) | no test | no test carries this requirement id |
-| [`RFC4271-6.3-5`](#rfc4271-6.3-5) If any recognized attribute has Attribute Flags that conflict with the Attribute Type Code, then the Error Subcode MUST be set to Attribute Flags Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3) | no test | no test carries this requirement id |
-| [`RFC4271-6.3-6`](#rfc4271-6.3-6) If any recognized attribute has an Attribute Length that conflicts with the expected length, then the Error Subcode MUST be set to Attribute Length Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3) | no test | no test carries this requirement id |
-| [`RFC4271-6.3-7`](#rfc4271-6.3-7) If any of the well-known mandatory attributes are not present, then the Error Subcode MUST be set to Missing Well-known Attribute; the Data field MUST contain the Attribute Type Code of the missing, well-known attribute (§6.3) | no test | no test carries this requirement id |
-| [`RFC4271-6.3-8`](#rfc4271-6.3-8) If any of the well-known mandatory attributes are not recognized, then the Error Subcode MUST be set to Unrecognized Well-known Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3) | no test | no test carries this requirement id |
-| [`RFC4271-6.3-9`](#rfc4271-6.3-9) If the ORIGIN attribute has an undefined value, then the Error Subcode MUST be set to Invalid Origin Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3) | no test | no test carries this requirement id |
-| [`RFC4271-6.3-10`](#rfc4271-6.3-10) If the NEXT_HOP attribute field is syntactically incorrect, then the Error Subcode MUST be set to Invalid NEXT_HOP Attribute; the Data field MUST contain the incorrect attribute (type, length, and value) (§6.3) | no test | no test carries this requirement id |
-| [`RFC4271-6.3-11`](#rfc4271-6.3-11) The IP address in the NEXT_HOP MUST meet two criteria to be considered semantically correct: it MUST NOT be the IP address of the receiving speaker, and on a one-hop EBGP session either the IP address in the NEXT_HOP MUST be the sender's IP address used to establish the BGP connection, or the interface associated with the NEXT_HOP IP address MUST share a common subnet with the receiving BGP speaker (§6.3) | no test | no test carries this requirement id |
-| [`RFC4271-6.3-12`](#rfc4271-6.3-12) If the AS_PATH is syntactically incorrect, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3) | no test | no test carries this requirement id |
-| [`RFC4271-6.3-13`](#rfc4271-6.3-13) If the optional leftmost-AS check on an UPDATE from an external peer determines the leftmost AS is not the peer's autonomous system number, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3) | no test | no test carries this requirement id |
-| [`RFC4271-6.3-14`](#rfc4271-6.3-14) If an optional attribute is recognized, then the value of this attribute MUST be checked; if an error is detected, the attribute MUST be discarded, the Error Subcode MUST be set to Optional Attribute Error, and the Data field MUST contain the attribute (type, length, and value) (§6.3) | no test | no test carries this requirement id |
-| [`RFC4271-6.3-15`](#rfc4271-6.3-15) If any attribute appears more than once in the UPDATE message, then the Error Subcode MUST be set to Malformed Attribute List (§6.3) | no test | no test carries this requirement id |
-| [`RFC4271-6.3-16`](#rfc4271-6.3-16) If the NLRI field is syntactically incorrect, then the Error Subcode MUST be set to Invalid Network Field (§6.3) | no test | no test carries this requirement id |
-| [`RFC4271-6.3-17`](#rfc4271-6.3-17) An UPDATE message that contains correct path attributes, but no NLRI, SHALL be treated as a valid UPDATE message (§6.3) | no test | no test carries this requirement id |
-| [`RFC4271-8.2.2-19`](#rfc4271-8.2.2-19) In response to an indication that the TCP connection is successfully established (Event 16 or Event 17), the second connection SHALL be tracked until it sends an OPEN message (§8.2.2) | no test | no test carries this requirement id |
-| [`RFC4271-9-4`](#rfc4271-9-4) If the Adj-RIB-In has no route with NLRI identical to the new route, the new route SHALL be placed in the Adj-RIB-In (§9) | no test | no test carries this requirement id |
-| [`RFC4271-10-4`](#rfc4271-10-4) The suggested default amount of jitter SHALL be determined by multiplying the base value of the appropriate timer by a random factor, which is uniformly distributed in the range from 0.75 to 1.0 (§10) | no test | no test carries this requirement id |
+| [`RFC4271-9.2.1.1-2`](#rfc4271-9.2.1.1-2) Two UPDATE messages sent by a BGP speaker to a peer that advertise feasible routes and/or withdrawal of unfeasible routes to some common set of destinations MUST be separated by at least MinRouteAdvertisementIntervalTimer. (§9.2.1.1) | {gap}, no test | ze has no MinRouteAdvertisementIntervalTimer, so successive UPDATEs to a common set of destinations are not spaced. The timer set implements only ConnectRetry, Hold and Keepalive and records the omission in its own doc comment (internal/component/bgp/fsm/timer.go:34-42, "MinRouteAdvertisementIntervalTimer (Section 9.2.1.1) - not implemented here"); `grep -rniE 'minroute\|mrai' --include=*.go internal/` finds no producer |
+| [`RFC4271-9.2.2.2-1`](#rfc4271-9.2.2.2-1) Routes that have different MULTI_EXIT_DISC attributes SHALL NOT be aggregated. (§9.2.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze never aggregates routes, so no producer can aggregate two routes with different MULTI_EXIT_DISC values. `grep -rniE 'aggregate-address\|AggregateRoute\|route aggregation' --include=*.go .` returns no hit outside rfc/ and plan/, and no code path synthesizes an aggregate route from more-specifics |
+| [`RFC4271-9.2.2.2-2`](#rfc4271-9.2.2.2-2) ORIGIN attribute: If at least one route among routes that are aggregated has ORIGIN with the value INCOMPLETE, then the aggregated route MUST have the ORIGIN attribute with the value INCOMPLETE. (§9.2.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze never aggregates routes, so no producer computes an aggregate ORIGIN. ORIGIN is only parsed (internal/core/bgp/attribute/origin.go:146-160), interned (internal/component/bgp/plugins/rib/storage/attrparse.go) and re-emitted verbatim (internal/component/bgp/plugins/rib/storage/familyrib.go:799-801); the same aggregation grep returns nothing |
+| [`RFC4271-9.2.2.2-3`](#rfc4271-9.2.2.2-3) NEXT_HOP: When aggregating routes that have different NEXT_HOP attributes, the NEXT_HOP attribute of the aggregated route SHALL identify an interface on the BGP speaker that performs the aggregation. (§9.2.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze never aggregates routes, so no producer chooses an aggregated NEXT_HOP. The only next-hop selection is per-route egress policy (internal/component/bgp/reactor/peer_forward_facts.go:153-193); the same aggregation grep returns nothing |
+| [`RFC4271-9.2.2.2-4`](#rfc4271-9.2.2.2-4) ATOMIC_AGGREGATE: If at least one of the routes to be aggregated has ATOMIC_AGGREGATE path attribute, then the aggregated route SHALL have this attribute as well. (§9.2.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze never aggregates routes, so no producer decides whether an aggregate carries ATOMIC_AGGREGATE. The attribute is only decoded, stored and replayed (internal/core/bgp/attribute/simple.go:175-195, internal/component/bgp/plugins/rib/storage/familyrib.go:815-817); the same aggregation grep returns nothing |
+| [`RFC4271-9.2.2.2-5`](#rfc4271-9.2.2.2-5) AGGREGATOR: Any AGGREGATOR attributes from the routes to be aggregated MUST NOT be included in the aggregated route. (§9.2.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze never aggregates routes, so no producer builds an aggregated route from which a contributing AGGREGATOR would have to be excluded. AGGREGATOR is only interned from the wire or emitted from operator configuration (internal/component/bgp/plugins/rib/storage/attrparse.go:96-102, internal/component/bgp/message/update_build_grouped.go:141-148); the same aggregation grep returns nothing |
+| [`RFC4271-9.2.1.1-3`](#rfc4271-9.2.1.1-3) If new routes are selected multiple times while awaiting the expiration of MinRouteAdvertisementIntervalTimer, the last route selected SHALL be advertised at the end of MinRouteAdvertisementIntervalTimer. (§9.2.1.1) | {gap}, no test | with no MinRouteAdvertisementIntervalTimer there is no expiry at which a last-selected route could be advertised. The timer is absent by design note (internal/component/bgp/fsm/timer.go:39) and no producer buffers a pending best-route advertisement against such a timer; best-path changes are published as they are computed (internal/component/bgp/plugins/rib/rib_bestchange.go:832-880) |
 
 ## Proof state
 
@@ -356,7 +330,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-4.1-2`](#rfc4271-4.1-2)
 
-Length field MUST have the smallest value required given the rest of the message (§4.1)
+Therefore, the Length field MUST have the smallest value required, given the rest of the message. (§4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -389,7 +363,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-4.3-2`](#rfc4271-4.3-2)
 
-Partial bit MUST be set to 0 for well-known and optional non-transitive attributes (§4.3)
+For well-known attributes and for optional non-transitive attributes, the Partial bit MUST be set to 0. (§4.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -436,18 +410,18 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-4.4-2`](#rfc4271-4.4-2)
 
-If the negotiated Hold Time is zero, periodic KEEPALIVE messages MUST NOT be sent (§4.4)
+If the negotiated Hold Time interval is zero, then periodic KEEPALIVE messages MUST NOT be sent. (§4.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestKeepaliveWithZeroHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/timer_test.go#L411) | unit/verify | unproven |
+| negative | [`TestKeepaliveWithZeroHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/timer_test.go#L365) | unit/verify | unproven |
 | positive | [`TestTimersKeepaliveTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/timer_test.go#L144) | unit/verify | unproven |
 
 ### [`RFC4271-6-1`](#rfc4271-6-1)
 
-If no Error Subcode is specified, a zero MUST be used (§6)
+If no Error Subcode is specified, then a zero MUST be used. (§6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -470,7 +444,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-4.2-2`](#rfc4271-4.2-2)
 
-BGP speaker MUST calculate Hold Timer by using the smaller of its configured Hold Time and the received Hold Time (§4.2)
+Upon receipt of an OPEN message, a BGP speaker MUST calculate the value of the Hold Timer by using the smaller of its configured Hold Time and the Hold Time received in the OPEN message. (§4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -514,7 +488,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-5-2`](#rfc4271-5-2)
 
-Well-known mandatory attributes MUST be included in every UPDATE containing NLRI (§5)
+Some of these attributes are mandatory and MUST be included in every UPDATE message that contains NLRI. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -525,7 +499,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-5-3`](#rfc4271-5-3)
 
-Unrecognized transitive optional attributes MUST be passed along with the Partial bit set to 1 (§5)
+If a path with an unrecognized transitive optional attribute is accepted and passed to other BGP peers, then the unrecognized transitive optional attribute of that path MUST be passed, along with the path, to other BGP peers with the Partial bit in the Attribute Flags octet set to 1. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -539,7 +513,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-5-4`](#rfc4271-5-4)
 
-Partial bit set to 1 by a previous AS MUST NOT be set back to 0 (§5)
+If a path with a recognized, transitive optional attribute is accepted and passed along to other BGP peers and the Partial bit in the Attribute Flags octet is set to 1 by some previous AS, it MUST NOT be set back to 0 by the current AS. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -563,7 +537,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-5-6`](#rfc4271-5-6)
 
-Receiver of an UPDATE MUST be prepared to handle path attributes that are out of order (§5)
+The receiver of an UPDATE message MUST be prepared to handle path attributes within UPDATE messages that are out of order. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -574,7 +548,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-4.3-5`](#rfc4271-4.3-5)
 
-A BGP speaker MUST be able to process UPDATE messages with the same prefix in both WITHDRAWN and NLRI (§4.3)
+However, a BGP speaker MUST be able to process UPDATE messages in this form. (§4.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -586,7 +560,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-5.1.3-1`](#rfc4271-5.1.3-1)
 
-A route originated by a BGP speaker SHALL NOT be advertised to a peer using that peer's address as NEXT_HOP (§5.1.3)
+A route originated by a BGP speaker SHALL NOT be advertised to a peer using an address of that peer as NEXT_HOP. (§5.1.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -597,7 +571,7 @@ Audit verdict: not audited: no reader has judged these tests
 | negative | [`TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L186) | unit/verify | unproven |
 | negative | [`TestSendAnnounceWithholdsRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L466) | unit/verify | unproven |
 | negative | [`TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L429) | unit/verify | unproven |
-| negative | [`checkSelfNextHopWithheld`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L962) | interop/nightly | unproven |
+| negative | [`checkSelfNextHopWithheld`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L960) | interop/nightly | unproven |
 | negative | [`originated-nexthop-peer-own.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/originated-nexthop-peer-own.ci#L10) | functional/verify | unproven |
 | positive | [`TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L282) | unit/verify | unproven |
 | positive | [`TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L252) | unit/verify | unproven |
@@ -605,7 +579,7 @@ Audit verdict: not audited: no reader has judged these tests
 | positive | [`TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L181) | unit/verify | unproven |
 | positive | [`TestSendAnnounceWithholdsRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L464) | unit/verify | unproven |
 | positive | [`TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_next_hop_test.go#L425) | unit/verify | unproven |
-| positive | [`checkSelfNextHopWithheld`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L961) | interop/nightly | unproven |
+| positive | [`checkSelfNextHopWithheld`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L959) | interop/nightly | unproven |
 | positive | [`originated-nexthop-peer-own.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/originated-nexthop-peer-own.ci#L7) | functional/verify | unproven |
 
 ### [`RFC4271-5.1.3-2`](#rfc4271-5.1.3-2)
@@ -624,18 +598,18 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-5.1.3-3`](#rfc4271-5.1.3-3)
 
-A BGP speaker MUST be able to support disabling advertisement of third-party NEXT_HOP attributes (§5.1.3)
+A BGP speaker MUST be able to support the disabling advertisement of third party NEXT_HOP attributes in order to handle imperfectly bridged media. (§5.1.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4271ThirdPartyNextHopDisableFailsClosed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L373) | unit/verify | unproven |
+| negative | [`TestRFC4271ThirdPartyNextHopDisableFailsClosed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L373) | unit/verify | revert, verified |
 | positive | [`TestRFC4271ThirdPartyNextHopCanBeDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L341) | unit/verify | unproven |
 
 ### [`RFC4271-5.1.4-1`](#rfc4271-5.1.4-1)
 
-MULTI_EXIT_DISC received from a neighboring AS MUST NOT be propagated to other neighboring ASes (§5.1.4)
+The MULTI_EXIT_DISC attribute received from a neighboring AS MUST NOT be propagated to other neighboring ASes. (§5.1.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -645,11 +619,11 @@ Audit verdict: not audited: no reader has judged these tests
 | negative | [`TestForwardSuppressesReceivedMEDToAnotherAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L226) | unit/verify | unproven |
 | negative | [`TestForwardWritesLocallySetMED`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L289) | unit/verify | unproven |
 | negative | [`TestMEDPropagationAllowedTo`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L426) | unit/verify | unproven |
-| negative | [`checkMEDAcrossAS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L200) | interop/nightly | unproven |
+| negative | [`checkMEDAcrossAS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L198) | interop/nightly | unproven |
 | negative | [`med-locally-set-reaches-peer.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-locally-set-reaches-peer.ci#L4) | functional/verify | unproven |
 | negative | [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L8) | functional/verify | unproven |
 | positive | [`TestForwardSuppressesReceivedMEDToAnotherAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L221) | unit/verify | unproven |
-| positive | [`checkMEDAcrossAS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L196) | interop/nightly | unproven |
+| positive | [`checkMEDAcrossAS`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L194) | interop/nightly | unproven |
 | positive | [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L4) | functional/verify | unproven |
 
 ### [`RFC4271-5.1.4-4`](#rfc4271-5.1.4-4)
@@ -663,15 +637,15 @@ Audit verdict: not audited: no reader has judged these tests
 | negative | [`TestParseModifyDefsMEDRemove`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L647) | unit/verify | unproven |
 | negative | [`TestMEDRemovalMechanismIsConfigurable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L475) | unit/verify | unproven |
 | negative | [`TestMEDRemoveDirectiveIsValueless`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L568) | unit/verify | unproven |
-| negative | [`checkMEDRemovalConfiguration`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L322) | interop/nightly | unproven |
+| negative | [`checkMEDRemovalConfiguration`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L320) | interop/nightly | unproven |
 | positive | [`TestParseModifyDefsMEDRemove`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/modify_test.go#L642) | unit/verify | unproven |
 | positive | [`TestMEDRemovalMechanismIsConfigurable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L468) | unit/verify | unproven |
-| positive | [`checkMEDRemovalConfiguration`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L318) | interop/nightly | unproven |
+| positive | [`checkMEDRemovalConfiguration`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L316) | interop/nightly | unproven |
 | positive | [`med-removal-configured.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-removal-configured.ci#L4) | functional/verify | unproven |
 
 ### [`RFC4271-5.1.4-2`](#rfc4271-5.1.4-2)
 
-MULTI_EXIT_DISC removal from routes MUST be done before the route is used in Phase 2 of the decision process (§5.1.4)
+If a BGP speaker is configured to remove the MULTI_EXIT_DISC attribute from a route, then this removal MUST be done prior to determining the degree of preference of the route and prior to performing route selection (Decision Process phases 1 and 2). (§5.1.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -688,20 +662,20 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-5.1.5-1`](#rfc4271-5.1.5-1)
 
-LOCAL_PREF SHALL be included in all UPDATE messages sent to internal peers (§5.1.5)
+LOCAL_PREF is a well-known attribute that SHALL be included in all UPDATE messages that a given BGP speaker sends to other internal peers. (§5.1.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestForwardLocalPrefStrippedToExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_local_pref_test.go#L45) | unit/verify | unproven |
-| negative | [`TestAnnounceStripsLocalPrefTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_origin_test.go#L307) | unit/verify | unproven |
+| negative | [`TestAnnounceStripsLocalPrefTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_origin_test.go#L307) | unit/verify | revert, verified |
 | negative | [`TestRFC4271LocalPrefOmittedForExternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L107) | unit/verify | unproven |
 | positive | [`TestRFC4271LocalPrefIncludedForInternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L81) | unit/verify | unproven |
 
 ### [`RFC4271-5.1.5-2`](#rfc4271-5.1.5-2)
 
-A BGP speaker MUST NOT include LOCAL_PREF in UPDATE messages sent to external peers (§5.1.5)
+A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065]. (§5.1.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -712,9 +686,9 @@ Audit verdict: not audited: no reader has judged these tests
 | negative | [`local-pref-strip-ebgp.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/local-pref-strip-ebgp.ci#L19) | functional/verify | unproven |
 | positive | [`TestForwardLocalPrefStripBeatsAFilterSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_local_pref_test.go#L113) | unit/verify | unproven |
 | positive | [`TestForwardLocalPrefStrippedToExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_local_pref_test.go#L41) | unit/verify | unproven |
-| positive | [`TestAnnounceStripsLocalPrefTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_origin_test.go#L305) | unit/verify | unproven |
+| positive | [`TestAnnounceStripsLocalPrefTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_origin_test.go#L305) | unit/verify | revert, verified |
 | positive | [`TestRFC4271LocalPrefOmittedForExternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L104) | unit/verify | unproven |
-| positive | [`checkLocalPrefStrip`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L96) | interop/nightly | unproven |
+| positive | [`checkLocalPrefStrip`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L94) | interop/nightly | unproven |
 | positive | [`local-pref-strip-ebgp.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/local-pref-strip-ebgp.ci#L14) | functional/verify | unproven |
 
 ### [`RFC4271-5.1.5-3`](#rfc4271-5.1.5-3)
@@ -730,7 +704,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-5.1.5-4`](#rfc4271-5.1.5-4)
 
-The higher degree of preference (LOCAL_PREF) MUST be preferred (§5.1.5)
+The higher degree of preference MUST be preferred. (§5.1.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -741,7 +715,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-5.1.6-1`](#rfc4271-5.1.6-1)
 
-A BGP speaker that receives a route with the ATOMIC_AGGREGATE attribute MUST NOT make any NLRI of that route more specific when advertising this route to other BGP speakers (§5.1.6)
+A BGP speaker that receives a route with the ATOMIC_AGGREGATE attribute MUST NOT make any NLRI of that route more specific (as defined in 9.1.4) when advertising this route to other BGP speakers. (§5.1.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -749,7 +723,7 @@ No test carries RFC4271-5.1.6-1, so no unit is bound to it.
 
 ### [`RFC4271-6.1-1`](#rfc4271-6.1-1)
 
-All header errors MUST be indicated by sending NOTIFICATION with Error Code Message Header Error (§6.1)
+All errors detected while processing the Message Header MUST be indicated by sending the NOTIFICATION message with the Error Code Message Header Error. (§6.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -757,7 +731,7 @@ No test carries RFC4271-6.1-1, so no unit is bound to it.
 
 ### [`RFC4271-6.1-2`](#rfc4271-6.1-2)
 
-Marker not all ones: Error Subcode MUST be Connection Not Synchronized (§6.1)
+If the Marker field of the message header is not as expected, then a synchronization error has occurred and the Error Subcode MUST be set to Connection Not Synchronized. (§6.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -765,7 +739,7 @@ No test carries RFC4271-6.1-2, so no unit is bound to it.
 
 ### [`RFC4271-6.1-3`](#rfc4271-6.1-3)
 
-Invalid length: Error Subcode MUST be Bad Message Length; Data field MUST contain the erroneous Length field (§6.1)
+then the Error Subcode MUST be set to Bad Message Length. (§6.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -781,7 +755,7 @@ No test carries RFC4271-6.1-4, so no unit is bound to it.
 
 ### [`RFC4271-6.2-3`](#rfc4271-6.2-3)
 
-All OPEN errors MUST be indicated by NOTIFICATION with Error Code OPEN Message Error (§6.2)
+All errors detected while processing the OPEN message MUST be indicated by sending the NOTIFICATION message with the Error Code OPEN Message Error. (§6.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -789,7 +763,7 @@ No test carries RFC4271-6.2-3, so no unit is bound to it.
 
 ### [`RFC4271-6.3-1`](#rfc4271-6.3-1)
 
-All UPDATE errors MUST be indicated by NOTIFICATION with Error Code UPDATE Message Error (§6.3)
+All errors detected while processing the UPDATE message MUST be indicated by sending the NOTIFICATION message with the Error Code UPDATE Message Error. (§6.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -800,7 +774,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-6.7-1`](#rfc4271-6.7-1)
 
-Cease NOTIFICATION MUST NOT be used when a fatal error does exist (§6.7)
+However, the Cease NOTIFICATION message MUST NOT be used when a fatal error indicated by this section does exist. (§6.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1050,7 +1024,7 @@ Audit verdict: not audited: no reader has judged these tests
 | positive | [`TestSplitMP_PreservesAscendingAttributeOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_split_attr_order_test.go#L72) | unit/verify | unproven |
 | positive | [`TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go#L328) | unit/verify | unproven |
 | positive | [`TestAnnounceBatchRail_AscendingTypeCodeOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go#L268) | unit/verify | unproven |
-| positive | [`TestAnnounceQueuedRail_AscendingTypeCodeOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go#L289) | unit/verify | unproven |
+| positive | [`TestAnnounceQueuedRail_AscendingTypeCodeOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go#L289) | unit/verify | revert, verified |
 
 ### [`RFC4271-6.3-2`](#rfc4271-6.3-2)
 
@@ -1072,7 +1046,7 @@ No test carries RFC4271-3.1-2, so no unit is bound to it.
 
 ### [`RFC4271-5.1.2-2`](#rfc4271-5.1.2-2)
 
-When advertising a route to an internal peer, the speaker SHALL NOT modify the AS_PATH attribute (§5.1.2)
+a) When a given BGP speaker advertises the route to an internal peer, the advertising speaker SHALL NOT modify the AS_PATH attribute associated with the route. (§5.1.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1092,14 +1066,14 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | negative | [`TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L567) | unit/verify | unproven |
 | negative | [`TestASPathSlotPrependOnlyWhenAdvertising`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/advertise_test.go#L99) | unit/verify | unproven |
-| negative | [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L432) | interop/nightly | unproven |
+| negative | [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L430) | interop/nightly | unproven |
 | positive | [`TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_batch_test.go#L543) | unit/verify | unproven |
 | positive | [`TestASPathSlotPrependOnlyWhenAdvertising`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/advertise_test.go#L97) | unit/verify | unproven |
-| positive | [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L431) | interop/nightly | unproven |
+| positive | [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L429) | interop/nightly | unproven |
 
 ### [`RFC4271-5.1.4-3`](#rfc4271-5.1.4-3)
 
-If altering MULTI_EXIT_DISC received over EBGP, alteration MUST be done prior to decision process phases 1 and 2 (§5.1.4)
+If a BGP speaker is configured to alter the value of the MULTI_EXIT_DISC attribute received over EBGP, then altering the value MUST be done prior to determining the degree of preference of the route and prior to performing route selection (Decision Process phases 1 and 2). (§5.1.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1109,7 +1083,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-5.1.5-5`](#rfc4271-5.1.5-5)
 
-A BGP speaker SHALL calculate the degree of preference for each external route based on locally-configured policy (§5.1.5)
+A BGP speaker SHALL calculate the degree of preference for each external route based on the locally-configured policy, and include the degree of preference when advertising a route to its internal peers. (§5.1.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1128,7 +1102,7 @@ No test carries RFC4271-5.1.7-1, so no unit is bound to it.
 
 ### [`RFC4271-6.7-4`](#rfc4271-6.7-4)
 
-When terminating due to prefix limit, speaker MUST send NOTIFICATION with Error Code Cease (§6.7)
+If the BGP speaker decides to terminate its BGP connection with a neighbor because the number of address prefixes received from the neighbor exceeds the locally-configured, upper bound, then the speaker MUST send the neighbor a NOTIFICATION message with the Error Code Cease. (§6.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1145,23 +1119,23 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestCollisionOpenSentNoCollision`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L177) | unit/verify | unproven |
-| positive | [`TestCollisionOpenConfirmLocalWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L127) | unit/verify | unproven |
+| negative | [`TestCollisionOpenSentNoCollision`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L176) | unit/verify | unproven |
+| positive | [`TestRFC4271CollisionClosesExactlyOneConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go#L44) | unit/verify | revert, verified |
 
 ### [`RFC4271-6.8-2`](#rfc4271-6.8-2)
 
-Upon receipt of an OPEN message, the local system MUST examine all connections in OpenConfirm state for collision (§6.8)
+Upon receipt of an OPEN message, the local system MUST examine all of its connections that are in the OpenConfirm state. (§6.8)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestCollisionNonCollisionStates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L536) | unit/verify | unproven |
-| positive | [`TestCollisionOpenConfirmLocalWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L130) | unit/verify | unproven |
+| negative | [`TestCollisionNonCollisionStates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L535) | unit/verify | unproven |
+| positive | [`TestCollisionOpenConfirmLocalWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L129) | unit/verify | unproven |
 
 ### [`RFC4271-9-1`](#rfc4271-9-1)
 
-Withdrawn routes SHALL be removed from the Adj-RIB-In and the Decision Process SHALL be run (§9)
+If the UPDATE message contains a non-empty WITHDRAWN ROUTES field, the previously advertised routes, whose destinations (expressed as IP prefixes) are contained in this field, SHALL be removed from the Adj-RIB-In. (§9)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1172,7 +1146,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-9-2`](#rfc4271-9-2)
 
-A new route with identical NLRI to an existing route SHALL replace the older route in Adj-RIB-In (§9)
+If the UPDATE message contains a feasible route, the Adj-RIB-In will be updated with this route as follows: if the NLRI of the new route is identical to the one the route currently has stored in the Adj- RIB-In, then the new route SHALL replace the older route in the Adj- RIB-In, thus implicitly withdrawing the older route from service. (§9)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1183,7 +1157,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-9-3`](#rfc4271-9-3)
 
-Once the Adj-RIB-In is updated, the speaker SHALL run its Decision Process (§9)
+Once the BGP speaker updates the Adj-RIB-In, the speaker SHALL run its Decision Process. (§9)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1216,7 +1190,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-9.1.2-1`](#rfc4271-9.1.2-1)
 
-If NEXT_HOP is not resolvable, the BGP route MUST be excluded from Phase 2 decision function (§9.1.2)
+If the NEXT_HOP attribute of a BGP route depicts an address that is not resolvable, or if it would become unresolvable if the route was installed in the routing table, the BGP route MUST be excluded from the Phase 2 decision function. (§9.1.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1224,7 +1198,7 @@ No test carries RFC4271-9.1.2-1, so no unit is bound to it.
 
 ### [`RFC4271-9.1.2-2`](#rfc4271-9.1.2-2)
 
-The local speaker SHALL install the best route in the Loc-RIB (§9.1.2)
+The local speaker SHALL then install that route in the Loc-RIB, replacing any route to the same destination that is currently being held in the Loc-RIB. (§9.1.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1246,7 +1220,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-9.1.2-4`](#rfc4271-9.1.2-4)
 
-If immediate next-hop or IGP cost to NEXT_HOP changes, Phase 2 Route Selection MUST be performed again (§9.1.2)
+If either the immediate next-hop or the IGP cost to the NEXT_HOP (where the NEXT_HOP is resolved through an IGP route) changes, Phase 2 Route Selection MUST be performed again. (§9.1.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1273,7 +1247,7 @@ No test carries RFC4271-9.1.2.1-2, so no unit is bound to it.
 
 ### [`RFC4271-9.1.2.2-1`](#rfc4271-9.1.2.2-1)
 
-The tie-breaking criteria MUST be applied in the order specified (§9.1.2.2)
+The criteria MUST be applied in the order specified. (§9.1.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1288,7 +1262,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-9.1.2.2-2`](#rfc4271-9.1.2.2-2)
 
-If MULTI_EXIT_DISC is removed before IBGP readvertisement, the optional MED comparison MUST be performed only among EBGP-learned routes (§9.1.2.2)
+If an implementation chooses to remove MULTI_EXIT_DISC, then the optional comparison on MULTI_EXIT_DISC, if performed, MUST be performed only among EBGP-learned routes. (§9.1.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1296,7 +1270,7 @@ No test carries RFC4271-9.1.2.2-2, so no unit is bound to it.
 
 ### [`RFC4271-9.1.2.2-3`](#rfc4271-9.1.2.2-3)
 
-For IBGP-learned routes, MULTI_EXIT_DISC MUST be used in comparisons that reach the MED step (§9.1.2.2)
+For IBGP- learned routes, the MULTI_EXIT_DISC MUST be used in route comparisons that reach this step in the Decision Process. (§9.1.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1356,7 +1330,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-9.2.1.1-2`](#rfc4271-9.2.1.1-2)
 
-Two UPDATE messages advertising to common destinations MUST be separated by at least MinRouteAdvertisementIntervalTimer (§9.2.1.1)
+Two UPDATE messages sent by a BGP speaker to a peer that advertise feasible routes and/or withdrawal of unfeasible routes to some common set of destinations MUST be separated by at least MinRouteAdvertisementIntervalTimer. (§9.2.1.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1364,7 +1338,7 @@ No test carries RFC4271-9.2.1.1-2, so no unit is bound to it.
 
 ### [`RFC4271-9.2.2.2-1`](#rfc4271-9.2.2.2-1)
 
-Routes with different MULTI_EXIT_DISC attributes SHALL NOT be aggregated (§9.2.2.2)
+Routes that have different MULTI_EXIT_DISC attributes SHALL NOT be aggregated. (§9.2.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1372,7 +1346,7 @@ No test carries RFC4271-9.2.2.2-1, so no unit is bound to it.
 
 ### [`RFC4271-9.2.2.2-2`](#rfc4271-9.2.2.2-2)
 
-If any aggregated route has ORIGIN INCOMPLETE, the aggregate MUST have ORIGIN INCOMPLETE; else if any has EGP, the aggregate MUST have ORIGIN EGP (§9.2.2.2)
+ORIGIN attribute: If at least one route among routes that are aggregated has ORIGIN with the value INCOMPLETE, then the aggregated route MUST have the ORIGIN attribute with the value INCOMPLETE. (§9.2.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1380,7 +1354,7 @@ No test carries RFC4271-9.2.2.2-2, so no unit is bound to it.
 
 ### [`RFC4271-9.2.2.2-3`](#rfc4271-9.2.2.2-3)
 
-When aggregating routes with different NEXT_HOP, the aggregated NEXT_HOP SHALL identify an interface on the aggregating speaker (§9.2.2.2)
+NEXT_HOP: When aggregating routes that have different NEXT_HOP attributes, the NEXT_HOP attribute of the aggregated route SHALL identify an interface on the BGP speaker that performs the aggregation. (§9.2.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1388,7 +1362,7 @@ No test carries RFC4271-9.2.2.2-3, so no unit is bound to it.
 
 ### [`RFC4271-9.2.2.2-4`](#rfc4271-9.2.2.2-4)
 
-If at least one aggregated route has ATOMIC_AGGREGATE, the aggregate SHALL have it as well (§9.2.2.2)
+ATOMIC_AGGREGATE: If at least one of the routes to be aggregated has ATOMIC_AGGREGATE path attribute, then the aggregated route SHALL have this attribute as well. (§9.2.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1396,7 +1370,7 @@ No test carries RFC4271-9.2.2.2-4, so no unit is bound to it.
 
 ### [`RFC4271-9.2.2.2-5`](#rfc4271-9.2.2.2-5)
 
-AGGREGATOR attributes from aggregated routes MUST NOT be included in the aggregated route (§9.2.2.2)
+AGGREGATOR: Any AGGREGATOR attributes from the routes to be aggregated MUST NOT be included in the aggregated route. (§9.2.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1415,7 +1389,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-9.2.1.1-3`](#rfc4271-9.2.1.1-3)
 
-The last route selected while awaiting MinRouteAdvertisementIntervalTimer SHALL be advertised at expiry (§9.2.1.1)
+If new routes are selected multiple times while awaiting the expiration of MinRouteAdvertisementIntervalTimer, the last route selected SHALL be advertised at the end of MinRouteAdvertisementIntervalTimer. (§9.2.1.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1423,7 +1397,7 @@ No test carries RFC4271-9.2.1.1-3, so no unit is bound to it.
 
 ### [`RFC4271-9.2-6`](#rfc4271-9.2-6)
 
-A BGP speaker SHALL NOT redistribute routing information from an internal peer to other internal peers (unless route reflector) (§9.2)
+When a BGP speaker receives an UPDATE message from an internal peer, the receiving BGP speaker SHALL NOT re-distribute the routing information contained in that UPDATE message to other internal peers (unless the speaker acts as a BGP Route Reflector [RFC2796]). (§9.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1434,7 +1408,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-9.2-7`](#rfc4271-9.2-7)
 
-Newly unfeasible routes for which there is no replacement SHALL be advertised via UPDATE (§9.2)
+All newly installed routes and all newly unfeasible routes for which there is no replacement route SHALL be advertised to its peers by means of an UPDATE message. (§9.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1456,7 +1430,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-9.2-9`](#rfc4271-9.2-9)
 
-Changes to reachable destinations within the speaker's own AS SHALL be advertised in an UPDATE (§9.2)
+Changes to the reachable destinations within its own autonomous system SHALL also be advertised in an UPDATE message. (§9.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1467,7 +1441,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC4271-9.2-10`](#rfc4271-9.2-10)
 
-If a single route does not fit in an UPDATE message, the speaker MUST NOT advertise it and MAY log an error (§9.2)
+If, due to the limits on the maximum size of an UPDATE message (see Section 4), a single route doesn't fit into the message, the BGP speaker MUST not advertise the route to its peers and MAY choose to log an error locally. (§9.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1507,7 +1481,10 @@ Once a BGP peer has updated any well-known attributes, it MUST pass these attrib
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-5-8, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestForwardNeverTransmitsTheSupersededWellKnownAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rfc4271_section5_test.go#L166) | unit/verify | revert, verified |
+| positive | [`TestForwardTransmitsUpdatedWellKnownAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rfc4271_section5_test.go#L145) | unit/verify | revert, verified |
 
 ### [`RFC4271-6.2-5`](#rfc4271-6.2-5)
 
@@ -1515,7 +1492,10 @@ If the version number in the Version field of the received OPEN message is not s
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.2-5, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC4271OpenErrorSubcodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_error_rfc4271_test.go#L66) | unit/verify | revert, verified |
+| positive | [`TestRFC4271OpenErrorSubcodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_error_rfc4271_test.go#L64) | unit/verify | revert, verified |
 
 ### [`RFC4271-6.2-6`](#rfc4271-6.2-6)
 
@@ -1523,7 +1503,10 @@ If the Autonomous System field of the OPEN message is unacceptable, then the Err
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.2-6, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC4271OpenErrorSubcodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_error_rfc4271_test.go#L69) | unit/verify | revert, verified |
+| positive | [`TestRFC4271OpenErrorSubcodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_error_rfc4271_test.go#L67) | unit/verify | revert, verified |
 
 ### [`RFC4271-6.2-7`](#rfc4271-6.2-7)
 
@@ -1531,7 +1514,10 @@ If the Hold Time field of the OPEN message is unacceptable, then the Error Subco
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.2-7, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC4271OpenErrorSubcodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_error_rfc4271_test.go#L73) | unit/verify | revert, verified |
+| positive | [`TestRFC4271OpenErrorSubcodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_error_rfc4271_test.go#L71) | unit/verify | revert, verified |
 
 ### [`RFC4271-6.2-8`](#rfc4271-6.2-8)
 
@@ -1539,7 +1525,10 @@ If the BGP Identifier field of the OPEN message is syntactically incorrect, then
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.2-8, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC4271OpenErrorSubcodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_error_rfc4271_test.go#L76) | unit/verify | revert, verified |
+| positive | [`TestRFC4271OpenErrorSubcodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_error_rfc4271_test.go#L74) | unit/verify | revert, verified |
 
 ### [`RFC4271-6.2-9`](#rfc4271-6.2-9)
 
@@ -1547,7 +1536,10 @@ If one of the Optional Parameters in the OPEN message is not recognized, then th
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.2-9, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSessionRFC4271OptionalParameterErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L37) | unit/verify | unproven |
+| positive | [`TestSessionRFC4271OptionalParameterErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L36) | unit/verify | unproven |
 
 ### [`RFC4271-6.2-10`](#rfc4271-6.2-10)
 
@@ -1555,63 +1547,89 @@ If one of the Optional Parameters in the OPEN message is recognized, but is malf
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.2-10, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSessionRFC4271OptionalParameterErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L39) | unit/verify | unproven |
+| positive | [`TestSessionRFC4271OptionalParameterErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L38) | unit/verify | unproven |
 
 ### [`RFC4271-6.3-4`](#rfc4271-6.3-4)
 
-If the Withdrawn Routes Length or Total Attribute Length is too large (Withdrawn Routes Length + Total Attribute Length + 23 exceeds the message Length), then the Error Subcode MUST be set to Malformed Attribute List (§6.3)
+If the Withdrawn Routes Length or Total Attribute Length is too large (i.e., if Withdrawn Routes Length + Total Attribute Length + 23 exceeds the message Length), then the Error Subcode MUST be set to Malformed Attribute List. (§6.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.3-4, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC4271UpdateMalformedAttributeList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_update_error_rfc4271_test.go#L57) | unit/verify | revert, verified |
+| positive | [`TestRFC4271UpdateMalformedAttributeList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_update_error_rfc4271_test.go#L54) | unit/verify | revert, verified |
 
 ### [`RFC4271-6.3-5`](#rfc4271-6.3-5)
 
-If any recognized attribute has Attribute Flags that conflict with the Attribute Type Code, then the Error Subcode MUST be set to Attribute Flags Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3)
+If any recognized attribute has Attribute Flags that conflict with the Attribute Type Code, then the Error Subcode MUST be set to Attribute Flags Error. (§6.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.3-5, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L103) | unit/verify | unproven |
+| positive | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L102) | unit/verify | unproven |
 
 ### [`RFC4271-6.3-6`](#rfc4271-6.3-6)
 
-If any recognized attribute has an Attribute Length that conflicts with the expected length, then the Error Subcode MUST be set to Attribute Length Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3)
+If any recognized attribute has an Attribute Length that conflicts with the expected length (based on the attribute type code), then the Error Subcode MUST be set to Attribute Length Error. (§6.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.3-6, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L105) | unit/verify | unproven |
+| positive | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L104) | unit/verify | unproven |
 
 ### [`RFC4271-6.3-7`](#rfc4271-6.3-7)
 
-If any of the well-known mandatory attributes are not present, then the Error Subcode MUST be set to Missing Well-known Attribute; the Data field MUST contain the Attribute Type Code of the missing, well-known attribute (§6.3)
+If any of the well-known mandatory attributes are not present, then the Error Subcode MUST be set to Missing Well-known Attribute. (§6.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.3-7, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC4271MandatoryAttributesAcrossUpdateForms`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_mandatory_test.go#L11) | unit/verify | unproven |
+| negative | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L107) | unit/verify | unproven |
+| positive | [`TestRFC4271MandatoryAttributesAcrossUpdateForms`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_mandatory_test.go#L10) | unit/verify | unproven |
+| positive | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L106) | unit/verify | unproven |
 
 ### [`RFC4271-6.3-8`](#rfc4271-6.3-8)
 
-If any of the well-known mandatory attributes are not recognized, then the Error Subcode MUST be set to Unrecognized Well-known Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3)
+If any of the well-known mandatory attributes are not recognized, then the Error Subcode MUST be set to Unrecognized Well-known Attribute. (§6.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.3-8, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSessionRFC4271RetainedUpdateNotifications`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L157) | unit/verify | unproven |
+| positive | [`TestSessionRFC4271RetainedUpdateNotifications`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L156) | unit/verify | unproven |
 
 ### [`RFC4271-6.3-9`](#rfc4271-6.3-9)
 
-If the ORIGIN attribute has an undefined value, then the Error Subcode MUST be set to Invalid Origin Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3)
+If the ORIGIN attribute has an undefined value, then the Error Sub- code MUST be set to Invalid Origin Attribute. (§6.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.3-9, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L109) | unit/verify | unproven |
+| positive | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L108) | unit/verify | unproven |
 
 ### [`RFC4271-6.3-10`](#rfc4271-6.3-10)
 
-If the NEXT_HOP attribute field is syntactically incorrect, then the Error Subcode MUST be set to Invalid NEXT_HOP Attribute; the Data field MUST contain the incorrect attribute (type, length, and value) (§6.3)
+If the NEXT_HOP attribute field is syntactically incorrect, then the Error Subcode MUST be set to Invalid NEXT_HOP Attribute. (§6.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.3-10, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L111) | unit/verify | unproven |
+| positive | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L110) | unit/verify | unproven |
 
 ### [`RFC4271-6.3-11`](#rfc4271-6.3-11)
 
@@ -1619,15 +1637,25 @@ The IP address in the NEXT_HOP MUST meet two criteria to be considered semantica
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.3-11, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSessionRFC4271NextHopSemantics`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L206) | unit/verify | unproven |
+| negative | [`TestSessionRFC4271IBGPNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_next_hop_test.go#L63) | unit/verify | unproven |
+| negative | [`TestSessionRFC4271NextHopMixedUpdateAndAddressChange`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_next_hop_test.go#L16) | unit/verify | unproven |
+| positive | [`TestSessionRFC4271NextHopSemantics`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L205) | unit/verify | unproven |
+| positive | [`TestSessionRFC4271IBGPNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_next_hop_test.go#L62) | unit/verify | unproven |
+| positive | [`TestSessionRFC4271NextHopMixedUpdateAndAddressChange`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_next_hop_test.go#L15) | unit/verify | unproven |
 
 ### [`RFC4271-6.3-12`](#rfc4271-6.3-12)
 
-If the AS_PATH is syntactically incorrect, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3)
+If the path is syntactically incorrect, then the Error Subcode MUST be set to Malformed AS_PATH. (§6.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.3-12, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L113) | unit/verify | unproven |
+| positive | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L112) | unit/verify | unproven |
 
 ### [`RFC4271-6.3-13`](#rfc4271-6.3-13)
 
@@ -1635,7 +1663,10 @@ If the optional leftmost-AS check on an UPDATE from an external peer determines 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.3-13, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC4271LeftmostASMismatchIsMalformedASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go#L32) | unit/verify | revert, verified |
+| positive | [`TestRFC4271LeftmostASMismatchIsMalformedASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go#L29) | unit/verify | revert, verified |
 
 ### [`RFC4271-6.3-14`](#rfc4271-6.3-14)
 
@@ -1643,7 +1674,10 @@ If an optional attribute is recognized, then the value of this attribute MUST be
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.3-14, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L115) | unit/verify | unproven |
+| positive | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L114) | unit/verify | unproven |
 
 ### [`RFC4271-6.3-15`](#rfc4271-6.3-15)
 
@@ -1651,15 +1685,21 @@ If any attribute appears more than once in the UPDATE message, then the Error Su
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.3-15, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC4271UpdateMalformedAttributeList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_update_error_rfc4271_test.go#L61) | unit/verify | revert, verified |
+| positive | [`TestRFC4271UpdateMalformedAttributeList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_update_error_rfc4271_test.go#L59) | unit/verify | revert, verified |
 
 ### [`RFC4271-6.3-16`](#rfc4271-6.3-16)
 
-If the NLRI field is syntactically incorrect, then the Error Subcode MUST be set to Invalid Network Field (§6.3)
+If the field is syntactically incorrect, then the Error Subcode MUST be set to Invalid Network Field. (§6.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.3-16, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSessionRFC4271RetainedUpdateNotifications`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L159) | unit/verify | unproven |
+| positive | [`TestSessionRFC4271RetainedUpdateNotifications`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L158) | unit/verify | unproven |
 
 ### [`RFC4271-6.3-17`](#rfc4271-6.3-17)
 
@@ -1667,7 +1707,10 @@ An UPDATE message that contains correct path attributes, but no NLRI, SHALL be t
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-6.3-17, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC4271UpdateWithoutNLRIIsValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_update_error_rfc4271_test.go#L128) | unit/verify | revert, verified |
+| positive | [`TestRFC4271UpdateWithoutNLRIIsValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_update_error_rfc4271_test.go#L125) | unit/verify | revert, verified |
 
 ### [`RFC4271-8.2.2-19`](#rfc4271-8.2.2-19)
 
@@ -1675,15 +1718,21 @@ In response to an indication that the TCP connection is successfully established
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-8.2.2-19, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSessionRFC4271EstablishedCollisionWaitsForOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L247) | unit/verify | unproven |
+| positive | [`TestSessionRFC4271EstablishedCollisionWaitsForOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_core4271_test.go#L246) | unit/verify | unproven |
 
 ### [`RFC4271-9-4`](#rfc4271-9-4)
 
-If the Adj-RIB-In has no route with NLRI identical to the new route, the new route SHALL be placed in the Adj-RIB-In (§9)
+Otherwise, if the Adj-RIB-In has no route with NLRI identical to the new route, the new route SHALL be placed in the Adj-RIB-In. (§9)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-9-4, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC4271AdjRIBInPlacesNewRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_rfc4271_test.go#L44) | unit/verify | revert, verified |
+| positive | [`TestRFC4271AdjRIBInPlacesNewRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_rfc4271_test.go#L41) | unit/verify | revert, verified |
 
 ### [`RFC4271-10-4`](#rfc4271-10-4)
 
@@ -1691,7 +1740,10 @@ The suggested default amount of jitter SHALL be determined by multiplying the ba
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4271-10-4, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestTimersRFC4271Jitter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/timer_jitter_test.go#L12) | unit/verify | unproven |
+| positive | [`TestTimersRFC4271Jitter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/timer_jitter_test.go#L11) | unit/verify | unproven |
 
 ## Extraction sign-off
 

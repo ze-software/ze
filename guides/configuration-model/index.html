@@ -219,6 +219,22 @@
 <!-- source: internal/component/config/tokenizer.go -- tokenizer.scan -->
 <p>Indentation is not significant. Unknown keys are rejected with a suggestion for the closest valid key.</p>
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- BGP config YANG schema; internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
+<p>A plugin that registers no schema at build time has its schema selected at
+startup with <code>--plugin</code>, for example <code>ze --plugin ze.&lt;name&gt; ...</code>. The schemas of
+the internal plugins, <code>bgp-ls-export</code> and <code>bgp-epe</code> among them, are always loaded,
+so their configuration needs no selection. Reload verification retains that selection,
+including when a configuration removes and later restores the plugin's root.
+It does not enable schemas for other optional plugins.</p>
+<!-- source: internal/component/config/loader.go -- LoadConfig -->
+<!-- source: internal/component/bgp/config/loader_create.go -- createReloadFunc -->
+<p>Commands that assign a schema-marked secret are masked before they enter a CLI
+transcript, command accounting, or the dispatcher's refusal and audit output.
+The mask covers the entire value, including quoted words, while execution and
+authorization receive the original arguments. A configuration path the schema
+cannot resolve is redacted in full after <code>set</code>.</p>
+<!-- source: internal/component/config/mask.go -- DisplayCommand -->
+<!-- source: internal/component/cli/transcript.go -- TranscriptWriter.Record -->
+<!-- source: internal/component/plugin/server/command.go -- BeginAccounting, unauthorizedError, recordCommandAudit -->
 <h2 id="file-format">File Format</h2>
 <pre><code># Global BGP settings
 bgp {
@@ -292,7 +308,7 @@ AS is internal when it equals Ze's own AS, and also when it equals a configured
 <code>session { asn { migration } }</code>: RFC 7705 Section 4.2 makes a peer reached under
 either ASN of a migrating pair an iBGP peer, so the Section 2.2 identifier check
 binds it exactly as it binds a peer in the same AS.</p>
-<!-- source: internal/component/bgp/reactor/session_open_validation.go — validateOpenIdentifier; internal/component/bgp/reactor/peer.go — sessionPeerAS; internal/component/bgp/reactor/session_as_migration.go — isIBGPWith; internal/component/bgp/message/open.go — ValidateBGPIdentifier; internal/component/bgp/reactor/session.go — DetectCollision; internal/component/bgp/reactor/config.go — parseRouterID -->
+<!-- source: internal/component/bgp/reactor/session_open_validation.go — validateOpenIdentifier; internal/component/bgp/reactor/peer.go — sessionPeerAS; internal/component/bgp/reactor/session_as_migration.go — isIBGPWith; internal/component/bgp/message/open.go — ValidateBGPIdentifier; internal/component/bgp/reactor/session.go — detectCollision; internal/component/bgp/reactor/config.go — parseRouterID -->
 <h2 id="ospf">OSPF</h2>
 <p>The top-level <code>ospf</code> block enables Ze's native OSPF engine. The root container
 configures OSPFv2 for IPv4; <code>ospf { address-family ipv6 { ... } }</code> enables the
@@ -1411,7 +1427,7 @@ example <code>reconnect never</code> beside <code>idle-timeout 30</code>.</p>
 <h3 id="protocol-event-capture">Protocol Event Capture</h3>
 <p>Ze can write every message a peer sends to a file, together with the config
 operations applied while the capture runs. Replay the file on a developer
-machine with <code>ze-test replay &lt;file&gt;</code> to drive the same state machine over the
+machine with <code>le test replay &lt;file&gt;</code> to drive the same state machine over the
 same input. Capture is off by default. Turn it on for one peer when you need to
 reproduce a session bug, and turn it off again.</p>
 <pre><code>peer transit-a {
@@ -1651,7 +1667,7 @@ program is fed for this peer, and <code>send</code> is what it may originate tow
         receive [ update-received state ];
     }
     attach process rpki {
-        receive [ update-received ];
+        receive [ update-received state ];
     }
 }
 </code></pre>
@@ -2827,6 +2843,10 @@ naming the replacement. It is also the administrative distance a Cisco IOS DHCP 
 gives the default route it learns, which is the same ranking decision on another
 vendor. That distance is not a Linux metric, and ze does not read it: 254 is the
 metric ze writes to the kernel.</p>
+<p>These distances also apply to routes installed through plugin RPCs. The engine
+selects <code>ebgp</code> or <code>ibgp</code> from the BGP path's session flags before choosing the
+Loc-RIB winner; both retain <code>bgp</code> as their route owner.</p>
+<!-- source: internal/component/plugin/server/dispatch_route.go -- applyRouteInstall -->
 <p>Beside <code>distance</code>, the <code>rib</code> block takes a <code>fib-withhold</code> leaf-list. It names
 the protocols ze withholds from the FIB, which is a later stage. See
 <a href="#fib-programming">FIB Programming</a>.
@@ -4269,15 +4289,15 @@ startup uses the tree beside the file, with no <code>ze.config.dir</code> pin.</
 <p>The native restart fixture performs an NTP exchange with its own loopback UDP
 server, then restarts Ze without a server and checks the restored system clock.
 It changes the clock and therefore belongs in a disposable QEMU guest. With
-the guest's <code>ze</code> and <code>ze-test</code> binaries on <code>PATH</code>, its explicit action from a
+the guest's <code>ze</code> and <code>le test</code> binaries on <code>PATH</code>, its explicit action from a
 scratch directory is:</p>
-<pre><code class="language-sh">ZE_STORAGE_CLOCK_TEST=1 ze-test fixture storage/consumer-restart ntp
+<pre><code class="language-sh">ZE_STORAGE_CLOCK_TEST=1 le test fixture storage/consumer-restart ntp
 </code></pre>
 <p>The fixture refuses to run without that opt-in. Its suite carrier,
 <code>test/plugin/storage-ntp-restart.ci</code>, passes the opt-in and is gated
 <code>option=needs-linux:caps=sys-time</code>: a process without <code>CAP_SYS_TIME</code> skips it,
 so an unprivileged developer host keeps its clock and the QEMU guest
-(<code>./le qemu all-tests</code>) runs it.</p>
+(<code>./le test qemu all-tests</code>) runs it.</p>
 <!-- source: internal/test/fixture/storage_consumer_restart.go -- storageNTPRestart, storageNTPServer -->
 <!-- source: internal/plugins/ntp/yang/ze-ntp-conf.yang -- NTP config schema -->
 <!-- source: internal/plugins/ntp/ntp.go -- parseNTPConfig, doSync -->
@@ -4944,7 +4964,7 @@ local interface or the connection fails with <code>cannot assign requested addre
 <td>RPKI/RTR</td>
 <td><code>bgp rpki cache-server &lt;addr&gt;</code></td>
 <td><code>source-address</code></td>
-<td>TCP</td>
+<td>Mutual TLS, or explicitly trusted TCP</td>
 </tr>
 <tr>
 <td>Flow Export</td>
@@ -5130,7 +5150,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

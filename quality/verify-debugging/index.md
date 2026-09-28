@@ -13,27 +13,27 @@ Use this page when `./le verify current mode full` fails, when a test needs to b
 
 | Stage | Purpose | Typical rerun |
 | --- | --- | --- |
-| Lint and architecture checks | Formatting, static analysis, generated docs, wiring, and project rules. | `./le verify lint run` or the printed validation target. |
+| Lint and architecture checks | Formatting, static analysis, generated docs, wiring, and project rules. | `./le go lint run` or the printed validation target. |
 | Unit and race checks | Package contracts, changed groups, and race-sensitive paths. | `go test -race -run TestName ./path/...` |
-| Functional suites | `.ci`, `.wb`, and `.et` behavior that an operator or browser can observe. | `bin/ze-test <suite> NAME -v` |
+| Functional suites | `.ci`, `.wb`, and `.et` behavior that an operator or browser can observe. | `./le test <suite> NAME -v` |
 | Compatibility checks | ExaBGP and related protocol compatibility gates that belong in the local pass. | The command printed by the failure group. |
 
-The verify runner writes logs under `tmp/`, keeps a compact failure index, and prints grouped failures. The lock in `internal/le/verify/lock/register.go` prevents two verify-class runs from corrupting shared temp state or making failures unreadable.
+The verify runner writes logs under `tmp/`, keeps a compact failure index, and prints grouped failures. Heavy-job admission in `internal/le/job/job.go` (`./le job run`) prevents two verify-class runs from corrupting shared temp state or making failures unreadable.
 
 ## Reading the failure
 
 Start with the first failing group. It tells you the stage, summary, related files, and rerun command. If the failure came from a functional transcript, rerun exactly that test with `-v`. If it came from a Go package, rerun one test or one package before rerunning a group target.
 
 ```
-bin/ze-test bgp plugin 42 -v
+./le test bgp plugin 42 -v
 go test -race -run TestName ./internal/component/bgp/...
 ```
 
 If the rerun prints a temporary directory, keep it only when you need the artifacts. If the test is Linux-only, go straight to QEMU rather than trying to make Darwin behave like Linux.
 
 ```
-ZE_TEST_KEEP_TMP=1 bin/ze-test bgp plugin 42 -v
-./le qemu run command 'bin/ze-test-linux-arm64 bgp plugin 79 -v' keep-alive
+ZE_TEST_KEEP_TMP=1 ./le test bgp plugin 42 -v
+./le test qemu run command 'le test bgp plugin 79 -v' keep-alive
 ```
 
 ## Trace output
@@ -54,10 +54,10 @@ Ze logging is controlled per subsystem through environment variables. Enable the
 
 | Surface | Example |
 | --- | --- |
-| BGP peer behavior | `ze.log.bgp.reactor.peer=debug bin/ze-test bgp plugin NAME -v` |
-| Plugin server behavior | `ze.log.plugin.server=debug bin/ze-test bgp plugin NAME -v` |
-| Config parsing | `ze.log.config=debug bin/ze-test bgp parse NAME -v` |
-| Linux diagnosis | `./le qemu run command '...' keep-alive`, then inspect `ip`, `nft`, `dmesg`, and temp files. |
+| BGP peer behavior | `ze.log.bgp.reactor.peer=debug ./le test bgp plugin NAME -v` |
+| Plugin server behavior | `ze.log.plugin.server=debug ./le test bgp plugin NAME -v` |
+| Config parsing | `ze.log.config=debug ./le test bgp parse NAME -v` |
+| Linux diagnosis | `./le test qemu run command '...' keep-alive`, then inspect `ip`, `nft`, `dmesg`, and temp files. |
 
 Do not turn on every log by default. Broad logs can hide the one line that matters and can change timing in concurrent tests.
 

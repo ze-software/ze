@@ -312,7 +312,7 @@ Sender remains conservative at 128 bytes for interoperability.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L448" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShortestFormUTF8</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-2-3">RFC9003-2-3</code></td><td colspan="3"><span class="rfc-subject">Error Subcode value MUST be one of: 2 (Administrative Shutdown) or 4 (Administrative Reset) (S2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-2-3">RFC9003-2-3</code></td><td colspan="3"><span class="rfc-subject">Subcode: The Error Subcode value MUST be one of the following values: 2 (&#34;Administrative Shutdown&#34;) or 4 (&#34;Administrative Reset&#34;). (S2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2 - Shutdown Communication</td>
@@ -321,7 +321,7 @@ Sender remains conservative at 128 bytes for interoperability.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L375" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203Subcode</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-2-4">RFC9003-2-4</code></td><td colspan="3"><span class="rfc-subject">Receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences (S2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9003-2-4">RFC9003-2-4</code></td><td colspan="3"><span class="rfc-subject">A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (S2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2 - Shutdown Communication</td>
@@ -443,7 +443,7 @@ Sender remains conservative at 128 bytes for interoperability.
 </table>
 </div>
 <h3><a href="#rfc9003-2-3"><code>RFC9003-2-3</code></a></h3>
-<p>Error Subcode value MUST be one of: 2 (Administrative Shutdown) or 4 (Administrative Reset) (S2)</p>
+<p>Subcode: The Error Subcode value MUST be one of the following values: 2 (&#34;Administrative Shutdown&#34;) or 4 (&#34;Administrative Reset&#34;). (S2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -463,7 +463,7 @@ Sender remains conservative at 128 bytes for interoperability.
 </table>
 </div>
 <h3><a href="#rfc9003-2-4"><code>RFC9003-2-4</code></a></h3>
-<p>Receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences (S2)</p>
+<p>A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (S2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -647,7 +647,7 @@ Sender remains conservative at 128 bytes for interoperability.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

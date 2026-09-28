@@ -297,7 +297,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-2-1">RFC7911-2-1</code></td><td colspan="3"><span class="rfc-subject">Path Identifier must be assigned so that (Prefix, Path Identifier) uniquely identifies a path advertised to a neighbor (Section 2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-2-1">RFC7911-2-1</code></td><td colspan="3"><span class="rfc-subject">However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor. (Section 2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2 - How to Identify a Path</td>
@@ -344,13 +344,13 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L19" title="test/plugin/adj-rib-in-replay-addpath-source.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-addpath-source.ci</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-4-1">RFC7911-4-1</code></td><td colspan="3"><span class="rfc-subject">Support for multiple AFI/SAFIs must be indicated in a single instance of the ADD-PATH Capability (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-4-1">RFC7911-4-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that wishes to indicate support for multiple AFI/SAFIs MUST do so by including the information in a single instance of the ADD-PATH Capability. (Section 4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4 - ADD-PATH Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L347" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathMultipleFamilies</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L318" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L382" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathMultipleFamilies</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L353" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathCapability</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-1">RFC7911-5-1</code></td><td colspan="3"><span class="rfc-subject">To send multiple paths, speaker must advertise ADD-PATH Capability with Send/Receive set to 2 or 3 (Section 5)</span></td></tr>
@@ -396,7 +396,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_test.go#L518" title="internal/component/bgp/reactor/reactor_test.go" target="_blank" rel="noopener"><code>TestWriteAnnounceUpdateWithAddPath</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-5">RFC7911-5-5</code></td><td colspan="3"><span class="rfc-subject">Peer shall act accordingly in processing an UPDATE message related to a particular AFI/SAFI (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-5">RFC7911-5-5</code></td><td colspan="3"><span class="rfc-subject">The peer SHALL act accordingly in processing an UPDATE message related to a particular &lt;AFI, SAFI&gt;. (Section 5)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>5 - Operation</td>
@@ -453,7 +453,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7911-2-1"><code>RFC7911-2-1</code></a></h3>
-<p>Path Identifier must be assigned so that (Prefix, Path Identifier) uniquely identifies a path advertised to a neighbor (Section 2)</p>
+<p>However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor. (Section 2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -608,19 +608,19 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 </table>
 </div>
 <h3><a href="#rfc7911-4-1"><code>RFC7911-4-1</code></a></h3>
-<p>Support for multiple AFI/SAFIs must be indicated in a single instance of the ADD-PATH Capability (Section 4)</p>
+<p>A BGP speaker that wishes to indicate support for multiple AFI/SAFIs MUST do so by including the information in a single instance of the ADD-PATH Capability. (Section 4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L318" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L353" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathCapability</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L347" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathMultipleFamilies</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L382" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathMultipleFamilies</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -743,7 +743,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 </table>
 </div>
 <h3><a href="#rfc7911-5-5"><code>RFC7911-5-5</code></a></h3>
-<p>Peer shall act accordingly in processing an UPDATE message related to a particular AFI/SAFI (Section 5)</p>
+<p>The peer SHALL act accordingly in processing an UPDATE message related to a particular &lt;AFI, SAFI&gt;. (Section 5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -943,7 +943,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

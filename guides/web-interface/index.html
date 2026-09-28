@@ -223,7 +223,7 @@ rendered a blank panel and answered 200.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>./le repository generate</code></td>
+<td><code>./le repo generate</code></td>
 <td>Regenerates every <code>*_templ.go</code> from its <code>.templ</code> source. Run it after any <code>.templ</code> edit</td>
 </tr>
 <tr>
@@ -232,14 +232,14 @@ rendered a blank panel and answered 200.</p>
 </tr>
 </tbody>
 </table>
-<p>The generator runs from <code>vendor/</code>, so <code>./le repository generate</code> needs no network and
-nothing on <code>PATH</code>. Run <code>./le repository generate</code>, not a bare <code>templ generate</code>: the walk
+<p>The generator runs from <code>vendor/</code>, so <code>./le repo generate</code> needs no network and
+nothing on <code>PATH</code>. Run <code>./le repo generate</code>, not a bare <code>templ generate</code>: the walk
 root is written into the generated Go, so a bare run rewrites every file and
 reds the check.</p>
 <p>The browser assets are vendored in <code>third_party/web/</code> and copied to each
-consumer by the same <code>./le repository generate</code> run. htmx 4.0.0 and its
+consumer by the same <code>./le repo generate</code> run. htmx 4.0.0 and its
 <code>hx-sse.min.js</code> extension serve the web interface, the looking glass and the
-chaos dashboard. <code>internal/le/webassets.Write</code> derives each page's asset set
+chaos dashboard. <code>internal/le/web/assets.Write</code> derives each page's asset set
 from its component graph, so a page loads only what it reaches.</p>
 <!-- source: internal/component/web/markup_check_test.go -- webMarkupExempt, TestNoGoFileBuildsMarkup -->
 <!-- source: third_party/web/MANIFEST.md -- vendored versions, consumers, sync targets -->
@@ -609,7 +609,7 @@ data: &lt;html-fragment&gt;
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

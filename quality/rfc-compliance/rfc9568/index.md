@@ -119,38 +119,38 @@ Two gaps gated in [`rfc/short/rfc9568.md`](https://github.com/ze-software/ze/blo
 | `RFC9568-5.1.2.3-1` | Set the IPv6 Hop Limit of transmitted VRRP packets to 255 (§5.1.2.3) | MUST | 5.1.2.3 | **positive:** `unit/verify` [`TestIntegrationOpenInstanceSocketOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_integration_linux_test.go#L241). **negative:** no negative test. **{single-polarity}:** the hop limit is a socket option, IPV6_MULTICAST_HOPS 255 set once at openV6 internal/plugins/vrrp/transport/backend_linux.go:185, so every advertisement on that socket carries 255 and no input produces another value -- the receive-side hop-limit discard is the separate RFC9568-5.1.2.3-2. EVIDENCE DISCLOSURE: the sole positive test is internal/plugins/vrrp/transport/transport_integration_linux_test.go:239, which does NOT run in the ordinary unit suite -- the file is gated //go:build integration && linux and its setupLab (internal/plugins/vrrp/transport/transport_integration_linux_test.go:86) skips without CAP_NET_RAW (skipNoRaw, internal/plugins/vrrp/transport/transport_integration_linux_test.go:76-80) and without CAP_NET_ADMIN (internal/plugins/vrrp/transport/transport_integration_linux_test.go:96, :102, :120). It runs under the privileged QEMU integration suite; on an unprivileged host it skips and this requirement is proven by nothing. The evidence itself is genuine: the test getsockopt reads IPV6_MULTICAST_HOPS back from both the tx and the NA socket and requires 255, so the kernel accepted the value |
 | `RFC9568-5.1.2.3-2` | Discard received IPv6 VRRP packets whose Hop Limit is not equal to 255 (§5.1.2.3, §7.1) | MUST | 5.1.2.3 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv6`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L103). **negative:** `unit/verify` [`TestDecodeV3IPv6ChecksumAndHopLimit`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L664) |
 | `RFC9568-5.2.2-1` | Discard packets with unknown Type; only 1 = ADVERTISEMENT is defined (§5.2.2, §7.1) | MUST | 5.2.2 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L76). **negative:** `unit/verify` [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L151) |
-| `RFC9568-5.2.4-1` | Use Priority 255 for the VRRP Router that owns the Virtual Router's IPvX address(es) (§5.2.4) | MUST | 5.2.4 | **positive:** `unit/verify` [`TestEffectivePriorityWithTracking`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L1582). **positive:** `unit/verify` [`TestOwnerAutoDetection`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L773). **negative:** `unit/verify` [`TestOwnerAutoDetection`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L775) |
-| `RFC9568-5.2.4-2` | Use Priority values 1-254 for VRRP Routers backing up a Virtual Router (§5.2.4) | MUST | 5.2.4 | **positive:** `unit/verify` [`TestBoundaryPriority`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L318). **positive:** `unit/verify` [`TestEffectivePriorityWithTracking`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L1583). **negative:** `unit/verify` [`TestBoundaryPriority`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L320) |
-| `RFC9568-5.2.5-1` | Ignore a received VRRP advertisement whose IPvX Addr Count is 0 (§5.2.5, erratum 8299) | MUST | 5.2.5 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L78). **negative:** `unit/verify` [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L544) |
-| `RFC9568-5.2.6-1` | Set the Reserve field to zero on transmission and ignore it on reception (§5.2.6) | MUST | 5.2.6 | **positive:** `unit/verify` [`TestEncodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L106). **negative:** `unit/verify` [`TestDecodeV3ReserveIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L638) |
-| `RFC9568-5.2.9-1` | Send the IPv6 link-local address associated with the Virtual Router as the first address in the list (§5.2.9, §6.1, erratum 8300) | MUST | 5.2.9 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv6`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L106). **positive:** `unit/verify` [`TestValidateIPv6LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L523). **negative:** `unit/verify` [`TestValidateIPv6LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L525). **negative:** `unit/verify` [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L260) |
+| `RFC9568-5.2.4-1` | The priority value for the VRRP Router that owns the IPvX address associated with the Virtual Router MUST be 255 (decimal). (§5.2.4) | MUST | 5.2.4 | **positive:** `unit/verify` [`TestEffectivePriorityWithTracking`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L1582). **positive:** `unit/verify` [`TestOwnerAutoDetection`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L773). **negative:** `unit/verify` [`TestOwnerAutoDetection`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L775) |
+| `RFC9568-5.2.4-2` | VRRP Routers backing up a Virtual Router MUST use priority values between 1-254 (decimal). (§5.2.4) | MUST | 5.2.4 | **positive:** `unit/verify` [`TestBoundaryPriority`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L318). **positive:** `unit/verify` [`TestEffectivePriorityWithTracking`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L1583). **negative:** `unit/verify` [`TestBoundaryPriority`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L320) |
+| `RFC9568-5.2.5-1` | If the received count is 0, the VRRP advertisement MUST be ignored. (§5.2.5, erratum 8299) | MUST | 5.2.5 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L78). **negative:** `unit/verify` [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L544) |
+| `RFC9568-5.2.6-1` | The Reserve field MUST be set to zero on transmission and ignored on reception. (§5.2.6) | MUST | 5.2.6 | **positive:** `unit/verify` [`TestEncodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L106). **negative:** `unit/verify` [`TestDecodeV3ReserveIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L638) |
+| `RFC9568-5.2.9-1` | For IPv6, the first address MUST be the IPv6 link-local address associated with the Virtual Router. (§5.2.9, §6.1, erratum 8300) | MUST | 5.2.9 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv6`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L106). **positive:** `unit/verify` [`TestValidateIPv6LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L523). **negative:** `unit/verify` [`TestValidateIPv6LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L525). **negative:** `unit/verify` [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L260) |
 | `RFC9568-5.2.9-2` | Advertise addresses whose family is the same as the VRRP packet's IPvX header address family (§5.2.9) | MUST | 5.2.9 | **positive:** `unit/verify` [`TestValidateVIPFamilyMatchesGroupFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L547). **negative:** `unit/verify` [`TestValidateVIPFamilyMatchesGroupFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L549) |
-| `RFC9568-6.1-1` | Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements when Accept_Mode is False (§6.1, §6.4.3) | MUST NOT | 6.1 | **positive:** `unit/verify` [`TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L109). **negative:** `unit/verify` [`TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L111) |
-| `RFC9568-6.4.2-1` | Backup: never respond to ARP requests for the IPv4 address(es) associated with the Virtual Router (§6.4.2) | MUST NOT | 6.4.2 | **positive:** `unit/verify` [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L323). **negative:** `unit/verify` [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L368) |
-| `RFC9568-6.4.2-2` | Backup: never respond to ND Neighbor Solicitations for the IPv6 address(es) associated with the Virtual Router (§6.4.2) | MUST NOT | 6.4.2 | **positive:** `unit/verify` [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L647). **negative:** `unit/verify` [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L649) |
-| `RFC9568-6.4.2-3` | Backup: never send ND Router Advertisements for the Virtual Router (§6.4.2) | MUST NOT | 6.4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze emits no ND Router Advertisement in any state -- the only ICMPv6 message the plugin builds is the unsolicited Neighbor Advertisement, type 136 at internal/plugins/vrrp/transport/na.go:25,58, and a grep for a type-134 or router-advertisement builder over internal/plugins/vrrp returns nothing, so a Backup has no path that could send one. The absent Active-side emission is the gap tracked at RFC9568-6.4.3-4 |
-| `RFC9568-6.4.2-4` | Backup: discard packets with a destination link-layer MAC address equal to the Virtual Router MAC address (§6.4.2) | MUST | 6.4.2 | **positive:** `unit/verify` [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L325). **negative:** `unit/verify` [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L370) |
-| `RFC9568-6.4.2-5` | Backup: never accept packets addressed to the IPvX address(es) associated with the Virtual Router (§6.4.2) | MUST NOT | 6.4.2 | **positive:** `unit/verify` [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L327). **negative:** `unit/verify` [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L372) |
+| `RFC9568-6.1-1` | Note: IPv6 Neighbor Solicitations and Neighbor Advertisements MUST NOT be dropped when Accept_Mode is False. (§6.1, §6.4.3) | MUST NOT | 6.1 | **positive:** `unit/verify` [`TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L109). **negative:** `unit/verify` [`TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L111) |
+| `RFC9568-6.4.2-1` | - It MUST NOT respond to ARP requests for the IPv4 address(es) associated with the Virtual Router. (§6.4.2) | MUST NOT | 6.4.2 | **positive:** `unit/verify` [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L323). **negative:** `unit/verify` [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L368) |
+| `RFC9568-6.4.2-2` | - It MUST NOT respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the Virtual Router. (§6.4.2) | MUST NOT | 6.4.2 | **positive:** `unit/verify` [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L647). **negative:** `unit/verify` [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L649) |
+| `RFC9568-6.4.2-3` | - It MUST NOT send ND Router Advertisement messages for the Virtual Router. (§6.4.2) | MUST NOT | 6.4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze emits no ND Router Advertisement in any state -- the only ICMPv6 message the plugin builds is the unsolicited Neighbor Advertisement, type 136 at internal/plugins/vrrp/transport/na.go:25,58, and a grep for a type-134 or router-advertisement builder over internal/plugins/vrrp returns nothing, so a Backup has no path that could send one. The absent Active-side emission is the gap tracked at RFC9568-6.4.3-4 |
+| `RFC9568-6.4.2-4` | * It MUST discard packets with a destination link-layer MAC address equal to the Virtual Router MAC address. (§6.4.2) | MUST | 6.4.2 | **positive:** `unit/verify` [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L325). **negative:** `unit/verify` [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L370) |
+| `RFC9568-6.4.2-5` | * It MUST NOT accept packets addressed to the IPvX address(es) associated with the Virtual Router. (§6.4.2) | MUST NOT | 6.4.2 | **positive:** `unit/verify` [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L327). **negative:** `unit/verify` [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L372) |
 | `RFC9568-6.4.2-6` | Backup: on Shutdown, cancel the Active_Down_Timer and transition to Initialize (§6.4.2) | MUST | 6.4.2 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L109). **negative:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L111) |
 | `RFC9568-6.4.2-7` | Backup: when the Active_Down_Timer fires, send an ADVERTISEMENT, send gratuitous ARP per IPv4 address (erratum 7949: containing the IPv4 address, target link-layer = Virtual Router MAC) or join the Solicited-Node group and send unsolicited NA (R set, S clear, O set) per IPv6 address, set Adver_Timer to Advertisement_Interval, transition to Active (§6.4.2) | MUST | 6.4.2 | **positive:** `unit/verify` [`TestFSMMasterDownPromotion`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L447). **negative:** `unit/verify` [`TestFSMStaleTimerGenerationIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L638) |
 | `RFC9568-6.4.2-8` | Backup: on an advertisement with Priority 0, set the Active_Down_Timer to Skew_Time (§6.4.2) | MUST | 6.4.2 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L113). **negative:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L115) |
 | `RFC9568-6.4.2-9` | Backup: on a non-zero-priority advertisement, if Preempt_Mode is False or the advertised Priority >= local Priority, adopt the Max Advertise Interval as Active_Adver_Interval, recompute Skew_Time and Active_Down_Interval, and reset the Active_Down_Timer (§6.4.2) | MUST | 6.4.2 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L117). **negative:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L119) |
 | `RFC9568-6.4.2-10` | Backup: on a non-zero-priority advertisement with Preempt_Mode True and advertised Priority < local Priority, discard the advertisement (§6.4.2) | MUST | 6.4.2 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L121). **negative:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L123) |
-| `RFC9568-6.4.3-1` | Active: respond to ARP requests for the Virtual Router IPv4 address(es), answering with the Virtual Router MAC address (§6.4.3, §8.1.2) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L63). **negative:** `unit/verify` [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L124) |
-| `RFC9568-6.4.3-2` | Active (IPv6): be a member of the Solicited-Node multicast address for the Virtual Router IPv6 address(es) (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L651). **negative:** no negative test. **{single-polarity}:** the membership is the kernel's automatic consequence of the address install ze performs on promotion (doInstallVIPs internal/plugins/vrrp/instance.go:369 registers the VIP on the virtual-MAC macvlan), so there is no ze input that installs the address yet skips the join, and the not-a-member case is the Backup requirement RFC9568-6.4.2-2 |
-| `RFC9568-6.4.3-3` | Active (IPv6): respond to ND Neighbor Solicitations, with the Router Flag set, for the Virtual Router IPv6 address(es), answering with the Virtual Router MAC address (§6.4.3, §8.2.2) | MUST | 6.4.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze answers the solicitation from the virtual-MAC macvlan that holds the VIP (doInstallVIPs internal/plugins/vrrp/instance.go:369), but nothing makes that reply carry the Router flag: the only R-bit producer in the plugin is the UNSOLICITED announcement builder, naFlags internal/plugins/vrrp/transport/na.go:30 used by BuildNA na.go:64, and the solicited reply is left to the kernel while applyDataplaneSysctls internal/plugins/vrrp/dataplane_linux.go:125 sets only accept_dad on the IPv6 macvlan and never a forwarding knob, so the R flag depends on host state ze does not manage |
+| `RFC9568-6.4.3-1` | - It MUST respond to ARP requests for the IPv4 address(es) associated with the Virtual Router. (§6.4.3, §8.1.2) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L71). **negative:** `unit/verify` [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L133) |
+| `RFC9568-6.4.3-2` | - It MUST be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the Virtual Router. (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L651). **negative:** no negative test. **{single-polarity}:** the membership is the kernel's automatic consequence of the address install ze performs on promotion (doInstallVIPs internal/plugins/vrrp/instance.go:369 registers the VIP on the virtual-MAC macvlan), so there is no ze input that installs the address yet skips the join, and the not-a-member case is the Backup requirement RFC9568-6.4.2-2 |
+| `RFC9568-6.4.3-3` | - It MUST respond to ND Neighbor Solicitation messages (with the Router Flag (R) set) for the IPv6 address(es) associated with the Virtual Router. (§6.4.3, §8.2.2) | MUST | 6.4.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze answers the solicitation from the virtual-MAC macvlan that holds the VIP (doInstallVIPs internal/plugins/vrrp/instance.go:369), but nothing makes that reply carry the Router flag: the only R-bit producer in the plugin is the UNSOLICITED announcement builder, naFlags internal/plugins/vrrp/transport/na.go:30 used by BuildNA na.go:64, and the solicited reply is left to the kernel while applyDataplaneSysctls internal/plugins/vrrp/dataplane_linux.go:125 sets only accept_dad on the IPv6 macvlan and never a forwarding knob, so the R flag depends on host state ze does not manage |
 | `RFC9568-6.4.3-4` | Active (IPv6): send ND Router Advertisements for the Virtual Router (§6.4.3) | MUST | 6.4.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze runs IPv6 Virtual Routers but sends no Router Advertisement for them -- the announcer's only IPv6 frame is the unsolicited Neighbor Advertisement, icmpv6TypeNA 136 at internal/plugins/vrrp/transport/na.go:25 built by BuildNA na.go:56 and selected by frameBuilder internal/plugins/vrrp/transport/transport.go:511, and no RA builder or RA socket exists in the plugin |
-| `RFC9568-6.4.3-5` | Active: forward packets with a destination link-layer MAC address equal to the Virtual Router MAC address (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L365). **negative:** `unit/verify` [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L329) |
-| `RFC9568-6.4.3-6` | Active: accept packets addressed to the Virtual Router IPvX address(es) if the IPvX address owner or if Accept_Mode is True (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestActiveAddressOwnerAcceptsWhateverAcceptModeSays`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L267). **positive:** `unit/verify` [`TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L241). **positive:** `unit/verify` [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L367). **negative:** `unit/verify` [`TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L205). **negative:** `unit/verify` [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L331) |
+| `RFC9568-6.4.3-5` | * It MUST forward packets with a destination link-layer MAC address equal to the Virtual Router MAC address. (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L365). **negative:** `unit/verify` [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L329) |
+| `RFC9568-6.4.3-6` | * It MUST accept packets addressed to the IPvX address(es) associated with the Virtual Router if it is the IPvX address owner or if Accept_Mode is True. (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestActiveAddressOwnerAcceptsWhateverAcceptModeSays`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L267). **positive:** `unit/verify` [`TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L241). **positive:** `unit/verify` [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L367). **negative:** `unit/verify` [`TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L205). **negative:** `unit/verify` [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L331) |
 | `RFC9568-6.4.3-7` | Active: never accept packets addressed to the Virtual Router IPvX address(es) when neither owner nor Accept_Mode True (§6.4.3) | MUST NOT | 6.4.3 | **positive:** `unit/verify` [`TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L203). **negative:** `unit/verify` [`TestActiveAddressOwnerAcceptsWhateverAcceptModeSays`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L268). **negative:** `unit/verify` [`TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L243) |
 | `RFC9568-6.4.3-8` | Active: on Shutdown, cancel the Adver_Timer, send an ADVERTISEMENT with Priority = 0, and transition to Initialize (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L125). **positive:** `unit/verify` [`TestInstanceShutdownAsMasterSendsPriorityZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L440). **negative:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L127) |
 | `RFC9568-6.4.3-9` | Active: when the Adver_Timer fires, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L129). **negative:** `unit/verify` [`TestFSMStaleTimerGenerationIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L640) |
 | `RFC9568-6.4.3-10` | Active: on an advertisement with Priority 0, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L131). **negative:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L133) |
 | `RFC9568-6.4.3-11` | Active: on an advertisement with higher Priority, or equal Priority and greater sender primary IPvX address (unsigned integer comparison in network byte order), cancel the Adver_Timer, adopt Active_Adver_Interval, recompute Skew_Time and Active_Down_Interval, set the Active_Down_Timer, and transition to Backup (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L135). **negative:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L137) |
 | `RFC9568-6.4.3-12` | Active: on a losing advertisement (lower Priority, or equal Priority with smaller sender address), discard it and send an ADVERTISEMENT immediately to assert the Active state and refresh learning bridges (§6.4.3) | MUST | 6.4.3 | **positive:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L139). **negative:** `unit/verify` [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L141) |
-| `RFC9568-7.1-1` | Rx: verify the VRRP version is 3 (§7.1) | MUST | 7.1 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L79). **negative:** `unit/verify` [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L610) |
-| `RFC9568-7.1-2` | Rx: verify the VRRP packet type is 1 (ADVERTISEMENT) (§7.1) | MUST | 7.1 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L81). **negative:** `unit/verify` [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L153) |
-| `RFC9568-7.1-3` | Rx: verify the received packet contains the complete VRRP packet, including fixed fields and the IPvX address list (§7.1) | MUST | 7.1 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L82). **negative:** `unit/verify` [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L510) |
+| `RFC9568-7.1-1` | * It MUST verify that the VRRP version is 3. (§7.1) | MUST | 7.1 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L79). **negative:** `unit/verify` [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L610) |
+| `RFC9568-7.1-2` | * It MUST verify that the VRRP packet type is 1 (ADVERTISEMENT). (§7.1) | MUST | 7.1 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L81). **negative:** `unit/verify` [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L153) |
+| `RFC9568-7.1-3` | * It MUST verify that the received packet contains the complete VRRP packet (including fixed fields and the IPvX address). (§7.1) | MUST | 7.1 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L82). **negative:** `unit/verify` [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L510) |
 | `RFC9568-5.2.8-1` | Rx: verify the VRRP checksum (IPv6: including the pseudo-header) (§5.2.8, §7.1) | MUST | 5.2.8 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv6`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L105). **negative:** `unit/verify` [`TestDecodeV3IPv6ChecksumAndHopLimit`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L662) |
 | `RFC9568-7.1-4` | Rx: verify the VRID is configured on the receiving interface; as published also that the local router is not the IPvX address owner (erratum 8298 downgrades the owner check to SHOULD-verify-and-log) (§7.1) | MUST | 7.1 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L84). **negative:** `unit/verify` [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L164) |
 | `RFC9568-7.1-5` | Rx: verify the Max Advertise Interval is non-zero (§7.1, erratum 8301) | MUST | 7.1 | **positive:** `unit/verify` [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L85). **negative:** `unit/verify` [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L554) |
@@ -159,17 +159,17 @@ Two gaps gated in [`rfc/short/rfc9568.md`](https://github.com/ze-software/ze/blo
 | `RFC9568-7.2-2` | Tx: set the source MAC address to the Virtual Router MAC address (§7.2) | MUST | 7.2 | **positive:** `unit/verify` [`TestConstants`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L387). **negative:** no negative test. **{single-polarity}:** the source MAC is the derived Virtual Router MAC from packet.VirtualMAC internal/plugins/vrrp/packet/packet.go:97, egressed by binding the tx socket to that vMAC macvlan (internal/plugins/vrrp/transport/backend_linux.go:133 for IPv4, :179 for IPv6), a deterministic derivation with no input that yields another MAC |
 | `RFC9568-7.2-3` | Tx: set the source IP to the interface's primary IPv4 address, or its link-local IPv6 address (§7.2) | MUST | 7.2 | **positive:** `unit/verify` [`TestSendAdvertUsesParentPrimaryV4Source`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L209). **negative:** `unit/verify` [`TestSendAdvertNoLinkLocalSkipsAndCounts`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L401). **negative:** `unit/verify` [`TestSendAdvertNoPrimaryV4SkipsAndCounts`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L353) |
 | `RFC9568-7.2-4` | Tx: set the IPvX protocol to VRRP (112) and send to the VRRP IPvX multicast group (§7.2) | MUST | 7.2 | **positive:** `unit/verify` [`TestSendAdvertV3IPv4HeaderTTLProtoDst`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L308). **negative:** no negative test. **{single-polarity}:** buildIPv4Header writes protocol 112 at internal/plugins/vrrp/transport/transport.go:563 and SendAdvert targets 224.0.0.18 / ff02::12 at internal/plugins/vrrp/transport/backend_linux.go:242,256, all constants with no input that changes them |
-| `RFC9568-7.4-1` | Never use the Virtual Router MAC as the Net_Iface parameter in RFC 7217 / RFC 8981 interface identifier derivation (§7.4) | MUST NOT | 7.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze derives no interface identifiers -- a grep for 7217, 8981, addr_gen_mode or stable-privacy over internal/plugins/vrrp returns nothing, and the only IPv6 knob the plugin writes on a virtual-MAC device is accept_dad (internal/plugins/vrrp/dataplane_linux.go:135), so no ze code feeds the Virtual Router MAC into an IID derivation |
-| `RFC9568-8.1.2-1` | Active: never answer ARP requests for virtual addresses with the physical MAC address (§8.1.2) | MUST NOT | 8.1.2 | **positive:** `unit/verify` [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L65). **negative:** `unit/verify` [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L126) |
-| `RFC9568-8.1.2-2` | Delay gratuitous ARP at system boot until both the IPv4 address and the Virtual Router MAC address are configured (§8.1.2) | MUST | 8.1.2 | **positive:** `unit/verify` [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L698). **negative:** `unit/verify` [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L699) |
-| `RFC9568-8.1.3-1` | Advertise the Virtual Router MAC address in Proxy ARP messages for VRRP-protected addresses (§8.1.3) | MUST | 8.1.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze performs no proxy ARP for virtual addresses -- a grep for proxy_arp over internal/plugins/vrrp returns nothing, and the per-group virtual-MAC macvlan answers ARP for the VIP directly (createMacvlan internal/plugins/vrrp/register.go:329 plus the sole-responder sysctl recipe internal/plugins/vrrp/dataplane_linux.go:64,73) |
-| `RFC9568-8.2.2-1` | Active: never answer ND Neighbor Solicitations for virtual addresses with the physical MAC address (§8.2.2) | MUST NOT | 8.2.2 | **positive:** `unit/verify` [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L653). **negative:** no negative test. **{single-polarity}:** the virtual address is installed only on the virtual-MAC macvlan (doInstallVIPs internal/plugins/vrrp/instance.go:369 passing in.dev, the macvlan created with the vMAC at internal/plugins/vrrp/register.go:329-341) and never on the parent that carries the physical MAC, so no input yields a physical-MAC answer; answering nothing at all is the Backup requirement RFC9568-6.4.2-2 |
-| `RFC9568-8.2.2-2` | Active: include the Virtual Router MAC in the source link-layer address option of Neighbor Solicitations it sends for hosts (when the option is present) (§8.2.2) | MUST | 8.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze builds no Neighbor Solicitation -- the plugin's only ICMPv6 builder is BuildNA, type 136, internal/plugins/vrrp/transport/na.go:25,56, and no type-135 builder or NS send path exists anywhere under internal/plugins/vrrp |
-| `RFC9568-8.2.2-3` | Active: never use the physical MAC address in that source link-layer address option (§8.2.2) | MUST NOT | 8.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze builds no Neighbor Solicitation, so no source link-layer address option is authored by the plugin -- its only ICMPv6 builder is BuildNA, type 136, internal/plugins/vrrp/transport/na.go:25,56 |
-| `RFC9568-8.2.2-4` | Delay all ND Router Advertisements, Neighbor Advertisements, and Neighbor Solicitations at boot until both the IPv6 address and the Virtual Router MAC address are configured (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L700). **negative:** `unit/verify` [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L702) |
-| `RFC9568-8.2.3-1` | Configure Backup Routers to send the same Router Advertisement options as the address owner (§8.2.3) | MUST | 8.2.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this governs the Router Advertisement option set, and ze offers no RA surface for a Virtual Router at all -- the vrrp YANG group has no RA leaf (applyGroupLeaves internal/plugins/vrrp/groups.go:355 accepts vrid, virtual-address, priority, preempt, preempt-delay-seconds, advertise-interval-milliseconds, accept-mode and version only) and the plugin builds no RA. The absent Active-side emission is the gap tracked at RFC9568-6.4.3-4 |
+| `RFC9568-7.4-1` | The Virtual Router MAC MUST NOT be used for the Net_Iface parameter used in the Interface Identifier (IID) derivation algorithms in [RFC7217] and [RFC8981]. (§7.4) | MUST NOT | 7.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze derives no interface identifiers -- a grep for 7217, 8981, addr_gen_mode or stable-privacy over internal/plugins/vrrp returns nothing, and the only IPv6 knob the plugin writes on a virtual-MAC device is accept_dad (internal/plugins/vrrp/dataplane_linux.go:135), so no ze code feeds the Virtual Router MAC into an IID derivation |
+| `RFC9568-8.1.2-1` | The Active Router MUST NOT respond with its physical MAC address in the ARP response. (§8.1.2) | MUST NOT | 8.1.2 | **positive:** `unit/verify` [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L73). **negative:** `unit/verify` [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L135) |
+| `RFC9568-8.1.2-2` | * At system boot, when initializing interfaces for VRRP operation, gratuitous ARP messages MUST be delayed until both the IPv4 address and the Virtual Router MAC address are configured. (§8.1.2) | MUST | 8.1.2 | **positive:** `unit/verify` [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L698). **negative:** `unit/verify` [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L699) |
+| `RFC9568-8.1.3-1` | If Proxy ARP is to be used on a VRRP Router, then the VRRP Router MUST advertise the Virtual Router MAC address in the Proxy ARP message. (§8.1.3) | MUST | 8.1.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze performs no proxy ARP for virtual addresses -- a grep for proxy_arp over internal/plugins/vrrp returns nothing, and the per-group virtual-MAC macvlan answers ARP for the VIP directly (createMacvlan internal/plugins/vrrp/register.go:329 plus the sole-responder sysctl recipe internal/plugins/vrrp/dataplane_linux.go:64,73) |
+| `RFC9568-8.2.2-1` | The Active Router MUST NOT respond with its physical MAC address. (§8.2.2) | MUST NOT | 8.2.2 | **positive:** `unit/verify` [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L653). **negative:** no negative test. **{single-polarity}:** the virtual address is installed only on the virtual-MAC macvlan (doInstallVIPs internal/plugins/vrrp/instance.go:369 passing in.dev, the macvlan created with the vMAC at internal/plugins/vrrp/register.go:329-341) and never on the parent that carries the physical MAC, so no input yields a physical-MAC answer; answering nothing at all is the Backup requirement RFC9568-6.4.2-2 |
+| `RFC9568-8.2.2-2` | When an Active Router sends an ND Neighbor Solicitation message for a host's IPv6 address, the Active Router MUST include the Virtual Router MAC address for the Virtual Router if it sends a source link- layer address option in the Neighbor Solicitation message. (§8.2.2) | MUST | 8.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze builds no Neighbor Solicitation -- the plugin's only ICMPv6 builder is BuildNA, type 136, internal/plugins/vrrp/transport/na.go:25,56, and no type-135 builder or NS send path exists anywhere under internal/plugins/vrrp |
+| `RFC9568-8.2.2-3` | It MUST NOT use its physical MAC address in the source link-layer address option. (§8.2.2) | MUST NOT | 8.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze builds no Neighbor Solicitation, so no source link-layer address option is authored by the plugin -- its only ICMPv6 builder is BuildNA, type 136, internal/plugins/vrrp/transport/na.go:25,56 |
+| `RFC9568-8.2.2-4` | * At system boot, when initializing interfaces for VRRP operation, all ND Router Advertisements, ND Neighbor Advertisements, and ND Neighbor Solicitation messages MUST be delayed until both the IPv6 address and the Virtual Router MAC address are configured. (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L700). **negative:** `unit/verify` [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L702) |
+| `RFC9568-8.2.3-1` | The Backup Routers MUST be configured to send the same Router Advertisement options as the address owner. (§8.2.3) | MUST | 8.2.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this governs the Router Advertisement option set, and ze offers no RA surface for a Virtual Router at all -- the vrrp YANG group has no RA leaf (applyGroupLeaves internal/plugins/vrrp/groups.go:355 accepts vrid, virtual-address, priority, preempt, preempt-delay-seconds, advertise-interval-milliseconds, accept-mode and version only) and the plugin builds no RA. The absent Active-side emission is the gap tracked at RFC9568-6.4.3-4 |
 | `RFC9568-8.4.2-1` | Interop mode, Active: send both VRRPv2 and VRRPv3 advertisements at the configured rate, even sub-second (§8.4.2) | MUST | 8.4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze implements no VRRPv2/VRRPv3 dual mode -- a group runs exactly one version (parseVersion internal/plugins/vrrp/groups.go:429 admits 2 or 3, doSendAdvert internal/plugins/vrrp/instance.go:350 encodes that single spec.Version), and the receive ladder discards any advert whose wire version differs from the group's at internal/plugins/vrrp/packet/validate.go:149, so no dual-send path exists |
-| `RFC9568-8.4.2-2` | Interop mode, Backup: time out based on the rate advertised by the Active Router (§8.4.2) | MUST | 8.4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this requirement is scoped to the Section 8.4.2 interop mode, which ze does not implement -- one version per group (parseVersion internal/plugins/vrrp/groups.go:429) and a version-mismatch discard at internal/plugins/vrrp/packet/validate.go:149 mean a VRRPv2 Active Router is never heard by a v3 group at all. Native v3 interval adoption is the separate RFC9568-6.4.2-9 |
+| `RFC9568-8.4.2-2` | When a Virtual Router is configured this way and is the Backup Router, it MUST time out based on the rate advertised by the Active Router. (§8.4.2) | MUST | 8.4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this requirement is scoped to the Section 8.4.2 interop mode, which ze does not implement -- one version per group (parseVersion internal/plugins/vrrp/groups.go:429) and a version-mismatch discard at internal/plugins/vrrp/packet/validate.go:149 mean a VRRPv2 Active Router is never heard by a v3 group at all. Native v3 interval adoption is the separate RFC9568-6.4.2-9 |
 | `RFC9568-8.4.2-3` | Interop mode, Backup: translate a VRRPv2 Active Router's advertised interval from seconds to centiseconds (§8.4.2) | MUST | 8.4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** with no interop mode, a v3 group never accepts a VRRPv2 advert to translate -- the receive ladder discards a wire version that differs from the configured group version at internal/plugins/vrrp/packet/validate.go:149; the seconds/centiseconds conversion helpers exist per version (v2SecondsToMS and v3CentisecondsToMS internal/plugins/vrrp/packet/packet.go:233,240) and are never combined in one group |
 | `RFC9568-2.5-1` | Log (rate-limited) when queueing delays cause the Active Router to observe self-induced flapping at small Advertisement_Intervals (§2.5) | SHOULD | 2.5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9568-7.1-7` | Log the event (rate-limited) when a mandatory receive check fails (§7.1) | SHOULD | 7.1 | **positive:** no positive test. **negative:** no negative test |
@@ -177,7 +177,7 @@ Two gaps gated in [`rfc/short/rfc9568.md`](https://github.com/ze-software/ze/blo
 | `RFC9568-7.1-9` | Log (rate-limited) on Max Advertise Interval or address-list mismatch (§7.1) | SHOULD | 7.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9568-8.1.2-3` | After restart/boot, never send ARP messages using the physical MAC for owned IPv4 virtual addresses (§8.1.2) | SHOULD NOT | 8.1.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9568-8.1.2-4` | Broadcast a gratuitous ARP with the Virtual Router MAC for each IPv4 address when configuring an interface (§8.1.2) | SHOULD | 8.1.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9568-8.1.2-5` | Use an IPv4 address known to belong to a specific router for direct access (e.g., SSH) (§8.1.2) | SHOULD | 8.1.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9568-8.1.2-5` | * When, for example, Secure Shell (SSH) access to a particular VRRP Router is required, an IPv4 address known to belong to that router SHOULD be used. (§8.1.2) | SHOULD | 8.1.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9568-8.2.1-1` | Set the IPv6 source of ICMPv6 redirects to the address the end-host used for its next-hop decision (§8.2.1) | SHOULD | 8.2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9568-8.2.2-5` | After restart/boot, never send ND messages with the physical MAC for owned IPv6 virtual addresses (§8.2.2) | SHOULD NOT | 8.2.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9568-8.2.2-6` | Send an unsolicited ND Neighbor Advertisement with the Virtual Router MAC when configuring an interface (§8.2.2) | SHOULD | 8.2.2 | **positive:** no positive test. **negative:** no negative test |
@@ -204,16 +204,16 @@ Two gaps gated in [`rfc/short/rfc9568.md`](https://github.com/ze-software/ze/blo
 |---|---|---|
 | [`RFC9568-5.1.1.2-1`](#rfc9568-5.1.1.2-1) Never forward a datagram destined to 224.0.0.18, regardless of its TTL (§5.1.1.2) | no test | no test carries this requirement id; annotated {not-applicable}: the VRRP plugin forwards no IP datagram -- instance.onPacket internal/plugins/vrrp/instance.go:453 consumes every received advert into the state machine and re-emits nothing, and the tx socket scopes adverts to the link-local group with IP_MULTICAST_LOOP 0 at internal/plugins/vrrp/transport/backend_linux.go:143 |
 | [`RFC9568-5.1.2.2-1`](#rfc9568-5.1.2.2-1) Never forward a datagram destined to ff02:0:0:0:0:0:0:12, regardless of its Hop Limit (§5.1.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: the VRRP plugin forwards no IPv6 datagram -- instance.onPacket internal/plugins/vrrp/instance.go:453 consumes every received advert into the state machine, and the v6 tx socket sets IPV6_MULTICAST_LOOP 0 at internal/plugins/vrrp/transport/backend_linux.go:193 |
-| [`RFC9568-6.4.2-3`](#rfc9568-6.4.2-3) Backup: never send ND Router Advertisements for the Virtual Router (§6.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze emits no ND Router Advertisement in any state -- the only ICMPv6 message the plugin builds is the unsolicited Neighbor Advertisement, type 136 at internal/plugins/vrrp/transport/na.go:25,58, and a grep for a type-134 or router-advertisement builder over internal/plugins/vrrp returns nothing, so a Backup has no path that could send one. The absent Active-side emission is the gap tracked at RFC9568-6.4.3-4 |
-| [`RFC9568-6.4.3-3`](#rfc9568-6.4.3-3) Active (IPv6): respond to ND Neighbor Solicitations, with the Router Flag set, for the Virtual Router IPv6 address(es), answering with the Virtual Router MAC address (§6.4.3, §8.2.2) | {gap}, no test | ze answers the solicitation from the virtual-MAC macvlan that holds the VIP (doInstallVIPs internal/plugins/vrrp/instance.go:369), but nothing makes that reply carry the Router flag: the only R-bit producer in the plugin is the UNSOLICITED announcement builder, naFlags internal/plugins/vrrp/transport/na.go:30 used by BuildNA na.go:64, and the solicited reply is left to the kernel while applyDataplaneSysctls internal/plugins/vrrp/dataplane_linux.go:125 sets only accept_dad on the IPv6 macvlan and never a forwarding knob, so the R flag depends on host state ze does not manage |
+| [`RFC9568-6.4.2-3`](#rfc9568-6.4.2-3) - It MUST NOT send ND Router Advertisement messages for the Virtual Router. (§6.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze emits no ND Router Advertisement in any state -- the only ICMPv6 message the plugin builds is the unsolicited Neighbor Advertisement, type 136 at internal/plugins/vrrp/transport/na.go:25,58, and a grep for a type-134 or router-advertisement builder over internal/plugins/vrrp returns nothing, so a Backup has no path that could send one. The absent Active-side emission is the gap tracked at RFC9568-6.4.3-4 |
+| [`RFC9568-6.4.3-3`](#rfc9568-6.4.3-3) - It MUST respond to ND Neighbor Solicitation messages (with the Router Flag (R) set) for the IPv6 address(es) associated with the Virtual Router. (§6.4.3, §8.2.2) | {gap}, no test | ze answers the solicitation from the virtual-MAC macvlan that holds the VIP (doInstallVIPs internal/plugins/vrrp/instance.go:369), but nothing makes that reply carry the Router flag: the only R-bit producer in the plugin is the UNSOLICITED announcement builder, naFlags internal/plugins/vrrp/transport/na.go:30 used by BuildNA na.go:64, and the solicited reply is left to the kernel while applyDataplaneSysctls internal/plugins/vrrp/dataplane_linux.go:125 sets only accept_dad on the IPv6 macvlan and never a forwarding knob, so the R flag depends on host state ze does not manage |
 | [`RFC9568-6.4.3-4`](#rfc9568-6.4.3-4) Active (IPv6): send ND Router Advertisements for the Virtual Router (§6.4.3) | {gap}, no test | ze runs IPv6 Virtual Routers but sends no Router Advertisement for them -- the announcer's only IPv6 frame is the unsolicited Neighbor Advertisement, icmpv6TypeNA 136 at internal/plugins/vrrp/transport/na.go:25 built by BuildNA na.go:56 and selected by frameBuilder internal/plugins/vrrp/transport/transport.go:511, and no RA builder or RA socket exists in the plugin |
-| [`RFC9568-7.4-1`](#rfc9568-7.4-1) Never use the Virtual Router MAC as the Net_Iface parameter in RFC 7217 / RFC 8981 interface identifier derivation (§7.4) | no test | no test carries this requirement id; annotated {not-applicable}: ze derives no interface identifiers -- a grep for 7217, 8981, addr_gen_mode or stable-privacy over internal/plugins/vrrp returns nothing, and the only IPv6 knob the plugin writes on a virtual-MAC device is accept_dad (internal/plugins/vrrp/dataplane_linux.go:135), so no ze code feeds the Virtual Router MAC into an IID derivation |
-| [`RFC9568-8.1.3-1`](#rfc9568-8.1.3-1) Advertise the Virtual Router MAC address in Proxy ARP messages for VRRP-protected addresses (§8.1.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze performs no proxy ARP for virtual addresses -- a grep for proxy_arp over internal/plugins/vrrp returns nothing, and the per-group virtual-MAC macvlan answers ARP for the VIP directly (createMacvlan internal/plugins/vrrp/register.go:329 plus the sole-responder sysctl recipe internal/plugins/vrrp/dataplane_linux.go:64,73) |
-| [`RFC9568-8.2.2-2`](#rfc9568-8.2.2-2) Active: include the Virtual Router MAC in the source link-layer address option of Neighbor Solicitations it sends for hosts (when the option is present) (§8.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze builds no Neighbor Solicitation -- the plugin's only ICMPv6 builder is BuildNA, type 136, internal/plugins/vrrp/transport/na.go:25,56, and no type-135 builder or NS send path exists anywhere under internal/plugins/vrrp |
-| [`RFC9568-8.2.2-3`](#rfc9568-8.2.2-3) Active: never use the physical MAC address in that source link-layer address option (§8.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze builds no Neighbor Solicitation, so no source link-layer address option is authored by the plugin -- its only ICMPv6 builder is BuildNA, type 136, internal/plugins/vrrp/transport/na.go:25,56 |
-| [`RFC9568-8.2.3-1`](#rfc9568-8.2.3-1) Configure Backup Routers to send the same Router Advertisement options as the address owner (§8.2.3) | no test | no test carries this requirement id; annotated {not-applicable}: this governs the Router Advertisement option set, and ze offers no RA surface for a Virtual Router at all -- the vrrp YANG group has no RA leaf (applyGroupLeaves internal/plugins/vrrp/groups.go:355 accepts vrid, virtual-address, priority, preempt, preempt-delay-seconds, advertise-interval-milliseconds, accept-mode and version only) and the plugin builds no RA. The absent Active-side emission is the gap tracked at RFC9568-6.4.3-4 |
+| [`RFC9568-7.4-1`](#rfc9568-7.4-1) The Virtual Router MAC MUST NOT be used for the Net_Iface parameter used in the Interface Identifier (IID) derivation algorithms in [RFC7217] and [RFC8981]. (§7.4) | no test | no test carries this requirement id; annotated {not-applicable}: ze derives no interface identifiers -- a grep for 7217, 8981, addr_gen_mode or stable-privacy over internal/plugins/vrrp returns nothing, and the only IPv6 knob the plugin writes on a virtual-MAC device is accept_dad (internal/plugins/vrrp/dataplane_linux.go:135), so no ze code feeds the Virtual Router MAC into an IID derivation |
+| [`RFC9568-8.1.3-1`](#rfc9568-8.1.3-1) If Proxy ARP is to be used on a VRRP Router, then the VRRP Router MUST advertise the Virtual Router MAC address in the Proxy ARP message. (§8.1.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze performs no proxy ARP for virtual addresses -- a grep for proxy_arp over internal/plugins/vrrp returns nothing, and the per-group virtual-MAC macvlan answers ARP for the VIP directly (createMacvlan internal/plugins/vrrp/register.go:329 plus the sole-responder sysctl recipe internal/plugins/vrrp/dataplane_linux.go:64,73) |
+| [`RFC9568-8.2.2-2`](#rfc9568-8.2.2-2) When an Active Router sends an ND Neighbor Solicitation message for a host's IPv6 address, the Active Router MUST include the Virtual Router MAC address for the Virtual Router if it sends a source link- layer address option in the Neighbor Solicitation message. (§8.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze builds no Neighbor Solicitation -- the plugin's only ICMPv6 builder is BuildNA, type 136, internal/plugins/vrrp/transport/na.go:25,56, and no type-135 builder or NS send path exists anywhere under internal/plugins/vrrp |
+| [`RFC9568-8.2.2-3`](#rfc9568-8.2.2-3) It MUST NOT use its physical MAC address in the source link-layer address option. (§8.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze builds no Neighbor Solicitation, so no source link-layer address option is authored by the plugin -- its only ICMPv6 builder is BuildNA, type 136, internal/plugins/vrrp/transport/na.go:25,56 |
+| [`RFC9568-8.2.3-1`](#rfc9568-8.2.3-1) The Backup Routers MUST be configured to send the same Router Advertisement options as the address owner. (§8.2.3) | no test | no test carries this requirement id; annotated {not-applicable}: this governs the Router Advertisement option set, and ze offers no RA surface for a Virtual Router at all -- the vrrp YANG group has no RA leaf (applyGroupLeaves internal/plugins/vrrp/groups.go:355 accepts vrid, virtual-address, priority, preempt, preempt-delay-seconds, advertise-interval-milliseconds, accept-mode and version only) and the plugin builds no RA. The absent Active-side emission is the gap tracked at RFC9568-6.4.3-4 |
 | [`RFC9568-8.4.2-1`](#rfc9568-8.4.2-1) Interop mode, Active: send both VRRPv2 and VRRPv3 advertisements at the configured rate, even sub-second (§8.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze implements no VRRPv2/VRRPv3 dual mode -- a group runs exactly one version (parseVersion internal/plugins/vrrp/groups.go:429 admits 2 or 3, doSendAdvert internal/plugins/vrrp/instance.go:350 encodes that single spec.Version), and the receive ladder discards any advert whose wire version differs from the group's at internal/plugins/vrrp/packet/validate.go:149, so no dual-send path exists |
-| [`RFC9568-8.4.2-2`](#rfc9568-8.4.2-2) Interop mode, Backup: time out based on the rate advertised by the Active Router (§8.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: this requirement is scoped to the Section 8.4.2 interop mode, which ze does not implement -- one version per group (parseVersion internal/plugins/vrrp/groups.go:429) and a version-mismatch discard at internal/plugins/vrrp/packet/validate.go:149 mean a VRRPv2 Active Router is never heard by a v3 group at all. Native v3 interval adoption is the separate RFC9568-6.4.2-9 |
+| [`RFC9568-8.4.2-2`](#rfc9568-8.4.2-2) When a Virtual Router is configured this way and is the Backup Router, it MUST time out based on the rate advertised by the Active Router. (§8.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: this requirement is scoped to the Section 8.4.2 interop mode, which ze does not implement -- one version per group (parseVersion internal/plugins/vrrp/groups.go:429) and a version-mismatch discard at internal/plugins/vrrp/packet/validate.go:149 mean a VRRPv2 Active Router is never heard by a v3 group at all. Native v3 interval adoption is the separate RFC9568-6.4.2-9 |
 | [`RFC9568-8.4.2-3`](#rfc9568-8.4.2-3) Interop mode, Backup: translate a VRRPv2 Active Router's advertised interval from seconds to centiseconds (§8.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: with no interop mode, a v3 group never accepts a VRRPv2 advert to translate -- the receive ladder discards a wire version that differs from the configured group version at internal/plugins/vrrp/packet/validate.go:149; the seconds/centiseconds conversion helpers exist per version (v2SecondsToMS and v3CentisecondsToMS internal/plugins/vrrp/packet/packet.go:233,240) and are never combined in one group |
 
 ## Proof state
@@ -291,7 +291,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-5.2.4-1`](#rfc9568-5.2.4-1)
 
-Use Priority 255 for the VRRP Router that owns the Virtual Router's IPvX address(es) (§5.2.4)
+The priority value for the VRRP Router that owns the IPvX address associated with the Virtual Router MUST be 255 (decimal). (§5.2.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -303,7 +303,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-5.2.4-2`](#rfc9568-5.2.4-2)
 
-Use Priority values 1-254 for VRRP Routers backing up a Virtual Router (§5.2.4)
+VRRP Routers backing up a Virtual Router MUST use priority values between 1-254 (decimal). (§5.2.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -315,7 +315,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-5.2.5-1`](#rfc9568-5.2.5-1)
 
-Ignore a received VRRP advertisement whose IPvX Addr Count is 0 (§5.2.5, erratum 8299)
+If the received count is 0, the VRRP advertisement MUST be ignored. (§5.2.5, erratum 8299)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -326,7 +326,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-5.2.6-1`](#rfc9568-5.2.6-1)
 
-Set the Reserve field to zero on transmission and ignore it on reception (§5.2.6)
+The Reserve field MUST be set to zero on transmission and ignored on reception. (§5.2.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -337,7 +337,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-5.2.9-1`](#rfc9568-5.2.9-1)
 
-Send the IPv6 link-local address associated with the Virtual Router as the first address in the list (§5.2.9, §6.1, erratum 8300)
+For IPv6, the first address MUST be the IPv6 link-local address associated with the Virtual Router. (§5.2.9, §6.1, erratum 8300)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -361,7 +361,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-6.1-1`](#rfc9568-6.1-1)
 
-Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements when Accept_Mode is False (§6.1, §6.4.3)
+Note: IPv6 Neighbor Solicitations and Neighbor Advertisements MUST NOT be dropped when Accept_Mode is False. (§6.1, §6.4.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -372,7 +372,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-6.4.2-1`](#rfc9568-6.4.2-1)
 
-Backup: never respond to ARP requests for the IPv4 address(es) associated with the Virtual Router (§6.4.2)
+- It MUST NOT respond to ARP requests for the IPv4 address(es) associated with the Virtual Router. (§6.4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -383,7 +383,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-6.4.2-2`](#rfc9568-6.4.2-2)
 
-Backup: never respond to ND Neighbor Solicitations for the IPv6 address(es) associated with the Virtual Router (§6.4.2)
+- It MUST NOT respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the Virtual Router. (§6.4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -394,7 +394,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-6.4.2-3`](#rfc9568-6.4.2-3)
 
-Backup: never send ND Router Advertisements for the Virtual Router (§6.4.2)
+- It MUST NOT send ND Router Advertisement messages for the Virtual Router. (§6.4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -402,7 +402,7 @@ No test carries RFC9568-6.4.2-3, so no unit is bound to it.
 
 ### [`RFC9568-6.4.2-4`](#rfc9568-6.4.2-4)
 
-Backup: discard packets with a destination link-layer MAC address equal to the Virtual Router MAC address (§6.4.2)
+* It MUST discard packets with a destination link-layer MAC address equal to the Virtual Router MAC address. (§6.4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -413,7 +413,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-6.4.2-5`](#rfc9568-6.4.2-5)
 
-Backup: never accept packets addressed to the IPvX address(es) associated with the Virtual Router (§6.4.2)
+* It MUST NOT accept packets addressed to the IPvX address(es) associated with the Virtual Router. (§6.4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -479,18 +479,18 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-6.4.3-1`](#rfc9568-6.4.3-1)
 
-Active: respond to ARP requests for the Virtual Router IPv4 address(es), answering with the Virtual Router MAC address (§6.4.3, §8.1.2)
+- It MUST respond to ARP requests for the IPv4 address(es) associated with the Virtual Router. (§6.4.3, §8.1.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L124) | unit/verify | unproven |
-| positive | [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L63) | unit/verify | unproven |
+| negative | [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L133) | unit/verify | unproven |
+| positive | [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L71) | unit/verify | unproven |
 
 ### [`RFC9568-6.4.3-2`](#rfc9568-6.4.3-2)
 
-Active (IPv6): be a member of the Solicited-Node multicast address for the Virtual Router IPv6 address(es) (§6.4.3)
+- It MUST be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the Virtual Router. (§6.4.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -500,7 +500,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-6.4.3-3`](#rfc9568-6.4.3-3)
 
-Active (IPv6): respond to ND Neighbor Solicitations, with the Router Flag set, for the Virtual Router IPv6 address(es), answering with the Virtual Router MAC address (§6.4.3, §8.2.2)
+- It MUST respond to ND Neighbor Solicitation messages (with the Router Flag (R) set) for the IPv6 address(es) associated with the Virtual Router. (§6.4.3, §8.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -516,7 +516,7 @@ No test carries RFC9568-6.4.3-4, so no unit is bound to it.
 
 ### [`RFC9568-6.4.3-5`](#rfc9568-6.4.3-5)
 
-Active: forward packets with a destination link-layer MAC address equal to the Virtual Router MAC address (§6.4.3)
+* It MUST forward packets with a destination link-layer MAC address equal to the Virtual Router MAC address. (§6.4.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -527,7 +527,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-6.4.3-6`](#rfc9568-6.4.3-6)
 
-Active: accept packets addressed to the Virtual Router IPvX address(es) if the IPvX address owner or if Accept_Mode is True (§6.4.3)
+* It MUST accept packets addressed to the IPvX address(es) associated with the Virtual Router if it is the IPvX address owner or if Accept_Mode is True. (§6.4.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -609,7 +609,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-7.1-1`](#rfc9568-7.1-1)
 
-Rx: verify the VRRP version is 3 (§7.1)
+* It MUST verify that the VRRP version is 3. (§7.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -620,7 +620,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-7.1-2`](#rfc9568-7.1-2)
 
-Rx: verify the VRRP packet type is 1 (ADVERTISEMENT) (§7.1)
+* It MUST verify that the VRRP packet type is 1 (ADVERTISEMENT). (§7.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -631,7 +631,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-7.1-3`](#rfc9568-7.1-3)
 
-Rx: verify the received packet contains the complete VRRP packet, including fixed fields and the IPvX address list (§7.1)
+* It MUST verify that the received packet contains the complete VRRP packet (including fixed fields and the IPvX address). (§7.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -728,7 +728,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-7.4-1`](#rfc9568-7.4-1)
 
-Never use the Virtual Router MAC as the Net_Iface parameter in RFC 7217 / RFC 8981 interface identifier derivation (§7.4)
+The Virtual Router MAC MUST NOT be used for the Net_Iface parameter used in the Interface Identifier (IID) derivation algorithms in [RFC7217] and [RFC8981]. (§7.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -736,18 +736,18 @@ No test carries RFC9568-7.4-1, so no unit is bound to it.
 
 ### [`RFC9568-8.1.2-1`](#rfc9568-8.1.2-1)
 
-Active: never answer ARP requests for virtual addresses with the physical MAC address (§8.1.2)
+The Active Router MUST NOT respond with its physical MAC address in the ARP response. (§8.1.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L126) | unit/verify | unproven |
-| positive | [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L65) | unit/verify | unproven |
+| negative | [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L135) | unit/verify | unproven |
+| positive | [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L73) | unit/verify | unproven |
 
 ### [`RFC9568-8.1.2-2`](#rfc9568-8.1.2-2)
 
-Delay gratuitous ARP at system boot until both the IPv4 address and the Virtual Router MAC address are configured (§8.1.2)
+* At system boot, when initializing interfaces for VRRP operation, gratuitous ARP messages MUST be delayed until both the IPv4 address and the Virtual Router MAC address are configured. (§8.1.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -758,7 +758,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-8.1.3-1`](#rfc9568-8.1.3-1)
 
-Advertise the Virtual Router MAC address in Proxy ARP messages for VRRP-protected addresses (§8.1.3)
+If Proxy ARP is to be used on a VRRP Router, then the VRRP Router MUST advertise the Virtual Router MAC address in the Proxy ARP message. (§8.1.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -766,7 +766,7 @@ No test carries RFC9568-8.1.3-1, so no unit is bound to it.
 
 ### [`RFC9568-8.2.2-1`](#rfc9568-8.2.2-1)
 
-Active: never answer ND Neighbor Solicitations for virtual addresses with the physical MAC address (§8.2.2)
+The Active Router MUST NOT respond with its physical MAC address. (§8.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -776,7 +776,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-8.2.2-2`](#rfc9568-8.2.2-2)
 
-Active: include the Virtual Router MAC in the source link-layer address option of Neighbor Solicitations it sends for hosts (when the option is present) (§8.2.2)
+When an Active Router sends an ND Neighbor Solicitation message for a host's IPv6 address, the Active Router MUST include the Virtual Router MAC address for the Virtual Router if it sends a source link- layer address option in the Neighbor Solicitation message. (§8.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -784,7 +784,7 @@ No test carries RFC9568-8.2.2-2, so no unit is bound to it.
 
 ### [`RFC9568-8.2.2-3`](#rfc9568-8.2.2-3)
 
-Active: never use the physical MAC address in that source link-layer address option (§8.2.2)
+It MUST NOT use its physical MAC address in the source link-layer address option. (§8.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -792,7 +792,7 @@ No test carries RFC9568-8.2.2-3, so no unit is bound to it.
 
 ### [`RFC9568-8.2.2-4`](#rfc9568-8.2.2-4)
 
-Delay all ND Router Advertisements, Neighbor Advertisements, and Neighbor Solicitations at boot until both the IPv6 address and the Virtual Router MAC address are configured (§8.2.2)
+* At system boot, when initializing interfaces for VRRP operation, all ND Router Advertisements, ND Neighbor Advertisements, and ND Neighbor Solicitation messages MUST be delayed until both the IPv6 address and the Virtual Router MAC address are configured. (§8.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -803,7 +803,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9568-8.2.3-1`](#rfc9568-8.2.3-1)
 
-Configure Backup Routers to send the same Router Advertisement options as the address owner (§8.2.3)
+The Backup Routers MUST be configured to send the same Router Advertisement options as the address owner. (§8.2.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -819,7 +819,7 @@ No test carries RFC9568-8.4.2-1, so no unit is bound to it.
 
 ### [`RFC9568-8.4.2-2`](#rfc9568-8.4.2-2)
 
-Interop mode, Backup: time out based on the rate advertised by the Active Router (§8.4.2)
+When a Virtual Router is configured this way and is the Backup Router, it MUST time out based on the rate advertised by the Active Router. (§8.4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 

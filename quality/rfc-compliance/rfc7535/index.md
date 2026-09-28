@@ -100,7 +100,7 @@ No tracked gap in current source anchors.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7535-6-1` | DNAME support on the AS112 node itself is never required under this proposal (§6) | MUST | 6 - DNAME Deployment Considerations | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 7535 places the DNAME records in the redirecting zones, not on the AS112 node -- the node only answers authoritatively for EMPTY.AS112.ARPA. ze's AS112 node does exactly that (internal/plugins/as112/server.go announces the DNAME-redirection anycast addresses and internal/plugins/as112/integration_linux_test.go resolves foo.empty.as112.arpa) and implements no DNAME record processing, so this "DNAME is never required on the node" statement imposes no gated obligation on ze |
+| `RFC7535-6-1` | DNAME support on AS112 nodes themselves is never required under this proposal. (§6) | MUST | 6 - DNAME Deployment Considerations | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** RFC 7535 places the DNAME records in the redirecting zones, not on the AS112 node -- the node only answers authoritatively for EMPTY.AS112.ARPA. ze's AS112 node does exactly that (internal/plugins/as112/server.go announces the DNAME-redirection anycast addresses and internal/plugins/as112/integration_linux_test.go resolves foo.empty.as112.arpa) and implements no DNAME record processing, so this "DNAME is never required on the node" statement imposes no gated obligation on ze |
 | `RFC7535-3.1-1` | An AS112 node that implements this extension configures the 192.31.196.1 and 2001:4:112::1 nameserver addresses and announces covering BGP routes for them (§3.1) | SHOULD | 3.1 - Extensions to Support DNAME Redirection | **positive:** no positive test. **negative:** no negative test |
 | `RFC7535-3.1-2` | An AS112 node that implements this extension hosts the EMPTY.AS112.ARPA zone (§3.1) | SHOULD | 3.1 - Extensions to Support DNAME Redirection | **positive:** no positive test. **negative:** no negative test |
 | `RFC7535-3.1-3` | An IPv4-only AS112 node configures only the 192.31.196.1 address (§3.1) | SHOULD | 3.1 - Extensions to Support DNAME Redirection | **positive:** no positive test. **negative:** no negative test |
@@ -112,7 +112,7 @@ No tracked gap in current source anchors.
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC7535-6-1`](#rfc7535-6-1) DNAME support on the AS112 node itself is never required under this proposal (§6) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 7535 places the DNAME records in the redirecting zones, not on the AS112 node -- the node only answers authoritatively for EMPTY.AS112.ARPA. ze's AS112 node does exactly that (internal/plugins/as112/server.go announces the DNAME-redirection anycast addresses and internal/plugins/as112/integration_linux_test.go resolves foo.empty.as112.arpa) and implements no DNAME record processing, so this "DNAME is never required on the node" statement imposes no gated obligation on ze |
+| [`RFC7535-6-1`](#rfc7535-6-1) DNAME support on AS112 nodes themselves is never required under this proposal. (§6) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 7535 places the DNAME records in the redirecting zones, not on the AS112 node -- the node only answers authoritatively for EMPTY.AS112.ARPA. ze's AS112 node does exactly that (internal/plugins/as112/server.go announces the DNAME-redirection anycast addresses and internal/plugins/as112/integration_linux_test.go resolves foo.empty.as112.arpa) and implements no DNAME record processing, so this "DNAME is never required on the node" statement imposes no gated obligation on ze |
 
 ## Proof state
 
@@ -120,7 +120,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC7535-6-1`](#rfc7535-6-1)
 
-DNAME support on the AS112 node itself is never required under this proposal (§6)
+DNAME support on AS112 nodes themselves is never required under this proposal. (§6)
 
 Audit verdict: not audited: no reader has judged these tests
 

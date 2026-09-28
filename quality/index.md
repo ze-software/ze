@@ -73,9 +73,9 @@ Use one focused command while changing code.
 
 ```
 go test -race -run TestName ./internal/component/config/...
-FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s ./le fuzz run
+FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s ./le test fuzz run
 go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --fail-on-gate=false
-bin/ze-test bgp plugin 42 -v
+./le test bgp plugin 42 -v
 ```
 
 ### Handoff gate
@@ -85,7 +85,7 @@ Use the shared gate before handing over normal work.
 ```
 ./le verify current mode full
 ./le verify current mode changed
-./le repository check
+./le repo check
 ```
 
 ### Linux and release
@@ -93,10 +93,10 @@ Use the shared gate before handing over normal work.
 Use the wider gates only when the behavior needs Linux, real peers, or release evidence.
 
 ```
-./le qemu netns-test
-./le qemu run command '...' keep-alive
-./le integration interop
-./le evidence release-candidate
+./le test qemu netns-test
+./le test qemu run command '...' keep-alive
+./le test integration interop
+./le verify evidence release-candidate
 ```
 
 ## How a failure becomes useful

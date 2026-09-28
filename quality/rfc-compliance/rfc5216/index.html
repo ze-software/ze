@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5216 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5216: The EAP-TLS Authentication Protocol. 47 gated MUST-level requirements, 1 declared gaps, 27 with no test." />
+        <meta name="description" content="RFC 5216: The EAP-TLS Authentication Protocol. 47 gated MUST-level requirements, 8 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 5216 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5216: The EAP-TLS Authentication Protocol. 47 gated MUST-level requirements, 1 declared gaps, 27 with no test." />
+        <meta property="og:description" content="RFC 5216: The EAP-TLS Authentication Protocol. 47 gated MUST-level requirements, 8 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5216 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5216: The EAP-TLS Authentication Protocol. 47 gated MUST-level requirements, 1 declared gaps, 27 with no test." />
+        <meta name="twitter:description" content="RFC 5216: The EAP-TLS Authentication Protocol. 47 gated MUST-level requirements, 8 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,10 +116,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>27.7%</strong><b>13 of 47 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>66.0%</strong><b>31 of 47 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>12.8%</strong><b>6 of 47 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 47 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>20.0%</strong><b>8 of 40 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>57.9%</strong><b>44 of 76 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -127,13 +127,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>47</strong><b>of 52 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 47 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 47 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 47 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>4.3%</strong><b>2 of 47 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 47 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>59.6%</strong><b>28 of 47 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>17.0%</strong><b>8 of 47 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 47 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -212,25 +212,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>1</td>
+<td>8</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>27</td>
+<td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>40</td>
+<td>76</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>40</td>
+<td>76</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>8</td>
+<td>44</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5216.md</code></td>
@@ -258,7 +258,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-28 MUST-level gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5216.md" target="_blank" rel="noopener"><code>rfc/short/rfc5216.md</code></a>. <a href="#rfc5216-2.4-5"><code>RFC5216-2.4-5</code></a>, the mandatory TLS_RSA_WITH_3DES_EDE_CBC_SHA ciphersuite, is not offered (TLS 1.2+ Go defaults exclude insecure 3DES). The other 27 are the rows the 2026-09-21 extraction walk added from the document&#39;s own text and that no tagged test yet proves: <a href="#rfc5216-2.1.1-3"><code>RFC5216-2.1.1-3</code></a> through -10, <a href="#rfc5216-2.1.2-1"><code>RFC5216-2.1.2-1</code></a>, <a href="#rfc5216-2.1.5-2"><code>RFC5216-2.1.5-2</code></a> through -7, <a href="#rfc5216-2.4-7"><code>RFC5216-2.4-7</code></a>, <a href="#rfc5216-3-3"><code>RFC5216-3-3</code></a> through -6, <a href="#rfc5216-5.2-1"><code>RFC5216-5.2-1</code></a> through -5, and <a href="#rfc5216-5.3-2"><code>RFC5216-5.3-2</code></a> and -3. Ze runs the handshake through crypto/tls, so several of them are expected to hold structurally, but none has been demonstrated. <a href="#rfc5216-5.4-2"><code>RFC5216-5.4-2</code></a> is no longer among them: the peer re-checks the revocation status of the authenticator certificate once the CHILD_SA gives it a network, over https, and closes the SA when the responder reports it revoked (startServerCertRecheck, <a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/postauth_revocation.go" target="_blank" rel="noopener"><code>internal/component/ike/engine/postauth_revocation.go</code></a>, reached from runEstablished). It runs whichever TLS version the exchange negotiated, which is what this RFC asks for, and the chain it re-reads is the one the peer accepted (eap.PeerSession.ServerChains). <a href="#rfc5216-5.4-1"><code>RFC5216-5.4-1</code></a> is no longer among them either: checkChainRevocation (<a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/revocation.go" target="_blank" rel="noopener"><code>internal/core/eap/revocation.go</code></a>) checks every certificate on each verified chain except the trust anchor against the crl leaf-list its CA publishes, on the authenticator through tls.Config.VerifyConnection and on the peer through serverChainCheck.verifyConnection, and it is proven in both polarities on TLS 1.2, which is the version this RFC governs.
+<p><a href="#rfc5216-2.4-5"><code>RFC5216-2.4-5</code></a>, the mandatory TLS_RSA_WITH_3DES_EDE_CBC_SHA ciphersuite, is not offered (TLS 1.2+ Go defaults exclude insecure 3DES). The 15 rows the 2026-09-21 extraction walk added were classified the same day under the owner ruling that every MUST is a requirement. Six TLS handshake obligations crypto/tls performs on the tls.Config Ze installs (the sessionId, the resumption ciphersuite, the server_certificate flight, the peer&#39;s full and resumed flights, and the server&#39;s resumed flight) are proven at that boundary in rfc5216_tls_config_test.go; the server_key_exchange (<a href="#rfc5216-2.1.1-7"><code>RFC5216-2.1.1-7</code></a>) is decided by the crypto/tls default suites and carries a lower-layer annotation.</p>
+<p class="rfc-prose"><strong>Seven are scheduled gaps:</strong> TLS 1.0 support (<a href="#rfc5216-2.4-7"><code>RFC5216-2.4-7</code></a>, which RFC 8996 forbids, <a href="https://github.com/ze-software/ze/blob/main/plan/spec-eap-tls-tls10.md" target="_blank" rel="noopener"><code>plan/spec-eap-tls-tls10.md</code></a>, the owner decides which document governs); the Peer-Id and Server-Id derivation and authorization (<a href="#rfc5216-5.2-1"><code>RFC5216-5.2-1</code></a>, <a href="#rfc5216-5.3-2"><code>RFC5216-5.3-2</code></a>, <a href="#rfc5216-5.3-3"><code>RFC5216-5.3-3</code></a>, <a href="https://github.com/ze-software/ze/blob/main/plan/immediate/spec-eap-tls-identity-authorization.md" target="_blank" rel="noopener"><code>plan/immediate/spec-eap-tls-identity-authorization.md</code></a>); and the certificate naming profile on issuers and verifiers (<a href="#rfc5216-5.2-2"><code>RFC5216-5.2-2</code></a>, <a href="#rfc5216-5.2-3"><code>RFC5216-5.2-3</code></a>, <a href="#rfc5216-5.2-4"><code>RFC5216-5.2-4</code></a>, <a href="https://github.com/ze-software/ze/blob/main/plan/spec-eap-tls-certificate-profile.md" target="_blank" rel="noopener"><code>plan/spec-eap-tls-certificate-profile.md</code></a>). <a href="#rfc5216-5.2-5"><code>RFC5216-5.2-5</code></a> is structural in crypto/x509 and carries a lower-layer annotation. The 12 rows the same walk added that are now proven in both polarities are the Section 2.1.1 Start and first Response, the six Section 2.1.5 fragment-ACK and Identifier obligations, and the four Section 3 packet-field obligations (rfc5216_flight_rules_test.go and rfc5216_fragment_ack_test.go, internal/core/eap). <a href="#rfc5216-5.4-2"><code>RFC5216-5.4-2</code></a> is no longer among them: the peer re-checks the revocation status of the authenticator certificate once the CHILD_SA gives it a network, over https, and closes the SA when the responder reports it revoked (startServerCertRecheck, <a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/postauth_revocation.go" target="_blank" rel="noopener"><code>internal/component/ike/engine/postauth_revocation.go</code></a>, reached from runEstablished). It runs whichever TLS version the exchange negotiated, which is what this RFC asks for, and the chain it re-reads is the one the peer accepted (eap.PeerSession.ServerChains). <a href="#rfc5216-5.4-1"><code>RFC5216-5.4-1</code></a> is no longer among them either: checkChainRevocation (<a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/revocation.go" target="_blank" rel="noopener"><code>internal/core/eap/revocation.go</code></a>) checks every certificate on each verified chain except the trust anchor against the crl leaf-list its CA publishes, on the authenticator through tls.Config.VerifyConnection and on the peer through serverChainCheck.verifyConnection, and it is proven in both polarities on TLS 1.2, which is the version this RFC governs.</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -267,11 +268,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>13</strong></td>
+<td><strong>31</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>7</strong></td>
+<td><strong>16</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -279,7 +280,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>27</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -294,16 +295,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (13):</strong> <a href="#rfc5216-3-1"><code>RFC5216-3-1</code></a>, <a href="#rfc5216-2.1.1-1"><code>RFC5216-2.1.1-1</code></a>, <a href="#rfc5216-2.1.1-2"><code>RFC5216-2.1.1-2</code></a>, <a href="#rfc5216-2.1.5-1"><code>RFC5216-2.1.5-1</code></a>, <a href="#rfc5216-5.4-1"><code>RFC5216-5.4-1</code></a>, <a href="#rfc5216-5.4-2"><code>RFC5216-5.4-2</code></a>, <a href="#rfc5216-2.1.3-1"><code>RFC5216-2.1.3-1</code></a>, <a href="#rfc5216-2.1.3-3"><code>RFC5216-2.1.3-3</code></a>, <a href="#rfc5216-2.1.3-4"><code>RFC5216-2.1.3-4</code></a>, <a href="#rfc5216-2.1.3-5"><code>RFC5216-2.1.3-5</code></a>, <a href="#rfc5216-2.1.3-6"><code>RFC5216-2.1.3-6</code></a>, <a href="#rfc5216-2.1.3-7"><code>RFC5216-2.1.3-7</code></a>, <a href="#rfc5216-2.1.3-8"><code>RFC5216-2.1.3-8</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (7):</strong> <a href="#rfc5216-3-2"><code>RFC5216-3-2</code></a>, <a href="#rfc5216-2.4-1"><code>RFC5216-2.4-1</code></a>, <a href="#rfc5216-2.4-2"><code>RFC5216-2.4-2</code></a>, <a href="#rfc5216-2.4-3"><code>RFC5216-2.4-3</code></a>, <a href="#rfc5216-2.4-4"><code>RFC5216-2.4-4</code></a>, <a href="#rfc5216-2.4-5"><code>RFC5216-2.4-5</code></a>, <a href="#rfc5216-2.3-1"><code>RFC5216-2.3-1</code></a></p>
-<p class="rfc-id-list"><strong>No test and no annotation (27):</strong> <a href="#rfc5216-2.1.1-3"><code>RFC5216-2.1.1-3</code></a>, <a href="#rfc5216-2.1.1-4"><code>RFC5216-2.1.1-4</code></a>, <a href="#rfc5216-2.1.1-5"><code>RFC5216-2.1.1-5</code></a>, <a href="#rfc5216-2.1.1-6"><code>RFC5216-2.1.1-6</code></a>, <a href="#rfc5216-2.1.1-7"><code>RFC5216-2.1.1-7</code></a>, <a href="#rfc5216-2.1.1-8"><code>RFC5216-2.1.1-8</code></a>, <a href="#rfc5216-2.1.1-9"><code>RFC5216-2.1.1-9</code></a>, <a href="#rfc5216-2.1.1-10"><code>RFC5216-2.1.1-10</code></a>, <a href="#rfc5216-2.1.2-1"><code>RFC5216-2.1.2-1</code></a>, <a href="#rfc5216-2.1.5-2"><code>RFC5216-2.1.5-2</code></a>, <a href="#rfc5216-2.1.5-3"><code>RFC5216-2.1.5-3</code></a>, <a href="#rfc5216-2.1.5-4"><code>RFC5216-2.1.5-4</code></a>, <a href="#rfc5216-2.1.5-5"><code>RFC5216-2.1.5-5</code></a>, <a href="#rfc5216-2.1.5-6"><code>RFC5216-2.1.5-6</code></a>, <a href="#rfc5216-2.1.5-7"><code>RFC5216-2.1.5-7</code></a>, <a href="#rfc5216-2.4-7"><code>RFC5216-2.4-7</code></a>, <a href="#rfc5216-3-3"><code>RFC5216-3-3</code></a>, <a href="#rfc5216-3-4"><code>RFC5216-3-4</code></a>, <a href="#rfc5216-3-5"><code>RFC5216-3-5</code></a>, <a href="#rfc5216-3-6"><code>RFC5216-3-6</code></a>, <a href="#rfc5216-5.2-1"><code>RFC5216-5.2-1</code></a>, <a href="#rfc5216-5.2-2"><code>RFC5216-5.2-2</code></a>, <a href="#rfc5216-5.2-3"><code>RFC5216-5.2-3</code></a>, <a href="#rfc5216-5.2-4"><code>RFC5216-5.2-4</code></a>, <a href="#rfc5216-5.2-5"><code>RFC5216-5.2-5</code></a>, <a href="#rfc5216-5.3-2"><code>RFC5216-5.3-2</code></a>, <a href="#rfc5216-5.3-3"><code>RFC5216-5.3-3</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (31):</strong> <a href="#rfc5216-3-1"><code>RFC5216-3-1</code></a>, <a href="#rfc5216-2.1.1-1"><code>RFC5216-2.1.1-1</code></a>, <a href="#rfc5216-2.1.1-2"><code>RFC5216-2.1.1-2</code></a>, <a href="#rfc5216-2.1.5-1"><code>RFC5216-2.1.5-1</code></a>, <a href="#rfc5216-5.4-1"><code>RFC5216-5.4-1</code></a>, <a href="#rfc5216-5.4-2"><code>RFC5216-5.4-2</code></a>, <a href="#rfc5216-2.1.3-1"><code>RFC5216-2.1.3-1</code></a>, <a href="#rfc5216-2.1.3-3"><code>RFC5216-2.1.3-3</code></a>, <a href="#rfc5216-2.1.3-4"><code>RFC5216-2.1.3-4</code></a>, <a href="#rfc5216-2.1.3-5"><code>RFC5216-2.1.3-5</code></a>, <a href="#rfc5216-2.1.3-6"><code>RFC5216-2.1.3-6</code></a>, <a href="#rfc5216-2.1.3-7"><code>RFC5216-2.1.3-7</code></a>, <a href="#rfc5216-2.1.3-8"><code>RFC5216-2.1.3-8</code></a>, <a href="#rfc5216-2.1.1-3"><code>RFC5216-2.1.1-3</code></a>, <a href="#rfc5216-2.1.1-4"><code>RFC5216-2.1.1-4</code></a>, <a href="#rfc5216-2.1.1-5"><code>RFC5216-2.1.1-5</code></a>, <a href="#rfc5216-2.1.1-6"><code>RFC5216-2.1.1-6</code></a>, <a href="#rfc5216-2.1.1-8"><code>RFC5216-2.1.1-8</code></a>, <a href="#rfc5216-2.1.1-9"><code>RFC5216-2.1.1-9</code></a>, <a href="#rfc5216-2.1.1-10"><code>RFC5216-2.1.1-10</code></a>, <a href="#rfc5216-2.1.2-1"><code>RFC5216-2.1.2-1</code></a>, <a href="#rfc5216-2.1.5-2"><code>RFC5216-2.1.5-2</code></a>, <a href="#rfc5216-2.1.5-3"><code>RFC5216-2.1.5-3</code></a>, <a href="#rfc5216-2.1.5-4"><code>RFC5216-2.1.5-4</code></a>, <a href="#rfc5216-2.1.5-5"><code>RFC5216-2.1.5-5</code></a>, <a href="#rfc5216-2.1.5-6"><code>RFC5216-2.1.5-6</code></a>, <a href="#rfc5216-2.1.5-7"><code>RFC5216-2.1.5-7</code></a>, <a href="#rfc5216-3-3"><code>RFC5216-3-3</code></a>, <a href="#rfc5216-3-4"><code>RFC5216-3-4</code></a>, <a href="#rfc5216-3-5"><code>RFC5216-3-5</code></a>, <a href="#rfc5216-3-6"><code>RFC5216-3-6</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (16):</strong> <a href="#rfc5216-3-2"><code>RFC5216-3-2</code></a>, <a href="#rfc5216-2.4-1"><code>RFC5216-2.4-1</code></a>, <a href="#rfc5216-2.4-2"><code>RFC5216-2.4-2</code></a>, <a href="#rfc5216-2.4-3"><code>RFC5216-2.4-3</code></a>, <a href="#rfc5216-2.4-4"><code>RFC5216-2.4-4</code></a>, <a href="#rfc5216-2.4-5"><code>RFC5216-2.4-5</code></a>, <a href="#rfc5216-2.3-1"><code>RFC5216-2.3-1</code></a>, <a href="#rfc5216-2.1.1-7"><code>RFC5216-2.1.1-7</code></a>, <a href="#rfc5216-2.4-7"><code>RFC5216-2.4-7</code></a>, <a href="#rfc5216-5.2-1"><code>RFC5216-5.2-1</code></a>, <a href="#rfc5216-5.2-2"><code>RFC5216-5.2-2</code></a>, <a href="#rfc5216-5.2-3"><code>RFC5216-5.2-3</code></a>, <a href="#rfc5216-5.2-4"><code>RFC5216-5.2-4</code></a>, <a href="#rfc5216-5.2-5"><code>RFC5216-5.2-5</code></a>, <a href="#rfc5216-5.3-2"><code>RFC5216-5.3-2</code></a>, <a href="#rfc5216-5.3-3"><code>RFC5216-5.3-3</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-3-1">RFC5216-3-1</code></td><td colspan="3"><span class="rfc-subject">L bit MUST be set on the first fragment of a TLS message (§3, Flags)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-3-1">RFC5216-3-1</code></td><td colspan="3"><span class="rfc-subject">The L bit (length included) is set to indicate the presence of the four-octet TLS Message Length field, and MUST be set for the first fragment of a fragmented TLS message or set of messages. (§3, Flags)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -339,7 +339,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the server&#39;s tls.Config forces MinVersion TLS 1.2, so any ServerHello it emits is at least TLS 1.0 and it never negotiates lower (internal/core/eap/eap_tls.go:167)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.4-3">RFC5216-2.4-3</code></td><td colspan="3"><span class="rfc-subject">TLS compression MUST NOT be requested or negotiated (§2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.4-3">RFC5216-2.4-3</code></td><td colspan="3"><span class="rfc-subject">However, during the EAP-TLS conversation the EAP peer and server MUST NOT request or negotiate compression. (§2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.4</td>
@@ -348,7 +348,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> both tls.Config values delegate to Go crypto/tls, which implements no TLS compression and always sends null compression, so the prohibition holds structurally with no knob to falsify (internal/core/eap/eap_tls.go:163, peer.go:330)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.4-4">RFC5216-2.4-4</code></td><td colspan="3"><span class="rfc-subject">TLS ciphersuite negotiation MUST NOT be used to negotiate lower-layer data ciphersuites (§2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.4-4">RFC5216-2.4-4</code></td><td colspan="3"><span class="rfc-subject">Since the ciphersuite negotiated within EAP-TLS applies only to the EAP conversation, TLS ciphersuite negotiation MUST NOT be used to negotiate the ciphersuites used to secure data. (§2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.4</td>
@@ -366,7 +366,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the server sets no CipherSuites and requires TLS 1.2+, so it inherits Go&#39;s secure defaults which classify 3DES as insecure and do not enable TLS_RSA_WITH_3DES_EDE_CBC_SHA, leaving the RFC&#39;s mandatory-to-implement ciphersuite unavailable (internal/core/eap/eap_tls.go:163, peer.go:330)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-1">RFC5216-2.1.1-1</code></td><td colspan="3"><span class="rfc-subject">Server sends CertificateRequest; peer MUST provide a certificate for mutual authentication (§2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-1">RFC5216-2.1.1-1</code></td><td colspan="3"><span class="rfc-subject">If the EAP server sent a certificate_request message in the preceding EAP-Request packet, then unless the peer is configured for privacy (see Section 2.1.4) the peer MUST send, in addition, certificate and certificate_verify messages. (§2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.1</td>
@@ -404,7 +404,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_handshake_test.go#L468" title="internal/core/eap/eap_tls_handshake_test.go" target="_blank" rel="noopener"><code>TestEAPTLSServerRejectsUntrustedClientChain</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.4-1">RFC5216-5.4-1</code></td><td colspan="3"><span class="rfc-subject">CRL checking MUST be supported (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.4-1">RFC5216-5.4-1</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS peer and server implementations MUST support the use of Certificate Revocation Lists (CRLs); for details, see Section 3.3 of [RFC3280]. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4</td>
@@ -424,7 +424,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc9190_postauth_test.go#L283" title="internal/component/ike/engine/rfc9190_postauth_test.go" target="_blank" rel="noopener"><code>TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-1">RFC5216-2.1.3-1</code></td><td colspan="3"><span class="rfc-subject">&#34;The EAP Server MUST reply with an EAP-Failure packet since server authentication failure is a terminal condition&#34; (§2.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-1">RFC5216-2.1.3-1</code></td><td colspan="3"><span class="rfc-subject">The EAP Server MUST reply with an EAP-Failure packet since server authentication failure is a terminal condition. (§2.1.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.3</td>
@@ -433,7 +433,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L202" title="internal/core/eap/rfc5216_termination_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-3">RFC5216-2.1.3-3</code></td><td colspan="3"><span class="rfc-subject">&#34;To ensure that the peer receives the TLS alert message, the EAP server MUST wait for the peer to reply with an EAP-Response packet&#34; (§2.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-3">RFC5216-2.1.3-3</code></td><td colspan="3"><span class="rfc-subject">To ensure that the peer receives the TLS alert message, the EAP server MUST wait for the peer to reply with an EAP-Response packet. (§2.1.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.3</td>
@@ -452,7 +452,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L207" title="internal/core/eap/rfc5216_termination_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-5">RFC5216-2.1.3-5</code></td><td colspan="3"><span class="rfc-subject">&#34;If the peer authenticates successfully, the EAP server MUST respond with an EAP-Request packet with EAP-Type=EAP-TLS, which includes, in the case of a new TLS session, one or more TLS records containing TLS change_cipher_spec and finished handshake messages&#34; (§2.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-5">RFC5216-2.1.3-5</code></td><td colspan="3"><span class="rfc-subject">If the peer authenticates successfully, the EAP server MUST respond with an EAP-Request packet with EAP-Type=EAP-TLS, which includes, in the case of a new TLS session, one or more TLS records containing TLS change_cipher_spec and finished handshake messages. (§2.1.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.3</td>
@@ -461,7 +461,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L333" title="internal/core/eap/rfc5216_success_flight_test.go" target="_blank" rel="noopener"><code>TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-6">RFC5216-2.1.3-6</code></td><td colspan="3"><span class="rfc-subject">&#34;To ensure that the EAP Server receives the TLS alert message, the peer MUST wait for the EAP Server to reply before terminating the conversation&#34; (§2.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-6">RFC5216-2.1.3-6</code></td><td colspan="3"><span class="rfc-subject">To ensure that the EAP Server receives the TLS alert message, the peer MUST wait for the EAP Server to reply before terminating the conversation. (§2.1.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.3</td>
@@ -470,7 +470,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_peer_wait_test.go#L168" title="internal/core/eap/rfc5216_peer_wait_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerDoesNotWaitWhenItSentNothing</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-7">RFC5216-2.1.3-7</code></td><td colspan="3"><span class="rfc-subject">&#34;If the EAP server authenticates successfully, the peer MUST send an EAP-Response packet of EAP-Type=EAP-TLS, and no data&#34; (§2.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.3-7">RFC5216-2.1.3-7</code></td><td colspan="3"><span class="rfc-subject">If the EAP server authenticates successfully, the peer MUST send an EAP-Response packet of EAP-Type=EAP-TLS, and no data. (§2.1.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.3</td>
@@ -498,40 +498,40 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> both server and peer export the 64-octet MSK via ExportKeyingMaterial with the exact RFC label &#39;client EAP encryption&#39;, the only key the IKEv2 lower layer consumes (internal/core/eap/eap_tls.go:268, peer.go:381)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-3">RFC5216-2.1.1-3</code></td><td colspan="3"><span class="rfc-subject">&#34;Once having received the peer&#39;s Identity, the EAP server MUST respond with an EAP-TLS/Start packet, which is an EAP-Request packet with EAP-Type=EAP-TLS, the Start (S) bit set, and no data&#34; (§2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-3">RFC5216-2.1.1-3</code></td><td colspan="3"><span class="rfc-subject">Once having received the peer&#39;s Identity, the EAP server MUST respond with an EAP-TLS/Start packet, which is an EAP-Request packet with EAP-Type=EAP-TLS, the Start (S) bit set, and no data. (§2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L70" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216StartAnswersTheIdentityResponse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L102" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216NoStartBeforeTheIdentityIsReceived</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-4">RFC5216-2.1.1-4</code></td><td colspan="3"><span class="rfc-subject">&#34;If the peer&#39;s sessionId is null or unrecognized by the server, the server MUST choose the sessionId to establish a new session&#34; (§2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-4">RFC5216-2.1.1-4</code></td><td colspan="3"><span class="rfc-subject">If the peer&#39;s sessionId is null or unrecognized by the server, the server MUST choose the sessionId to establish a new session. (§2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.1-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L35" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L75" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-5">RFC5216-2.1.1-5</code></td><td colspan="3"><span class="rfc-subject">&#34;If the session matches the peer&#39;s, then the ciphersuite MUST match the one negotiated during the handshake protocol execution that established the session&#34; (§2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-5">RFC5216-2.1.1-5</code></td><td colspan="3"><span class="rfc-subject">If the session matches the peer&#39;s, then the ciphersuite MUST match the one negotiated during the handshake protocol execution that established the session. (§2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.1-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L36" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L76" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-6">RFC5216-2.1.1-6</code></td><td colspan="3"><span class="rfc-subject">&#34;If the EAP server is not resuming a previously established session, then it MUST include a TLS server_certificate handshake message, and a server_hello_done handshake message MUST be the last handshake message encapsulated in this EAP-Request packet&#34; (§2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-6">RFC5216-2.1.1-6</code></td><td colspan="3"><span class="rfc-subject">If the EAP server is not resuming a previously established session, then it MUST include a TLS server_certificate handshake message, and a server_hello_done handshake message MUST be the last handshake message encapsulated in this EAP-Request packet. (§2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.1-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L37" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L77" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-7">RFC5216-2.1.1-7</code></td><td colspan="3"><span class="rfc-subject">Where the certificate carries a signature public key, &#34;a TLS server_key_exchange handshake message MUST also be included to allow the key exchange to take place&#34; (§2.1.1)</span></td></tr>
@@ -541,15 +541,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.1-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Go crypto/tls; internal/core/eap/eap_tls.go::newTLSMethod sets no CipherSuites, so the default ECDHE suites of crypto/tls decide that a server_key_exchange is written and no value Ze writes chooses it</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-8">RFC5216-2.1.1-8</code></td><td colspan="3"><span class="rfc-subject">&#34;If the peer supports EAP-TLS and is configured to use it, it MUST respond to the EAP-Request with an EAP-Response packet of EAP-Type=EAP-TLS&#34; (§2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-8">RFC5216-2.1.1-8</code></td><td colspan="3"><span class="rfc-subject">If the peer supports EAP-TLS and is configured to use it, it MUST respond to the EAP-Request with an EAP-Response packet of EAP- Type=EAP-TLS. (§2.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.1-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L132" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216ConfiguredPeerAnswersEAPTLSWithEAPTLS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L165" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerNotConfiguredForEAPTLSDoesNotAnswerWithEAPTLS</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-9">RFC5216-2.1.1-9</code></td><td colspan="3"><span class="rfc-subject">Where the preceding server_hello did not indicate resumption, &#34;the data field of this packet MUST encapsulate one or more TLS records containing a TLS client_key_exchange, change_cipher_spec, and finished messages&#34; (§2.1.1)</span></td></tr>
@@ -557,8 +557,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.1-9">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L38" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L78" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.1-10">RFC5216-2.1.1-10</code></td><td colspan="3"><span class="rfc-subject">Where the preceding server_hello indicated resumption, &#34;the peer MUST send only the change_cipher_spec and finished handshake messages&#34; (§2.1.1)</span></td></tr>
@@ -566,98 +566,98 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.1-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L39" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L79" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.2-1">RFC5216-2.1.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;If the EAP server is resuming a previously established session, then it MUST include only a TLS change_cipher_spec message and a TLS finished handshake message after the server_hello message&#34; (§2.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.2-1">RFC5216-2.1.2-1</code></td><td colspan="3"><span class="rfc-subject">If the EAP server is resuming a previously established session, then it MUST include only a TLS change_cipher_spec message and a TLS finished handshake message after the server_hello message. (§2.1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L40" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L80" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.5-2">RFC5216-2.1.5-2</code></td><td colspan="3"><span class="rfc-subject">&#34;When an EAP-TLS peer receives an EAP-Request packet with the M bit set, it MUST respond with an EAP-Response with EAP-Type=EAP-TLS and no data&#34; (§2.1.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.5-2">RFC5216-2.1.5-2</code></td><td colspan="3"><span class="rfc-subject">When an EAP-TLS peer receives an EAP-Request packet with the M bit set, it MUST respond with an EAP-Response with EAP-Type=EAP-TLS and no data. (§2.1.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L199" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerAcksEachServerFragmentWithNoData</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L205" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerAcksEachServerFragmentWithNoData</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.5-3">RFC5216-2.1.5-3</code></td><td colspan="3"><span class="rfc-subject">&#34;The EAP server MUST wait until it receives the EAP-Response before sending another fragment&#34; (§2.1.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.5-3">RFC5216-2.1.5-3</code></td><td colspan="3"><span class="rfc-subject">The EAP server MUST wait until it receives the EAP-Response before sending another fragment. (§2.1.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.5-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L241" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L247" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.5-4">RFC5216-2.1.5-4</code></td><td colspan="3"><span class="rfc-subject">&#34;the EAP server MUST increment the Identifier field for each fragment contained within an EAP-Request, and the peer MUST include this Identifier value in the fragment ACK contained within the EAP-Response&#34; (§2.1.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.5-4">RFC5216-2.1.5-4</code></td><td colspan="3"><span class="rfc-subject">In order to prevent errors in processing of fragments, the EAP server MUST increment the Identifier field for each fragment contained within an EAP-Request, and the peer MUST include this Identifier value in the fragment ACK contained within the EAP-Response. (§2.1.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.5-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L273" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L279" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.5-5">RFC5216-2.1.5-5</code></td><td colspan="3"><span class="rfc-subject">&#34;when the EAP server receives an EAP-Response with the M bit set, it MUST respond with an EAP-Request with EAP-Type=EAP-TLS and no data&#34; (§2.1.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.5-5">RFC5216-2.1.5-5</code></td><td colspan="3"><span class="rfc-subject">Similarly, when the EAP server receives an EAP-Response with the M bit set, it MUST respond with an EAP-Request with EAP-Type=EAP-TLS and no data. (§2.1.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.5-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L306" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerAcksEachPeerFragmentWithNoData</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L312" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerAcksEachPeerFragmentWithNoData</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.5-6">RFC5216-2.1.5-6</code></td><td colspan="3"><span class="rfc-subject">&#34;The EAP peer MUST wait until it receives the EAP-Request before sending another fragment&#34; (§2.1.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.5-6">RFC5216-2.1.5-6</code></td><td colspan="3"><span class="rfc-subject">The EAP peer MUST wait until it receives the EAP-Request before sending another fragment. (§2.1.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.5-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L349" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L355" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.5-7">RFC5216-2.1.5-7</code></td><td colspan="3"><span class="rfc-subject">&#34;the EAP server MUST increment the Identifier value for each fragment ACK contained within an EAP-Request, and the peer MUST include this Identifier value in the subsequent fragment contained within an EAP-Response&#34; (§2.1.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.1.5-7">RFC5216-2.1.5-7</code></td><td colspan="3"><span class="rfc-subject">In order to prevent errors in the processing of fragments, the EAP server MUST increment the Identifier value for each fragment ACK contained within an EAP-Request, and the peer MUST include this Identifier value in the subsequent fragment contained within an EAP- Response. (§2.1.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.1.5-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L382" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerAckIdentifiersIncrementAndTheNextFragmentEchoesThem</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L388" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerAckIdentifiersIncrementAndTheNextFragmentEchoesThem</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.4-7">RFC5216-2.4-7</code></td><td colspan="3"><span class="rfc-subject">&#34;EAP-TLS implementations MUST support TLS v1.0&#34; (§2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-2.4-7">RFC5216-2.4-7</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS implementations MUST support TLS v1.0. (§2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.4-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> both roles set MinVersion TLS 1.2 and RFC 8996 forbids TLS 1.0, so the owner decides which document governs; plan/spec-eap-tls-tls10.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-3-3">RFC5216-3-3</code></td><td colspan="3"><span class="rfc-subject">&#34;The Identifier field MUST be changed on each Request packet&#34; (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-3-3">RFC5216-3-3</code></td><td colspan="3"><span class="rfc-subject">The Identifier field MUST be changed on each Request packet. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L186" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216IdentifierChangesOnEveryRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L190" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216IdentifierChangesOnEveryRequest</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-3-4">RFC5216-3-4</code></td><td colspan="3"><span class="rfc-subject">&#34;Octets outside the range of the Length field should be treated as Data Link Layer padding and MUST be ignored on reception&#34; (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-3-4">RFC5216-3-4</code></td><td colspan="3"><span class="rfc-subject">Octets outside the range of the Length field should be treated as Data Link Layer padding and MUST be ignored on reception. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L227" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216PaddingPastTheLengthIsIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L232" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216PaddingPastTheLengthIsIgnored</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-3-5">RFC5216-3-5</code></td><td colspan="3"><span class="rfc-subject">&#34;Implementations of this specification MUST set the reserved bits to zero, and MUST ignore them on reception&#34; -- the reception half of that sentence (§3)</span></td></tr>
@@ -665,8 +665,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-3-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L271" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216ReservedFlagBitsAreIgnoredOnReception</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L276" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216ReservedFlagBitsAreIgnoredOnReception</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-3-6">RFC5216-3-6</code></td><td colspan="3"><span class="rfc-subject">In an EAP-TLS Response, &#34;The Identifier field is one octet and MUST match the Identifier field from the corresponding request&#34; (§3)</span></td></tr>
@@ -674,63 +674,63 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-3-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L348" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216ResponseIdentifierMatchesTheRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L373" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216ResponseIdentifierIsCopiedNotCounted</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.2-1">RFC5216-5.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Where the subjectAltName field is present in the peer or server certificate, the Peer-Id or Server-Id MUST be set to the contents of the subjectAltName&#34; (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.2-1">RFC5216-5.2-1</code></td><td colspan="3"><span class="rfc-subject">Where the subjectAltName field is present in the peer or server certificate, the Peer-Id or Server-Id MUST be set to the contents of the subjectAltName. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> eapTLSPeerName reads the subject and never the subjectAltName, and no Server-Id is exported; plan/immediate/spec-eap-tls-identity-authorization.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.2-2">RFC5216-5.2-2</code></td><td colspan="3"><span class="rfc-subject">&#34;If subject naming information is present only in the subjectAltName extension of a peer or server certificate, then the subject field MUST be an empty sequence and the subjectAltName extension MUST be critical&#34; (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.2-2">RFC5216-5.2-2</code></td><td colspan="3"><span class="rfc-subject">If subject naming information is present only in the subjectAltName extension of a peer or server certificate, then the subject field MUST be an empty sequence and the subjectAltName extension MUST be critical. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no verifier refuses an empty-subject leaf whose subjectAltName is not critical; plan/spec-eap-tls-certificate-profile.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.2-3">RFC5216-5.2-3</code></td><td colspan="3"><span class="rfc-subject">&#34;Conforming implementations generating new certificates with Network Access Identifiers (NAIs) MUST use the rfc822Name in the subject alternative name field to describe such identities&#34; (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.2-3">RFC5216-5.2-3</code></td><td colspan="3"><span class="rfc-subject">Conforming implementations generating new certificates with Network Access Identifiers (NAIs) MUST use the rfc822Name in the subject alternative name field to describe such identities. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no Ze issuer takes an NAI to write as an rfc822Name; plan/spec-eap-tls-certificate-profile.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.2-4">RFC5216-5.2-4</code></td><td colspan="3"><span class="rfc-subject">&#34;The use of the subject name field to contain an emailAddress Relative Distinguished Name (RDN) is deprecated, and MUST NOT be used&#34; (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.2-4">RFC5216-5.2-4</code></td><td colspan="3"><span class="rfc-subject">The use of the subject name field to contain an emailAddress Relative Distinguished Name (RDN) is deprecated, and MUST NOT be used. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.2-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no verifier refuses a subject carrying an emailAddress RDN; plan/spec-eap-tls-certificate-profile.md</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.2-5">RFC5216-5.2-5</code></td><td colspan="3"><span class="rfc-subject">&#34;Where it is non-empty, the subject name field MUST contain an X.500 distinguished name (DN)&#34; (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.2-5">RFC5216-5.2-5</code></td><td colspan="3"><span class="rfc-subject">Where it is non-empty, the subject name field MUST contain an X.500 distinguished name (DN). (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.2-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Go crypto/x509; internal/component/pki/ca.go::LoadOrGenerateRoot issues every subject as a pkix.Name and x509.ParseCertificate accepts no other encoding, so no value Ze writes can make a non-empty subject anything but a distinguished name</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.3-2">RFC5216-5.3-2</code></td><td colspan="3"><span class="rfc-subject">&#34;Once a TLS session is established, EAP-TLS peer and server implementations MUST validate that the identities represented in the certificate are appropriate and authorized for use with EAP-TLS&#34; (§5.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.3-2">RFC5216-5.3-2</code></td><td colspan="3"><span class="rfc-subject">Once a TLS session is established, EAP-TLS peer and server implementations MUST validate that the identities represented in the certificate are appropriate and authorized for use with EAP-TLS. (§5.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> neither role authorizes the Peer-Id or Server-Id against configuration; plan/immediate/spec-eap-tls-identity-authorization.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.3-3">RFC5216-5.3-3</code></td><td colspan="3"><span class="rfc-subject">When comparing the Extended Key Usage of the presented certificate, &#34;implementations MUST follow the validation rules specified in Section 3.1 of [RFC2818]&#34; (§5.3)</span></td></tr>
 <tr><td></td>
@@ -739,7 +739,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.3-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the peer sets no expected server identity, so no RFC 2818 Section 3.1 comparison runs; plan/immediate/spec-eap-tls-identity-authorization.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.4-3">RFC5216-5.4-3</code></td><td colspan="3"><span class="rfc-subject">OCSP revocation checking SHOULD be supported (§5.4)</span></td></tr>
 <tr><td></td>
@@ -790,113 +790,41 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>the server sets no CipherSuites and requires TLS 1.2+, so it inherits Go&#39;s secure defaults which classify 3DES as insecure and do not enable TLS_RSA_WITH_3DES_EDE_CBC_SHA, leaving the RFC&#39;s mandatory-to-implement ciphersuite unavailable (internal/core/eap/eap_tls.go:163, peer.go:330)</td>
 </tr>
-<tr><td><a href="#rfc5216-2.1.1-3"><code>RFC5216-2.1.1-3</code></a> &#34;Once having received the peer&#39;s Identity, the EAP server MUST respond with an EAP-TLS/Start packet, which is an EAP-Request packet with EAP-Type=EAP-TLS, the Start (S) bit set, and no data&#34; (§2.1.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-2.1.1-4"><code>RFC5216-2.1.1-4</code></a> &#34;If the peer&#39;s sessionId is null or unrecognized by the server, the server MUST choose the sessionId to establish a new session&#34; (§2.1.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-2.1.1-5"><code>RFC5216-2.1.1-5</code></a> &#34;If the session matches the peer&#39;s, then the ciphersuite MUST match the one negotiated during the handshake protocol execution that established the session&#34; (§2.1.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-2.1.1-6"><code>RFC5216-2.1.1-6</code></a> &#34;If the EAP server is not resuming a previously established session, then it MUST include a TLS server_certificate handshake message, and a server_hello_done handshake message MUST be the last handshake message encapsulated in this EAP-Request packet&#34; (§2.1.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
 <tr><td><a href="#rfc5216-2.1.1-7"><code>RFC5216-2.1.1-7</code></a> Where the certificate carries a signature public key, &#34;a TLS server_key_exchange handshake message MUST also be included to allow the key exchange to take place&#34; (§2.1.1)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Go crypto/tls; internal/core/eap/eap_tls.go::newTLSMethod sets no CipherSuites, so the default ECDHE suites of crypto/tls decide that a server_key_exchange is written and no value Ze writes chooses it</td>
 </tr>
-<tr><td><a href="#rfc5216-2.1.1-8"><code>RFC5216-2.1.1-8</code></a> &#34;If the peer supports EAP-TLS and is configured to use it, it MUST respond to the EAP-Request with an EAP-Response packet of EAP-Type=EAP-TLS&#34; (§2.1.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<tr><td><a href="#rfc5216-2.4-7"><code>RFC5216-2.4-7</code></a> EAP-TLS implementations MUST support TLS v1.0. (§2.4)</td>
+<td>{gap}, no test</td>
+<td>both roles set MinVersion TLS 1.2 and RFC 8996 forbids TLS 1.0, so the owner decides which document governs; plan/spec-eap-tls-tls10.md</td>
 </tr>
-<tr><td><a href="#rfc5216-2.1.1-9"><code>RFC5216-2.1.1-9</code></a> Where the preceding server_hello did not indicate resumption, &#34;the data field of this packet MUST encapsulate one or more TLS records containing a TLS client_key_exchange, change_cipher_spec, and finished messages&#34; (§2.1.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<tr><td><a href="#rfc5216-5.2-1"><code>RFC5216-5.2-1</code></a> Where the subjectAltName field is present in the peer or server certificate, the Peer-Id or Server-Id MUST be set to the contents of the subjectAltName. (§5.2)</td>
+<td>{gap}, no test</td>
+<td>eapTLSPeerName reads the subject and never the subjectAltName, and no Server-Id is exported; plan/immediate/spec-eap-tls-identity-authorization.md</td>
 </tr>
-<tr><td><a href="#rfc5216-2.1.1-10"><code>RFC5216-2.1.1-10</code></a> Where the preceding server_hello indicated resumption, &#34;the peer MUST send only the change_cipher_spec and finished handshake messages&#34; (§2.1.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<tr><td><a href="#rfc5216-5.2-2"><code>RFC5216-5.2-2</code></a> If subject naming information is present only in the subjectAltName extension of a peer or server certificate, then the subject field MUST be an empty sequence and the subjectAltName extension MUST be critical. (§5.2)</td>
+<td>{gap}, no test</td>
+<td>no verifier refuses an empty-subject leaf whose subjectAltName is not critical; plan/spec-eap-tls-certificate-profile.md</td>
 </tr>
-<tr><td><a href="#rfc5216-2.1.2-1"><code>RFC5216-2.1.2-1</code></a> &#34;If the EAP server is resuming a previously established session, then it MUST include only a TLS change_cipher_spec message and a TLS finished handshake message after the server_hello message&#34; (§2.1.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<tr><td><a href="#rfc5216-5.2-3"><code>RFC5216-5.2-3</code></a> Conforming implementations generating new certificates with Network Access Identifiers (NAIs) MUST use the rfc822Name in the subject alternative name field to describe such identities. (§5.2)</td>
+<td>{gap}, no test</td>
+<td>no Ze issuer takes an NAI to write as an rfc822Name; plan/spec-eap-tls-certificate-profile.md</td>
 </tr>
-<tr><td><a href="#rfc5216-2.1.5-2"><code>RFC5216-2.1.5-2</code></a> &#34;When an EAP-TLS peer receives an EAP-Request packet with the M bit set, it MUST respond with an EAP-Response with EAP-Type=EAP-TLS and no data&#34; (§2.1.5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<tr><td><a href="#rfc5216-5.2-4"><code>RFC5216-5.2-4</code></a> The use of the subject name field to contain an emailAddress Relative Distinguished Name (RDN) is deprecated, and MUST NOT be used. (§5.2)</td>
+<td>{gap}, no test</td>
+<td>no verifier refuses a subject carrying an emailAddress RDN; plan/spec-eap-tls-certificate-profile.md</td>
 </tr>
-<tr><td><a href="#rfc5216-2.1.5-3"><code>RFC5216-2.1.5-3</code></a> &#34;The EAP server MUST wait until it receives the EAP-Response before sending another fragment&#34; (§2.1.5)</td>
+<tr><td><a href="#rfc5216-5.2-5"><code>RFC5216-5.2-5</code></a> Where it is non-empty, the subject name field MUST contain an X.500 distinguished name (DN). (§5.2)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {lower-layer}: Go crypto/x509; internal/component/pki/ca.go::LoadOrGenerateRoot issues every subject as a pkix.Name and x509.ParseCertificate accepts no other encoding, so no value Ze writes can make a non-empty subject anything but a distinguished name</td>
 </tr>
-<tr><td><a href="#rfc5216-2.1.5-4"><code>RFC5216-2.1.5-4</code></a> &#34;the EAP server MUST increment the Identifier field for each fragment contained within an EAP-Request, and the peer MUST include this Identifier value in the fragment ACK contained within the EAP-Response&#34; (§2.1.5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-2.1.5-5"><code>RFC5216-2.1.5-5</code></a> &#34;when the EAP server receives an EAP-Response with the M bit set, it MUST respond with an EAP-Request with EAP-Type=EAP-TLS and no data&#34; (§2.1.5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-2.1.5-6"><code>RFC5216-2.1.5-6</code></a> &#34;The EAP peer MUST wait until it receives the EAP-Request before sending another fragment&#34; (§2.1.5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-2.1.5-7"><code>RFC5216-2.1.5-7</code></a> &#34;the EAP server MUST increment the Identifier value for each fragment ACK contained within an EAP-Request, and the peer MUST include this Identifier value in the subsequent fragment contained within an EAP-Response&#34; (§2.1.5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-2.4-7"><code>RFC5216-2.4-7</code></a> &#34;EAP-TLS implementations MUST support TLS v1.0&#34; (§2.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-3-3"><code>RFC5216-3-3</code></a> &#34;The Identifier field MUST be changed on each Request packet&#34; (§3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-3-4"><code>RFC5216-3-4</code></a> &#34;Octets outside the range of the Length field should be treated as Data Link Layer padding and MUST be ignored on reception&#34; (§3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-3-5"><code>RFC5216-3-5</code></a> &#34;Implementations of this specification MUST set the reserved bits to zero, and MUST ignore them on reception&#34; -- the reception half of that sentence (§3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-3-6"><code>RFC5216-3-6</code></a> In an EAP-TLS Response, &#34;The Identifier field is one octet and MUST match the Identifier field from the corresponding request&#34; (§3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-5.2-1"><code>RFC5216-5.2-1</code></a> &#34;Where the subjectAltName field is present in the peer or server certificate, the Peer-Id or Server-Id MUST be set to the contents of the subjectAltName&#34; (§5.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-5.2-2"><code>RFC5216-5.2-2</code></a> &#34;If subject naming information is present only in the subjectAltName extension of a peer or server certificate, then the subject field MUST be an empty sequence and the subjectAltName extension MUST be critical&#34; (§5.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-5.2-3"><code>RFC5216-5.2-3</code></a> &#34;Conforming implementations generating new certificates with Network Access Identifiers (NAIs) MUST use the rfc822Name in the subject alternative name field to describe such identities&#34; (§5.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-5.2-4"><code>RFC5216-5.2-4</code></a> &#34;The use of the subject name field to contain an emailAddress Relative Distinguished Name (RDN) is deprecated, and MUST NOT be used&#34; (§5.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-5.2-5"><code>RFC5216-5.2-5</code></a> &#34;Where it is non-empty, the subject name field MUST contain an X.500 distinguished name (DN)&#34; (§5.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5216-5.3-2"><code>RFC5216-5.3-2</code></a> &#34;Once a TLS session is established, EAP-TLS peer and server implementations MUST validate that the identities represented in the certificate are appropriate and authorized for use with EAP-TLS&#34; (§5.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<tr><td><a href="#rfc5216-5.3-2"><code>RFC5216-5.3-2</code></a> Once a TLS session is established, EAP-TLS peer and server implementations MUST validate that the identities represented in the certificate are appropriate and authorized for use with EAP-TLS. (§5.3)</td>
+<td>{gap}, no test</td>
+<td>neither role authorizes the Peer-Id or Server-Id against configuration; plan/immediate/spec-eap-tls-identity-authorization.md</td>
 </tr>
 <tr><td><a href="#rfc5216-5.3-3"><code>RFC5216-5.3-3</code></a> When comparing the Extended Key Usage of the presented certificate, &#34;implementations MUST follow the validation rules specified in Section 3.1 of [RFC2818]&#34; (§5.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>the peer sets no expected server identity, so no RFC 2818 Section 3.1 comparison runs; plan/immediate/spec-eap-tls-identity-authorization.md</td>
 </tr>
 </tbody>
 </table>
@@ -905,7 +833,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5216-3-1"><code>RFC5216-3-1</code></a></h3>
-<p>L bit MUST be set on the first fragment of a TLS message (§3, Flags)</p>
+<p>The L bit (length included) is set to indicate the presence of the four-octet TLS Message Length field, and MUST be set for the first fragment of a fragmented TLS message or set of messages. (§3, Flags)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -970,7 +898,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc5216-2.4-3"><code>RFC5216-2.4-3</code></a></h3>
-<p>TLS compression MUST NOT be requested or negotiated (§2.4)</p>
+<p>However, during the EAP-TLS conversation the EAP peer and server MUST NOT request or negotiate compression. (§2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -985,7 +913,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc5216-2.4-4"><code>RFC5216-2.4-4</code></a></h3>
-<p>TLS ciphersuite negotiation MUST NOT be used to negotiate lower-layer data ciphersuites (§2.4)</p>
+<p>Since the ciphersuite negotiated within EAP-TLS applies only to the EAP conversation, TLS ciphersuite negotiation MUST NOT be used to negotiate the ciphersuites used to secure data. (§2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1004,7 +932,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5216-2.4-5, so no unit is bound to it.</p>
 <h3><a href="#rfc5216-2.1.1-1"><code>RFC5216-2.1.1-1</code></a></h3>
-<p>Server sends CertificateRequest; peer MUST provide a certificate for mutual authentication (§2.1.1)</p>
+<p>If the EAP server sent a certificate_request message in the preceding EAP-Request packet, then unless the peer is configured for privacy (see Section 2.1.4) the peer MUST send, in addition, certificate and certificate_verify messages. (§2.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1094,7 +1022,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc5216-5.4-1"><code>RFC5216-5.4-1</code></a></h3>
-<p>CRL checking MUST be supported (§5.4)</p>
+<p>EAP-TLS peer and server implementations MUST support the use of Certificate Revocation Lists (CRLs); for details, see Section 3.3 of [RFC3280]. (§5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1144,7 +1072,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc5216-2.1.3-1"><code>RFC5216-2.1.3-1</code></a></h3>
-<p>&#34;The EAP Server MUST reply with an EAP-Failure packet since server authentication failure is a terminal condition&#34; (§2.1.3)</p>
+<p>The EAP Server MUST reply with an EAP-Failure packet since server authentication failure is a terminal condition. (§2.1.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1164,7 +1092,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc5216-2.1.3-3"><code>RFC5216-2.1.3-3</code></a></h3>
-<p>&#34;To ensure that the peer receives the TLS alert message, the EAP server MUST wait for the peer to reply with an EAP-Response packet&#34; (§2.1.3)</p>
+<p>To ensure that the peer receives the TLS alert message, the EAP server MUST wait for the peer to reply with an EAP-Response packet. (§2.1.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1209,7 +1137,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc5216-2.1.3-5"><code>RFC5216-2.1.3-5</code></a></h3>
-<p>&#34;If the peer authenticates successfully, the EAP server MUST respond with an EAP-Request packet with EAP-Type=EAP-TLS, which includes, in the case of a new TLS session, one or more TLS records containing TLS change_cipher_spec and finished handshake messages&#34; (§2.1.3)</p>
+<p>If the peer authenticates successfully, the EAP server MUST respond with an EAP-Request packet with EAP-Type=EAP-TLS, which includes, in the case of a new TLS session, one or more TLS records containing TLS change_cipher_spec and finished handshake messages. (§2.1.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1229,7 +1157,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc5216-2.1.3-6"><code>RFC5216-2.1.3-6</code></a></h3>
-<p>&#34;To ensure that the EAP Server receives the TLS alert message, the peer MUST wait for the EAP Server to reply before terminating the conversation&#34; (§2.1.3)</p>
+<p>To ensure that the EAP Server receives the TLS alert message, the peer MUST wait for the EAP Server to reply before terminating the conversation. (§2.1.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1249,7 +1177,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc5216-2.1.3-7"><code>RFC5216-2.1.3-7</code></a></h3>
-<p>&#34;If the EAP server authenticates successfully, the peer MUST send an EAP-Response packet of EAP-Type=EAP-TLS, and no data&#34; (§2.1.3)</p>
+<p>If the EAP server authenticates successfully, the peer MUST send an EAP-Response packet of EAP-Type=EAP-TLS, and no data. (§2.1.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1309,107 +1237,395 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc5216-2.1.1-3"><code>RFC5216-2.1.1-3</code></a></h3>
-<p>&#34;Once having received the peer&#39;s Identity, the EAP server MUST respond with an EAP-TLS/Start packet, which is an EAP-Request packet with EAP-Type=EAP-TLS, the Start (S) bit set, and no data&#34; (§2.1.1)</p>
+<p>Once having received the peer&#39;s Identity, the EAP server MUST respond with an EAP-TLS/Start packet, which is an EAP-Request packet with EAP-Type=EAP-TLS, the Start (S) bit set, and no data. (§2.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.1.1-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L102" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216NoStartBeforeTheIdentityIsReceived</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L70" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216StartAnswersTheIdentityResponse</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-2.1.1-4"><code>RFC5216-2.1.1-4</code></a></h3>
-<p>&#34;If the peer&#39;s sessionId is null or unrecognized by the server, the server MUST choose the sessionId to establish a new session&#34; (§2.1.1)</p>
+<p>If the peer&#39;s sessionId is null or unrecognized by the server, the server MUST choose the sessionId to establish a new session. (§2.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.1.1-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L75" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L35" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-2.1.1-5"><code>RFC5216-2.1.1-5</code></a></h3>
-<p>&#34;If the session matches the peer&#39;s, then the ciphersuite MUST match the one negotiated during the handshake protocol execution that established the session&#34; (§2.1.1)</p>
+<p>If the session matches the peer&#39;s, then the ciphersuite MUST match the one negotiated during the handshake protocol execution that established the session. (§2.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.1.1-5, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L76" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L36" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-2.1.1-6"><code>RFC5216-2.1.1-6</code></a></h3>
-<p>&#34;If the EAP server is not resuming a previously established session, then it MUST include a TLS server_certificate handshake message, and a server_hello_done handshake message MUST be the last handshake message encapsulated in this EAP-Request packet&#34; (§2.1.1)</p>
+<p>If the EAP server is not resuming a previously established session, then it MUST include a TLS server_certificate handshake message, and a server_hello_done handshake message MUST be the last handshake message encapsulated in this EAP-Request packet. (§2.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.1.1-6, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L77" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L37" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-2.1.1-7"><code>RFC5216-2.1.1-7</code></a></h3>
 <p>Where the certificate carries a signature public key, &#34;a TLS server_key_exchange handshake message MUST also be included to allow the key exchange to take place&#34; (§2.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5216-2.1.1-7, so no unit is bound to it.</p>
 <h3><a href="#rfc5216-2.1.1-8"><code>RFC5216-2.1.1-8</code></a></h3>
-<p>&#34;If the peer supports EAP-TLS and is configured to use it, it MUST respond to the EAP-Request with an EAP-Response packet of EAP-Type=EAP-TLS&#34; (§2.1.1)</p>
+<p>If the peer supports EAP-TLS and is configured to use it, it MUST respond to the EAP-Request with an EAP-Response packet of EAP- Type=EAP-TLS. (§2.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.1.1-8, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L165" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerNotConfiguredForEAPTLSDoesNotAnswerWithEAPTLS</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L132" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216ConfiguredPeerAnswersEAPTLSWithEAPTLS</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-2.1.1-9"><code>RFC5216-2.1.1-9</code></a></h3>
 <p>Where the preceding server_hello did not indicate resumption, &#34;the data field of this packet MUST encapsulate one or more TLS records containing a TLS client_key_exchange, change_cipher_spec, and finished messages&#34; (§2.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.1.1-9, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L78" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L38" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-2.1.1-10"><code>RFC5216-2.1.1-10</code></a></h3>
 <p>Where the preceding server_hello indicated resumption, &#34;the peer MUST send only the change_cipher_spec and finished handshake messages&#34; (§2.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.1.1-10, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L79" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L39" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-2.1.2-1"><code>RFC5216-2.1.2-1</code></a></h3>
-<p>&#34;If the EAP server is resuming a previously established session, then it MUST include only a TLS change_cipher_spec message and a TLS finished handshake message after the server_hello message&#34; (§2.1.2)</p>
+<p>If the EAP server is resuming a previously established session, then it MUST include only a TLS change_cipher_spec message and a TLS finished handshake message after the server_hello message. (§2.1.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.1.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L80" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L40" title="internal/core/eap/rfc5216_tls_config_test.go" target="_blank" rel="noopener"><code>TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-2.1.5-2"><code>RFC5216-2.1.5-2</code></a></h3>
-<p>&#34;When an EAP-TLS peer receives an EAP-Request packet with the M bit set, it MUST respond with an EAP-Response with EAP-Type=EAP-TLS and no data&#34; (§2.1.5)</p>
+<p>When an EAP-TLS peer receives an EAP-Request packet with the M bit set, it MUST respond with an EAP-Response with EAP-Type=EAP-TLS and no data. (§2.1.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.1.5-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L205" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerAcksEachServerFragmentWithNoData</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L199" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerAcksEachServerFragmentWithNoData</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-2.1.5-3"><code>RFC5216-2.1.5-3</code></a></h3>
-<p>&#34;The EAP server MUST wait until it receives the EAP-Response before sending another fragment&#34; (§2.1.5)</p>
+<p>The EAP server MUST wait until it receives the EAP-Response before sending another fragment. (§2.1.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.1.5-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L247" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L241" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-2.1.5-4"><code>RFC5216-2.1.5-4</code></a></h3>
-<p>&#34;the EAP server MUST increment the Identifier field for each fragment contained within an EAP-Request, and the peer MUST include this Identifier value in the fragment ACK contained within the EAP-Response&#34; (§2.1.5)</p>
+<p>In order to prevent errors in processing of fragments, the EAP server MUST increment the Identifier field for each fragment contained within an EAP-Request, and the peer MUST include this Identifier value in the fragment ACK contained within the EAP-Response. (§2.1.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.1.5-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L279" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L273" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-2.1.5-5"><code>RFC5216-2.1.5-5</code></a></h3>
-<p>&#34;when the EAP server receives an EAP-Response with the M bit set, it MUST respond with an EAP-Request with EAP-Type=EAP-TLS and no data&#34; (§2.1.5)</p>
+<p>Similarly, when the EAP server receives an EAP-Response with the M bit set, it MUST respond with an EAP-Request with EAP-Type=EAP-TLS and no data. (§2.1.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.1.5-5, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L312" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerAcksEachPeerFragmentWithNoData</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L306" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerAcksEachPeerFragmentWithNoData</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-2.1.5-6"><code>RFC5216-2.1.5-6</code></a></h3>
-<p>&#34;The EAP peer MUST wait until it receives the EAP-Request before sending another fragment&#34; (§2.1.5)</p>
+<p>The EAP peer MUST wait until it receives the EAP-Request before sending another fragment. (§2.1.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.1.5-6, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L355" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L349" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-2.1.5-7"><code>RFC5216-2.1.5-7</code></a></h3>
-<p>&#34;the EAP server MUST increment the Identifier value for each fragment ACK contained within an EAP-Request, and the peer MUST include this Identifier value in the subsequent fragment contained within an EAP-Response&#34; (§2.1.5)</p>
+<p>In order to prevent errors in the processing of fragments, the EAP server MUST increment the Identifier value for each fragment ACK contained within an EAP-Request, and the peer MUST include this Identifier value in the subsequent fragment contained within an EAP- Response. (§2.1.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-2.1.5-7, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L388" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerAckIdentifiersIncrementAndTheNextFragmentEchoesThem</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L382" title="internal/core/eap/rfc5216_fragment_ack_test.go" target="_blank" rel="noopener"><code>TestRFC5216ServerAckIdentifiersIncrementAndTheNextFragmentEchoesThem</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-2.4-7"><code>RFC5216-2.4-7</code></a></h3>
-<p>&#34;EAP-TLS implementations MUST support TLS v1.0&#34; (§2.4)</p>
+<p>EAP-TLS implementations MUST support TLS v1.0. (§2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5216-2.4-7, so no unit is bound to it.</p>
 <h3><a href="#rfc5216-3-3"><code>RFC5216-3-3</code></a></h3>
-<p>&#34;The Identifier field MUST be changed on each Request packet&#34; (§3)</p>
+<p>The Identifier field MUST be changed on each Request packet. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-3-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L190" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216IdentifierChangesOnEveryRequest</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L186" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216IdentifierChangesOnEveryRequest</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-3-4"><code>RFC5216-3-4</code></a></h3>
-<p>&#34;Octets outside the range of the Length field should be treated as Data Link Layer padding and MUST be ignored on reception&#34; (§3)</p>
+<p>Octets outside the range of the Length field should be treated as Data Link Layer padding and MUST be ignored on reception. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-3-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L232" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216PaddingPastTheLengthIsIgnored</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L227" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216PaddingPastTheLengthIsIgnored</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-3-5"><code>RFC5216-3-5</code></a></h3>
 <p>&#34;Implementations of this specification MUST set the reserved bits to zero, and MUST ignore them on reception&#34; -- the reception half of that sentence (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-3-5, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L276" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216ReservedFlagBitsAreIgnoredOnReception</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L271" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216ReservedFlagBitsAreIgnoredOnReception</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-3-6"><code>RFC5216-3-6</code></a></h3>
 <p>In an EAP-TLS Response, &#34;The Identifier field is one octet and MUST match the Identifier field from the corresponding request&#34; (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5216-3-6, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L373" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216ResponseIdentifierIsCopiedNotCounted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L348" title="internal/core/eap/rfc5216_flight_rules_test.go" target="_blank" rel="noopener"><code>TestRFC5216ResponseIdentifierMatchesTheRequest</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5216-5.2-1"><code>RFC5216-5.2-1</code></a></h3>
-<p>&#34;Where the subjectAltName field is present in the peer or server certificate, the Peer-Id or Server-Id MUST be set to the contents of the subjectAltName&#34; (§5.2)</p>
+<p>Where the subjectAltName field is present in the peer or server certificate, the Peer-Id or Server-Id MUST be set to the contents of the subjectAltName. (§5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5216-5.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5216-5.2-2"><code>RFC5216-5.2-2</code></a></h3>
-<p>&#34;If subject naming information is present only in the subjectAltName extension of a peer or server certificate, then the subject field MUST be an empty sequence and the subjectAltName extension MUST be critical&#34; (§5.2)</p>
+<p>If subject naming information is present only in the subjectAltName extension of a peer or server certificate, then the subject field MUST be an empty sequence and the subjectAltName extension MUST be critical. (§5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5216-5.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc5216-5.2-3"><code>RFC5216-5.2-3</code></a></h3>
-<p>&#34;Conforming implementations generating new certificates with Network Access Identifiers (NAIs) MUST use the rfc822Name in the subject alternative name field to describe such identities&#34; (§5.2)</p>
+<p>Conforming implementations generating new certificates with Network Access Identifiers (NAIs) MUST use the rfc822Name in the subject alternative name field to describe such identities. (§5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5216-5.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc5216-5.2-4"><code>RFC5216-5.2-4</code></a></h3>
-<p>&#34;The use of the subject name field to contain an emailAddress Relative Distinguished Name (RDN) is deprecated, and MUST NOT be used&#34; (§5.2)</p>
+<p>The use of the subject name field to contain an emailAddress Relative Distinguished Name (RDN) is deprecated, and MUST NOT be used. (§5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5216-5.2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc5216-5.2-5"><code>RFC5216-5.2-5</code></a></h3>
-<p>&#34;Where it is non-empty, the subject name field MUST contain an X.500 distinguished name (DN)&#34; (§5.2)</p>
+<p>Where it is non-empty, the subject name field MUST contain an X.500 distinguished name (DN). (§5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5216-5.2-5, so no unit is bound to it.</p>
 <h3><a href="#rfc5216-5.3-2"><code>RFC5216-5.3-2</code></a></h3>
-<p>&#34;Once a TLS session is established, EAP-TLS peer and server implementations MUST validate that the identities represented in the certificate are appropriate and authorized for use with EAP-TLS&#34; (§5.3)</p>
+<p>Once a TLS session is established, EAP-TLS peer and server implementations MUST validate that the identities represented in the certificate are appropriate and authorized for use with EAP-TLS. (§5.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5216-5.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc5216-5.3-3"><code>RFC5216-5.3-3</code></a></h3>
@@ -1706,7 +1922,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

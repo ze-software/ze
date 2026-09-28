@@ -14,27 +14,27 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 52 shipped or experimental feature cards, 468 CLI commands, 36 config sections, 89 plugin registrations, 49 direct Go dependencies, 41 weekly change entries.
-- Test evidence counts: 30,800+ unit tests, 84 fuzz targets, 2,000+ end-to-end transcript steps, 152 interop scenarios across 9 target implementations.
+- Current generated counts: 52 shipped or experimental feature cards, 471 CLI commands, 38 config sections, 91 plugin registrations, 50 direct Go dependencies, 41 weekly change entries.
+- Test evidence counts: 32,200+ unit tests, 88 fuzz targets, 2,000+ end-to-end transcript steps, 152 interop scenarios across 9 target implementations.
 - Release inventory preview pending owner classification: [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
-- Generated date: 2026-09-21.
+- Generated date: 2026-09-26.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 30,800+ unit tests.
-- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 84 fuzz targets.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 32,200+ unit tests.
+- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 88 fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
 - Interop: 152 scenarios against 9 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
-- Verify workflow: `./le verify worktree` runs the whole native verification population against a fixed commit in a detached worktree, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `./le repository` is the narrower handoff gate.
+- Verify workflow: `./le verify worktree` runs the whole native verification population against a fixed commit in a detached worktree, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `./le repo` is the narrower handoff gate.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
-Useful commands: `go test -race -run TestName ./internal/...`, `./le fuzz run`, `gomu run`, `bin/ze-test bgp plugin 42 -v`, `./le qemu netns-test`, `./le integration interop`, `./le evidence release-candidate`.
+Useful commands: `go test -race -run TestName ./internal/...`, `./le test fuzz run`, `gomu run`, `./le test bgp plugin 42 -v`, `./le test qemu netns-test`, `./le test integration interop`, `./le verify evidence release-candidate`.
 
 ## Comparison positioning
 
@@ -110,6 +110,8 @@ Top-level YANG-derived config roots. Child names are direct children only, enoug
 - `anomaly`: Behavioral anomaly detection and response subsystem. Two plugins fill this container. anomaly-detect owns the detect subtree and reports incidents on the event bus. anomaly-shape adds the shape subtree and acts on those incidents... Children: detect, observe, shape.
 - `bfd`: BFD control configuration for Ze. The container holds the plugin switch, the reusable profiles, and the sessions an operator pins. A session that BGP or a static route asks for at runtime does not appear here. A... Children: bind-v6, enabled, multi-hop-session, persist-dir, profile, single-hop-session.
 - `bgp`: Border Gateway Protocol routing configuration. A peer inherits from its group defaults. A group inherits from this global level. Children: as-notation, blackhole, bmp, community, defaults, filter, group, healthcheck, multipath, peer, policy, rib, route-server, router-id, ....
+- `bgp-epe`: Instantiate BGP Egress Peer Engineering segments. The internal bgp-epe plugin consumes state events from attached BGP sessions. Each configured peer gets a persistent PeerNode SID index. While its session is established, the... Children: peer, srgb.
+- `bgp-ls-export`: Export native routing state through BGP-LS. Export the running native IGP databases to BGP peers that attach this internal plugin with state/refresh receive and update send grants. Each database snapshot replaces prior... Children: domain.
 - `class-of-service`: Named class-of-service profiles. A profile maps the 3-bit PCP field of an 802.1Q header to an internal priority, in the ingress direction and in the egress direction. An interface leaf and a unit leaf name the... Children: ieee-802.1p.
 - `connected`: Connected route redistribution. Presence enables the plugin. The container carries no leaf, so writing it is the whole configuration. The plugin watches each interface address event and emits the network prefix of that address on the... Children: none.
 - `control-plane-protection`: Control-plane policing configuration. Ze compiles the containers under it into one nftables table named ze_copp, which carries a base input chain at priority 0. The ze_ prefix is what makes the firewall backend own... Children: bgp.
@@ -123,7 +125,7 @@ Top-level YANG-derived config roots. Child names are direct children only, enoug
 - `isis`: IS-IS routing instance configuration. The presence of this container starts the IS-IS component. At least one `net` leaf MUST be set for the engine to run. A commit with no net is accepted, and the engine then stays... Children: hostname, interfaces, key-chains, level, level-1, level-2, lsp-lifetime, lsp-refresh-interval, net, overload, system-id.
 - `kernel`: Kernel route redistribution. Presence enables the plugin. The container carries no leaf, so writing it is the whole configuration. The plugin watches the kernel routing table and emits each route on the redistribute event bus. A route... Children: none.
 - `l2tp`: L2TPv2 tunnel subsystem settings (RFC 2661). L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any content implies the subsystem is enabled. Use 'enabled false' to disable it explicitly, or 'enabled... Children: allow-no-auth, auth, auth-method, authentication, cqm-enabled, enabled, event-ring-size-per-session, hello-interval, hello-retries, max-logins, max-sessions, max-tunnels, ncp, pool, ....
-- `ldp`: Label Distribution Protocol configuration The engine stays idle until lsr-id carries an address, and it says so in the log. Ze then sends Hello messages to 224.0.0.2 port 646 and opens a TCP session on port 646 to each... Children: hello-hold-time, hello-interval, interfaces, keepalive-time, lsr-id, transport-address.
+- `ldp`: Label Distribution Protocol configuration The engine stays idle until lsr-id carries an address, and it says so in the log. Ze then sends Hello messages to 224.0.0.2 port 646 and opens a TCP session on port 646 to each... Children: hello-hold-time, hello-interval, hop-count-max, interfaces, keepalive-time, lsr-id, transport-address.
 - `mrt`: MRT dump configuration. The container holds the extended-timestamp switch, the add-path switch, the peer filter, the direction, and the three dump streams. Children: add-path, all, direction, extended-timestamp, peer-filter, routes, updates.
 - `ospf`: OSPFv2 routing instance configuration. The presence of this container starts the OSPFv2 engine, which RFC 2328 defines. The address-family container adds the OSPFv3 families of RFC 5340, and each one runs as a separate... Children: address-family, areas, default-information, extended-link, extended-prefix, fast-reroute, graceful-restart, interfaces, key-chains, max-metric, maximum-paths, opaque, redistribute, reference-bandwidth, ....
 - `pki`: PKI certificate and key store. PKI certificate and key store. Presence of this block enables certificate-based authentication for IPsec VPN, TLS, and other subsystems. Children: ca, certificate.
@@ -133,7 +135,7 @@ Top-level YANG-derived config roots. Child names are direct children only, enoug
 - `redistribute`: Route redistribution between protocols. Each destination protocol has its own container that holds the import rules. To add a destination protocol, add a key here. Children: destination.
 - `rib`: System RIB configuration. The system RIB takes the best route each protocol offers and selects one system best for each prefix. The FIB plugins program that winner into the kernel with netlink, into VPP... Children: distance, fib-withhold.
 - `routing-table`: Named routing table definitions. Each entry maps a name to a kernel routing table ID. Ze builds one registry from these entries, and a static route or a policy route resolves its table name against that registry. The name default is built-in and resolves to table... Children: table.
-- `rsvp-te`: RSVP-TE traffic engineering configuration RSVP-TE traffic engineering configuration. Signaling is IPv4 only. Without a router-id the engine stays idle, and no tunnel and no bypass signals. Ze has no IGP and no CSPF, so... Children: bypass, interface, refresh-multiplier, refresh-period, router-id, tunnel.
+- `rsvp-te`: RSVP-TE traffic engineering configuration RSVP-TE traffic engineering configuration. Signaling is IPv4 only. Without a router-id the engine stays idle, and no tunnel and no bypass signals. RSVP-TE does not consume a... Children: bypass, interface, refresh-multiplier, refresh-period, reservation-policy, router-id, tunnel.
 - `service`: Service settings. The container holds the settings of each service Ze runs, and the as112 container under it configures the AS112 node. Children: as112, dhcp-server, geodns, image-server, tftp-server.
 - `static`: Static route configuration. Ze programs each route into the kernel through netlink, or into the VPP dataplane, and marks it with the static protocol number. A route the backend cannot program is skipped and... Children: table.
 - `storage`: Storage device management The container holds the smart block alone. Ze reads it at config load and at each reload, and starts or stops the health manager to match. Children: smart.
@@ -156,8 +158,9 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `bgp`: BGP routing daemon Config roots: bgp. Dependencies: none. Optional: none. YANG files: 2. Source: `internal/component/bgp/plugin`.
 - `bgp-adj-rib-in`: Adj-RIB-In storage (raw hex replay) Config roots: none. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/component/bgp/plugins/adj_rib_in`.
 - `bgp-aigp`: Accumulated IGP Metric (RFC 7311) Config roots: none. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/component/bgp/plugins/aigp`.
-- `bgp-bmp`: BMP receiver and sender (RFC 7854, 8671) Config roots: bgp, environment. Dependencies: none. Optional: none. YANG files: 2. Source: `internal/component/bgp/plugins/bmp`.
+- `bgp-bmp`: BMP receiver and sender (RFC 7854, 8671) Config roots: bgp, environment/bmp. Dependencies: none. Optional: none. YANG files: 2. Source: `internal/component/bgp/plugins/bmp`.
 - `bgp-capa`: Core BGP capability decoding (multiprotocol, asn4, add-path, paths-limit, extended-nexthop, extended-message) Config roots: none. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/component/bgp/plugins/capa`.
+- `bgp-epe`: Native BGP Egress Peer Engineering segments Config roots: bgp-epe. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/component/bgp/plugins/epe`.
 - `bgp-filter-aspath`: Named AS-path regex filter (ordered entries, first match wins, accept/reject) Config roots: bgp. Dependencies: bgp. Optional: none. YANG files: 1. Source: `internal/component/bgp/plugins/filter_aspath`.
 - `bgp-filter-aspath-length`: Named AS-path length filter (accept/reject based on hop count) Config roots: bgp. Dependencies: bgp. Optional: none. YANG files: 1. Source: `internal/component/bgp/plugins/filter_aspath_length`.
 - `bgp-filter-community`: Community tag/strip filter (standard, large, extended) Config roots: bgp. Dependencies: bgp. Optional: none. YANG files: 1. Source: `internal/component/bgp/plugins/filter_community`.
@@ -172,6 +175,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `bgp-healthcheck`: Service healthcheck plugin with watchdog route control Config roots: bgp. Dependencies: bgp, bgp-watchdog. Optional: none. YANG files: 1. Source: `internal/component/bgp/plugins/healthcheck`.
 - `bgp-hostname`: FQDN capability decoding Config roots: bgp. Dependencies: bgp. Optional: none. YANG files: 1. Source: `internal/component/bgp/plugins/hostname`.
 - `bgp-llnh`: Link-Local Next-Hop capability plugin Config roots: bgp. Dependencies: bgp. Optional: none. YANG files: 1. Source: `internal/component/bgp/plugins/llnh`.
+- `bgp-ls-export`: Export native routing databases through BGP-LS Config roots: bgp-ls-export. Dependencies: bgp-nlri-ls. Optional: none. YANG files: 1. Source: `internal/component/bgp/plugins/ls_export`.
 - `bgp-nlri-evpn`: EVPN family plugin Config roots: none. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/component/bgp/plugins/nlri/evpn`.
 - `bgp-nlri-flowspec`: FlowSpec NLRI encoding/decoding Config roots: none. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/component/bgp/plugins/nlri/flowspec`.
 - `bgp-nlri-labeled`: Labeled Unicast family plugin (RFC 8277) Config roots: none. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/component/bgp/plugins/nlri/labeled`.
@@ -188,8 +192,8 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `bgp-route-refresh`: Route Refresh capability decoding Config roots: bgp. Dependencies: bgp. Optional: none. YANG files: 3. Source: `internal/component/bgp/plugins/route_refresh`.
 - `bgp-rpki`: RPKI origin validation via RTR protocol Config roots: bgp. Dependencies: bgp, bgp-adj-rib-in. Optional: none. YANG files: 1. Source: `internal/component/bgp/plugins/rpki`.
 - `bgp-rpki-decorator`: Correlates UPDATE + RPKI events into merged update-rpki events Config roots: none. Dependencies: bgp, bgp-rpki. Optional: none. YANG files: 1. Source: `internal/component/bgp/plugins/rpki_decorator`.
-- `bgp-rr`: Route Reflector Config roots: none. Dependencies: bgp-adj-rib-in. Optional: none. YANG files: 1. Source: `internal/component/bgp/plugins/rr`.
-- `bgp-rs`: Route Server Config roots: bgp. Dependencies: none. Optional: bgp-adj-rib-in. YANG files: 1. Source: `internal/component/bgp/plugins/rs`.
+- `bgp-rr`: Route Reflector Config roots: none. Dependencies: bgp-adj-rib-in, bgp-rib. Optional: none. YANG files: 1. Source: `internal/component/bgp/plugins/rr`.
+- `bgp-rs`: Route Server Config roots: bgp. Dependencies: bgp-rib. Optional: bgp-adj-rib-in. YANG files: 1. Source: `internal/component/bgp/plugins/rs`.
 - `bgp-softver`: Software Version capability (code 75) Config roots: bgp. Dependencies: bgp. Optional: none. YANG files: 1. Source: `internal/component/bgp/plugins/softver`.
 - `bgp-watchdog`: Watchdog route management plugin Config roots: bgp. Dependencies: bgp. Optional: none. YANG files: 0. Source: `internal/component/bgp/plugins/watchdog`.
 - `connected`: Connected routes: redistribute directly connected interface prefixes Config roots: connected. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/connected`.
@@ -209,7 +213,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `firewall-domain`: DNS-sourced address groups for firewall rules Config roots: firewall. Dependencies: firewall. Optional: none. YANG files: 2. Source: `internal/component/firewall/plugins/domain`.
 - `firewall-irr`: IRR-based prefix-list filtering for firewall rules Config roots: firewall. Dependencies: firewall. Optional: none. YANG files: 2. Source: `internal/component/firewall/plugins/irr`.
 - `flow-export`: sFlow, NetFlow v9, and IPFIX counter export Config roots: flow-export. Dependencies: interface. Optional: none. YANG files: 1. Source: `internal/plugins/flowexport`.
-- `flowspec-firewall`: Translates BGP FlowSpec routes into nftables firewall rules Config roots: none. Dependencies: firewall. Optional: none. YANG files: 0. Source: `internal/plugins/flowspec-firewall`.
+- `flowspec-firewall`: Translates BGP FlowSpec routes into nftables firewall rules Config roots: none. Dependencies: firewall, bgp-rib. Optional: none. YANG files: 0. Source: `internal/plugins/flowspec-firewall`.
 - `geodns`: GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet) Config roots: service. Dependencies: none. Optional: none. YANG files: 2. Source: `internal/plugins/geodns`.
 - `ike`: IKEv2 engine for native IPsec VPN Config roots: vpn, pki. Dependencies: none. Optional: none. YANG files: 0. Source: `internal/component/ike/engine`.
 - `imageserver`: Image server: HTTP provisioning for disk images and boot files Config roots: service. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/imageserver`.
@@ -223,13 +227,13 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `ldp`: Label Distribution Protocol (RFC 5036): MPLS label distribution Config roots: ldp. Dependencies: fib-kernel, sysctl. Optional: none. YANG files: 2. Source: `internal/plugins/ldp`.
 - `loop`: Route loop detection (RFC 4271 S9, RFC 4456 S8) Config roots: none. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/component/bgp/reactor/filter`.
 - `mrt`: MRT routing information export (RFC 6396) Config roots: mrt. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/mrt`.
-- `ntp`: NTP client: system clock synchronization Config roots: environment. Dependencies: none. Optional: none. YANG files: 2. Source: `internal/plugins/ntp`.
+- `ntp`: NTP client: system clock synchronization Config roots: environment/ntp. Dependencies: none. Optional: none. YANG files: 2. Source: `internal/plugins/ntp`.
 - `ospf`: Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP Config roots: ospf. Dependencies: interface, fib-kernel, sysctl. Optional: none. YANG files: 2. Source: `internal/plugins/ospf`.
 - `policy-routes`: Policy-based routing: nftables packet marking and ip rule table selection Config roots: policy. Dependencies: firewall. Optional: none. YANG files: 2. Source: `internal/plugins/policyroute`.
 - `redistribute-orchestrator`: Redistribute orchestrator: dispatches protocol route events to registered consumers Config roots: redistribute. Dependencies: bgp. Optional: none. YANG files: 0. Source: `internal/component/bgp/plugins/redistribute_egress`.
 - `rib`: System RIB: selects best route across protocols by admin distance Config roots: rib. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/component/sysrib`.
 - `routing-table`: Named routing table registry: maps names to kernel table IDs Config roots: routing-table. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/routingtable`.
-- `rsvp-te`: RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) Config roots: rsvp-te. Dependencies: fib-kernel, sysctl. Optional: none. YANG files: 2. Source: `internal/plugins/rsvpte`.
+- `rsvp-te`: RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) Config roots: rsvp-te. Dependencies: interface, fib-kernel, sysctl. Optional: none. YANG files: 2. Source: `internal/plugins/rsvpte`.
 - `static`: Static routes: config-driven kernel/VPP route programming with ECMP Config roots: static. Dependencies: routing-table, rib. Optional: interface. YANG files: 2. Source: `internal/plugins/static`.
 - `sysctl`: Kernel tunable management: three-layer precedence, restore on stop Config roots: sysctl. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/component/sysctl`.
 - `tftpserver`: TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation) Config roots: service. Dependencies: none. Optional: none. YANG files: 1. Source: `internal/plugins/tftpserver`.
@@ -240,7 +244,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 
 ## CLI command surface
 
-The command catalog is generated from `ze help command --json`, not hand-written. Modes: 115 daemon, 18 offline, 335 read-only.
+The command catalog is generated from `ze help command --json`, not hand-written. Modes: 118 daemon, 18 offline, 335 read-only.
 `daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` groups operators as `always`, `with-rows`, `when-streaming`, or `local-only`; these qualifiers are part of the contract. An operator absent from those groups is refused by name.
 
 ### `clear` commands (23)
@@ -330,10 +334,11 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `plugin session ping` (read-only; wire ze-plugin:session-ping; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `plugin session ping`): Answer a health check with the daemon process id.
 - `plugin session ready` (read-only; wire ze-plugin:session-ready; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `plugin session ready`): Signal that this plugin process finished its initialization.
 
-### `request` commands (49)
+### `request` commands (52)
 - `request as112 healthcheck` (daemon; wire ze-as112:health; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args target:string; usage `request as112 healthcheck [target <target>]`): Send one authoritative query and check the AS112 answer.
 - `request bgp adj-rib-in accept-routes` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp adj-rib-in accept-routes`): Install one pending route under the validation state given.
 - `request bgp adj-rib-in batch-validate` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp adj-rib-in batch-validate`): Apply up to 256 validation decisions in one call.
+- `request bgp adj-rib-in disable-validation` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp adj-rib-in disable-validation`): Remove RPKI gating without changing independent route authorization.
 - `request bgp adj-rib-in enable-validation` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp adj-rib-in enable-validation`): Turn the validation gate on, so each new route waits in the pending state.
 - `request bgp adj-rib-in reject-routes` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp adj-rib-in reject-routes`): Discard one pending route and do not install it.
 - `request bgp adj-rib-in replay` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp adj-rib-in replay`): Replay the stored routes of every other peer to one target peer.
@@ -355,6 +360,8 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `request cache retain` (daemon; wire ze-bgp:cache-retain; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args id:string; usage `request cache retain <id>`): Prevent eviction of a cached message.
 - `request commit` (daemon; wire ze-bgp:commit; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request commit`): Group route changes into named atomic commits.
 - `request config archive` (daemon; wire ze-config-archive:trigger; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request config archive`): Save a snapshot of the current running configuration.
+- `request data backup` (daemon; wire ze-data:backup; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args path:string, spare:uint, force:flag; usage `request data backup <path> [spare <spare>] [force]`): Write a backup of the whole store to a file on the daemon's host.
+- `request data restore` (daemon; wire ze-data:restore; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args path:string, config:flag, name:string, client:string; usage `request data restore <path> [config] [name <name>] [client <client>]`): Restore a config from a backup file on the daemon's host.
 - `request halt` (daemon; wire ze-system:daemon-quit; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request halt`): Dump goroutine stacks to stderr and terminate immediately.
 - `request interface down` (daemon; wire ze-iface:interface-down; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `request interface <name> down`): Shut down an interface.
 - `request interface mac` (daemon; wire ze-iface:interface-mac; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string, address:string; usage `request interface <name> mac <address>`): Set the MAC address on an interface.
@@ -855,12 +862,13 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - `github.com/prometheus/procfs`: Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet.
 - `github.com/sirupsen/logrus`: Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger.
 
-### Standard Library Extensions (golang.org/x) (7)
+### Standard Library Extensions (golang.org/x) (8)
 - `golang.org/x/crypto`: SSH protocol primitives and certificate signing for the SSH server, plus password hashing.
 - `golang.org/x/mod`: Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy.
 - `golang.org/x/net`: Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth.
 - `golang.org/x/sys`: Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components.
 - `golang.org/x/term`: Reads passwords without echo and detects an interactive terminal during CLI login.
+- `golang.org/x/text`: Prepares TACACS+ usernames with the PRECIS UsernameCasePreserved profile that RFC 8907 Section 3.7 requires.
 - `golang.org/x/tools`: Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries.
 - `golang.org/x/vuln`: Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors.
 
@@ -870,7 +878,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - `github.com/gokrazy/updater`: Referenced only in a regression test against Ze's own vendored update-push logic, written locally after a bug was found upstream. Not used in production.
 - `github.com/sivchari/gomu`: Mutation-testing tool, run as a native Go command to advisory-score how well the test suite exercises the code. Not a build or CI gate.
 - `gopkg.in/yaml.v3`: Parses GitHub Actions workflow YAML in verification tests so aliases, duplicate keys, and malformed trigger structures fail closed.
-- `github.com/golangci/golangci-lint/v2`: The linter behind `./le verify lint run`, pinned through the tools.go tracking file so every machine and every CI job lints with one version.
+- `github.com/golangci/golangci-lint/v2`: The linter behind `./le go lint run`, pinned through the tools.go tracking file so every machine and every CI job lints with one version.
 - `honnef.co/go/tools`: Staticcheck, run beside golangci-lint from the same tools.go pin, for the analyses golangci-lint does not carry.
 - `github.com/yuin/goldmark`: Renders the Markdown of `docs/` and the website into the published HTML pages, in the Go site build that replaced the retired Python renderers.
 - `github.com/anmitsu/go-shlex`: Splits an operator-typed command line into words for the stress-reproduction runner, so a quoted argument survives.
@@ -884,7 +892,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [Ze Features](https://ze-software.net/reference/feature-status/index.md): Ze is an open-source configuration and protocol engine written in Go. The network operating system built on it runs on any Linux or as a gokrazy appliance. (web: https://ze-software.net/reference/feature-status/)
 - [AI-First Design](https://ze-software.net/features/ai-first/index.md): Ze is built around a single command and discovery surface. Commands, configuration nodes, RPCs, events, and plugin metadata are registered once, then exposed through MCP and the operator interfaces that need them. AI... (web: https://ze-software.net/features/ai-first/)
 - [API Commands](https://ze-software.net/features/api-commands/index.md): Commands sent through `ze cli`, `ze cli -c`, `ze show`, or process stdin. (web: https://ze-software.net/features/api-commands/)
-- [BGP Protocol](https://ze-software.net/features/bgp-protocol/index.md): An AS number is one 4-octet number on the wire (RFC 6793). RFC 5396 Section 2 names three ways to write that number in text. Ze READS all three wherever an AS number is configured or typed at a command. (web: https://ze-software.net/features/bgp-protocol/)
+- [BGP Protocol](https://ze-software.net/features/bgp-protocol/index.md): The BGP-LS rows describe the general NLRI codec and route-configuration API. The separate `bgp-ls-export` plugin originates standard SAFI 71 routes from native IGP or EPE state. It does not add generic text/API BGP-LS... (web: https://ze-software.net/features/bgp-protocol/)
 - [RFC Implementation Status](https://ze-software.net/reference/rfcs/index.md): This page is Ze's public standards status page. It lists RFCs that Ze implements, partially implements, has deferred, or has explicitly decided not to implement. It is a product support view rather than a formal IETF... (web: https://ze-software.net/reference/rfcs/)
 - [CLI Commands](https://ze-software.net/features/cli-commands/index.md): `show`, `clear`, `monitor`, `request`, `set`, and `delete` are the six verbs. The words after the verb are the YANG path. A bare form with no verb is not in the command tree, and the dispatcher answers `unknown command`... (web: https://ze-software.net/features/cli-commands/)
 - [Configuration](https://ze-software.net/features/bgp-configuration/index.md): This page walks through BGP peer configuration specifically, since it is the most-configured surface. For every other subsystem's config syntax (interfaces, firewall, L2TP, DHCP, and the rest of Ze's 38 plugin groups)... (web: https://ze-software.net/features/bgp-configuration/)
@@ -903,7 +911,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [Authentication](https://ze-software.net/guides/authentication/index.md): Ze supports local operator users defined in the daemon configuration, in addition to the bootstrap super-admin written to the `database/` store by `ze init`. This guide covers adding configured users, hashing their... (web: https://ze-software.net/guides/authentication/)
 - [Authorization](https://ze-software.net/guides/authorization/index.md): Ze uses profile-based command authorization (RBAC) to control which commands each user can execute. Profiles are defined in the daemon configuration alongside user accounts. Each user is assigned one or more profiles... (web: https://ze-software.net/guides/authorization/)
 - [Audit Trail](https://ze-software.net/guides/audit/index.md): Ze keeps a local structured audit log for operator actions that change state or fail authentication. The log is append-only from the user's point of view: there is a query command, but no command to delete or truncate... (web: https://ze-software.net/guides/audit/)
-- [Benchmarking](https://ze-software.net/guides/benchmarking/index.md): Ze includes `ze-perf`, a standalone tool for measuring BGP route propagation latency through a device under test (DUT). It works with any BGP implementation, including Ze. (web: https://ze-software.net/guides/benchmarking/)
+- [Benchmarking](https://ze-software.net/guides/benchmarking/index.md): Ze includes `le perf`, a tool for measuring BGP route propagation latency through a device under test (DUT). It works with any BGP implementation, including Ze. (web: https://ze-software.net/guides/benchmarking/)
 - [BFD: Bidirectional Forwarding Detection](https://ze-software.net/guides/bfd/index.md): Status: the plugin is live, the production transport is hardened (GTSM, IP_TTL=255 outbound, SO_BINDTODEVICE for single-hop and multi-VRF, RFC 5880 §6.8.7 TX jitter), the BGP peer opt-in is wired through the reactor... (web: https://ze-software.net/guides/bfd/)
 - [BMP (BGP Monitoring Protocol)](https://ze-software.net/guides/bmp/index.md): Ze implements RFC 7854 BMP in both directions: as a receiver (accepting feeds from routers) and as a sender (streaming state to collectors). (web: https://ze-software.net/guides/bmp/)
 - [Command Reference](https://ze-software.net/guides/command-reference/index.md): Ze commands fall into two categories: shell commands that run locally and runtime commands sent to the running daemon via SSH. (web: https://ze-software.net/guides/command-reference/)
@@ -919,7 +927,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [L2TPv2 LNS subsystem](https://ze-software.net/guides/l2tp/index.md): Ze includes a native L2TPv2 (RFC 2661) LNS/LAC implementation used as a BNG (Broadband Network Gateway) component: it terminates L2TP tunnels over UDP, runs PPP negotiation (LCP, authentication, IPCP/IPv6CP), assigns... (web: https://ze-software.net/guides/l2tp/)
 - [OSPF](https://ze-software.net/guides/ospf/index.md): Ze includes an experimental native OSPF engine under the `ospf` config root. The same engine drives OSPFv2 for IPv4 and OSPFv3 for the `address-family ipv6` subsection: interface and neighbor state, LSDB flooding, SPF... (web: https://ze-software.net/guides/ospf/)
 - [Monitoring](https://ze-software.net/guides/monitoring/index.md): Ze provides real-time BGP event monitoring and a live peer dashboard through the CLI. Commands follow verb-first syntax: `monitor `. (web: https://ze-software.net/guides/monitoring/)
-- [MRT Analysis](https://ze-software.net/guides/mrt-analysis/index.md): Ze includes `ze-analyze`, a standalone tool for analysing real-world BGP data from public route collectors (RIPE RIS, RouteViews). It processes MRT dump files to extract statistics that inform ze's internal buffer... (web: https://ze-software.net/guides/mrt-analysis/)
+- [MRT Analysis](https://ze-software.net/guides/mrt-analysis/index.md): Ze includes `./le mrt`, a development command for analysing real-world BGP data from public route collectors (RIPE RIS, RouteViews). It processes MRT dump files to extract statistics that inform ze's internal buffer... (web: https://ze-software.net/guides/mrt-analysis/)
 - [netlab](https://ze-software.net/labs/netlab/index.md): netlab builds a lab from a YAML topology and starts each node under containerlab. Ze runs as one of those nodes. netlab calls this the daemon tier: one YAML file and one directory of Jinja2 templates, with no Ansible... (web: https://ze-software.net/labs/netlab/)
 - [Policy Routing](https://ze-software.net/guides/policy-routing/index.md): Ze supports policy-based routing (PBR) to steer traffic through alternate routing tables or next-hops based on L3/L4 match criteria. This is used for content filtering (Surfprotect), split tunneling, and traffic... (web: https://ze-software.net/guides/policy-routing/)
 - [Plugins](https://ze-software.net/guides/plugins/index.md): Ze uses a plugin architecture for all features beyond core BGP session management. Plugins handle RIB storage, route reflection, graceful restart, RPKI validation, NLRI encoding, and more. (web: https://ze-software.net/guides/plugins/)
@@ -929,7 +937,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [Quick Start](https://ze-software.net/guides/quickstart/index.md): Get Ze running with two BGP peers in under 5 minutes. (web: https://ze-software.net/guides/quickstart/)
 - [RADIUS admin AAA](https://ze-software.net/guides/radius/index.md): Ze authenticates operator logins (SSH and web) against RADIUS servers (RFC 2865) when the `system.authentication.radius` block is present. Local bcrypt users keep working as the fallback so an unreachable server cannot... (web: https://ze-software.net/guides/radius/)
 - [Route Injection](https://ze-software.net/guides/route-injection/index.md): Ze supports injecting routes at runtime through text, hex, or base64 encoded UPDATE commands. Routes can be sent from the CLI, from external plugins, or from process scripts. (web: https://ze-software.net/guides/route-injection/)
-- [RPKI Origin Validation](https://ze-software.net/guides/rpki/index.md): Ze validates received BGP routes against RPKI ROA data. Invalid routes are rejected before entering the RIB. The feature connects to RTR cache servers (RFC 8210), downloads Validated ROA Payloads (VRPs), and applies the... (web: https://ze-software.net/guides/rpki/)
+- [RPKI Origin Validation](https://ze-software.net/guides/rpki/index.md): Ze validates received BGP routes against RPKI ROA data. By default, Invalid routes remain in Adj-RIB-In with their received attributes but are ineligible for selection and export. The feature connects to RTR cache... (web: https://ze-software.net/guides/rpki/)
 - [Static Routes](https://ze-software.net/guides/static-routes/index.md): Ze supports static routes with ECMP, weighted load balancing, BFD-tracked failover, blackhole, and reject. Routes are grouped under named tables for policy-based routing support. (web: https://ze-software.net/guides/static-routes/)
 - [Public looking glass](https://ze-software.net/guides/public-looking-glass/index.md): Use this when you want a read-only HTTP looking glass for BGP peers, route lookup, prefix search, and AS-path graphs. (web: https://ze-software.net/guides/public-looking-glass/)
 - [TACACS+ AAA](https://ze-software.net/guides/tacacs/index.md): Ze authenticates SSH logins against TACACS+ servers (RFC 8907) when the `system.authentication.tacacs` block is present. Local bcrypt users keep working as the fallback so an unreachable server cannot lock you out of... (web: https://ze-software.net/guides/tacacs/)
@@ -950,7 +958,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [Documentation Testing](https://ze-software.net/contribute/documentation-testing/index.md): Ze ships native Go tools that compare documentation with the live registries and source tree. Pre-commit verification selects the checks affected by a change. (web: https://ze-software.net/contribute/documentation-testing/)
 - [RFC Implementation Guide for Ze](https://ze-software.net/contribute/rfc-implementation-guide/index.md): This guide provides a step-by-step checklist for implementing an RFC in Ze. Use it alongside `planning.md` to ensure complete implementations. (web: https://ze-software.net/contribute/rfc-implementation-guide/)
 - [Testing Guide](https://ze-software.net/contribute/testing/index.md): This guide covers how to run tests, what the different test types are, and how to interpret their output. For the full technical reference (`.ci` format spec, `.et` directives, fuzz target list), see... (web: https://ze-software.net/contribute/testing/)
-- [SRv6 (Segment Routing over IPv6)](https://ze-software.net/features/srv6/index.md): Ze receives BGP routes carrying SRv6 Prefix-SID attributes (RFC 8669, RFC 9252), extracts SRv6 SIDs, validates them, and programs encapsulation into the FIB. Operates as an ingress PE: consumes received SRv6 SIDs but... (web: https://ze-software.net/features/srv6/)
+- [SRv6 (Segment Routing over IPv6)](https://ze-software.net/features/srv6/index.md): Ze receives BGP routes carrying SRv6 Prefix-SID attributes (RFC 8669, RFC 9252), extracts SRv6 SIDs, validates them, and programs ingress encapsulation into the FIB. Static route configuration and `update text` can also... (web: https://ze-software.net/features/srv6/)
 - [Glossary](https://ze-software.net/reference/glossary/index.md): Terms used in Ze documentation and operator output. (web: https://ze-software.net/reference/glossary/)
 - [ADD-PATH and PATHS-LIMIT](https://ze-software.net/guides/add-path/index.md): ADD-PATH (RFC 7911) allows multiple paths per prefix by including a Path Identifier with each NLRI. Route servers use it to forward all available paths rather than one best path. (web: https://ze-software.net/guides/add-path/)
 - [REST and gRPC API](https://ze-software.net/guides/api/index.md): Ze exposes a programmatic API over REST (HTTP/JSON) and gRPC. Both transports share one engine -- they produce identical command output and support the same commands. (web: https://ze-software.net/guides/api/)
@@ -972,7 +980,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [Lifecycle, Rollback, and Recovery](https://ze-software.net/guides/lifecycle/index.md): Use this guide for routine daemon control and configuration recovery. Ze separates configuration reload, process restart, and host reboot because they have different routing consequences. (web: https://ze-software.net/guides/lifecycle/)
 - [Logging](https://ze-software.net/guides/logging/index.md): Ze uses hierarchical, structured logging with runtime-configurable levels per subsystem. (web: https://ze-software.net/guides/logging/)
 - [Looking Glass](https://ze-software.net/guides/looking-glass/index.md): Ze includes a built-in looking glass that provides public, read-only access to BGP session state and route information. It runs as a separate HTTP server from the authenticated web UI. (web: https://ze-software.net/guides/looking-glass/)
-- [Chaos MCP Server](https://ze-software.net/guides/mcp/chaos/index.md): ze-chaos includes an MCP (Model Context Protocol) server that lets AI assistants query chaos test state, detect problems, and control the chaos scheduler. (web: https://ze-software.net/guides/mcp/chaos/)
+- [Chaos MCP Server](https://ze-software.net/guides/mcp/chaos/index.md): `./le chaos run` includes an MCP (Model Context Protocol) server that lets AI assistants query chaos test state, detect problems, and control the chaos scheduler. (web: https://ze-software.net/guides/mcp/chaos/)
 - [MCP Elicitation](https://ze-software.net/guides/mcp/elicitation/index.md): Ze can ask an MCP client for a value it needs but was not given. Under protocol revision `2026-07-28` it does so through Multi Round-Trip Requests (MRTR): the server does not send the client a request, it returns one. (web: https://ze-software.net/guides/mcp/elicitation/)
 - [MCP Integration](https://ze-software.net/guides/mcp/overview/index.md): Ze includes an MCP (Model Context Protocol) server that lets AI assistants control BGP operations. The server runs inside the daemon and wraps the same command dispatcher used by the CLI and web interface. (web: https://ze-software.net/guides/mcp/overview/)
 - [MCP Remote Access](https://ze-software.net/guides/mcp/remote-access/index.md): Ze's MCP server defaults to loopback binding (`127.0.0.1`). Two patterns make it reachable from other machines: (web: https://ze-software.net/guides/mcp/remote-access/)
@@ -999,7 +1007,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [Route Server at an IXP](https://ze-software.net/use-cases/route-server/index.md): Use Ze as an RFC 7947 route server when each member should maintain one eBGP session and receive eligible routes from the other members without next-hop rewriting. (web: https://ze-software.net/use-cases/route-server/)
 - [Transit Edge with RPKI](https://ze-software.net/use-cases/transit-edge-rpki/index.md): This deployment shape uses Ze at an Internet edge with two transit sessions, origin validation, explicit import policy, and local preference for deterministic failover. (web: https://ze-software.net/use-cases/transit-edge-rpki/)
 - [FlowSpec Injection](https://ze-software.net/use-cases/flowspec-injection/index.md): Use Ze to inject or relay BGP FlowSpec rules when an automation system must distribute traffic filters to routers. Keep the route source, policy, and withdrawal path explicit because a stale FlowSpec rule can affect... (web: https://ze-software.net/use-cases/flowspec-injection/)
-- [Chaos-Tested BGP Peering](https://ze-software.net/use-cases/chaos-tested-peering/index.md): Use `ze-chaos` before deployment to prove that a peer configuration converges, survives selected faults, and produces a reproducible failure record when it does not. (web: https://ze-software.net/use-cases/chaos-tested-peering/)
+- [Chaos-Tested BGP Peering](https://ze-software.net/use-cases/chaos-tested-peering/index.md): Use `le chaos run` before deployment to prove that a peer configuration converges, survives selected faults, and produces a reproducible failure record when it does not. (web: https://ze-software.net/use-cases/chaos-tested-peering/)
 - [AS-Path Topology](https://ze-software.net/use-cases/as-path-topology/index.md): Use the built-in Looking Glass to turn the AS paths for a prefix into a topology view. The graph is an operational aid for comparing what different peers advertise, not a complete map of the Internet. (web: https://ze-software.net/use-cases/as-path-topology/)
 
 ## Page map
@@ -1027,7 +1035,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 - [Code quality](https://ze-software.net/quality/index.md): Tests, QEMU, fuzzing, and mutation checks (web: https://ze-software.net/quality/)
 - [Testing health](https://ze-software.net/quality/health/index.md): Measured test state and how it moves over time (web: https://ze-software.net/quality/health/)
 - [RFC compliance gate](https://ze-software.net/quality/rfc-compliance/index.md): RFC requirements, tests, gaps, and public claims checked by AI (web: https://ze-software.net/quality/rfc-compliance/)
-- [Dependencies](https://ze-software.net/reference/dependencies/index.md): 49 direct packages, generated from go.mod (web: https://ze-software.net/reference/dependencies/)
+- [Dependencies](https://ze-software.net/reference/dependencies/index.md): 50 direct packages, generated from go.mod (web: https://ze-software.net/reference/dependencies/)
 - [Security](https://ze-software.net/security/index.md): Security policy and vulnerability reporting (web: https://ze-software.net/security/)
 
 ## Docs
@@ -1066,7 +1074,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 
 ### Live system
 - [Reference index](https://ze-software.net/reference/index.md): Commands, configuration, plugins, standards, and feature status (web: https://ze-software.net/reference/)
-- [CLI reference](https://ze-software.net/reference/cli/index.md): 468 commands, generated from the live binary (web: https://ze-software.net/reference/cli/)
+- [CLI reference](https://ze-software.net/reference/cli/index.md): 471 commands, generated from the live binary (web: https://ze-software.net/reference/cli/)
 - [Configuration reference](https://ze-software.net/reference/configuration/index.md): %(config_sections)s sections, indexed from live YANG (web: https://ze-software.net/reference/configuration/)
 - [Plugin catalogue](https://ze-software.net/reference/plugins/index.md): Find runtime plugins by purpose, config, or dependency (web: https://ze-software.net/reference/plugins/)
 ### Standards and lookup

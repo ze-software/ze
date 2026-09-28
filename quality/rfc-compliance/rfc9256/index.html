@@ -352,7 +352,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> composite candidate paths have no producer; grep -rniE composite over internal, pkg and cmd finds no SR Policy match, so ze forms no constituent policy that could carry one (internal/component/bgp/plugins/nlri/srpolicy/config.go:72)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.4-1">RFC9256-2.4-1</code></td><td colspan="3"><span class="rfc-subject">For the Originator ASN, if 2-byte ASNs are in use the low-order 16 bits MUST be used and the high-order bits MUST be set to 0 (§2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.4-1">RFC9256-2.4-1</code></td><td colspan="3"><span class="rfc-subject">If 2-byte ASNs are in use, the low-order 16 bits MUST be used, and the high-order bits MUST be set to 0. (§2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.4</td>
@@ -361,7 +361,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze encodes no Originator sub-TLV; the SR Policy sub-TLV constant set is preference, binding-sid, priority, srv6-binding-sid, segment-list and the two name sub-TLVs only, and grep for ProtocolOrigin or OriginatorASN over internal, pkg and cmd matches nothing (internal/component/bgp/plugins/nlri/srpolicy/config.go:23)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.4-2">RFC9256-2.4-2</code></td><td colspan="3"><span class="rfc-subject">For the Originator node address, IPv4 addresses MUST be encoded in the lowest 32 bits and the high-order bits MUST be set to 0 (§2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.4-2">RFC9256-2.4-2</code></td><td colspan="3"><span class="rfc-subject">IPv4 addresses MUST be encoded in the lowest 32 bits, and the high-order bits MUST be set to 0. (§2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.4</td>
@@ -370,7 +370,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze encodes no Originator sub-TLV, so it writes no originator node address; buildTunnelEncap emits only the preference, BSID, priority, segment-list and name sub-TLVs (internal/component/bgp/plugins/nlri/srpolicy/config.go:339)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.6-1">RFC9256-2.6-1</code></td><td colspan="3"><span class="rfc-subject">The identity of a candidate path MUST be uniquely established in the context of an SR Policy &lt;Headend, Color, Endpoint&gt; to handle add, delete, or modify operations unambiguously (§2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.6-1">RFC9256-2.6-1</code></td><td colspan="3"><span class="rfc-subject">The identity of a candidate path MUST be uniquely established in the context of an SR Policy &lt;Headend, Color, Endpoint&gt; to handle add, delete, or modify operations on them in an unambiguous manner regardless of their source(s). (§2.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.6</td>
@@ -379,7 +379,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the only candidate-path identity ze produces is the RFC 9830 distinguisher in the NLRI key, written by (*SRPolicy).WriteTo (internal/component/bgp/plugins/nlri/srpolicy/types.go:91); ze keeps no candidate-path store, so an add, delete or modify is never resolved against a candidate-path identity, and neither a protocol origin nor an originator is carried</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.6-3">RFC9256-2.6-3</code></td><td colspan="3"><span class="rfc-subject">Symbolic candidate-path names MUST NOT be considered as identifiers for a candidate path (§2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.6-3">RFC9256-2.6-3</code></td><td colspan="3"><span class="rfc-subject">Such symbolic names MUST NOT be considered as identifiers for a candidate path. (§2.6)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.6</td>
@@ -388,7 +388,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go#L117" title="internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go" target="_blank" rel="noopener"><code>TestRFC9256SymbolicNamesAreNotIdentifiers</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.9-1">RFC9256-2.9-1</code></td><td colspan="3"><span class="rfc-subject">Whenever a new path is learned, an active path is deleted, an existing path&#39;s validity changes, or an existing path is changed, the candidate-path selection process MUST be re-executed (§2.9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.9-1">RFC9256-2.9-1</code></td><td colspan="3"><span class="rfc-subject">Whenever a new path is learned or an active path is deleted, the validity of an existing path changes, or an existing path is changed, the selection process MUST be re-executed. (§2.9)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.9</td>
@@ -397,7 +397,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no candidate-path selection; there is no candidate-path store and no preference comparison anywhere (grep for protocol-origin or active candidate over internal matches nothing), and the SR Policy plugin registers only an NLRI codec and a config route encoder (internal/component/bgp/plugins/nlri/srpolicy/register.go:29)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.11-1">RFC9256-2.11-1</code></td><td colspan="3"><span class="rfc-subject">Only the active candidate path MUST be used for forwarding traffic steered onto that policy, except in scenarios such as fast reroute where a backup candidate path may be used (§2.11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.11-1">RFC9256-2.11-1</code></td><td colspan="3"><span class="rfc-subject">Only the active candidate path MUST be used for forwarding traffic that is being steered onto that policy except for certain scenarios such as fast reroute where a backup candidate path may be used as described in Section 9.3. (§2.11)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.11</td>
@@ -424,7 +424,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> parseSegmentList builds a segment list with no validity determination; it accepts a list with zero segments, accepts weight 0, and appends Type A and Type B segments into one list without a data-plane check (internal/component/bgp/plugins/nlri/srpolicy/config.go:267), and ze resolves no SID to an outgoing interface or next hop</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-4">RFC9256-5.1-4</code></td><td colspan="3"><span class="rfc-subject">Types A or B MUST be used for the SIDs whose reachability cannot be verified (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-4">RFC9256-5.1-4</code></td><td colspan="3"><span class="rfc-subject">Types A or B MUST be used for the SIDs for which the reachability cannot be verified. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
@@ -433,7 +433,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the segment encoder accepts only type-a and type-b and returns an error for every other segment spelling (internal/component/bgp/plugins/nlri/srpolicy/config.go:276), so every SID ze emits already carries its value outright; ze holds no SID verification state whose failure could produce a violating segment to reject</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-5">RFC9256-5.1-5</code></td><td colspan="3"><span class="rfc-subject">The first SID MUST always be reachable regardless of its type (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-5">RFC9256-5.1-5</code></td><td colspan="3"><span class="rfc-subject">Note that the first SID MUST always be reachable regardless of its type. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
@@ -442,7 +442,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze resolves no SID; the first segment of a segment list is encoded straight from configuration with no reachability lookup (internal/component/bgp/plugins/nlri/srpolicy/config.go:276), and grep for SAFISRPolicy over internal/component/resolve and internal/plugins/fib matches nothing, so first-SID reachability is never established</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.2-1">RFC9256-5.2-1</code></td><td colspan="3"><span class="rfc-subject">If no solution is found to the optimization objective and constraints, the dynamic candidate path MUST be declared invalid (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.2-1">RFC9256-5.2-1</code></td><td colspan="3"><span class="rfc-subject">If no solution is found to the optimization objective and constraints, then the dynamic candidate path MUST be declared invalid. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2</td>
@@ -460,7 +460,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> buildBindingSIDSubTLV encodes whatever label the configuration names (internal/component/bgp/plugins/nlri/srpolicy/config.go:381) and ze keeps no BSID allocation table, so two SR Policies configured with the same BSID are both encoded and advertised</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-4">RFC9256-6.2-4</code></td><td colspan="3"><span class="rfc-subject">When the specified BSID is not available (optionally not in the SRLB), an alert message MUST be generated via mechanisms like syslog (§6.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-4">RFC9256-6.2-4</code></td><td colspan="3"><span class="rfc-subject">When the specified BSID is not available (optionally is not in the SRLB), an alert message MUST be generated via mechanisms like syslog. (§6.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.2</td>
@@ -478,7 +478,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze implements no Specified-BSID-only behavior; grep for specified-bsid or SpecifiedBSID over internal, pkg and cmd matches nothing and parseConfigRoute&#39;s keyword switch has no spelling for it (internal/component/bgp/plugins/nlri/srpolicy/config.go:72)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2.3-4">RFC9256-6.2.3-4</code></td><td colspan="3"><span class="rfc-subject">Under Specified-BSID-only behavior, other candidate paths MUST then be evaluated for becoming the active candidate path (§6.2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2.3-4">RFC9256-6.2.3-4</code></td><td colspan="3"><span class="rfc-subject">Other candidate paths MUST then be evaluated for becoming the active candidate path. (§6.2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.2.3</td>
@@ -939,23 +939,23 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: composite candidate paths have no producer; grep -rniE composite over internal, pkg and cmd finds no SR Policy match, so ze forms no constituent policy that could carry one (internal/component/bgp/plugins/nlri/srpolicy/config.go:72)</td>
 </tr>
-<tr><td><a href="#rfc9256-2.4-1"><code>RFC9256-2.4-1</code></a> For the Originator ASN, if 2-byte ASNs are in use the low-order 16 bits MUST be used and the high-order bits MUST be set to 0 (§2.4)</td>
+<tr><td><a href="#rfc9256-2.4-1"><code>RFC9256-2.4-1</code></a> If 2-byte ASNs are in use, the low-order 16 bits MUST be used, and the high-order bits MUST be set to 0. (§2.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze encodes no Originator sub-TLV; the SR Policy sub-TLV constant set is preference, binding-sid, priority, srv6-binding-sid, segment-list and the two name sub-TLVs only, and grep for ProtocolOrigin or OriginatorASN over internal, pkg and cmd matches nothing (internal/component/bgp/plugins/nlri/srpolicy/config.go:23)</td>
 </tr>
-<tr><td><a href="#rfc9256-2.4-2"><code>RFC9256-2.4-2</code></a> For the Originator node address, IPv4 addresses MUST be encoded in the lowest 32 bits and the high-order bits MUST be set to 0 (§2.4)</td>
+<tr><td><a href="#rfc9256-2.4-2"><code>RFC9256-2.4-2</code></a> IPv4 addresses MUST be encoded in the lowest 32 bits, and the high-order bits MUST be set to 0. (§2.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze encodes no Originator sub-TLV, so it writes no originator node address; buildTunnelEncap emits only the preference, BSID, priority, segment-list and name sub-TLVs (internal/component/bgp/plugins/nlri/srpolicy/config.go:339)</td>
 </tr>
-<tr><td><a href="#rfc9256-2.6-1"><code>RFC9256-2.6-1</code></a> The identity of a candidate path MUST be uniquely established in the context of an SR Policy &lt;Headend, Color, Endpoint&gt; to handle add, delete, or modify operations unambiguously (§2.6)</td>
+<tr><td><a href="#rfc9256-2.6-1"><code>RFC9256-2.6-1</code></a> The identity of a candidate path MUST be uniquely established in the context of an SR Policy &lt;Headend, Color, Endpoint&gt; to handle add, delete, or modify operations on them in an unambiguous manner regardless of their source(s). (§2.6)</td>
 <td>{gap}, no test</td>
 <td>the only candidate-path identity ze produces is the RFC 9830 distinguisher in the NLRI key, written by (*SRPolicy).WriteTo (internal/component/bgp/plugins/nlri/srpolicy/types.go:91); ze keeps no candidate-path store, so an add, delete or modify is never resolved against a candidate-path identity, and neither a protocol origin nor an originator is carried</td>
 </tr>
-<tr><td><a href="#rfc9256-2.9-1"><code>RFC9256-2.9-1</code></a> Whenever a new path is learned, an active path is deleted, an existing path&#39;s validity changes, or an existing path is changed, the candidate-path selection process MUST be re-executed (§2.9)</td>
+<tr><td><a href="#rfc9256-2.9-1"><code>RFC9256-2.9-1</code></a> Whenever a new path is learned or an active path is deleted, the validity of an existing path changes, or an existing path is changed, the selection process MUST be re-executed. (§2.9)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no candidate-path selection; there is no candidate-path store and no preference comparison anywhere (grep for protocol-origin or active candidate over internal matches nothing), and the SR Policy plugin registers only an NLRI codec and a config route encoder (internal/component/bgp/plugins/nlri/srpolicy/register.go:29)</td>
 </tr>
-<tr><td><a href="#rfc9256-2.11-1"><code>RFC9256-2.11-1</code></a> Only the active candidate path MUST be used for forwarding traffic steered onto that policy, except in scenarios such as fast reroute where a backup candidate path may be used (§2.11)</td>
+<tr><td><a href="#rfc9256-2.11-1"><code>RFC9256-2.11-1</code></a> Only the active candidate path MUST be used for forwarding traffic that is being steered onto that policy except for certain scenarios such as fast reroute where a backup candidate path may be used as described in Section 9.3. (§2.11)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: no SR Policy reaches forwarding; SAFI 73 appears only in the family registry and the NLRI codec (internal/core/family/family.go:93, internal/component/bgp/plugins/nlri/srpolicy/types.go:74), and grep for SAFISRPolicy over internal/plugins/fib and internal/component/resolve matches nothing</td>
 </tr>
@@ -967,11 +967,11 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <td>{gap}, no test</td>
 <td>parseSegmentList builds a segment list with no validity determination; it accepts a list with zero segments, accepts weight 0, and appends Type A and Type B segments into one list without a data-plane check (internal/component/bgp/plugins/nlri/srpolicy/config.go:267), and ze resolves no SID to an outgoing interface or next hop</td>
 </tr>
-<tr><td><a href="#rfc9256-5.1-5"><code>RFC9256-5.1-5</code></a> The first SID MUST always be reachable regardless of its type (§5.1)</td>
+<tr><td><a href="#rfc9256-5.1-5"><code>RFC9256-5.1-5</code></a> Note that the first SID MUST always be reachable regardless of its type. (§5.1)</td>
 <td>{gap}, no test</td>
 <td>ze resolves no SID; the first segment of a segment list is encoded straight from configuration with no reachability lookup (internal/component/bgp/plugins/nlri/srpolicy/config.go:276), and grep for SAFISRPolicy over internal/component/resolve and internal/plugins/fib matches nothing, so first-SID reachability is never established</td>
 </tr>
-<tr><td><a href="#rfc9256-5.2-1"><code>RFC9256-5.2-1</code></a> If no solution is found to the optimization objective and constraints, the dynamic candidate path MUST be declared invalid (§5.2)</td>
+<tr><td><a href="#rfc9256-5.2-1"><code>RFC9256-5.2-1</code></a> If no solution is found to the optimization objective and constraints, then the dynamic candidate path MUST be declared invalid. (§5.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze signals only explicit segment lists and has no dynamic candidate path; parseSegmentList takes literal MPLS labels and SRv6 SIDs (internal/component/bgp/plugins/nlri/srpolicy/config.go:276) and grep for OptimizationObjective over internal, pkg and cmd matches nothing</td>
 </tr>
@@ -979,7 +979,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <td>{gap}, no test</td>
 <td>buildBindingSIDSubTLV encodes whatever label the configuration names (internal/component/bgp/plugins/nlri/srpolicy/config.go:381) and ze keeps no BSID allocation table, so two SR Policies configured with the same BSID are both encoded and advertised</td>
 </tr>
-<tr><td><a href="#rfc9256-6.2-4"><code>RFC9256-6.2-4</code></a> When the specified BSID is not available (optionally not in the SRLB), an alert message MUST be generated via mechanisms like syslog (§6.2)</td>
+<tr><td><a href="#rfc9256-6.2-4"><code>RFC9256-6.2-4</code></a> When the specified BSID is not available (optionally is not in the SRLB), an alert message MUST be generated via mechanisms like syslog. (§6.2)</td>
 <td>{gap}, no test</td>
 <td>ze performs no BSID availability check; buildBindingSIDSubTLV encodes the configured label unconditionally (internal/component/bgp/plugins/nlri/srpolicy/config.go:381) and the only SRLB allocator in ze belongs to OSPF Adj-SIDs (internal/plugins/ospf/sr_adjsid.go:115), which no SR Policy code consults, so no alert is raised</td>
 </tr>
@@ -987,7 +987,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze implements no Specified-BSID-only behavior; grep for specified-bsid or SpecifiedBSID over internal, pkg and cmd matches nothing and parseConfigRoute&#39;s keyword switch has no spelling for it (internal/component/bgp/plugins/nlri/srpolicy/config.go:72)</td>
 </tr>
-<tr><td><a href="#rfc9256-6.2.3-4"><code>RFC9256-6.2.3-4</code></a> Under Specified-BSID-only behavior, other candidate paths MUST then be evaluated for becoming the active candidate path (§6.2.3)</td>
+<tr><td><a href="#rfc9256-6.2.3-4"><code>RFC9256-6.2.3-4</code></a> Other candidate paths MUST then be evaluated for becoming the active candidate path. (§6.2.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze implements no Specified-BSID-only behavior and no candidate-path selection, so there is no evaluation of other candidate paths to perform; the SR Policy plugin registers only an NLRI codec and a config route encoder (internal/component/bgp/plugins/nlri/srpolicy/register.go:29)</td>
 </tr>
@@ -1037,19 +1037,19 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-2.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-2.4-1"><code>RFC9256-2.4-1</code></a></h3>
-<p>For the Originator ASN, if 2-byte ASNs are in use the low-order 16 bits MUST be used and the high-order bits MUST be set to 0 (§2.4)</p>
+<p>If 2-byte ASNs are in use, the low-order 16 bits MUST be used, and the high-order bits MUST be set to 0. (§2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-2.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-2.4-2"><code>RFC9256-2.4-2</code></a></h3>
-<p>For the Originator node address, IPv4 addresses MUST be encoded in the lowest 32 bits and the high-order bits MUST be set to 0 (§2.4)</p>
+<p>IPv4 addresses MUST be encoded in the lowest 32 bits, and the high-order bits MUST be set to 0. (§2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-2.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-2.6-1"><code>RFC9256-2.6-1</code></a></h3>
-<p>The identity of a candidate path MUST be uniquely established in the context of an SR Policy &lt;Headend, Color, Endpoint&gt; to handle add, delete, or modify operations unambiguously (§2.6)</p>
+<p>The identity of a candidate path MUST be uniquely established in the context of an SR Policy &lt;Headend, Color, Endpoint&gt; to handle add, delete, or modify operations on them in an unambiguous manner regardless of their source(s). (§2.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-2.6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-2.6-3"><code>RFC9256-2.6-3</code></a></h3>
-<p>Symbolic candidate-path names MUST NOT be considered as identifiers for a candidate path (§2.6)</p>
+<p>Such symbolic names MUST NOT be considered as identifiers for a candidate path. (§2.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1069,11 +1069,11 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 </table>
 </div>
 <h3><a href="#rfc9256-2.9-1"><code>RFC9256-2.9-1</code></a></h3>
-<p>Whenever a new path is learned, an active path is deleted, an existing path&#39;s validity changes, or an existing path is changed, the candidate-path selection process MUST be re-executed (§2.9)</p>
+<p>Whenever a new path is learned or an active path is deleted, the validity of an existing path changes, or an existing path is changed, the selection process MUST be re-executed. (§2.9)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-2.9-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-2.11-1"><code>RFC9256-2.11-1</code></a></h3>
-<p>Only the active candidate path MUST be used for forwarding traffic steered onto that policy, except in scenarios such as fast reroute where a backup candidate path may be used (§2.11)</p>
+<p>Only the active candidate path MUST be used for forwarding traffic that is being steered onto that policy except for certain scenarios such as fast reroute where a backup candidate path may be used as described in Section 9.3. (§2.11)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-2.11-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-4-6"><code>RFC9256-4-6</code></a></h3>
@@ -1085,7 +1085,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-5.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-5.1-4"><code>RFC9256-5.1-4</code></a></h3>
-<p>Types A or B MUST be used for the SIDs whose reachability cannot be verified (§5.1)</p>
+<p>Types A or B MUST be used for the SIDs for which the reachability cannot be verified. (§5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1100,11 +1100,11 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 </table>
 </div>
 <h3><a href="#rfc9256-5.1-5"><code>RFC9256-5.1-5</code></a></h3>
-<p>The first SID MUST always be reachable regardless of its type (§5.1)</p>
+<p>Note that the first SID MUST always be reachable regardless of its type. (§5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-5.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-5.2-1"><code>RFC9256-5.2-1</code></a></h3>
-<p>If no solution is found to the optimization objective and constraints, the dynamic candidate path MUST be declared invalid (§5.2)</p>
+<p>If no solution is found to the optimization objective and constraints, then the dynamic candidate path MUST be declared invalid. (§5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-5.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-6.1-3"><code>RFC9256-6.1-3</code></a></h3>
@@ -1112,7 +1112,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-6.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-6.2-4"><code>RFC9256-6.2-4</code></a></h3>
-<p>When the specified BSID is not available (optionally not in the SRLB), an alert message MUST be generated via mechanisms like syslog (§6.2)</p>
+<p>When the specified BSID is not available (optionally is not in the SRLB), an alert message MUST be generated via mechanisms like syslog. (§6.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-6.2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-6.2.3-3"><code>RFC9256-6.2.3-3</code></a></h3>
@@ -1120,7 +1120,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-6.2.3-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-6.2.3-4"><code>RFC9256-6.2.3-4</code></a></h3>
-<p>Under Specified-BSID-only behavior, other candidate paths MUST then be evaluated for becoming the active candidate path (§6.2.3)</p>
+<p>Other candidate paths MUST then be evaluated for becoming the active candidate path. (§6.2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9256-6.2.3-4, so no unit is bound to it.</p>
 <h3><a href="#rfc9256-7-1"><code>RFC9256-7-1</code></a></h3>
@@ -1557,7 +1557,7 @@ Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

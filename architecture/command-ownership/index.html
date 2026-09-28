@@ -88,7 +88,7 @@
 <!-- source: internal/le/plugin/imports/actions.go -- Answer -->
 <h2 id="the-folder-test">The Folder Test</h2>
 <p>Every feature in Ze passes two folder tests:</p>
-<p><strong>Copy test:</strong> copy a plugin folder into the project, run codegen (<code>./le repository generate</code>),
+<p><strong>Copy test:</strong> copy a plugin folder into the project, run codegen (<code>./le repo generate</code>),
 and the plugin's commands, YANG schema, and handlers are live. No manual wiring.</p>
 <p><strong>Delete test:</strong> delete a plugin folder, run codegen, and every one of its features
 disappears. Every other plugin and the core keep working. No dangling references,
@@ -158,7 +158,7 @@ present in the directory. The only hand-written file is the <code>.yang</code> i
 <p>This means adding a YANG command schema to a plugin is:</p>
 <ol>
 <li>Write <code>ze-&lt;name&gt;-cmd.yang</code> in the plugin's <code>yang/</code> folder</li>
-<li>Run <code>./le repository generate</code></li>
+<li>Run <code>./le repo generate</code></li>
 <li>Done: the codegen produces <code>embed.go</code>, <code>register.go</code>, and updates <code>all.go</code></li>
 </ol>
 <h3 id="how-codegen-enables-the-folder-test">How Codegen Enables the Folder Test</h3>
@@ -200,7 +200,7 @@ each line:</p>
 <tr>
 <td>Another composition root owns it</td>
 <td>the <code>codegen:skip</code> marker and its reason</td>
-<td><code>internal/perf/cli</code> under <code>//go:build ze_perf</code></td>
+<td><code>internal/perf/cli</code>, which only le links</td>
 </tr>
 <tr>
 <td>The package IS a composition root</td>
@@ -524,7 +524,7 @@ package holds the matching presence test, such as
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

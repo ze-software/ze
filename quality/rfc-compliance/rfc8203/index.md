@@ -102,11 +102,11 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8203-2-1` | Error Subcode value must be 2 ("Administrative Shutdown") or 4 ("Administrative Reset") (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L368). **negative:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L370) |
-| `RFC8203-2-2` | Length field must range from 0 to 128 inclusive (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203LengthCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L393). **negative:** no negative test. **{single-polarity}:** the sender enforces the 0-128 range -- BuildShutdownData truncates a longer message to 128 at a UTF-8 boundary (internal/component/bgp/message/notification.go:312) -- but the receiver deliberately follows RFC 9003, which obsoletes RFC 8203 and raised the cap to 255 (ShutdownMessage reads a 1-byte length up to 255, notification.go:268-284), so ze intentionally does not reject a 129-255 length on receive and there is no over-128-rejected behavior to assert |
-| `RFC8203-2-3` | Shutdown Communication field must be encoded using UTF-8 (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L405). **negative:** `unit/verify` [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L423) |
-| `RFC8203-6-1` | UTF-8 "Shortest Form" encoding is required (§6) | MUST | 6 - Security Considerations | **positive:** `unit/verify` [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L441). **negative:** `unit/verify` [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L443) |
-| `RFC8203-2-4` | Receiving BGP speaker must not interpret invalid UTF-8 sequences (§2) | MUST NOT | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L425). **negative:** `unit/verify` [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L407) |
+| `RFC8203-2-1` | Subcode: the Error Subcode value MUST be one of the following values: 2 ("Administrative Shutdown") or 4 ("Administrative Reset"). (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L368). **negative:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L370) |
+| `RFC8203-2-2` | The length value MUST range from 0 to 128 inclusive. (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203LengthCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L393). **negative:** no negative test. **{single-polarity}:** the sender enforces the 0-128 range -- BuildShutdownData truncates a longer message to 128 at a UTF-8 boundary (internal/component/bgp/message/notification.go:312) -- but the receiver deliberately follows RFC 9003, which obsoletes RFC 8203 and raised the cap to 255 (ShutdownMessage reads a 1-byte length up to 255, notification.go:268-284), so ze intentionally does not reject a 129-255 length on receive and there is no over-128-rejected behavior to assert |
+| `RFC8203-2-3` | Shutdown Communication: to support international characters, the Shutdown Communication field MUST be encoded using UTF-8. (§2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L405). **negative:** `unit/verify` [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L423) |
+| `RFC8203-6-1` | UTF-8 "Shortest Form" encoding is REQUIRED to guard against the technical issues outlined in [UTR36]. (§6) | MUST | 6 - Security Considerations | **positive:** `unit/verify` [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L441). **negative:** `unit/verify` [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L443) |
+| `RFC8203-2-4` | A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (§2) | MUST NOT | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L425). **negative:** `unit/verify` [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L407) |
 | `RFC8203-2-5` | Reporting of Shutdown Communication should include methods such as Syslog (§2) | SHOULD | 2 - Shutdown Communication | **positive:** no positive test. **negative:** no negative test |
 | `RFC8203-4-1` | Log a message for the operator when an invalid Length value or invalid UTF-8 sequence is received (§4) | SHOULD | 4 - Error Handling | **positive:** no positive test. **negative:** no negative test |
 | `RFC8203-2-6` | Sender may include a UTF-8 encoded string in the Cease NOTIFICATION (§2) | MAY | 2 - Shutdown Communication | **positive:** no positive test. **negative:** no negative test |
@@ -122,7 +122,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC8203-2-1`](#rfc8203-2-1)
 
-Error Subcode value must be 2 ("Administrative Shutdown") or 4 ("Administrative Reset") (§2)
+Subcode: the Error Subcode value MUST be one of the following values: 2 ("Administrative Shutdown") or 4 ("Administrative Reset"). (§2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -133,7 +133,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8203-2-2`](#rfc8203-2-2)
 
-Length field must range from 0 to 128 inclusive (§2)
+The length value MUST range from 0 to 128 inclusive. (§2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -143,7 +143,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8203-2-3`](#rfc8203-2-3)
 
-Shutdown Communication field must be encoded using UTF-8 (§2)
+Shutdown Communication: to support international characters, the Shutdown Communication field MUST be encoded using UTF-8. (§2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -154,7 +154,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8203-6-1`](#rfc8203-6-1)
 
-UTF-8 "Shortest Form" encoding is required (§6)
+UTF-8 "Shortest Form" encoding is REQUIRED to guard against the technical issues outlined in [UTR36]. (§6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -165,7 +165,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8203-2-4`](#rfc8203-2-4)
 
-Receiving BGP speaker must not interpret invalid UTF-8 sequences (§2)
+A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (§2)
 
 Audit verdict: not audited: no reader has judged these tests
 

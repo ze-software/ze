@@ -294,7 +294,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-4.1-1">RFC9234-4.1-1</code></td><td colspan="3"><span class="rfc-subject">If BGP Role is locally configured, eBGP speaker MUST advertise BGP Role Capability in OPEN (S4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-4.1-1">RFC9234-4.1-1</code></td><td colspan="3"><span class="rfc-subject">If the BGP Role is locally configured, the eBGP speaker MUST advertise the BGP Role Capability in the BGP OPEN message. (S4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1 - BGP Role Capability</td>
@@ -303,7 +303,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/config_test.go#L289" title="internal/component/bgp/plugins/role/config_test.go" target="_blank" rel="noopener"><code>TestExtractRoleCapabilities_ParseBGPConfig</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-4.1-2">RFC9234-4.1-2</code></td><td colspan="3"><span class="rfc-subject">eBGP speaker MUST NOT advertise multiple versions of BGP Role Capability (S4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-4.1-2">RFC9234-4.1-2</code></td><td colspan="3"><span class="rfc-subject">An eBGP speaker MUST NOT advertise multiple versions of the BGP Role Capability. (S4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.1 - BGP Role Capability</td>
@@ -312,7 +312,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> parseRoleContainer (internal/component/bgp/plugins/role/config.go:66) reads a single import role per peer and extractRoleCapabilities (config.go:213) emits exactly one CapabilityDecl per peer, so no code path can advertise multiple Role capabilities and only the exactly-one assertion is constructible</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-4.2-1">RFC9234-4.2-1</code></td><td colspan="3"><span class="rfc-subject">If Role Capability advertised and received, Roles MUST correspond to Table 2 relationships (S4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-4.2-1">RFC9234-4.2-1</code></td><td colspan="3"><span class="rfc-subject">If the BGP Role Capability is advertised, and one is also received from the peer, the Roles MUST correspond to the relationships in Table 2. (S4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2 - Role Correctness</td>
@@ -322,7 +322,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L65" title="internal/component/bgp/plugins/role/validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_InvalidPairs</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-4.2-2">RFC9234-4.2-2</code></td><td colspan="3"><span class="rfc-subject">If Roles do not correspond, MUST reject connection with Role Mismatch Notification (code 2, subcode 11) (S4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-4.2-2">RFC9234-4.2-2</code></td><td colspan="3"><span class="rfc-subject">If the Roles do not correspond, the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11). (S4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2 - Role Correctness</td>
@@ -344,7 +344,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/validate_test.go#L193" title="internal/component/bgp/plugins/role/validate_test.go" target="_blank" rel="noopener"><code>TestValidateOpenRolePair_MultipleSameRoles</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-1">RFC9234-5-1</code></td><td colspan="3"><span class="rfc-subject">Route with OTC received from Customer or RS-Client MUST be considered ineligible (S5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-1">RFC9234-5-1</code></td><td colspan="3"><span class="rfc-subject">If a route with the OTC Attribute is received from a Customer or an RS-Client, then it is a route leak and MUST be considered ineligible (see Section 3). (S5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
@@ -390,11 +390,11 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-rs-withdraw-eor.ci#L14" title="test/plugin/role-otc-rs-withdraw-eor.ci" target="_blank" rel="noopener"><code>role-otc-rs-withdraw-eor.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-fwd-withdraw.ci#L11" title="test/plugin/role-otc-fwd-withdraw.ci" target="_blank" rel="noopener"><code>role-otc-fwd-withdraw.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-rs-withdraw-eor.ci#L17" title="test/plugin/role-otc-rs-withdraw-eor.ci" target="_blank" rel="noopener"><code>role-otc-rs-withdraw-eor.ci</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L857" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkOTCWithdrawal</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L858" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkOTCWithdrawal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L855" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkOTCWithdrawal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L856" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkOTCWithdrawal</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-5">RFC9234-5-5</code></td><td colspan="3"><span class="rfc-subject">Route with OTC MUST NOT be propagated to Providers, Peers, or RSes (S5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-5">RFC9234-5-5</code></td><td colspan="3"><span class="rfc-subject">If a route already contains the OTC Attribute, it MUST NOT be propagated to Providers, Peers, or RSes. (S5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
@@ -403,7 +403,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1724" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressWireBytesCheck</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-6">RFC9234-5-6</code></td><td colspan="3"><span class="rfc-subject">Once OTC Attribute is set, it MUST be preserved unchanged (S5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-6">RFC9234-5-6</code></td><td colspan="3"><span class="rfc-subject">Once the OTC Attribute has been set, it MUST be preserved unchanged (this also applies to an AS Confederation). (S5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
@@ -412,7 +412,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L1490" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCAttrModHandlerNewAttr</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-7">RFC9234-5-7</code></td><td colspan="3"><span class="rfc-subject">OTC added on egress from AS Confederation MUST equal AS Confederation Identifier (S5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-7">RFC9234-5-7</code></td><td colspan="3"><span class="rfc-subject">If an OTC Attribute is added on egress from the AS Confederation, its value MUST equal the AS Confederation Identifier. (S5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
@@ -421,7 +421,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze does not operate as an AS Confederation (no confederation-identifier or member-AS config exists anywhere in config or the role plugin); the egress OTC stamp at internal/component/bgp/plugins/role/otc.go:432 uses only dest.LocalAS, so there is no confederation egress boundary at which a confederation identifier could be stamped</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-8">RFC9234-5-8</code></td><td colspan="3"><span class="rfc-subject">On egress from AS Confederation, UPDATE MUST NOT contain OTC with Member-AS Number other than Confederation Identifier (S5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-8">RFC9234-5-8</code></td><td colspan="3"><span class="rfc-subject">Also, on egress from the AS Confederation, an UPDATE MUST NOT contain an OTC Attribute with a value corresponding to any Member-AS Number other than the AS Confederation Identifier. (S5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
@@ -430,7 +430,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze has no AS Confederation membership (no member-AS or confederation-identifier config); the egress OTC stamp at internal/component/bgp/plugins/role/otc.go:432 uses only dest.LocalAS, so an UPDATE never carries a member-AS OTC value at a confederation boundary</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-9">RFC9234-5-9</code></td><td colspan="3"><span class="rfc-subject">On egress from Internet-facing AS, OTC MUST NOT contain value other than Internet-facing ASN (S5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-9">RFC9234-5-9</code></td><td colspan="3"><span class="rfc-subject">On egress from the Internet- facing AS, the OTC Attribute MUST NOT contain a value other than the Internet-facing ASN. (S5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
@@ -439,7 +439,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the egress OTC stamp at internal/component/bgp/plugins/role/otc.go:432 uses dest.LocalAS, the effective per-peer internet-facing local AS supplied by the reactor at internal/component/bgp/reactor/peer_forward_facts.go:133, and no code path stamps any other value, so a wrong-ASN negative is not constructible</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-10">RFC9234-5-10</code></td><td colspan="3"><span class="rfc-subject">OTC procedures MUST NOT be applied to address families other than AFI 1/2, SAFI 1 by default (S5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-10">RFC9234-5-10</code></td><td colspan="3"><span class="rfc-subject">The described ingress and egress procedures are applicable only for the address families AFI 1 (IPv4) and AFI 2 (IPv6) with SAFI 1 (unicast) in both cases and MUST NOT be applied to other address families by default. (S5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
@@ -451,7 +451,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/otc_test.go#L965" title="internal/component/bgp/plugins/role/otc_test.go" target="_blank" rel="noopener"><code>TestOTCEgressStampMod</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-11">RFC9234-5-11</code></td><td colspan="3"><span class="rfc-subject">Operator MUST NOT have ability to modify ingress/egress OTC procedures (S5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-5-11">RFC9234-5-11</code></td><td colspan="3"><span class="rfc-subject">The operator MUST NOT have the ability to modify the procedures defined in this section. (S5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5 - BGP Only to Customer (OTC) Attribute</td>
@@ -460,7 +460,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> checkOTCIngress (internal/component/bgp/plugins/role/otc.go:164) and OTCEgressFilter (otc.go:384) take no operator override, peerRoleConfig (config.go:17) exposes no disable flag, and the wire-bytes OTC suppression at otc.go:384 runs before and independent of the export policy, so the procedures cannot be switched off by configuration and a modifiable negative is not constructible</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-6-1">RFC9234-6-1</code></td><td colspan="3"><span class="rfc-subject">Roles MUST NOT be configured on eBGP session with Complex peering relationship (S6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9234-6-1">RFC9234-6-1</code></td><td colspan="3"><span class="rfc-subject">Roles MUST NOT be configured on an eBGP session with a Complex peering relationship. (S6)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6 - Additional Considerations</td>
@@ -542,15 +542,15 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc9234-5-7"><code>RFC9234-5-7</code></a> OTC added on egress from AS Confederation MUST equal AS Confederation Identifier (S5)</td>
+<tr><td><a href="#rfc9234-5-7"><code>RFC9234-5-7</code></a> If an OTC Attribute is added on egress from the AS Confederation, its value MUST equal the AS Confederation Identifier. (S5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze does not operate as an AS Confederation (no confederation-identifier or member-AS config exists anywhere in config or the role plugin); the egress OTC stamp at internal/component/bgp/plugins/role/otc.go:432 uses only dest.LocalAS, so there is no confederation egress boundary at which a confederation identifier could be stamped</td>
 </tr>
-<tr><td><a href="#rfc9234-5-8"><code>RFC9234-5-8</code></a> On egress from AS Confederation, UPDATE MUST NOT contain OTC with Member-AS Number other than Confederation Identifier (S5)</td>
+<tr><td><a href="#rfc9234-5-8"><code>RFC9234-5-8</code></a> Also, on egress from the AS Confederation, an UPDATE MUST NOT contain an OTC Attribute with a value corresponding to any Member-AS Number other than the AS Confederation Identifier. (S5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze has no AS Confederation membership (no member-AS or confederation-identifier config); the egress OTC stamp at internal/component/bgp/plugins/role/otc.go:432 uses only dest.LocalAS, so an UPDATE never carries a member-AS OTC value at a confederation boundary</td>
 </tr>
-<tr><td><a href="#rfc9234-6-1"><code>RFC9234-6-1</code></a> Roles MUST NOT be configured on eBGP session with Complex peering relationship (S6)</td>
+<tr><td><a href="#rfc9234-6-1"><code>RFC9234-6-1</code></a> Roles MUST NOT be configured on an eBGP session with a Complex peering relationship. (S6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze has no representation of a Complex peering relationship; parseRoleContainer (internal/component/bgp/plugins/role/config.go:66) parses one role per peer with no relationship-complexity classification, so there is no ze code path that could place a role on a complex session to guard against</td>
 </tr>
@@ -561,7 +561,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc9234-4.1-1"><code>RFC9234-4.1-1</code></a></h3>
-<p>If BGP Role is locally configured, eBGP speaker MUST advertise BGP Role Capability in OPEN (S4.1)</p>
+<p>If the BGP Role is locally configured, the eBGP speaker MUST advertise the BGP Role Capability in the BGP OPEN message. (S4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -581,7 +581,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </table>
 </div>
 <h3><a href="#rfc9234-4.1-2"><code>RFC9234-4.1-2</code></a></h3>
-<p>eBGP speaker MUST NOT advertise multiple versions of BGP Role Capability (S4.1)</p>
+<p>An eBGP speaker MUST NOT advertise multiple versions of the BGP Role Capability. (S4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -596,7 +596,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </table>
 </div>
 <h3><a href="#rfc9234-4.2-1"><code>RFC9234-4.2-1</code></a></h3>
-<p>If Role Capability advertised and received, Roles MUST correspond to Table 2 relationships (S4.2)</p>
+<p>If the BGP Role Capability is advertised, and one is also received from the peer, the Roles MUST correspond to the relationships in Table 2. (S4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -621,7 +621,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </table>
 </div>
 <h3><a href="#rfc9234-4.2-2"><code>RFC9234-4.2-2</code></a></h3>
-<p>If Roles do not correspond, MUST reject connection with Role Mismatch Notification (code 2, subcode 11) (S4.2)</p>
+<p>If the Roles do not correspond, the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11). (S4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -681,7 +681,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </table>
 </div>
 <h3><a href="#rfc9234-5-1"><code>RFC9234-5-1</code></a></h3>
-<p>Route with OTC received from Customer or RS-Client MUST be considered ineligible (S5)</p>
+<p>If a route with the OTC Attribute is received from a Customer or an RS-Client, then it is a route leak and MUST be considered ineligible (see Section 3). (S5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -778,7 +778,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L858" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkOTCWithdrawal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L856" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkOTCWithdrawal</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -808,7 +808,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L857" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkOTCWithdrawal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L855" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkOTCWithdrawal</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -831,7 +831,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </table>
 </div>
 <h3><a href="#rfc9234-5-5"><code>RFC9234-5-5</code></a></h3>
-<p>Route with OTC MUST NOT be propagated to Providers, Peers, or RSes (S5)</p>
+<p>If a route already contains the OTC Attribute, it MUST NOT be propagated to Providers, Peers, or RSes. (S5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -851,7 +851,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </table>
 </div>
 <h3><a href="#rfc9234-5-6"><code>RFC9234-5-6</code></a></h3>
-<p>Once OTC Attribute is set, it MUST be preserved unchanged (S5)</p>
+<p>Once the OTC Attribute has been set, it MUST be preserved unchanged (this also applies to an AS Confederation). (S5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -871,15 +871,15 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </table>
 </div>
 <h3><a href="#rfc9234-5-7"><code>RFC9234-5-7</code></a></h3>
-<p>OTC added on egress from AS Confederation MUST equal AS Confederation Identifier (S5)</p>
+<p>If an OTC Attribute is added on egress from the AS Confederation, its value MUST equal the AS Confederation Identifier. (S5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9234-5-7, so no unit is bound to it.</p>
 <h3><a href="#rfc9234-5-8"><code>RFC9234-5-8</code></a></h3>
-<p>On egress from AS Confederation, UPDATE MUST NOT contain OTC with Member-AS Number other than Confederation Identifier (S5)</p>
+<p>Also, on egress from the AS Confederation, an UPDATE MUST NOT contain an OTC Attribute with a value corresponding to any Member-AS Number other than the AS Confederation Identifier. (S5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9234-5-8, so no unit is bound to it.</p>
 <h3><a href="#rfc9234-5-9"><code>RFC9234-5-9</code></a></h3>
-<p>On egress from Internet-facing AS, OTC MUST NOT contain value other than Internet-facing ASN (S5)</p>
+<p>On egress from the Internet- facing AS, the OTC Attribute MUST NOT contain a value other than the Internet-facing ASN. (S5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -894,7 +894,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </table>
 </div>
 <h3><a href="#rfc9234-5-10"><code>RFC9234-5-10</code></a></h3>
-<p>OTC procedures MUST NOT be applied to address families other than AFI 1/2, SAFI 1 by default (S5)</p>
+<p>The described ingress and egress procedures are applicable only for the address families AFI 1 (IPv4) and AFI 2 (IPv6) with SAFI 1 (unicast) in both cases and MUST NOT be applied to other address families by default. (S5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -929,7 +929,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </table>
 </div>
 <h3><a href="#rfc9234-5-11"><code>RFC9234-5-11</code></a></h3>
-<p>Operator MUST NOT have ability to modify ingress/egress OTC procedures (S5)</p>
+<p>The operator MUST NOT have the ability to modify the procedures defined in this section. (S5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -944,7 +944,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
 </table>
 </div>
 <h3><a href="#rfc9234-6-1"><code>RFC9234-6-1</code></a></h3>
-<p>Roles MUST NOT be configured on eBGP session with Complex peering relationship (S6)</p>
+<p>Roles MUST NOT be configured on an eBGP session with a Complex peering relationship. (S6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9234-6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9234-3.1-1"><code>RFC9234-3.1-1</code></a></h3>
@@ -1195,7 +1195,7 @@ No known gap. The coverage gap disclosed here until 2026-08-05 is closed: <a hre
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

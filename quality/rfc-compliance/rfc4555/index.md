@@ -1,6 +1,6 @@
 # RFC 4555 - IKEv2 Mobility and Multihoming Protocol (MOBIKE)
 
-Unsupported. Every requirement this repository extracted from RFC 4555, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Partial. Every requirement this repository extracted from RFC 4555, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,10 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0.0% | 0 of 13 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 100.0% | 13 of 13 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 13 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| No test at all | 0.0% | 0 of 13 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 0.0% | 0 of 37 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -27,14 +28,6 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 13 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 13 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| No test at all | 100.0% | 13 of 13 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-
 The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -46,7 +39,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -57,16 +50,16 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Field | Value |
 |---|---|
-| Public status | Unsupported |
+| Public status | Partial |
 | Enrolment | Enrolled |
 | Requirements | 23 |
 | Gated MUST-level | 13 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 6 |
-| Gated with no test | 7 |
+| Declared gaps | 0 |
+| Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 0 |
-| Tagged units | 0 |
+| Test tags | 37 |
+| Tagged units | 37 |
 | Recorded audit verdicts | 0 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc4555.md` |
@@ -75,55 +68,58 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: IKEv2 Mobility and Multihoming Protocol (MOBIKE): thirteen MUST-level requirements, none of them met. The six original rows are {gap}, and the 2026-09-21 extraction walk added seven more (RFC4555-3.6-1, 3.7-4, 3.7-5, 3.9-3, 3.9-4, 4.2.1-1, 4.2.5-1) which carry no test. Ze does not implement the RFC 4555 MOBIKE extension -- its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path (no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, no address-update handling; grep for MOBIKE/UPDATE_SA_ADDRESSES across internal/component/ike/ finds nothing). RFC4555-x-1 (MOBIKE_SUPPORTED in IKE_AUTH), RFC4555-x-2 (switch to port 4500 for MOBIKE+NAT-T), RFC4555-3.9-1 (NO_NATS_ALLOWED in address-updating messages), RFC4555-3.7-1 (responder copies COOKIE2 verbatim), RFC4555-3.8-1 (no dynamic address updates when not behind NAT), RFC4555-3.8-2 (echo NAT_DETECTION in MOBIKE INFORMATIONAL) all govern MOBIKE behaviors Ze does not implement. No SHOULD/MAY requirements are gated.
+Enrolled: Ze implements MOBIKE in its native IKE engine. All thirteen MUST-level requirements remain enrolled and have production paths plus newly authored positive/negative tests. Execution and discrimination remain required; no exclusion or conformance claim is made.
 
 ## What the public ledger says
 
-**Status:** Unsupported
+**Status:** Partial
 
-**What the ledger says is covered:**
+**What the ledger says is covered**
 
-- None
-- the IKE engine does not define the MOBIKE notify types (16396/16400) and does not handle UPDATE_SA_ADDRESSES.
+- Tunnel-mode negotiation
+- UDP 4500 source selection
+- explicit address updates
+- COOKIE2 generation, echo, comparison and failure teardown
+- NO_NATS_ALLOWED sending and full receiver validation under the per-peer NAT policy
+- NAT detection
+- sequence-preserving live XFRM migration when the kernel supports XFRM_MSG_MIGRATE_STATE. Newly authored tests remain unrun.
 
 
 **What the ledger says remains:**
 
-Responder role (announce MOBIKE_SUPPORTED, accept UPDATE_SA_ADDRESSES, migrate XFRM endpoints) is not implemented.
+Atomic migration requires Linux 7.2's API and CONFIG_XFRM_MIGRATE in the appliance build. Runtime verification, discrimination and interoperability results remain outstanding.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the gated population |
-| Annotated instead of tested | 6 | one part of the gated population |
+| Positive and negative tests | 13 | one part of the gated population |
+| Annotated instead of tested | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 7 | one part of the gated population |
+| No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **13** | every gated MUST falls in exactly one bucket above |
 
-**Annotated instead of tested (6):** [`RFC4555-x-1`](#rfc4555-x-1), [`RFC4555-x-2`](#rfc4555-x-2), [`RFC4555-3.9-1`](#rfc4555-3.9-1), [`RFC4555-3.7-1`](#rfc4555-3.7-1), [`RFC4555-3.8-1`](#rfc4555-3.8-1), [`RFC4555-3.8-2`](#rfc4555-3.8-2)
-
-**No test and no annotation (7):** [`RFC4555-3.6-1`](#rfc4555-3.6-1), [`RFC4555-3.7-4`](#rfc4555-3.7-4), [`RFC4555-3.7-5`](#rfc4555-3.7-5), [`RFC4555-3.9-3`](#rfc4555-3.9-3), [`RFC4555-3.9-4`](#rfc4555-3.9-4), [`RFC4555-4.2.1-1`](#rfc4555-4.2.1-1), [`RFC4555-4.2.5-1`](#rfc4555-4.2.5-1)
+**Positive and negative tests (13):** [`RFC4555-x-1`](#rfc4555-x-1), [`RFC4555-x-2`](#rfc4555-x-2), [`RFC4555-3.9-1`](#rfc4555-3.9-1), [`RFC4555-3.7-1`](#rfc4555-3.7-1), [`RFC4555-3.8-1`](#rfc4555-3.8-1), [`RFC4555-3.8-2`](#rfc4555-3.8-2), [`RFC4555-3.6-1`](#rfc4555-3.6-1), [`RFC4555-3.7-4`](#rfc4555-3.7-4), [`RFC4555-3.7-5`](#rfc4555-3.7-5), [`RFC4555-3.9-3`](#rfc4555-3.9-3), [`RFC4555-3.9-4`](#rfc4555-3.9-4), [`RFC4555-4.2.1-1`](#rfc4555-4.2.1-1), [`RFC4555-4.2.5-1`](#rfc4555-4.2.5-1)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC4555-x-1` | Both peers MUST include N(MOBIKE_SUPPORTED) in IKE_AUTH to enable MOBIKE for that IKE SA (Capability Negotiation, Sections 3.1-3.2) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so the behavior is owed and unbuilt. |
-| `RFC4555-x-2` | Implementations supporting both MOBIKE and NAT Traversal MUST switch to port 4500 during IKE_AUTH even if no NAT is detected (Capability Negotiation, Sections 3.1-3.2) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so the behavior is owed and unbuilt. |
-| `RFC4555-3.9-1` | When NAT Traversal is NOT enabled, address-updating messages MUST include NO_NATS_ALLOWED containing actual source/destination IP and ports (NAT Prohibition, Section 3.9) | MUST | 3.9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so the behavior is owed and unbuilt. |
-| `RFC4555-3.7-1` | The exchange responder MUST copy COOKIE2 verbatim into the response (Return Routability Check, Section 3.7) | MUST | 3.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so the behavior is owed and unbuilt. |
-| `RFC4555-3.8-1` | When MOBIKE is active, the host not behind a NAT MUST NOT use dynamic IKEv2 address updates for IKE packets (NAT Mapping Changes, Section 3.8) | MUST | 3.8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so the behavior is owed and unbuilt. |
-| `RFC4555-3.8-2` | The responder MUST echo NAT_DETECTION_SOURCE_IP and NAT_DETECTION_DESTINATION_IP if present in any INFORMATIONAL request (NAT Mapping Changes, Section 3.8) | MUST | 3.8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so the behavior is owed and unbuilt. |
-| `RFC4555-3.6-1` | If the request to update the addresses is retransmitted using several different source addresses, a new INFORMATIONAL request MUST be sent (Additional Addresses, Section 3.6) | MUST | 3.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4555-3.7-4` | When processing the response, the original sender of COOKIE2 MUST verify that the value is the same one as sent (Return Routability Check, Section 3.7) | MUST | 3.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4555-3.7-5` | If the COOKIE2 values do not match, the IKE_SA MUST be closed (Return Routability Check, Section 3.7) | MUST | 3.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4555-3.9-3` | The exchange responder MUST verify that the contents of the NO_NATS_ALLOWED notification match the addresses in the IP header (NAT Prohibition, Section 3.9) | MUST | 3.9 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4555-3.9-4` | If an UNEXPECTED_NAT_DETECTED notification is sent, the exchange responder MUST NOT use the contents of the NO_NATS_ALLOWED notification for any other purpose than possibly logging the information for troubleshooting purposes (NAT Prohibition, Section 3.9) | MUST NOT | 3.9 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4555-4.2.1-1` | The MOBIKE_SUPPORTED notification data field MUST be left empty (zero-length) when sending, and its contents (if any) MUST be ignored when this notification is received (Payload Formats, Section 4.2.1) | MUST | 4.2.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4555-4.2.5-1` | The data associated with the COOKIE2 notification MUST be between 8 and 64 octets in length (inclusive), and MUST be chosen by the exchange initiator in a way that is unpredictable to the exchange responder (Payload Formats, Section 4.2.5) | MUST | 4.2.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4555-x-1` | Both peers MUST include N(MOBIKE_SUPPORTED) in IKE_AUTH to enable MOBIKE for that IKE SA (Capability Negotiation, Sections 3.1-3.2) | MUST | x | **positive:** `unit/verify` [`TestMobikeAuthNegotiation`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L651). **negative:** `unit/verify` [`TestMobikeAuthNegotiation`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L652) |
+| `RFC4555-x-2` | Implementations supporting both MOBIKE and NAT Traversal MUST switch to port 4500 during IKE_AUTH even if no NAT is detected (Capability Negotiation, Sections 3.1-3.2) | MUST | x | **positive:** `unit/verify` [`TestMobikeAuthNegotiation`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L654). **negative:** `unit/verify` [`TestMobikeAuthWithoutNATTSocketKeepsBaseIKE`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L712) |
+| `RFC4555-3.9-1` | More specifically, when NAT Traversal is not enabled, all messages that can update the addresses associated with the IKE_SA and/or IPsec SAs (the first IKE_AUTH request and all INFORMATIONAL requests that contain any of the following notifications: UPDATE_SA_ADDRESSES, ADDITIONAL_IP4_ADDRESS, ADDITIONAL_IP6_ADDRESS, NO_ADDITIONAL_ADDRESSES) MUST also include a NO_NATS_ALLOWED notification. (NAT Prohibition, Section 3.9) | MUST | 3.9 | **positive:** `unit/verify` [`TestMobikeAdvertisementAfterSourceChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L553). **positive:** `unit/verify` [`TestMobikeAuthRetransmitKeepsProtectedTuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1092). **positive:** `unit/verify` [`TestMobikeConfiguredNATPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1026). **negative:** `unit/verify` [`TestMobikeConfiguredNATPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1028) |
+| `RFC4555-3.7-1` | The exchange responder MUST copy COOKIE2 verbatim into the response (Return Routability Check, Section 3.7) | MUST | 3.7 | **positive:** `unit/verify` [`TestMobikeCookie2EchoBounds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L234). **positive:** `unit/verify` [`TestMobikeOwnerDispatchRepliesFromArrivalSocket`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L29). **negative:** `unit/verify` [`TestMobikeCookie2EchoBounds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L235) |
+| `RFC4555-3.8-1` | When MOBIKE is active, the host not behind a NAT MUST NOT use dynamic IKEv2 address updates for IKE packets (NAT Mapping Changes, Section 3.8) | MUST | 3.8 | **positive:** `unit/verify` [`TestMobikePathProbeRetainsTunnelEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L736). **negative:** `unit/verify` [`TestMobikePathProbeRetainsTunnelEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L738) |
+| `RFC4555-3.8-2` | The responder MUST echo NAT_DETECTION_SOURCE_IP and NAT_DETECTION_DESTINATION_IP if present in any INFORMATIONAL request (NAT Mapping Changes, Section 3.8) | MUST | 3.8 | **positive:** `unit/verify` [`TestMobikePathProbeRetainsTunnelEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L740). **negative:** `unit/verify` [`TestMobikePathProbeRetainsTunnelEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L742) |
+| `RFC4555-3.6-1` | If the request to update the addresses is retransmitted using several different source addresses, a new INFORMATIONAL request MUST be sent (Additional Addresses, Section 3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestMobikeAdvertisementAfterSourceChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L546). **negative:** `unit/verify` [`TestMobikeAdvertisementAfterSourceChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L548) |
+| `RFC4555-3.7-4` | When processing the response, the original sender of COOKIE2 MUST verify that the value is the same one as sent (Return Routability Check, Section 3.7) | MUST | 3.7 | **positive:** `unit/verify` [`TestMobikeCookie2ResponseControlsMigration`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L276). **negative:** `unit/verify` [`TestMobikeChangedPathStillChecksCookie2`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L998). **negative:** `unit/verify` [`TestMobikeCookie2ResponseControlsMigration`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L277) |
+| `RFC4555-3.7-5` | If the COOKIE2 values do not match, the IKE_SA MUST be closed (Return Routability Check, Section 3.7) | MUST | 3.7 | **positive:** `unit/verify` [`TestMobikeChangedPathStillChecksCookie2`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1000). **positive:** `unit/verify` [`TestMobikeCookie2ResponseControlsMigration`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L278). **negative:** `unit/verify` [`TestMobikeCookie2ResponseControlsMigration`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L280) |
+| `RFC4555-3.9-3` | The exchange responder MUST verify that the contents of the NO_NATS_ALLOWED notification match the addresses in the IP header (NAT Prohibition, Section 3.9) | MUST | 3.9 | **positive:** `unit/verify` [`TestMobikeNoNATsIPv4Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L393). **positive:** `unit/verify` [`TestMobikeNoNATsIPv6Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L507). **positive:** `unit/verify` [`TestMobikeNoNATsUpdateWaitsForRoutability`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L805). **negative:** `unit/verify` [`TestMobikeNoNATsIPv4Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L394). **negative:** `unit/verify` [`TestMobikeNoNATsIPv6Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L508) |
+| `RFC4555-3.9-4` | If an UNEXPECTED_NAT_DETECTED notification is sent, the exchange responder MUST NOT use the contents of the NO_NATS_ALLOWED notification for any other purpose than possibly logging the information for troubleshooting purposes (NAT Prohibition, Section 3.9) | MUST NOT | 3.9 | **positive:** `unit/verify` [`TestMobikeNoNATsIPv4Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L396). **positive:** `unit/verify` [`TestMobikeNoNATsReplyUsesReceivedDestination`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L468). **negative:** `unit/verify` [`TestMobikeNoNATsIPv4Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L398). **negative:** `unit/verify` [`TestMobikeNoNATsUpdateWaitsForRoutability`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L807) |
+| `RFC4555-4.2.1-1` | The notification data field MUST be left empty (zero-length) when sending, and its contents (if any) MUST be ignored when this notification is received. (Payload Formats, Section 4.2.1) | MUST | 4.2.1 | **positive:** `unit/verify` [`TestMobikeAuthNegotiation`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L647). **negative:** `unit/verify` [`TestMobikeAuthNegotiation`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L649) |
+| `RFC4555-4.2.5-1` | The data associated with the COOKIE2 notification MUST be between 8 and 64 octets in length (inclusive), and MUST be chosen by the exchange initiator in a way that is unpredictable to the exchange responder (Payload Formats, Section 4.2.5) | MUST | 4.2.5 | **positive:** `unit/verify` [`TestMobikeAdvertisementAfterSourceChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L544). **positive:** `unit/verify` [`TestMobikeCookie2EchoBounds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L232). **negative:** `unit/verify` [`TestMobikeCookie2EchoBounds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L233) |
 | `RFC4555-3.7-2` | Return routability check SHOULD be performed by default (Return Routability Check, Section 3.7) | SHOULD | 3.7 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4555-3.8-3` | The initiator behind a NAT SHOULD include NAT detection payloads in DPD messages and compare with previous values (NAT Mapping Changes, Section 3.8) | SHOULD | 3.8 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4555-3.9-2` | The initiator SHOULD retry several times on UNEXPECTED_NAT_DETECTED (NAT Prohibition, Section 3.9) | SHOULD | 3.9 | **positive:** no positive test. **negative:** no negative test |
@@ -137,21 +133,7 @@ Responder role (announce MOBIKE_SUPPORTED, accept UPDATE_SA_ADDRESSES, migrate X
 
 ## Gaps and untested MUSTs
 
-| Requirement | State | Reason |
-|---|---|---|
-| [`RFC4555-x-1`](#rfc4555-x-1) Both peers MUST include N(MOBIKE_SUPPORTED) in IKE_AUTH to enable MOBIKE for that IKE SA (Capability Negotiation, Sections 3.1-3.2) | {gap}, no test | Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so the behavior is owed and unbuilt. |
-| [`RFC4555-x-2`](#rfc4555-x-2) Implementations supporting both MOBIKE and NAT Traversal MUST switch to port 4500 during IKE_AUTH even if no NAT is detected (Capability Negotiation, Sections 3.1-3.2) | {gap}, no test | Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so the behavior is owed and unbuilt. |
-| [`RFC4555-3.9-1`](#rfc4555-3.9-1) When NAT Traversal is NOT enabled, address-updating messages MUST include NO_NATS_ALLOWED containing actual source/destination IP and ports (NAT Prohibition, Section 3.9) | {gap}, no test | Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so the behavior is owed and unbuilt. |
-| [`RFC4555-3.7-1`](#rfc4555-3.7-1) The exchange responder MUST copy COOKIE2 verbatim into the response (Return Routability Check, Section 3.7) | {gap}, no test | Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so the behavior is owed and unbuilt. |
-| [`RFC4555-3.8-1`](#rfc4555-3.8-1) When MOBIKE is active, the host not behind a NAT MUST NOT use dynamic IKEv2 address updates for IKE packets (NAT Mapping Changes, Section 3.8) | {gap}, no test | Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so the behavior is owed and unbuilt. |
-| [`RFC4555-3.8-2`](#rfc4555-3.8-2) The responder MUST echo NAT_DETECTION_SOURCE_IP and NAT_DETECTION_DESTINATION_IP if present in any INFORMATIONAL request (NAT Mapping Changes, Section 3.8) | {gap}, no test | Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so the behavior is owed and unbuilt. |
-| [`RFC4555-3.6-1`](#rfc4555-3.6-1) If the request to update the addresses is retransmitted using several different source addresses, a new INFORMATIONAL request MUST be sent (Additional Addresses, Section 3.6) | no test | no test carries this requirement id |
-| [`RFC4555-3.7-4`](#rfc4555-3.7-4) When processing the response, the original sender of COOKIE2 MUST verify that the value is the same one as sent (Return Routability Check, Section 3.7) | no test | no test carries this requirement id |
-| [`RFC4555-3.7-5`](#rfc4555-3.7-5) If the COOKIE2 values do not match, the IKE_SA MUST be closed (Return Routability Check, Section 3.7) | no test | no test carries this requirement id |
-| [`RFC4555-3.9-3`](#rfc4555-3.9-3) The exchange responder MUST verify that the contents of the NO_NATS_ALLOWED notification match the addresses in the IP header (NAT Prohibition, Section 3.9) | no test | no test carries this requirement id |
-| [`RFC4555-3.9-4`](#rfc4555-3.9-4) If an UNEXPECTED_NAT_DETECTED notification is sent, the exchange responder MUST NOT use the contents of the NO_NATS_ALLOWED notification for any other purpose than possibly logging the information for troubleshooting purposes (NAT Prohibition, Section 3.9) | no test | no test carries this requirement id |
-| [`RFC4555-4.2.1-1`](#rfc4555-4.2.1-1) The MOBIKE_SUPPORTED notification data field MUST be left empty (zero-length) when sending, and its contents (if any) MUST be ignored when this notification is received (Payload Formats, Section 4.2.1) | no test | no test carries this requirement id |
-| [`RFC4555-4.2.5-1`](#rfc4555-4.2.5-1) The data associated with the COOKIE2 notification MUST be between 8 and 64 octets in length (inclusive), and MUST be chosen by the exchange initiator in a way that is unpredictable to the exchange responder (Payload Formats, Section 4.2.5) | no test | no test carries this requirement id |
+RFC 4555 declares no gap, and every gated MUST it carries has a test bound to it.
 
 ## Proof state
 
@@ -163,7 +145,10 @@ Both peers MUST include N(MOBIKE_SUPPORTED) in IKE_AUTH to enable MOBIKE for tha
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4555-x-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestMobikeAuthNegotiation`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L652) | unit/verify | unproven |
+| positive | [`TestMobikeAuthNegotiation`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L651) | unit/verify | unproven |
 
 ### [`RFC4555-x-2`](#rfc4555-x-2)
 
@@ -171,15 +156,23 @@ Implementations supporting both MOBIKE and NAT Traversal MUST switch to port 450
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4555-x-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestMobikeAuthWithoutNATTSocketKeepsBaseIKE`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L712) | unit/verify | unproven |
+| positive | [`TestMobikeAuthNegotiation`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L654) | unit/verify | unproven |
 
 ### [`RFC4555-3.9-1`](#rfc4555-3.9-1)
 
-When NAT Traversal is NOT enabled, address-updating messages MUST include NO_NATS_ALLOWED containing actual source/destination IP and ports (NAT Prohibition, Section 3.9)
+More specifically, when NAT Traversal is not enabled, all messages that can update the addresses associated with the IKE_SA and/or IPsec SAs (the first IKE_AUTH request and all INFORMATIONAL requests that contain any of the following notifications: UPDATE_SA_ADDRESSES, ADDITIONAL_IP4_ADDRESS, ADDITIONAL_IP6_ADDRESS, NO_ADDITIONAL_ADDRESSES) MUST also include a NO_NATS_ALLOWED notification. (NAT Prohibition, Section 3.9)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4555-3.9-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestMobikeConfiguredNATPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1028) | unit/verify | unproven |
+| positive | [`TestMobikeAdvertisementAfterSourceChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L553) | unit/verify | unproven |
+| positive | [`TestMobikeAuthRetransmitKeepsProtectedTuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1092) | unit/verify | unproven |
+| positive | [`TestMobikeConfiguredNATPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1026) | unit/verify | unproven |
 
 ### [`RFC4555-3.7-1`](#rfc4555-3.7-1)
 
@@ -187,7 +180,11 @@ The exchange responder MUST copy COOKIE2 verbatim into the response (Return Rout
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4555-3.7-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestMobikeCookie2EchoBounds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L235) | unit/verify | unproven |
+| positive | [`TestMobikeCookie2EchoBounds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L234) | unit/verify | unproven |
+| positive | [`TestMobikeOwnerDispatchRepliesFromArrivalSocket`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L29) | unit/verify | unproven |
 
 ### [`RFC4555-3.8-1`](#rfc4555-3.8-1)
 
@@ -195,7 +192,10 @@ When MOBIKE is active, the host not behind a NAT MUST NOT use dynamic IKEv2 addr
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4555-3.8-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestMobikePathProbeRetainsTunnelEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L738) | unit/verify | unproven |
+| positive | [`TestMobikePathProbeRetainsTunnelEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L736) | unit/verify | unproven |
 
 ### [`RFC4555-3.8-2`](#rfc4555-3.8-2)
 
@@ -203,7 +203,10 @@ The responder MUST echo NAT_DETECTION_SOURCE_IP and NAT_DETECTION_DESTINATION_IP
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4555-3.8-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestMobikePathProbeRetainsTunnelEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L742) | unit/verify | unproven |
+| positive | [`TestMobikePathProbeRetainsTunnelEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L740) | unit/verify | unproven |
 
 ### [`RFC4555-3.6-1`](#rfc4555-3.6-1)
 
@@ -211,7 +214,10 @@ If the request to update the addresses is retransmitted using several different 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4555-3.6-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestMobikeAdvertisementAfterSourceChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L548) | unit/verify | unproven |
+| positive | [`TestMobikeAdvertisementAfterSourceChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L546) | unit/verify | unproven |
 
 ### [`RFC4555-3.7-4`](#rfc4555-3.7-4)
 
@@ -219,7 +225,11 @@ When processing the response, the original sender of COOKIE2 MUST verify that th
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4555-3.7-4, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestMobikeChangedPathStillChecksCookie2`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L998) | unit/verify | unproven |
+| negative | [`TestMobikeCookie2ResponseControlsMigration`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L277) | unit/verify | unproven |
+| positive | [`TestMobikeCookie2ResponseControlsMigration`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L276) | unit/verify | unproven |
 
 ### [`RFC4555-3.7-5`](#rfc4555-3.7-5)
 
@@ -227,7 +237,11 @@ If the COOKIE2 values do not match, the IKE_SA MUST be closed (Return Routabilit
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4555-3.7-5, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestMobikeCookie2ResponseControlsMigration`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L280) | unit/verify | unproven |
+| positive | [`TestMobikeChangedPathStillChecksCookie2`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1000) | unit/verify | unproven |
+| positive | [`TestMobikeCookie2ResponseControlsMigration`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L278) | unit/verify | unproven |
 
 ### [`RFC4555-3.9-3`](#rfc4555-3.9-3)
 
@@ -235,7 +249,13 @@ The exchange responder MUST verify that the contents of the NO_NATS_ALLOWED noti
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4555-3.9-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestMobikeNoNATsIPv4Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L394) | unit/verify | unproven |
+| negative | [`TestMobikeNoNATsIPv6Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L508) | unit/verify | unproven |
+| positive | [`TestMobikeNoNATsIPv4Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L393) | unit/verify | unproven |
+| positive | [`TestMobikeNoNATsIPv6Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L507) | unit/verify | unproven |
+| positive | [`TestMobikeNoNATsUpdateWaitsForRoutability`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L805) | unit/verify | unproven |
 
 ### [`RFC4555-3.9-4`](#rfc4555-3.9-4)
 
@@ -243,15 +263,23 @@ If an UNEXPECTED_NAT_DETECTED notification is sent, the exchange responder MUST 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4555-3.9-4, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestMobikeNoNATsIPv4Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L398) | unit/verify | unproven |
+| negative | [`TestMobikeNoNATsUpdateWaitsForRoutability`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L807) | unit/verify | unproven |
+| positive | [`TestMobikeNoNATsIPv4Tuple`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L396) | unit/verify | unproven |
+| positive | [`TestMobikeNoNATsReplyUsesReceivedDestination`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L468) | unit/verify | unproven |
 
 ### [`RFC4555-4.2.1-1`](#rfc4555-4.2.1-1)
 
-The MOBIKE_SUPPORTED notification data field MUST be left empty (zero-length) when sending, and its contents (if any) MUST be ignored when this notification is received (Payload Formats, Section 4.2.1)
+The notification data field MUST be left empty (zero-length) when sending, and its contents (if any) MUST be ignored when this notification is received. (Payload Formats, Section 4.2.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4555-4.2.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestMobikeAuthNegotiation`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L649) | unit/verify | unproven |
+| positive | [`TestMobikeAuthNegotiation`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L647) | unit/verify | unproven |
 
 ### [`RFC4555-4.2.5-1`](#rfc4555-4.2.5-1)
 
@@ -259,7 +287,11 @@ The data associated with the COOKIE2 notification MUST be between 8 and 64 octet
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC4555-4.2.5-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestMobikeCookie2EchoBounds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L233) | unit/verify | unproven |
+| positive | [`TestMobikeAdvertisementAfterSourceChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L544) | unit/verify | unproven |
+| positive | [`TestMobikeCookie2EchoBounds`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L232) | unit/verify | unproven |
 
 ## Extraction sign-off
 

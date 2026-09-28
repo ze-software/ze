@@ -105,7 +105,7 @@ Every MUST is met. Both key-deriving methods now export the two keys RFC 3748 Se
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC3748-4-1` | Packets shorter than the Length field indicates MUST be silently discarded (S4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC3748PacketLengthDiscard`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L73). **negative:** `unit/verify` [`TestRFC3748PacketLengthDiscard`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L80) |
+| `RFC3748-4-1` | A message with the Length field set to a value larger than the number of received octets MUST be silently discarded. (S4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC3748PacketLengthDiscard`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L73). **negative:** `unit/verify` [`TestRFC3748PacketLengthDiscard`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L80) |
 | `RFC3748-4-2` | Minimum EAP packet length is 4 octets (S4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC3748MinimumPacketLength`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L89). **negative:** `unit/verify` [`TestRFC3748MinimumPacketLength`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L99) |
 | `RFC3748-2-1` | The authenticator MUST operate in lock-step: only one outstanding Request at a time (S2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC3748AuthenticatorLockStep`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L167). **negative:** no negative test. **{single-polarity}:** the authenticator Session emits one packet per call -- Begin returns a single Request (internal/core/eap/eap.go:164) and each Process returns a single *Packet (eap.go:176), so a new Request cannot precede its Response and no path leaves two outstanding, giving no negative case |
 | `RFC3748-2-2` | The authenticator MUST receive a valid Response before sending a new Request (S2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC3748AuthenticatorRequiresValidResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L208). **negative:** `unit/verify` [`TestRFC3748AuthenticatorRequiresValidResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L220) |
@@ -113,31 +113,31 @@ Every MUST is met. Both key-deriving methods now export the two keys RFC 3748 Se
 | `RFC3748-2.1-2` | After the method completes, the authenticator MUST send Success or Failure (S2.1) | MUST | 2.1 | **positive:** `unit/verify` [`TestRFC3748MethodCompletionSendsResult`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L267). **negative:** `unit/verify` [`TestRFC3748MethodCompletionSendsResult`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L277) |
 | `RFC3748-2.1-3` | The peer MUST NOT send a NAK (Type 3) after the first non-NAK Response in a conversation (S2.1, S5.3) | MUST | 2.1 | **positive:** `unit/verify` [`TestRFC3748PeerNaksBeforeItCommitsToAMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L372). **negative:** `unit/verify` [`TestRFC3748PeerNaksBeforeItCommitsToAMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L385) |
 | `RFC3748-4.1-1` | Only the authenticator retransmits on timer; the peer MUST NOT retransmit on its own timer (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC3748PeerHasNoRetransmitTimer`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L289). **negative:** no negative test. **{single-polarity}:** the EAP peer (PeerSession.Process, internal/core/eap/peer.go:97) is a synchronous request-driven transform with no timer -- it emits a Response only when handed a Request and never self-retransmits; lower-layer retransmission is IKEv2's (internal/component/ike/engine/fsm.go:138), so there is no forbidden self-timer to test negatively |
-| `RFC3748-4.1-2` | The peer MUST re-send its last Response when a duplicate Request arrives (S4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** duplicate-Request handling is delegated to the IKEv2 carrier -- on timeout the initiator (EAP peer) re-sends its last IKE_AUTH message, which carries its last EAP Response (sa.LastSentMsg, internal/component/ike/engine/fsm.go:138); the EAP peer state machine holds no per-Request retransmission state |
+| `RFC3748-4.1-2` | If a peer receives a valid duplicate Request for which it has already sent a Response, it MUST resend its original Response without reprocessing the Request. (S4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** duplicate-Request handling is delegated to the IKEv2 carrier -- on timeout the initiator (EAP peer) re-sends its last IKE_AUTH message, which carries its last EAP Response (sa.LastSentMsg, internal/component/ike/engine/fsm.go:138); the EAP peer state machine holds no per-Request retransmission state |
 | `RFC3748-4.2-1` | Success and Failure packets MUST NOT be retransmitted (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC3748SuccessFailureNotRetransmitted`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L140). **negative:** no negative test. **{single-polarity}:** the authenticator Session emits Success or Failure once and then enters a terminal state where Process returns nil (internal/core/eap/eap.go:186), so the EAP layer never retransmits them; there is no negative case |
 | `RFC3748-4.2-2` | Success and Failure contain only Code, Identifier, and Length (4 octets, no Type field) (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC3748SuccessFailureFormat`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L110). **negative:** `unit/verify` [`TestRFC3748SuccessFailureFormat`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L130) |
-| `RFC3748-4.2-4` | The Identifier of a Success or Failure MUST match the Identifier of the Response it answers (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestFailureIdentifierMatchesResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L24). **positive:** `unit/verify` [`TestFailureIdentifierMatchesResponseOnNAK`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L49). **positive:** `unit/verify` [`TestIdentityFailureIdentifierMatchesResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L84). **positive:** `unit/verify` [`TestSuccessIdentifierMatchesResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L153). **negative:** no negative test. **{single-polarity}:** this obligation is on the SENDER. The authenticator's terminal packets are produced by Session.failure and the result.Done arm of Session.handleMethod (internal/core/eap/eap.go), and both now stamp the answered Response's Identifier. A negative case would need a RECEIVER that discards a mismatched Success or Failure, which Section 4.2 does not require of a sender and which ze's PeerSession.Process (internal/core/eap/peer.go) does not do: it switches on request.Code alone |
-| `RFC3748-2.3-1` | A pass-through authenticator MUST forward packets of any Type without interpreting method-specific data (S2.3) | MUST | 2.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's authenticator always terminates the EAP method locally (eap.Session, internal/core/eap/eap.go:130); there is no AAA/RADIUS back end in the IKE engine, so it never operates as a pass-through |
-| `RFC3748-3.1-1` | Lower layer MUST provide in-order delivery for EAP (S3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** in-order delivery is a lower-layer obligation; ze carries EAP only inside IKEv2, whose message-ID sequencing delivers each IKE_AUTH request/response in order (RFC 7296 Section 2.3; internal/component/ike/engine/msgid.go:76), so the EAP framework code neither provides nor can violate it |
+| `RFC3748-4.2-4` | The Identifier field MUST match the Identifier field of the Response packet that it is sent in response to. (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestFailureIdentifierMatchesResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L24). **positive:** `unit/verify` [`TestFailureIdentifierMatchesResponseOnNAK`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L49). **positive:** `unit/verify` [`TestIdentityFailureIdentifierMatchesResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L84). **positive:** `unit/verify` [`TestSuccessIdentifierMatchesResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L153). **negative:** no negative test. **{single-polarity}:** this obligation is on the SENDER. The authenticator's terminal packets are produced by Session.failure and the result.Done arm of Session.handleMethod (internal/core/eap/eap.go), and both now stamp the answered Response's Identifier. A negative case would need a RECEIVER that discards a mismatched Success or Failure, which Section 4.2 does not require of a sender and which ze's PeerSession.Process (internal/core/eap/peer.go) does not do: it switches on request.Code alone |
+| `RFC3748-2.3-1` | Compliant pass- through authenticator implementations MUST by default forward EAP packets of any Type. (S2.3) | MUST | 2.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's authenticator always terminates the EAP method locally (eap.Session, internal/core/eap/eap.go:130); there is no AAA/RADIUS back end in the IKE engine, so it never operates as a pass-through |
+| `RFC3748-3.1-1` | Lower layer transports for EAP MUST preserve ordering between a source and destination at a given priority level (the ordering guarantee provided by [IEEE-802]). (S3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** in-order delivery is a lower-layer obligation; ze carries EAP only inside IKEv2, whose message-ID sequencing delivers each IKE_AUTH request/response in order (RFC 7296 Section 2.3; internal/component/ike/engine/msgid.go:76), so the EAP framework code neither provides nor can violate it |
 | `RFC3748-3.1-2` | Lower layer MUST provide error detection (CRC, checksum, or MIC) (S3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** bit-error detection is a lower-layer obligation; ze's EAP packets travel inside the IKEv2 SK payload whose AEAD/ICV check rejects any corrupted frame on decrypt (internal/component/ike/engine/fsm.go:658), so the EAP framework code adds no CRC of its own |
 | `RFC3748-3.1-3` | Lower layer MUST support a minimum MTU of 1020 octets for EAP packets (S3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the 1020-octet minimum MTU is a lower-layer obligation; ze carries EAP inside IKEv2 SK payloads over UDP, which admit EAP packets far larger than 1020 octets, and EAP-TLS method data is itself fragmented in 1024-octet chunks (internal/core/eap/eap_tls.go:28) |
 | `RFC3748-3.1-4` | Lower layer MUST provide duplicate detection (S3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** duplicate detection is a lower-layer obligation; IKEv2 detects a duplicated message by message ID and replays the cached response (internal/component/ike/engine/msgid.go:79; responder.go:81), so the EAP framework code neither provides nor can violate it |
 | `RFC3748-5.7-1` | When Type = 254 (Expanded Types), Vendor-Id 0 = IETF namespace (S5.7) | MUST | 5.7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze offers MD5-Challenge (4), EAP-TLS (13) and EAP-MSCHAPv2 (26); NewSession rejects every other type (NewSession, internal/core/eap/eap.go) and the codec never encodes or parses an Expanded Type (254) packet or its Vendor-Id field, so no Vendor-Id namespace rule can bind. The peer reads TypeExpandedEAP only to route a Type-254 Request to the legacy Nak that Section 5.7 prescribes for a peer not equipped to interpret it (PeerSession.naks, internal/core/eap/peer.go), and that Nak carries no Vendor-Id |
-| `RFC3748-7.10-1` | MSK MUST be at least 64 octets (S7.10) | MUST | 7.10 | **positive:** `unit/verify` [`TestRFC3748MSKSize`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L324). **negative:** no negative test. **{single-polarity}:** the MSK is the compile-time fixed [64]byte returned by DeriveMSK (internal/core/eap/mschapv2.go) and by the first half of the 128-octet Key_Material exportEAPTLSKeys takes (internal/core/eap/eap_tls.go), so the 64-octet floor cannot be undershot and has no negative case |
+| `RFC3748-7.10-1` | In order to provide keying material for use in a subsequently negotiated ciphersuite, an EAP method supporting key derivation MUST export a Master Session Key (MSK) of at least 64 octets, and an Extended Master Session Key (EMSK) of at least 64 octets. (S7.10) | MUST | 7.10 | **positive:** `unit/verify` [`TestRFC3748MSKSize`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L324). **negative:** no negative test. **{single-polarity}:** the MSK is the compile-time fixed [64]byte returned by DeriveMSK (internal/core/eap/mschapv2.go) and by the first half of the 128-octet Key_Material exportEAPTLSKeys takes (internal/core/eap/eap_tls.go), so the 64-octet floor cannot be undershot and has no negative case |
 | `RFC3748-7.10-2` | EMSK MUST be at least 64 octets (S7.10) | MUST | 7.10 | **positive:** `unit/verify` [`TestRFC3748EAPTLSExportsASixtyFourOctetEMSK`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L109). **positive:** `unit/verify` [`TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L90). **negative:** `unit/verify` [`TestRFC3748NoEMSKWithoutACompletedExport`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L178). **negative:** `unit/verify` [`TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L152) |
 | `RFC3748-7.10-3` | An EAP method that establishes no shared key, such as MD5-Challenge, SHOULD NOT be used with IKEv2 (RFC 7296 S2.16 states the rule; S7.10 anchors this id) | SHOULD NOT | 7.10 | **positive:** `unit/verify` [`TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L120). **negative:** `unit/verify` [`TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go#L171) |
-| `RFC3748-4-4` | Octets outside the range of the Length field MUST be ignored upon reception (S4, S4.1) | MUST | 4 | **positive:** `unit/verify` [`TestRFC3748LengthBoundsTypeData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L106). **negative:** `unit/verify` [`TestRFC3748LengthBoundsTypeData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L118) |
+| `RFC3748-4-4` | Octets outside the range of the Length field should be treated as Data Link Layer padding and MUST be ignored upon reception. (S4, S4.1) | MUST | 4 | **positive:** `unit/verify` [`TestRFC3748LengthBoundsTypeData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L106). **negative:** `unit/verify` [`TestRFC3748LengthBoundsTypeData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L118) |
 | `RFC3748-4.1-3` | A retransmitted Request MUST carry the same Identifier value, and a new (non-retransmission) Request MUST carry one different from the previous Request (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC3748NewRequestChangesIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L136). **negative:** `unit/verify` [`TestRFC3748NewRequestChangesIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L147) |
-| `RFC3748-4.1-4` | The Identifier field of a Response MUST match that of the currently outstanding Request (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC3748ResponseEchoesRequestIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L168). **negative:** `unit/verify` [`TestRFC3748ResponseEchoesRequestIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L179) |
-| `RFC3748-4.1-5` | The Type field of a Response MUST match that of the Request, or be a legacy or Expanded NAK (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC3748ResponseTypeMatchesRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L205). **negative:** `unit/verify` [`TestRFC3748ResponseTypeMatchesRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L216) |
+| `RFC3748-4.1-4` | The Identifier field of the Response MUST match that of the currently outstanding Request. (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC3748ResponseEchoesRequestIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L168). **negative:** `unit/verify` [`TestRFC3748ResponseEchoesRequestIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L179) |
+| `RFC3748-4.1-5` | The Type field of a Response MUST either match that of the Request, or correspond to a legacy or Expanded Nak (see Section 5.3) indicating that a Request Type is unacceptable to the peer. (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC3748ResponseTypeMatchesRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L205). **negative:** `unit/verify` [`TestRFC3748ResponseTypeMatchesRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L216) |
 | `RFC3748-4.2-5` | Once the method completes unsuccessfully, the peer MUST terminate the conversation and indicate failure to the lower layer (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC3748PeerEndsAnUnsuccessfulConversation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L250). **negative:** `unit/verify` [`TestRFC3748PeerEndsAnUnsuccessfulConversation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L265) |
-| `RFC3748-4.2-6` | Where the authenticator has sent no result indication, the peer MUST NOT silently discard the Success or Failure it waits for (S4.2) | MUST NOT | 4.2 | **positive:** `unit/verify` [`TestRFC3748PeerActsOnTheTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L284). **negative:** `unit/verify` [`TestRFC3748PeerActsOnTheTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L296) |
-| `RFC3748-4-5` | EAP packets carrying a Code outside 1-4 MUST be silently discarded by both authenticators and peers (S4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC3748UndefinedCodesAreSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L223). **negative:** `unit/verify` [`TestRFC3748UndefinedCodesAreSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L263) |
-| `RFC3748-4.2-7` | By default, an EAP peer MUST silently discard a "canned" Success packet, one sent immediately upon connection (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC3748PeerDiscardsACannedSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L82). **negative:** `unit/verify` [`TestRFC3748PeerDiscardsACannedSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L103) |
-| `RFC3748-4.2-8` | A peer receiving a Success or Failure packet where sending one is not explicitly permitted MUST silently discard it (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L132). **negative:** `unit/verify` [`TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L145) |
+| `RFC3748-4.2-6` | If the authenticator has not sent a result indication, and the peer is willing to continue the conversation, the peer waits for a Success or Failure packet once the method completes, and MUST NOT silently discard either of them. (S4.2) | MUST NOT | 4.2 | **positive:** `unit/verify` [`TestRFC3748PeerActsOnTheTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L284). **negative:** `unit/verify` [`TestRFC3748PeerActsOnTheTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L296) |
+| `RFC3748-4-5` | Since EAP only defines Codes 1-4, EAP packets with other codes MUST be silently discarded by both authenticators and peers. (S4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC3748UndefinedCodesAreSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L223). **negative:** `unit/verify` [`TestRFC3748UndefinedCodesAreSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L263) |
+| `RFC3748-4.2-7` | By default, an EAP peer MUST silently discard a "canned" Success packet (a Success packet sent immediately upon connection). (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC3748PeerDiscardsACannedSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L82). **negative:** `unit/verify` [`TestRFC3748PeerDiscardsACannedSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L103) |
+| `RFC3748-4.2-8` | A peer EAP implementation receiving a Success or Failure packet where sending one is not explicitly permitted MUST silently discard it. (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L132). **negative:** `unit/verify` [`TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L145) |
 | `RFC3748-4.2-9` | On the peer, after success result indications have been exchanged by both sides, a Failure packet MUST be silently discarded (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC3748PeerDiscardsAFailureAfterMutualSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L178). **negative:** `unit/verify` [`TestRFC3748PeerDiscardsAFailureAfterMutualSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L199) |
 | `RFC3748-2-3` | The authenticator MUST NOT send a Success or Failure packet when retransmitting or when it fails to get a response from the peer (S2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestRFC3748NoTerminalPacketWhileTheRequestStands`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_retransmission_test.go#L33). **negative:** `unit/verify` [`TestRFC3748NoTerminalPacketWhileTheRequestStands`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_retransmission_test.go#L86) |
-| `RFC3748-2.2-1` | The Success, Failure, Nak Response and Notification Request/Response messages MUST NOT be used to carry data destined for delivery to other EAP methods (S2.2) | MUST NOT | 2.2 | **positive:** `unit/verify` [`TestRFC3748FrameworkMessagesReachNoMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L292). **positive:** `unit/verify` [`TestRFC3748NoFrameworkMessageReachesAnEAPMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L181). **negative:** `unit/verify` [`TestRFC3748FrameworkMessagesReachNoMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L330). **negative:** `unit/verify` [`TestRFC3748NoFrameworkMessageReachesAnEAPMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L214) |
+| `RFC3748-2.2-1` | Given these considerations, the Success, Failure, Nak Response(s), and Notification Request/Response messages MUST NOT be used to carry data destined for delivery to other EAP methods. (S2.2) | MUST NOT | 2.2 | **positive:** `unit/verify` [`TestRFC3748FrameworkMessagesReachNoMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L292). **positive:** `unit/verify` [`TestRFC3748NoFrameworkMessageReachesAnEAPMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L181). **negative:** `unit/verify` [`TestRFC3748FrameworkMessagesReachNoMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L330). **negative:** `unit/verify` [`TestRFC3748NoFrameworkMessageReachesAnEAPMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L214) |
 | `RFC3748-4.1-6` | Additional Request packets MUST be sent until a valid Response packet is received, an optional retry counter expires, or a lower layer failure indication is received (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC3748OutstandingRequestStandsUntilAValidResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L126). **negative:** `unit/verify` [`TestRFC3748OutstandingRequestStandsUntilAValidResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L141) |
 | `RFC3748-4.1-7` | The peer MUST send a Response packet in reply to a valid Request packet (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC3748PeerAnswersAValidRequestAndDiscardsAnInvalidOne`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L100). **positive:** `unit/verify` [`TestRFC3748PeerAnswersOnlyAValidRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L163). **negative:** `unit/verify` [`TestRFC3748PeerAnswersAValidRequestAndDiscardsAnInvalidOne`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L117). **negative:** `unit/verify` [`TestRFC3748PeerAnswersOnlyAValidRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L179) |
 | `RFC3748-4.1-8` | Requests MUST be processed in the order that they are received, and MUST be processed to their completion before inspecting the next Request (S4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC3748PeerReadsEachRequestAgainstItsPredecessors`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L140). **positive:** `unit/verify` [`TestRFC3748RequestsAreProcessedInOrderToCompletion`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L208). **negative:** `unit/verify` [`TestRFC3748PeerReadsEachRequestAgainstItsPredecessors`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L157). **negative:** `unit/verify` [`TestRFC3748RequestsAreProcessedInOrderToCompletion`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L225) |
@@ -152,21 +152,21 @@ Every MUST is met. Both key-deriving methods now export the two keys RFC 3748 Se
 | `RFC3748-4.2-13` | After the authenticator sends a success result indication to the peer and receives a success result indication from the peer, it MUST subsequently send a Success packet (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC3748SuccessFollowsBothSuccessIndications`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L177). **negative:** `unit/verify` [`TestRFC3748SuccessFollowsBothSuccessIndications`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L196) |
 | `RFC3748-4.2-14` | If the peer attempts to authenticate to the authenticator and fails to do so, the authenticator MUST send a Failure packet and MUST NOT grant access by sending a Success packet (S4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC3748FailedAuthenticationIsRefusedNotGranted`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L215). **negative:** `unit/verify` [`TestRFC3748FailedAuthenticationIsRefusedNotGranted`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L231) |
 | `RFC3748-7.10-5` | The MSK and EMSK MUST NOT be used directly to protect data (S7.10) | MUST NOT | 7.10 | **positive:** `unit/verify` [`TestRFC3748TheEAPMSKNeverKeysTheDataItProtects`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_msk_test.go#L114). **negative:** `unit/verify` [`TestRFC3748TheEAPMSKNeverKeysTheDataItProtects`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_msk_test.go#L148) |
-| `RFC3748-7.10-6` | The EMSK MUST remain on the EAP peer and EAP server where it is derived, and MUST NOT be transported to, shared with, or used to derive keys for additional parties (S7.10) | MUST | 7.10 | **positive:** `unit/verify` [`TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L231). **positive:** `unit/verify` [`TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L205). **negative:** `unit/verify` [`TestRFC3748TheEMSKIsNeverHandedOutward`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L269). **negative:** `unit/verify` [`TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L243) |
+| `RFC3748-7.10-6` | The EMSK is reserved for future use and MUST remain on the EAP peer and EAP server where it is derived; it MUST NOT be transported to, or shared with, additional parties, or used to derive any other keys. (S7.10) | MUST | 7.10 | **positive:** `unit/verify` [`TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L231). **positive:** `unit/verify` [`TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L205). **negative:** `unit/verify` [`TestRFC3748TheEMSKIsNeverHandedOutward`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L269). **negative:** `unit/verify` [`TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L243) |
 | `RFC3748-7.10-7` | EAP peers, authenticators and authentication servers MUST be prepared for situations in which one of the parties discards the key state, which remains valid on another party (S7.10) | MUST | 7.10 | **positive:** `unit/verify` [`TestRFC3748AnExchangeOutlivesDiscardedKeyState`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_key_state_test.go#L54). **negative:** `unit/verify` [`TestRFC3748AnExchangeOutlivesDiscardedKeyState`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_key_state_test.go#L40) |
-| `RFC3748-5-1` | NAK (Type 3) and Expanded NAK (Type 254) MUST NOT be sent in a Request (S5) | MUST NOT | 5 | **positive:** `unit/verify` [`TestRFC3748NoNAKInARequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L313). **negative:** `unit/verify` [`TestRFC3748NoNAKInARequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L323) |
+| `RFC3748-5-1` | Nak (Type 3) or Expanded Nak (Type 254) are valid only for Response packets, they MUST NOT be sent in a Request. (S5) | MUST NOT | 5 | **positive:** `unit/verify` [`TestRFC3748NoNAKInARequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L313). **negative:** `unit/verify` [`TestRFC3748NoNAKInARequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L323) |
 | `RFC3748-5-2` | All EAP implementations MUST support Types 1-4, which are defined in this document (S5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC3748PeerSupportsTypesOneToFour`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L316). **negative:** `unit/verify` [`TestRFC3748PeerRefusesATypeOutsideOneToFour`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L387) |
-| `RFC3748-5.2-1` | The peer MUST respond to a Notification Request with a Notification Response, unless the EAP authentication method specification prohibits the use of Notification messages (S5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestPeerAnswersANotificationRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_notification_test.go#L89). **negative:** `unit/verify` [`TestPeerNeverNaksANotificationRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_notification_test.go#L147) |
-| `RFC3748-5.2-2` | A Nak Response MUST NOT be sent in response to a Notification Request (S5.2) | MUST NOT | 5.2 | **positive:** `unit/verify` [`TestPeerNeverNaksANotificationRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_notification_test.go#L153). **negative:** `unit/verify` [`TestPeerNaksAnAuthenticationTypeButNotANotification`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_notification_test.go#L179) |
+| `RFC3748-5.2-1` | The peer MUST respond to a Notification Request with a Notification Response unless the EAP authentication method specification prohibits the use of Notification messages. (S5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestPeerAnswersANotificationRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_notification_test.go#L89). **negative:** `unit/verify` [`TestPeerNeverNaksANotificationRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_notification_test.go#L147) |
+| `RFC3748-5.2-2` | In any case, a Nak Response MUST NOT be sent in response to a Notification Request. (S5.2) | MUST NOT | 5.2 | **positive:** `unit/verify` [`TestPeerNeverNaksANotificationRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_notification_test.go#L153). **negative:** `unit/verify` [`TestPeerNaksAnAuthenticationTypeButNotANotification`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_notification_test.go#L179) |
 | `RFC3748-5.3.1-1` | Where a peer receives a Request for an unacceptable authentication Type (4-253,255), or a peer lacking support for Expanded Types receives a Request for Type 254, a Nak Response (Type 3) MUST be sent (S5.3.1, S5.7) | MUST | 5.3.1 | **positive:** `unit/verify` [`TestPeerNaksAnExpandedTypeRequestWithALegacyNak`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L259). **positive:** `unit/verify` [`TestPeerNaksAnUnacceptableAuthenticationType`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L140). **negative:** `unit/verify` [`TestPeerDoesNotNakATypeItHandles`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L179) |
 | `RFC3748-5.3.1-2` | The Type-Data field of the Nak Response (Type 3) MUST contain one or more octets indicating the desired authentication Type(s), one octet per Type, or the value zero (0) to indicate no proposed alternative (S5.3.1) | MUST | 5.3.1 | **positive:** `unit/verify` [`TestPeerNaksAnUnacceptableAuthenticationType`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L147). **negative:** `unit/verify` [`TestNakNamesTheConfiguredMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L230) |
 | `RFC3748-5.3.1-3` | The Identifier field of a legacy Nak Response MUST match the Identifier field of the Request packet that it is sent in response to (S5.3.1) | MUST | 5.3.1 | **positive:** `unit/verify` [`TestNakIdentifierMatchesTheRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L289). **negative:** `unit/verify` [`TestNakIdentifierMatchesTheRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L304) |
-| `RFC3748-5.3.1-4` | The legacy Nak MUST NOT be used as a general purpose error indication, such as for communication of error messages or negotiation of method-specific parameters (S5.3.1) | MUST NOT | 5.3.1 | **positive:** `unit/verify` [`TestPeerDoesNotNakAMethodError`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L324). **negative:** `unit/verify` [`TestPeerDoesNotNakAMethodError`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L347) |
+| `RFC3748-5.3.1-4` | Since the legacy Nak Type is valid only in Responses and has very limited functionality, it MUST NOT be used as a general purpose error indication, such as for communication of error messages, or negotiation of parameters specific to a particular EAP method. (S5.3.1) | MUST NOT | 5.3.1 | **positive:** `unit/verify` [`TestPeerDoesNotNakAMethodError`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L324). **negative:** `unit/verify` [`TestPeerDoesNotNakAMethodError`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L347) |
 | `RFC3748-5.4-1` | A Response MUST be sent in reply to an MD5-Challenge Request (S5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestRFC3748MD5ChallengeRequestDrawsAResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L117). **negative:** `unit/verify` [`TestRFC3748MD5ChallengeRequeryDrawsNoResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L206) |
-| `RFC3748-5.4-2` | EAP peer and EAP server implementations MUST support the MD5-Challenge mechanism (S5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestRFC3748MD5ChallengeSupportedByBothRoles`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L237). **negative:** `unit/verify` [`TestRFC3748MD5ChallengeIsTheConfiguredMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L278) |
+| `RFC3748-5.4-2` | EAP peer and EAP server implementations MUST support the MD5- Challenge mechanism. (S5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestRFC3748MD5ChallengeSupportedByBothRoles`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L237). **negative:** `unit/verify` [`TestRFC3748MD5ChallengeIsTheConfiguredMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L278) |
 | `RFC3748-5.1-2` | The Identity Response field MUST NOT be null terminated (S5.1) | MUST NOT | 5.1 | **positive:** `unit/verify` [`TestRFC3748IdentityResponseIsNotNullTerminated`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L366). **negative:** `unit/verify` [`TestRFC3748IdentityResponseIsNotNullTerminated`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L374) |
-| `RFC3748-7.5-1` | Where an EAP method employs a per-packet MIC, the peer and an authenticator not in pass-through mode MUST validate it (S7.5) | MUST | 7.5 | **positive:** `unit/verify` [`TestRFC3748EAPTLSValidatesItsPerPacketMIC`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L473). **negative:** `unit/verify` [`TestRFC3748EAPTLSValidatesItsPerPacketMIC`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L486) |
-| `RFC3748-7.10-4` | EAP methods deriving keys MUST provide for mutual authentication between the EAP peer and the EAP server (S7.10) | MUST | 7.10 | **positive:** `unit/verify` [`TestRFC3748KeyDerivingMethodAuthenticatesBothEnds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L505). **negative:** `unit/verify` [`TestRFC3748KeyDerivingMethodAuthenticatesBothEnds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L520) |
+| `RFC3748-7.5-1` | If a per- packet MIC is employed within an EAP method, then peers, authentication servers, and authenticators not operating in pass- through mode MUST validate the MIC. (S7.5) | MUST | 7.5 | **positive:** `unit/verify` [`TestRFC3748EAPTLSValidatesItsPerPacketMIC`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L473). **negative:** `unit/verify` [`TestRFC3748EAPTLSValidatesItsPerPacketMIC`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L486) |
+| `RFC3748-7.10-4` | EAP Methods deriving keys MUST provide for mutual authentication between the EAP peer and the EAP Server. (S7.10) | MUST | 7.10 | **positive:** `unit/verify` [`TestRFC3748KeyDerivingMethodAuthenticatesBothEnds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L505). **negative:** `unit/verify` [`TestRFC3748KeyDerivingMethodAuthenticatesBothEnds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L520) |
 | `RFC3748-5.1-1` | Identity (Type 1) SHOULD NOT be relied upon for authentication; it is sent in cleartext (S5.1, S7.1) | SHOULD | 5.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3748-7.4-1` | EAP methods used in environments subject to MITM attacks SHOULD provide mutual authentication (S7.4) | SHOULD | 7.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3748-4.2-3` | Peer SHOULD treat lower-layer success as implicit EAP Success if EAP Success is lost (S4.2) | SHOULD | 4.2 | **positive:** no positive test. **negative:** no negative test |
@@ -177,9 +177,9 @@ Every MUST is met. Both key-deriving methods now export the two keys RFC 3748 Se
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC3748-4.1-2`](#rfc3748-4.1-2) The peer MUST re-send its last Response when a duplicate Request arrives (S4.1) | no test | no test carries this requirement id; annotated {not-applicable}: duplicate-Request handling is delegated to the IKEv2 carrier -- on timeout the initiator (EAP peer) re-sends its last IKE_AUTH message, which carries its last EAP Response (sa.LastSentMsg, internal/component/ike/engine/fsm.go:138); the EAP peer state machine holds no per-Request retransmission state |
-| [`RFC3748-2.3-1`](#rfc3748-2.3-1) A pass-through authenticator MUST forward packets of any Type without interpreting method-specific data (S2.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze's authenticator always terminates the EAP method locally (eap.Session, internal/core/eap/eap.go:130); there is no AAA/RADIUS back end in the IKE engine, so it never operates as a pass-through |
-| [`RFC3748-3.1-1`](#rfc3748-3.1-1) Lower layer MUST provide in-order delivery for EAP (S3.1) | no test | no test carries this requirement id; annotated {not-applicable}: in-order delivery is a lower-layer obligation; ze carries EAP only inside IKEv2, whose message-ID sequencing delivers each IKE_AUTH request/response in order (RFC 7296 Section 2.3; internal/component/ike/engine/msgid.go:76), so the EAP framework code neither provides nor can violate it |
+| [`RFC3748-4.1-2`](#rfc3748-4.1-2) If a peer receives a valid duplicate Request for which it has already sent a Response, it MUST resend its original Response without reprocessing the Request. (S4.1) | no test | no test carries this requirement id; annotated {not-applicable}: duplicate-Request handling is delegated to the IKEv2 carrier -- on timeout the initiator (EAP peer) re-sends its last IKE_AUTH message, which carries its last EAP Response (sa.LastSentMsg, internal/component/ike/engine/fsm.go:138); the EAP peer state machine holds no per-Request retransmission state |
+| [`RFC3748-2.3-1`](#rfc3748-2.3-1) Compliant pass- through authenticator implementations MUST by default forward EAP packets of any Type. (S2.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze's authenticator always terminates the EAP method locally (eap.Session, internal/core/eap/eap.go:130); there is no AAA/RADIUS back end in the IKE engine, so it never operates as a pass-through |
+| [`RFC3748-3.1-1`](#rfc3748-3.1-1) Lower layer transports for EAP MUST preserve ordering between a source and destination at a given priority level (the ordering guarantee provided by [IEEE-802]). (S3.1) | no test | no test carries this requirement id; annotated {not-applicable}: in-order delivery is a lower-layer obligation; ze carries EAP only inside IKEv2, whose message-ID sequencing delivers each IKE_AUTH request/response in order (RFC 7296 Section 2.3; internal/component/ike/engine/msgid.go:76), so the EAP framework code neither provides nor can violate it |
 | [`RFC3748-3.1-2`](#rfc3748-3.1-2) Lower layer MUST provide error detection (CRC, checksum, or MIC) (S3.1) | no test | no test carries this requirement id; annotated {not-applicable}: bit-error detection is a lower-layer obligation; ze's EAP packets travel inside the IKEv2 SK payload whose AEAD/ICV check rejects any corrupted frame on decrypt (internal/component/ike/engine/fsm.go:658), so the EAP framework code adds no CRC of its own |
 | [`RFC3748-3.1-3`](#rfc3748-3.1-3) Lower layer MUST support a minimum MTU of 1020 octets for EAP packets (S3.1) | no test | no test carries this requirement id; annotated {not-applicable}: the 1020-octet minimum MTU is a lower-layer obligation; ze carries EAP inside IKEv2 SK payloads over UDP, which admit EAP packets far larger than 1020 octets, and EAP-TLS method data is itself fragmented in 1024-octet chunks (internal/core/eap/eap_tls.go:28) |
 | [`RFC3748-3.1-4`](#rfc3748-3.1-4) Lower layer MUST provide duplicate detection (S3.1) | no test | no test carries this requirement id; annotated {not-applicable}: duplicate detection is a lower-layer obligation; IKEv2 detects a duplicated message by message ID and replays the cached response (internal/component/ike/engine/msgid.go:79; responder.go:81), so the EAP framework code neither provides nor can violate it |
@@ -191,7 +191,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC3748-4-1`](#rfc3748-4-1)
 
-Packets shorter than the Length field indicates MUST be silently discarded (S4)
+A message with the Length field set to a value larger than the number of received octets MUST be silently discarded. (S4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -277,7 +277,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-4.1-2`](#rfc3748-4.1-2)
 
-The peer MUST re-send its last Response when a duplicate Request arrives (S4.1)
+If a peer receives a valid duplicate Request for which it has already sent a Response, it MUST resend its original Response without reprocessing the Request. (S4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -306,7 +306,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-4.2-4`](#rfc3748-4.2-4)
 
-The Identifier of a Success or Failure MUST match the Identifier of the Response it answers (S4.2)
+The Identifier field MUST match the Identifier field of the Response packet that it is sent in response to. (S4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -319,7 +319,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-2.3-1`](#rfc3748-2.3-1)
 
-A pass-through authenticator MUST forward packets of any Type without interpreting method-specific data (S2.3)
+Compliant pass- through authenticator implementations MUST by default forward EAP packets of any Type. (S2.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -327,7 +327,7 @@ No test carries RFC3748-2.3-1, so no unit is bound to it.
 
 ### [`RFC3748-3.1-1`](#rfc3748-3.1-1)
 
-Lower layer MUST provide in-order delivery for EAP (S3.1)
+Lower layer transports for EAP MUST preserve ordering between a source and destination at a given priority level (the ordering guarantee provided by [IEEE-802]). (S3.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -367,7 +367,7 @@ No test carries RFC3748-5.7-1, so no unit is bound to it.
 
 ### [`RFC3748-7.10-1`](#rfc3748-7.10-1)
 
-MSK MUST be at least 64 octets (S7.10)
+In order to provide keying material for use in a subsequently negotiated ciphersuite, an EAP method supporting key derivation MUST export a Master Session Key (MSK) of at least 64 octets, and an Extended Master Session Key (EMSK) of at least 64 octets. (S7.10)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -401,7 +401,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-4-4`](#rfc3748-4-4)
 
-Octets outside the range of the Length field MUST be ignored upon reception (S4, S4.1)
+Octets outside the range of the Length field should be treated as Data Link Layer padding and MUST be ignored upon reception. (S4, S4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -423,7 +423,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-4.1-4`](#rfc3748-4.1-4)
 
-The Identifier field of a Response MUST match that of the currently outstanding Request (S4.1)
+The Identifier field of the Response MUST match that of the currently outstanding Request. (S4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -434,7 +434,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-4.1-5`](#rfc3748-4.1-5)
 
-The Type field of a Response MUST match that of the Request, or be a legacy or Expanded NAK (S4.1)
+The Type field of a Response MUST either match that of the Request, or correspond to a legacy or Expanded Nak (see Section 5.3) indicating that a Request Type is unacceptable to the peer. (S4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -456,7 +456,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-4.2-6`](#rfc3748-4.2-6)
 
-Where the authenticator has sent no result indication, the peer MUST NOT silently discard the Success or Failure it waits for (S4.2)
+If the authenticator has not sent a result indication, and the peer is willing to continue the conversation, the peer waits for a Success or Failure packet once the method completes, and MUST NOT silently discard either of them. (S4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -467,7 +467,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-4-5`](#rfc3748-4-5)
 
-EAP packets carrying a Code outside 1-4 MUST be silently discarded by both authenticators and peers (S4)
+Since EAP only defines Codes 1-4, EAP packets with other codes MUST be silently discarded by both authenticators and peers. (S4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -478,7 +478,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-4.2-7`](#rfc3748-4.2-7)
 
-By default, an EAP peer MUST silently discard a "canned" Success packet, one sent immediately upon connection (S4.2)
+By default, an EAP peer MUST silently discard a "canned" Success packet (a Success packet sent immediately upon connection). (S4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -489,7 +489,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-4.2-8`](#rfc3748-4.2-8)
 
-A peer receiving a Success or Failure packet where sending one is not explicitly permitted MUST silently discard it (S4.2)
+A peer EAP implementation receiving a Success or Failure packet where sending one is not explicitly permitted MUST silently discard it. (S4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -522,7 +522,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-2.2-1`](#rfc3748-2.2-1)
 
-The Success, Failure, Nak Response and Notification Request/Response messages MUST NOT be used to carry data destined for delivery to other EAP methods (S2.2)
+Given these considerations, the Success, Failure, Nak Response(s), and Notification Request/Response messages MUST NOT be used to carry data destined for delivery to other EAP methods. (S2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -693,7 +693,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-7.10-6`](#rfc3748-7.10-6)
 
-The EMSK MUST remain on the EAP peer and EAP server where it is derived, and MUST NOT be transported to, shared with, or used to derive keys for additional parties (S7.10)
+The EMSK is reserved for future use and MUST remain on the EAP peer and EAP server where it is derived; it MUST NOT be transported to, or shared with, additional parties, or used to derive any other keys. (S7.10)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -717,7 +717,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-5-1`](#rfc3748-5-1)
 
-NAK (Type 3) and Expanded NAK (Type 254) MUST NOT be sent in a Request (S5)
+Nak (Type 3) or Expanded Nak (Type 254) are valid only for Response packets, they MUST NOT be sent in a Request. (S5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -739,7 +739,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-5.2-1`](#rfc3748-5.2-1)
 
-The peer MUST respond to a Notification Request with a Notification Response, unless the EAP authentication method specification prohibits the use of Notification messages (S5.2)
+The peer MUST respond to a Notification Request with a Notification Response unless the EAP authentication method specification prohibits the use of Notification messages. (S5.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -750,7 +750,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-5.2-2`](#rfc3748-5.2-2)
 
-A Nak Response MUST NOT be sent in response to a Notification Request (S5.2)
+In any case, a Nak Response MUST NOT be sent in response to a Notification Request. (S5.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -795,7 +795,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-5.3.1-4`](#rfc3748-5.3.1-4)
 
-The legacy Nak MUST NOT be used as a general purpose error indication, such as for communication of error messages or negotiation of method-specific parameters (S5.3.1)
+Since the legacy Nak Type is valid only in Responses and has very limited functionality, it MUST NOT be used as a general purpose error indication, such as for communication of error messages, or negotiation of parameters specific to a particular EAP method. (S5.3.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -817,7 +817,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-5.4-2`](#rfc3748-5.4-2)
 
-EAP peer and EAP server implementations MUST support the MD5-Challenge mechanism (S5.4)
+EAP peer and EAP server implementations MUST support the MD5- Challenge mechanism. (S5.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -839,7 +839,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-7.5-1`](#rfc3748-7.5-1)
 
-Where an EAP method employs a per-packet MIC, the peer and an authenticator not in pass-through mode MUST validate it (S7.5)
+If a per- packet MIC is employed within an EAP method, then peers, authentication servers, and authenticators not operating in pass- through mode MUST validate the MIC. (S7.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -850,7 +850,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3748-7.10-4`](#rfc3748-7.10-4)
 
-EAP methods deriving keys MUST provide for mutual authentication between the EAP peer and the EAP server (S7.10)
+EAP Methods deriving keys MUST provide for mutual authentication between the EAP peer and the EAP Server. (S7.10)
 
 Audit verdict: not audited: no reader has judged these tests
 

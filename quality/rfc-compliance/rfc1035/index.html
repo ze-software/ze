@@ -401,7 +401,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.1-1">RFC1035-4.1.1-1</code></td><td colspan="3"><span class="rfc-subject">Z is reserved for future use and must be zero in all queries and responses (§4.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.1-1">RFC1035-4.1.1-1</code></td><td colspan="3"><span class="rfc-subject">Must be zero in all queries and responses. (§4.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1.1 - Header section format</td>
@@ -450,7 +450,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L201" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_RDLengthCountsTheRDataOctets</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.4-1">RFC1035-4.1.4-1</code></td><td colspan="3"><span class="rfc-subject">A compression pointer takes the form of a two octet sequence whose first two bits are ones, distinguishing it from a label, which must begin with two zero bits (§4.1.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.4-1">RFC1035-4.1.4-1</code></td><td colspan="3"><span class="rfc-subject">This allows a pointer to be distinguished from a label, since the label must begin with two zero bits because labels are restricted to 63 octets or less. (§4.1.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1.4 - Message compression</td>
@@ -486,7 +486,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L235" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.4-5">RFC1035-4.1.4-5</code></td><td colspan="3"><span class="rfc-subject">All programs are required to understand arriving messages that contain pointers (§4.1.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.4-5">RFC1035-4.1.4-5</code></td><td colspan="3"><span class="rfc-subject">However all programs are required to understand arriving messages that contain pointers. (§4.1.4)</span></td></tr>
 <tr><td></td>
 <td>REQUIRED</td>
 <td>4.1.4 - Message compression</td>
@@ -855,7 +855,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC1035-3.3.13-1, so no unit is bound to it.</p>
 <h3><a href="#rfc1035-4.1.1-1"><code>RFC1035-4.1.1-1</code></a></h3>
-<p>Z is reserved for future use and must be zero in all queries and responses (§4.1.1)</p>
+<p>Must be zero in all queries and responses. (§4.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -975,7 +975,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 </table>
 </div>
 <h3><a href="#rfc1035-4.1.4-1"><code>RFC1035-4.1.4-1</code></a></h3>
-<p>A compression pointer takes the form of a two octet sequence whose first two bits are ones, distinguishing it from a label, which must begin with two zero bits (§4.1.4)</p>
+<p>This allows a pointer to be distinguished from a label, since the label must begin with two zero bits because labels are restricted to 63 octets or less. (§4.1.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1055,7 +1055,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 </table>
 </div>
 <h3><a href="#rfc1035-4.1.4-5"><code>RFC1035-4.1.4-5</code></a></h3>
-<p>All programs are required to understand arriving messages that contain pointers (§4.1.4)</p>
+<p>However all programs are required to understand arriving messages that contain pointers. (§4.1.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1824,7 +1824,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

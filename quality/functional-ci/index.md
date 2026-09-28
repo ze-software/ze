@@ -8,15 +8,15 @@ A `.ci` file is an executable transcript. The runner reads key-value directives,
 
 | Behavior | Files | Narrow run | Native suite |
 | --- | --- | --- | --- |
-| BGP encode and route output | `test/encode/*.ci` | `bin/ze-test bgp encode NAME -v` | `./le functional encode-test` |
-| BGP plugin behavior | `test/plugin/*.ci` | `bin/ze-test bgp plugin NAME -v` | `./le functional plugin-test` |
-| Config parsing | `test/parse/*.ci` | `bin/ze-test bgp parse NAME -v` | `./le functional parse-test` |
-| Decode command output | `test/decode/*.ci` | `bin/ze-test bgp decode NAME -v` | `./le functional decode-test` |
-| Reload behavior | `test/reload/*.ci` | `bin/ze-test bgp reload NAME -v` | `./le functional reload-test` |
-| CLI output | `test/ui/*.ci` | `bin/ze-test ui NAME -v` | `./le functional ui-test` |
-| L2TP, firewall, policy, LDP, RSVP-TE, IS-IS, OSPF, OSPFv3, static, traffic, VPP, and install flows | `test/<suite>/*.ci` | `bin/ze-test <suite> NAME -v` | `./le functional <suite>-test` |
+| BGP encode and route output | `test/encode/*.ci` | `./le test bgp encode NAME -v` | `./le test functional encode-test` |
+| BGP plugin behavior | `test/plugin/*.ci` | `./le test bgp plugin NAME -v` | `./le test functional plugin-test` |
+| Config parsing | `test/parse/*.ci` | `./le test bgp parse NAME -v` | `./le test functional parse-test` |
+| Decode command output | `test/decode/*.ci` | `./le test bgp decode NAME -v` | `./le test functional decode-test` |
+| Reload behavior | `test/reload/*.ci` | `./le test bgp reload NAME -v` | `./le test functional reload-test` |
+| CLI output | `test/ui/*.ci` | `./le test ui NAME -v` | `./le test functional ui-test` |
+| L2TP, firewall, policy, LDP, RSVP-TE, IS-IS, OSPF, OSPFv3, static, traffic, VPP, and install flows | `test/<suite>/*.ci` | `./le test <suite> NAME -v` | `./le test functional <suite>-test` |
 
-Run `bin/ze-test bgp plugin --list` or the equivalent suite command before picking an id. The list output gives the exact test name, id, status, and rerun shape.
+Run `./le test bgp plugin --list` or the equivalent suite command before picking an id. The list output gives the exact test name, id, status, and rerun shape.
 
 ## Execution model
 
@@ -33,7 +33,7 @@ router bgp 65000
 EOF
 
 cmd=background:ze:bin/ze config.conf
-cmd=background:peer:bin/ze-peer --as 65001 --listen 127.0.0.1:$PORT1
+cmd=background:peer:le test peer --as 65001 --listen 127.0.0.1:$PORT1
 cmd=foreground:show:bin/ze cli -c "show bgp peer list"
 expect=stdout:show:contains=Established
 ```
@@ -62,16 +62,16 @@ A `.ci` file that needs netlink, nftables, eBPF, PPP, L2TP, namespaces, kernel r
 option=needs-linux
 ```
 
-On macOS that test reports SKIP. Inside QEMU the option is inert and the same file runs for real. Use `./le qemu netns-test` for the curated Linux kernel suites. For one command or an interactive investigation, use `./le qemu run command '...' keep-alive`.
+On macOS that test reports SKIP. Inside QEMU the option is inert and the same file runs for real. Use `./le test qemu netns-test` for the curated Linux kernel suites. For one command or an interactive investigation, use `./le test qemu run command '...' keep-alive`.
 
 ## Failure reading
 
 A good `.ci` failure tells you the file, step, line, assertion, process output, temporary directory, and rerun command. With `-v`, the runner keeps enough detail to see command stdout and stderr. BGP mismatches are decoded before display, which turns a wire failure into protocol fields.
 
 ```
-bin/ze-test bgp plugin 42 -v
-ZE_TEST_KEEP_TMP=1 bin/ze-test bgp plugin 42 -v
-ze.log.bgp.reactor.peer=debug bin/ze-test bgp plugin 42 -v
+./le test bgp plugin 42 -v
+ZE_TEST_KEEP_TMP=1 ./le test bgp plugin 42 -v
+ze.log.bgp.reactor.peer=debug ./le test bgp plugin 42 -v
 ```
 
-If the failure only reproduces under Linux, rerun it through `./le qemu run` rather than adding sleeps or Darwin-only skips.
+If the failure only reproduces under Linux, rerun it through `./le test qemu run` rather than adding sleeps or Darwin-only skips.

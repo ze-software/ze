@@ -10,10 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 7.1% | 4 of 56 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 10.7% | 6 of 56 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 78.6% | 44 of 56 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 7.1% | 4 of 56 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 56 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 11.8% | 2 of 17 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| No test at all | 0.0% | 0 of 56 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 46.7% | 56 of 120 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,18 +23,10 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 56 | of 59 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 56 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 1.8% | 1 of 56 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Out of scope | 8 | of 56 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 3.6% | 2 of 56 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 56 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 56 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| No test at all | 80.4% | 45 of 56 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Optional feature declined | 10.7% | 6 of 56 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 The 7 shares marked as a part above are the whole of the 56 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -46,7 +39,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -61,53 +54,57 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 59 |
 | Gated MUST-level | 56 |
-| Not applicable, so out of scope | 1 |
-| Declared gaps | 2 |
-| Gated with no test | 43 |
+| Not applicable, so out of scope | 2 |
+| Declared gaps | 0 |
+| Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 17 |
-| Tagged units | 17 |
+| Test tags | 120 |
+| Tagged units | 120 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 2 |
+| Discrimination records | 56 |
 | Summary | `rfc/short/rfc8907.md` |
 | Requirement shard | `rfc/requirements/rfc8907.md` |
 | RFC text | `rfc/full/rfc8907.txt` |
 
 ## Enrolment
 
-Enrolled: The TACACS+ Protocol (ze as a TACACS+ client/NAS): fifty-five MUST-level requirements. Thirteen were carried at enrolment, and ten of those are met in internal/component/tacacs: 4-1 (the major version nibble is 0xC, other versions rejected) and 4-2 (the sequence number is client-odd and the reply is request+1) carry positive+negative tags; 4-3 (the session id is drawn from a cryptographic RNG) is {single-polarity: positive} with a new uniqueness test; 4-4 (one session id for the whole session), 4-5 (multi-octet header fields are network byte order), 7-1 and 7-2 (an accounting REQUEST sets only Start or Stop, never the MORE flag), and 10-1 (the Unencrypted flag is never set when a key is configured) are {single-polarity: positive}. 10.5.2-1 (a reply whose obfuscation state disagrees with the shared-secret configuration of the server it came from closes the TCP session and reads as a FAIL) and 10-2 (a client never sets TAC_PLUS_UNENCRYPTED_FLAG) carry positive+negative tags. 5-1 (sequence-number wrap ends the session) is {not-applicable}: ze runs a single-exchange PAP authentication with no CONTINUE loop, so the sequence never approaches 0xFE. Two are {gap}: 4.6-1 (no exact decrypted-body-length check, so a wrong shared secret yielding a plausibly-sized body is not cleanly rejected) and 6-1 (authorization is decided on the response Status alone; mandatory response arguments are never parsed). The 2026-09-21 extraction walk added forty-two MUST-level rows for sentences this summary did not carry, drawn from §3.7, §4.1, §4.3, §4.4, §5.1, §5.4, §5.4.2.2 through §5.4.3, §6.1, §6.2, §7.2, §8 through §8.3, §10.5, §10.5.1 and §10.5.4. None of the forty-two carries a test, so each is an open gap on this ledger. Disclosed in the docs/features/rfc-status.md RFC 8907 row.
+Enrolled: Ze implements a TACACS+ client for management AAA. The 2026-09-21 extraction walk expanded the original requirement list; the compliance checklist below is the requirement inventory, and tagged tests name their producers. Verification and discrimination must be rerun after the current implementation changes before publishing a conformance count.
 
 ## What the public ledger says
 
 **Status:** Partial
 
-**What the ledger says is covered:**
+**What the ledger says is covered**
 
-- SSH login PAP auth, ordered failover, MD5 pseudo-pad encryption, command accounting, optional authorization, single-connect mode
-- tests bound per requirement in [`rfc/requirements/rfc8907.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc8907.md).
+- PAP login followed by shell-session privilege authorization
+- printable-ASCII fields and UsernameCasePreserved usernames
+- exact decrypted lengths
+- ordered ERROR failover
+- mandatory command arguments
+- command accounting and negotiated single-connect reuse.
 
 
 **What the ledger says remains**
 
-Two MUST gaps gated in [`rfc/short/rfc8907.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc8907.md): [`RFC8907-4.6-1`](#rfc8907-4.6-1) -- no exact decrypted-body-length check, so a wrong shared secret yielding a plausibly-sized body is not cleanly rejected (ErrBadSecret is defined but unused); and [`RFC8907-6-1`](#rfc8907-6-1) -- authorization is decided on the response Status alone, and mandatory response arguments (=/*) are never parsed or enforced. Forty-two further MUST rows were added by the 2026-09-21 extraction walk and none is tested: the text-string profile (§3.7), the header reading rules (§4.1), Single Connection Mode client behavior (§4.3), ERROR handling and connection close (§4.4), the authentication flows (§5.1 to §5.4.3, of which only PAP is implemented, so the CHAP and MS-CHAP rows are unbuilt features), the authorization request and reply rules (§6.1, §6.2), the accounting flag rule (§7.2), the argument dictionary (§8 to §8.3) and the best practices binding a client (§10.5, §10.5.1, §10.5.4).
+Current implementation changes await test and discrimination runs. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`: no ASCII interactive, CHAP, MS-CHAP v1/v2 or ENABLE authentication workflows. The conditional method rows retain that selection and their source text. Section 10.5 also includes deployment obligations that a TCP reachability check cannot establish.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 4 | one part of the gated population |
-| Annotated instead of tested | 9 | one part of the gated population |
+| Positive and negative tests | 44 | one part of the gated population |
+| Annotated instead of tested | 12 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 43 | one part of the gated population |
+| No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
+| Derived from other rows | 1 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **56** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (4):** [`RFC8907-4-1`](#rfc8907-4-1), [`RFC8907-4-2`](#rfc8907-4-2), [`RFC8907-10-2`](#rfc8907-10-2), [`RFC8907-10.5.2-1`](#rfc8907-10.5.2-1)
+**Positive and negative tests (44):** [`RFC8907-4-1`](#rfc8907-4-1), [`RFC8907-4-2`](#rfc8907-4-2), [`RFC8907-4.6-1`](#rfc8907-4.6-1), [`RFC8907-7-1`](#rfc8907-7-1), [`RFC8907-7-2`](#rfc8907-7-2), [`RFC8907-10-2`](#rfc8907-10-2), [`RFC8907-10.5.2-1`](#rfc8907-10.5.2-1), [`RFC8907-6-1`](#rfc8907-6-1), [`RFC8907-3.7-1`](#rfc8907-3.7-1), [`RFC8907-3.7-2`](#rfc8907-3.7-2), [`RFC8907-4.1-1`](#rfc8907-4.1-1), [`RFC8907-4.1-2`](#rfc8907-4.1-2), [`RFC8907-4.1-3`](#rfc8907-4.1-3), [`RFC8907-4.3-1`](#rfc8907-4.3-1), [`RFC8907-4.3-2`](#rfc8907-4.3-2), [`RFC8907-4.3-3`](#rfc8907-4.3-3), [`RFC8907-4.4-1`](#rfc8907-4.4-1), [`RFC8907-4.4-2`](#rfc8907-4.4-2), [`RFC8907-4.4-3`](#rfc8907-4.4-3), [`RFC8907-5.1-1`](#rfc8907-5.1-1), [`RFC8907-5.4.2.2-1`](#rfc8907-5.4.2.2-1), [`RFC8907-5.4.2.2-2`](#rfc8907-5.4.2.2-2), [`RFC8907-5.4.2.6-2`](#rfc8907-5.4.2.6-2), [`RFC8907-5.4.3-1`](#rfc8907-5.4.3-1), [`RFC8907-6.1-1`](#rfc8907-6.1-1), [`RFC8907-6.1-2`](#rfc8907-6.1-2), [`RFC8907-6.2-1`](#rfc8907-6.2-1), [`RFC8907-6.2-2`](#rfc8907-6.2-2), [`RFC8907-6.2-3`](#rfc8907-6.2-3), [`RFC8907-7.2-1`](#rfc8907-7.2-1), [`RFC8907-8-1`](#rfc8907-8-1), [`RFC8907-8.1-1`](#rfc8907-8.1-1), [`RFC8907-8.1-2`](#rfc8907-8.1-2), [`RFC8907-8.2-1`](#rfc8907-8.2-1), [`RFC8907-8.2-2`](#rfc8907-8.2-2), [`RFC8907-8.3-1`](#rfc8907-8.3-1), [`RFC8907-8.3-2`](#rfc8907-8.3-2), [`RFC8907-8.3-3`](#rfc8907-8.3-3), [`RFC8907-8.3-4`](#rfc8907-8.3-4), [`RFC8907-8.3-5`](#rfc8907-8.3-5), [`RFC8907-10.5.1-1`](#rfc8907-10.5.1-1), [`RFC8907-10.5.1-2`](#rfc8907-10.5.1-2), [`RFC8907-10.5.4-1`](#rfc8907-10.5.4-1), [`RFC8907-x-2`](#rfc8907-x-2)
 
-**Annotated instead of tested (9):** [`RFC8907-4-3`](#rfc8907-4-3), [`RFC8907-4-4`](#rfc8907-4-4), [`RFC8907-4-5`](#rfc8907-4-5), [`RFC8907-4.6-1`](#rfc8907-4.6-1), [`RFC8907-5-1`](#rfc8907-5-1), [`RFC8907-7-1`](#rfc8907-7-1), [`RFC8907-7-2`](#rfc8907-7-2), [`RFC8907-10-1`](#rfc8907-10-1), [`RFC8907-6-1`](#rfc8907-6-1)
+**Annotated instead of tested (12):** [`RFC8907-4-3`](#rfc8907-4-3), [`RFC8907-4-4`](#rfc8907-4-4), [`RFC8907-4-5`](#rfc8907-4-5), [`RFC8907-5-1`](#rfc8907-5-1), [`RFC8907-10-1`](#rfc8907-10-1), [`RFC8907-5.4-1`](#rfc8907-5.4-1), [`RFC8907-5.4-2`](#rfc8907-5.4-2), [`RFC8907-5.4.2.3-1`](#rfc8907-5.4.2.3-1), [`RFC8907-5.4.2.4-1`](#rfc8907-5.4.2.4-1), [`RFC8907-5.4.2.5-1`](#rfc8907-5.4.2.5-1), [`RFC8907-5.4.2.6-1`](#rfc8907-5.4.2.6-1), [`RFC8907-4.6-2`](#rfc8907-4.6-2)
 
-**No test and no annotation (43):** [`RFC8907-3.7-1`](#rfc8907-3.7-1), [`RFC8907-3.7-2`](#rfc8907-3.7-2), [`RFC8907-4.1-1`](#rfc8907-4.1-1), [`RFC8907-4.1-2`](#rfc8907-4.1-2), [`RFC8907-4.1-3`](#rfc8907-4.1-3), [`RFC8907-4.3-1`](#rfc8907-4.3-1), [`RFC8907-4.3-2`](#rfc8907-4.3-2), [`RFC8907-4.3-3`](#rfc8907-4.3-3), [`RFC8907-4.4-1`](#rfc8907-4.4-1), [`RFC8907-4.4-2`](#rfc8907-4.4-2), [`RFC8907-4.4-3`](#rfc8907-4.4-3), [`RFC8907-5.1-1`](#rfc8907-5.1-1), [`RFC8907-5.4-1`](#rfc8907-5.4-1), [`RFC8907-5.4-2`](#rfc8907-5.4-2), [`RFC8907-5.4.2.2-1`](#rfc8907-5.4.2.2-1), [`RFC8907-5.4.2.2-2`](#rfc8907-5.4.2.2-2), [`RFC8907-5.4.2.3-1`](#rfc8907-5.4.2.3-1), [`RFC8907-5.4.2.4-1`](#rfc8907-5.4.2.4-1), [`RFC8907-5.4.2.5-1`](#rfc8907-5.4.2.5-1), [`RFC8907-5.4.2.6-1`](#rfc8907-5.4.2.6-1), [`RFC8907-5.4.2.6-2`](#rfc8907-5.4.2.6-2), [`RFC8907-5.4.3-1`](#rfc8907-5.4.3-1), [`RFC8907-6.1-1`](#rfc8907-6.1-1), [`RFC8907-6.1-2`](#rfc8907-6.1-2), [`RFC8907-6.2-1`](#rfc8907-6.2-1), [`RFC8907-6.2-2`](#rfc8907-6.2-2), [`RFC8907-6.2-3`](#rfc8907-6.2-3), [`RFC8907-7.2-1`](#rfc8907-7.2-1), [`RFC8907-8-1`](#rfc8907-8-1), [`RFC8907-8.1-1`](#rfc8907-8.1-1), [`RFC8907-8.1-2`](#rfc8907-8.1-2), [`RFC8907-8.2-1`](#rfc8907-8.2-1), [`RFC8907-8.2-2`](#rfc8907-8.2-2), [`RFC8907-8.3-1`](#rfc8907-8.3-1), [`RFC8907-8.3-2`](#rfc8907-8.3-2), [`RFC8907-8.3-3`](#rfc8907-8.3-3), [`RFC8907-8.3-4`](#rfc8907-8.3-4), [`RFC8907-8.3-5`](#rfc8907-8.3-5), [`RFC8907-10.5-1`](#rfc8907-10.5-1), [`RFC8907-10.5.1-1`](#rfc8907-10.5.1-1), [`RFC8907-10.5.1-2`](#rfc8907-10.5.1-2), [`RFC8907-10.5.4-1`](#rfc8907-10.5.4-1), [`RFC8907-x-2`](#rfc8907-x-2)
+**Derived from other rows (1):** [`RFC8907-10.5-1`](#rfc8907-10.5-1)
 
 ## Requirements
 
@@ -115,114 +112,77 @@ Two MUST gaps gated in [`rfc/short/rfc8907.md`](https://github.com/ze-software/z
 |---|---|---|---|---|
 | `RFC8907-4-1` | Major version MUST be 0xC (12 decimal) (§4, Packet Header) | MUST | 4 | **positive:** `unit/verify` [`TestTacacsClientAuthenticatePass`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L146). **negative:** `unit/verify` [`TestTacacsClientRejectsBadResponseHeader`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L241) |
 | `RFC8907-4-2` | Client sends odd seq_no, server sends even seq_no (§4, Packet Header) | MUST | 4 | **positive:** `unit/verify` [`TestTacacsClientAuthenticatePass`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L147). **negative:** `unit/verify` [`TestTacacsClientRejectsBadResponseHeader`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L250) |
-| `RFC8907-4-3` | session_id MUST be cryptographically random (§4, Session Lifecycle) | MUST | 4 | **positive:** `unit/verify` [`TestRFC8907SessionIDComesFromCryptoRand`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_sessionid_test.go#L38). **positive:** `unit/verify` [`TestRandomSessionIDDistinct`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L332). **negative:** no negative test. **{single-polarity}:** the session id is drawn from crypto/rand (internal/component/tacacs/client.go:497-503) with no predictable/reject path |
+| `RFC8907-4-3` | This number MUST be generated by a cryptographically strong random number generation method. (§4, Session Lifecycle) | MUST | 4 | **positive:** `unit/verify` [`TestRFC8907SessionIDComesFromCryptoRand`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_sessionid_test.go#L38). **positive:** `unit/verify` [`TestRandomSessionIDDistinct`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L327). **negative:** no negative test. **{single-polarity}:** the session id is drawn from crypto/rand (internal/component/tacacs/client.go:497-503) with no predictable/reject path |
 | `RFC8907-4-4` | session_id MUST remain constant for entire session (§4, Session Lifecycle) | MUST | 4 | **positive:** `unit/verify` [`TestTacacsClientAuthenticatePass`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L148). **negative:** no negative test. **{single-polarity}:** ze generates one session id at internal/component/tacacs/client.go:209 and reuses it for the single request/reply exchange; the reply mismatch guard (client.go:354-358) enforces constancy and the positive path exercises it, but a single-exchange client emits no second packet whose id could differ, so there is no client-side constancy-violation to test |
 | `RFC8907-4-5` | Body length field MUST be in network byte order (§4, Packet Header) | MUST | 4 | **positive:** `unit/verify` [`TestPacketHeaderMarshalRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L15). **negative:** no negative test. **{single-polarity}:** multi-octet header fields (session_id, length) are written and read with binary.BigEndian at internal/component/tacacs/packet.go:75-76 and 90-91; the marshal/unmarshal round-trip is symmetric with no independent little-endian oracle, so a negative would only test a different codec |
-| `RFC8907-4.6-1` | After decryption, unmarshalled field lengths must sum to header's body length; mismatch indicates wrong shared secret (§4.6, Body Encryption) | MUST | 4.6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze detects only gross truncation of the TACACS+ body (>= checks at internal/component/tacacs/authen.go:137-141, author.go:140-143, acct.go:136-140) and does not verify the decrypted body length exactly matches the header length; the ErrBadSecret error (internal/component/tacacs/packet.go:97) is defined but unused, so a wrong shared secret that yields a plausibly-sized body is not cleanly rejected |
-| `RFC8907-5-1` | Max sequence number is 0xFE (254); if reached, session MUST abort (§5, Authentication) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's TACACS+ client performs a single-exchange PAP authentication (internal/component/tacacs/client.go:219 sends seq 1 and expects seq 2, internal/component/tacacs/authen.go NewPAPAuthenStart with no CONTINUE loop), so the sequence number never approaches 0xFE and the ErrSeqOverflow guard (packet.go:99) has no reachable code path |
-| `RFC8907-7-1` | Accounting flag MORE (0x01) is deprecated and MUST NOT be set (§7, Accounting) | MUST NOT | 7 | **positive:** `unit/verify` [`TestAcctRequestMarshalStartStop`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/acct_test.go#L13). **negative:** no negative test. **{single-polarity}:** ze builds accounting requests with Flags set to AcctFlagStart or AcctFlagStop only (internal/component/tacacs/accounting.go:171 and 198); the deprecated MORE bit is never emitted, so there is no code path that sets it to drive a negative against |
-| `RFC8907-7-2` | START and STOP accounting flags are mutually exclusive (§7, Accounting) | MUST | 7 | **positive:** `unit/verify` [`TestAcctRequestMarshalStartStop`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/acct_test.go#L14). **negative:** no negative test. **{single-polarity}:** ze emits Flags as exactly AcctFlagStart (0x02) or AcctFlagStop (0x04) at internal/component/tacacs/accounting.go:171 and 198, never combined; a Start-plus-Stop combination is unreachable by construction, so there is no negative to test |
+| `RFC8907-4.6-1` | After de-obfuscation, the sum of component lengths must equal the header's body length; discard a mismatch and signal ERROR (§4.5, Data Obfuscation) | MUST | 4.5 | **positive:** `unit/verify` [`TestRFC8907ExactReplyLengthsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L226). **negative:** `unit/verify` [`TestRFC8907TrailingReplyBytesRejected`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L239) |
+| `RFC8907-5-1` | "The sequence number must never wrap, i.e., if the sequence number 2^(8)-1 is ever reached, that session must terminate and be restarted with a sequence number of 1." (§4.1, Packet Header; maximum 255, not 254) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** on 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`; internal/component/tacacs/client.go::Authenticate calls NewPAPAuthenStart and trySend emits sequence 1 and accepts only reply sequence 2. Section 5.4.2.2 requires one START and one REPLY for PAP, so no reachable authentication exchange approaches 255 or wraps; the separate initial/reply sequence tests remain applicable |
+| `RFC8907-7-1` | Accounting flag MORE (0x01) is deprecated and MUST NOT be set (§7, Accounting) | MUST NOT | 7 | **positive:** `unit/verify` [`TestAcctRequestMarshalStartStop`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/acct_test.go#L13). **negative:** `unit/verify` [`TestRFC8907AccountingMoreFlagRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L277) |
+| `RFC8907-7-2` | START and STOP accounting flags are mutually exclusive (§7, Accounting) | MUST | 7 | **positive:** `unit/verify` [`TestAcctRequestMarshalStartStop`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/acct_test.go#L14). **negative:** `unit/verify` [`TestRFC8907AccountingStartStopCombinationRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L288) |
 | `RFC8907-10-1` | §10.5.2: "Clients MUST be implemented in a way that requires explicit configuration to enable the use of TAC_PLUS_UNENCRYPTED_FLAG." (§10, Security) | MUST | 10 | **positive:** `unit/verify` [`TestPacketMarshalRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L128). **positive:** `unit/verify` [`TestRFC8907ClientNeverSendsUnobfuscatedBody`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L137). **positive:** `unit/verify` [`TestRFC8907UnencryptedModeIsNotReachableFromConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_unencrypted_config_test.go#L93). **negative:** no negative test. **{single-polarity}:** ze exposes no configuration that enables TAC_PLUS_UNENCRYPTED_FLAG: the schema declares no leaf for it and makes the shared secret mandatory (internal/component/tacacs/yang/ze-tacacs-conf.yang), the only request flag any producer sets is FlagSingleConnect (internal/component/tacacs/client.go trySend), and (*Packet).MarshalInto (internal/component/tacacs/packet.go) refuses a marshal with no shared secret instead of falling back to an unencrypted send, so there is no enabled state to drive a negative against |
-| `RFC8907-10-2` | "TACACS+ clients MUST NOT set TAC_PLUS_UNENCRYPTED_FLAG." (§10, Security) | MUST NOT | 10 | **positive:** `unit/verify` [`TestRFC8907ClientNeverSendsUnobfuscatedBody`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L142). **negative:** `unit/verify` [`TestPacketMarshalNoEncryption`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L167) |
-| `RFC8907-10.5.2-1` | A client that receives a reply whose obfuscation state disagrees with the shared-secret configuration of the server it came from MUST close the TCP session and process the reply as a FAIL (§10.5.2, Connections and Obfuscation) | MUST | 10.5.2 | **positive:** `unit/verify` [`TestRFC8907ClientAcceptsObfuscatedReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L225). **negative:** `unit/verify` [`TestRFC8907ClientRefusesUnobfuscatedReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L198) |
-| `RFC8907-6-1` | Authorization argument separator `=` (equals): client MUST be able to act on mandatory attributes or reject the authorization (§6, Authorization) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze decides authorization on the response Status alone (internal/component/tacacs/authorizer.go:116-135); AuthorResponse.Args is unmarshalled (author.go:171-175) but never inspected, and no attribute-value =/* separator parsing exists, so a server PASS carrying an unknown mandatory argument is honored rather than rejected |
-| `RFC8907-3.7-1` | "Usernames MUST be encoded and handled using the UsernameCasePreserved Profile specified in [RFC8265]." (§3.7, Treatment of Text Strings) | MUST | 3.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-3.7-2` | "All other text fields in TACACS+ MUST be treated as printable byte arrays of US-ASCII as defined by [RFC0020]", and printable "MUST exclude the 'Control Characters' defined in Section 5.2 of [RFC0020]" (§3.7, Treatment of Text Strings) | MUST | 3.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-4.1-1` | A variable-length field whose length value is zero is unused, and such fields "MUST be ignored, and treated as if not present" (§4.1, The TACACS+ Packet Header) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-4.1-2` | "The first packet in a session MUST have the sequence number 1" (§4.1, The TACACS+ Packet Header) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-4.1-3` | Header flag bits other than TAC_PLUS_UNENCRYPTED_FLAG and TAC_PLUS_SINGLE_CONNECT_FLAG "MUST be ignored when reading, and SHOULD be set to zero when writing" (§4.1, The TACACS+ Packet Header) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-4.3-1` | "The client MUST NOT send a second packet on a connection until single-connect status has been established." (§4.3, Single Connection Mode) | MUST NOT | 4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-4.3-2` | "the client and server MUST ignore the flag after the second packet on a connection" (§4.3, Single Connection Mode) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-4.3-3` | "The client MUST accommodate such closures on a TCP session even after Single Connection Mode has been established." (§4.3, Single Connection Mode) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-4.4-1` | On a REPLY of ERROR "The client cannot apply the result, and it MUST behave as if the server could not be connected to." (§4.4, Session Completion) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-4.4-2` | After an ERROR caused by connection issues on a Single Connection Mode connection, "any further new sessions MUST NOT be accepted on the connection" (§4.4, Session Completion) | MUST NOT | 4.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-4.4-3` | "Once all active sessions are completed, then the connection MUST be closed." (§4.4, Session Completion) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-5.1-1` | The username is optional in the START packet; "If it is absent, the client MUST set user_len to 0." (§5.1, The Authentication START Packet Body) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-5.4-1` | On a REPLY of GETDATA, GETUSER or GETPASS, "The client MUST then return a CONTINUE packet containing the requested information in the user_msg field." (§5.4, Description of Authentication Process) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-5.4-2` | When the client queries the user for information the server marked NOECHO, "the response MUST NOT be reflected in the user interface as it is entered" (§5.4, Description of Authentication Process) | MUST NOT | 5.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-5.4.2.2-1` | A PAP login exchange "MUST consist of a single START packet and a single REPLY" (§5.4.2.2, PAP Login) | MUST | 5.4.2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-5.4.2.2-2` | "The START packet MUST contain a username and the data field MUST contain the PAP ASCII password." (§5.4.2.2, PAP Login) | MUST | 5.4.2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-5.4.2.3-1` | A CHAP login exchange "MUST consist of a single START packet and a single REPLY", and "The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response." (§5.4.2.3, CHAP Login) | MUST | 5.4.2.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-5.4.2.4-1` | An MS-CHAP v1 login exchange "MUST consist of a single START packet and a single REPLY", and "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response." (§5.4.2.4, MS-CHAP v1 Login) | MUST | 5.4.2.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-5.4.2.5-1` | An MS-CHAP v2 login exchange "MUST consist of a single START packet and a single REPLY", and "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response." (§5.4.2.5, MS-CHAP v2 Login) | MUST | 5.4.2.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-5.4.2.6-1` | "the value of the authen_service field MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE" (§5.4.2.6, Enable Requests) | MUST | 5.4.2.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-5.4.2.6-2` | authen_service "MUST NOT be set to this value when requesting any other operation" (§5.4.2.6, Enable Requests) | MUST NOT | 5.4.2.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-5.4.3-1` | "If a client does not implement the TAC_PLUS_AUTHEN_STATUS_RESTART option, then it MUST process the response as if the status was TAC_PLUS_AUTHEN_STATUS_FAIL." (§5.4.3, Aborting an Authentication Session) | MUST | 5.4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-6.1-1` | "The user_len MUST indicate the length of the user field, in bytes." (§6.1, The Authorization REQUEST Packet Body) | MUST | 6.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-6.1-2` | "An argument name MUST NOT contain either of the separators." (§6.1, The Authorization REQUEST Packet Body) | MUST NOT | 6.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-6.2-1` | On TAC_PLUS_AUTHOR_STATUS_PASS_ADD "the arguments in the response MUST be applied according to the rules described above" (§6.2, The Authorization REPLY Packet Body) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-6.2-2` | On TAC_PLUS_AUTHOR_STATUS_PASS_REPL "the client MUST use the authorization argument-value pairs (if any) in the response instead of the authorization argument-value pairs from the request" (§6.2, The Authorization REPLY Packet Body) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-6.2-3` | On TAC_PLUS_AUTHOR_STATUS_FAIL "the requested authorization MUST be denied" (§6.2, The Authorization REPLY Packet Body) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-7.2-1` | "The STOP flag MUST NOT be set in conjunction with the WATCHDOG flag." (§7.2, The Accounting REPLY Packet Body) | MUST NOT | 7.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-8-1` | "Clients MUST use these arguments when supporting the corresponding use cases." (§8, Argument-Value Pairs) | MUST | 8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-8.1-1` | "TACACS+ implementations MUST verify that they can accommodate the lengths of numeric arguments before attempting to process them", and a length that cannot be accommodated means "the argument MUST be regarded as not handled and the logic in 'Authorization' (Section 6.1) regarding the processing of arguments MUST be applied" (§8.1, Value Encoding) | MUST | 8.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-8.1-2` | For an absolute date/time argument, "The time zone MUST be UTC unless a time zone argument is specified." (§8.1, Value Encoding) | MUST | 8.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-8.2-1` | The "service" argument "MUST always be included" (§8.2, Authorization Arguments) | MUST | 8.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-8.2-2` | "The 'cmd' argument MUST be specified if service equals 'shell'." (§8.2, Authorization Arguments) | MUST | 8.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-8.3-1` | Accounting arguments "MUST precede any argument-value pairs that are defined in 'Authorization' (Section 6)" (§8.3, Accounting Arguments) | MUST | 8.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-8.3-2` | "Start and stop records for the same event MUST have matching task_id argument values." (§8.3, Accounting Arguments) | MUST | 8.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-8.3-3` | "The client MUST ensure that active task_ids are not duplicated; a client MUST NOT reuse a task_id in a start record until it has sent a stop record for that task_id." (§8.3, Accounting Arguments) | MUST NOT | 8.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-8.3-4` | "TACACS+ client devices MUST be configured to send an accounting start packet for every command entered, irrespective of how the commands were authorized." (§8.3, Accounting Arguments) | MUST | 8.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-8.3-5` | "These 'Command Accounting' packets MUST include the 'service' and 'cmd' arguments, and if needed, the 'cmd-arg' arguments detailed in Section 8.2." (§8.3, Accounting Arguments) | MUST | 8.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-10.5-1` | "New implementations, and upgrades of current implementations, MUST implement these recommendations." (§10.5, TACACS+ Best Practices) | MUST | 10.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-10.5.1-1` | "TACACS+ servers and clients MUST treat shared secrets as sensitive data to be managed securely, as would be expected for other sensitive data such as identity credential information." (§10.5.1, Shared Secrets) | MUST | 10.5.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-10.5.1-2` | "TACACS+ servers and clients MUST support shared keys that are at least 32 characters long." (§10.5.1, Shared Secrets) | MUST | 10.5.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-10.5.4-1` | "administrators and implementers MUST ensure that the argument and value pairs shared between the clients and servers have consistent interpretation" (§10.5.4, Authorization) | MUST | 10.5.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-4.6-2` | Servers SHOULD reject unencrypted packets unless explicitly configured (§4.6, Body Encryption) | SHOULD | 4.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8907-10-2` | TACACS+ clients MUST NOT set TAC_PLUS_UNENCRYPTED_FLAG. (§10, Security) | MUST NOT | 10 | **positive:** `unit/verify` [`TestRFC8907ClientNeverSendsUnobfuscatedBody`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L142). **negative:** `unit/verify` [`TestPacketMarshalNoEncryption`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L167). **negative:** `unit/verify` [`TestRFC8907BuildRejectsMissingSecret`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L111) |
+| `RFC8907-10.5.2-1` | A client that receives a reply whose obfuscation state disagrees with the shared-secret configuration of the server it came from MUST close the TCP session and process the reply as a FAIL (§10.5.2, Connections and Obfuscation) | MUST | 10.5.2 | **positive:** `unit/verify` [`TestRFC8907ClientAcceptsObfuscatedReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L222). **negative:** `unit/verify` [`TestRFC8907ClientRefusesUnobfuscatedReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L198) |
+| `RFC8907-6-1` | Authorization argument separator `=` (equals): client MUST be able to act on mandatory attributes or reject the authorization (§6, Authorization) | MUST | 6 | **positive:** `unit/verify` [`TestRFC8907MandatoryCommandPolicyAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L50). **positive:** `unit/verify` [`TestRFC8907OptionalCommandPolicyIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L79). **negative:** `unit/verify` [`TestRFC8907MandatoryCommandPolicyDenied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L61). **negative:** `unit/verify` [`TestRFC8907MandatorySessionPolicyDenied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L209) |
+| `RFC8907-3.7-1` | Usernames MUST be encoded and handled using the UsernameCasePreserved Profile specified in [RFC8265]. (§3.7, Treatment of Text Strings) | MUST | 3.7 | **positive:** `unit/verify` [`TestRFC8907UsernameProfileOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L63). **negative:** `unit/verify` [`TestRFC8907ForbiddenUsernameNeverSent`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L90) |
+| `RFC8907-3.7-2` | "All other text fields in TACACS+ MUST be treated as printable byte arrays of US-ASCII as defined by [RFC0020]", and printable "MUST exclude the 'Control Characters' defined in Section 5.2 of [RFC0020]" (§3.7, Treatment of Text Strings) | MUST | 3.7 | **positive:** `unit/verify` [`TestRFC8907PrintableTextRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L108). **positive:** `unit/verify` [`TestRFC8907TrustedDispatchIdentitiesReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L172). **negative:** `unit/verify` [`TestRFC8907NonPrintableTextRejected`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L130) |
+| `RFC8907-4.1-1` | A variable-length field whose length value is zero is unused, and such fields "MUST be ignored, and treated as if not present" (§4.1, The TACACS+ Packet Header) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC8907ZeroLengthDataIsReadAsAbsent`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L59). **negative:** `unit/verify` [`TestRFC8907PresentZeroByteIsNotReadAsAbsent`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L67) |
+| `RFC8907-4.1-2` | The first packet in a session MUST have the sequence number 1, and each subsequent packet will increment the sequence number by one. (§4.1, The TACACS+ Packet Header) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC8907FirstPacketCarriesSequenceOne`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L194). **negative:** `unit/verify` [`TestRFC8907ReplyReusingSequenceOneIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L210) |
+| `RFC8907-4.1-3` | Header flag bits other than TAC_PLUS_UNENCRYPTED_FLAG and TAC_PLUS_SINGLE_CONNECT_FLAG "MUST be ignored when reading, and SHOULD be set to zero when writing" (§4.1, The TACACS+ Packet Header) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC8907UnknownHeaderFlagsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L153). **negative:** `unit/verify` [`TestRFC8907UnknownFlagsDoNotMaskDowngrade`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L165) |
+| `RFC8907-4.3-1` | The client MUST NOT send a second packet on a connection until single-connect status has been established. (§4.3, Single Connection Mode) | MUST NOT | 4.3 | **positive:** `unit/verify` [`TestRFC8907SecondSessionReusesEstablishedConnection`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L229). **negative:** `unit/verify` [`TestRFC8907NoSecondPacketWithoutSingleConnect`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L240) |
+| `RFC8907-4.3-2` | No provision is made for changing Single Connection Mode after the first two packets; the client and server MUST ignore the flag after the second packet on a connection. (§4.3, Single Connection Mode) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC8907FlagClearedOnLaterReplyIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L254). **negative:** `unit/verify` [`TestRFC8907ClientDoesNotResignalSingleConnect`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L266) |
+| `RFC8907-4.3-3` | The client MUST accommodate such closures on a TCP session even after Single Connection Mode has been established. (§4.3, Single Connection Mode) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC8907ServerClosureOfPooledConnectionIsAccommodated`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L281). **negative:** `unit/verify` [`TestRFC8907ClosureOnFreshDialIsNotRetried`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L294) |
+| `RFC8907-4.4-1` | On a REPLY of ERROR "The client cannot apply the result, and it MUST behave as if the server could not be connected to." (§4.4, Session Completion) | MUST | 4.4 | **positive:** `unit/verify` [`TestRFC8907ErrorUsesBackupServer`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L177). **negative:** `unit/verify` [`TestRFC8907FailDoesNotUseBackupServer`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L203) |
+| `RFC8907-4.4-2` | After an ERROR caused by connection issues on a Single Connection Mode connection, "any further new sessions MUST NOT be accepted on the connection" (§4.4, Session Completion) | MUST NOT | 4.4 | **positive:** `unit/verify` [`TestRFC8907NoNewSessionOnBrokenPooledConnection`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L313). **negative:** `unit/verify` [`TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L328) |
+| `RFC8907-4.4-3` | Once all active sessions are completed, then the connection MUST be closed. (§4.4, Session Completion) | MUST | 4.4 | **positive:** `unit/verify` [`TestRFC8907BrokenPooledConnectionIsClosed`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L339). **negative:** `unit/verify` [`TestRFC8907HealthyPooledConnectionStaysOpen`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L351) |
+| `RFC8907-5.1-1` | The username is optional in the START packet; "If it is absent, the client MUST set user_len to 0." (§5.1, The Authentication START Packet Body) | MUST | 5.1 | **positive:** `unit/verify` [`TestRFC8907AuthenStartAbsentUserWritesZeroLength`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L47). **negative:** `unit/verify` [`TestRFC8907AuthenStartPresentUserWritesItsLength`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L63) |
+| `RFC8907-5.4-1` | On a REPLY of GETDATA, GETUSER or GETPASS, "The client MUST then return a CONTINUE packet containing the requested information in the user_msg field." (§5.4, Description of Authentication Process) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "The entire exchange MUST consist of a single START packet and a single REPLY."; the PAP-specific rule is §5.4.2.2, which also restricts the reply to PASS, FAIL or ERROR. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding ASCII interactive workflows. internal/component/tacacs/client.go::Authenticate produces PAP through NewPAPAuthenStart, and validateReplyStatus rejects GETDATA/GETUSER/GETPASS rather than entering an interactive exchange; this is a selected method boundary, not a server-only obligation |
+| `RFC8907-5.4-2` | When the client queries the user for information the server marked NOECHO, "the response MUST NOT be reflected in the user interface as it is entered" (§5.4, Description of Authentication Process) | MUST NOT | 5.4 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered."; this rule is conditional on interactive prompting. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding ASCII interaction. internal/component/tacacs/client.go::Authenticate receives an already supplied username/password through aaa.AuthRequest and never prompts in response to a TACACS+ reply |
+| `RFC8907-5.4.2.2-1` | A PAP login exchange "MUST consist of a single START packet and a single REPLY" (§5.4.2.2, PAP Login) | MUST | 5.4.2.2 | **positive:** `unit/verify` [`TestRFC8907PAPExchangeIsOneStartOneReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L382). **negative:** `unit/verify` [`TestRFC8907PAPClientSendsNoContinue`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L394) |
+| `RFC8907-5.4.2.2-2` | The START packet MUST contain a username and the data field MUST contain the PAP ASCII password. (§5.4.2.2, PAP Login) | MUST | 5.4.2.2 | **positive:** `unit/verify` [`TestRFC8907PAPStartCarriesUserAndPassword`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L75). **negative:** `unit/verify` [`TestRFC8907PAPStartRefusesPasswordItCannotCarry`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L89) |
+| `RFC8907-5.4.2.3-1` | A CHAP login exchange "MUST consist of a single START packet and a single REPLY", and "The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response." (§5.4.2.3, CHAP Login) | MUST | 5.4.2.3 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response."; §5.4.2.3 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_CHAP. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding CHAP. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product CHAP challenge/response workflow exists |
+| `RFC8907-5.4.2.4-1` | An MS-CHAP v1 login exchange "MUST consist of a single START packet and a single REPLY", and "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response." (§5.4.2.4, MS-CHAP v1 Login) | MUST | 5.4.2.4 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response."; §5.4.2.4 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_MSCHAP. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding MS-CHAP v1. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product MS-CHAP v1 challenge/response workflow exists |
+| `RFC8907-5.4.2.5-1` | An MS-CHAP v2 login exchange "MUST consist of a single START packet and a single REPLY", and "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response." (§5.4.2.5, MS-CHAP v2 Login) | MUST | 5.4.2.5 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response."; §5.4.2.5 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_MSCHAPV2. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding MS-CHAP v2. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product MS-CHAP v2 challenge/response workflow exists |
+| `RFC8907-5.4.2.6-1` | In order to readily distinguish "ENABLE" requests from other types of request, the value of the authen_service field MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE. (§5.4.2.6, Enable Requests) | MUST | 5.4.2.6 | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "The exchange MAY consist of multiple messages while the server collects the information it requires in order to allow changing the principal's privilege level."; §5.4.2.6 defines an ENABLE privilege-change workflow, and the service rule applies when requesting an ENABLE. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding ENABLE workflows. internal/component/tacacs/authen.go::NewPAPAuthenStart sets the LOGIN service for the management password callback; it does not request a privilege change. The separate prohibition on using ENABLE for other operations remains tested |
+| `RFC8907-5.4.2.6-2` | authen_service "MUST NOT be set to this value when requesting any other operation" (§5.4.2.6, Enable Requests) | MUST NOT | 5.4.2.6 | **positive:** `unit/verify` [`TestRFC8907LoginStartCarriesLoginService`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L97). **negative:** `unit/verify` [`TestRFC8907LoginStartNeverCarriesEnableService`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L105) |
+| `RFC8907-5.4.3-1` | If a client does not implement the TAC_PLUS_AUTHEN_STATUS_RESTART option, then it MUST process the response as if the status was TAC_PLUS_AUTHEN_STATUS_FAIL. (§5.4.3, Aborting an Authentication Session) | MUST | 5.4.3 | **positive:** `unit/verify` [`TestRFC8907RestartIsProcessedAsFail`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L75). **negative:** `unit/verify` [`TestRFC8907ErrorIsNotProcessedAsFail`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L84) |
+| `RFC8907-6.1-1` | The user_len MUST indicate the length of the user field, in bytes. (§6.1, The Authorization REQUEST Packet Body) | MUST | 6.1 | **positive:** `unit/verify` [`TestRFC8907AuthorRequestUserLenMatchesUser`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L114). **negative:** `unit/verify` [`TestRFC8907AuthorRequestRefusesUserItCannotMeasure`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L125) |
+| `RFC8907-6.1-2` | An argument name MUST NOT contain either of the separators. (§6.1, The Authorization REQUEST Packet Body) | MUST NOT | 6.1 | **positive:** `unit/verify` [`TestRFC8907ArgumentNamesCarryNoSeparator`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L141). **negative:** `unit/verify` [`TestRFC8907ArgumentValueKeepsSeparatorOutOfName`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L151) |
+| `RFC8907-6.2-1` | On TAC_PLUS_AUTHOR_STATUS_PASS_ADD "the arguments in the response MUST be applied according to the rules described above" (§6.2, The Authorization REPLY Packet Body) | MUST | 6.2 | **positive:** `unit/verify` [`TestRFC8907PassAddRetainsCommand`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L89). **positive:** `unit/verify` [`TestRFC8907SessionPrivilegeApplied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L169). **negative:** `unit/verify` [`TestRFC8907PassAddCannotIgnoreCommandExtension`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L97) |
+| `RFC8907-6.2-2` | On TAC_PLUS_AUTHOR_STATUS_PASS_REPL "the client MUST use the authorization argument-value pairs (if any) in the response instead of the authorization argument-value pairs from the request" (§6.2, The Authorization REPLY Packet Body) | MUST | 6.2 | **positive:** `unit/verify` [`TestRFC8907PassReplPreservesExactCommand`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L108). **positive:** `unit/verify` [`TestRFC8907SessionReplacementMapsZero`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L200). **negative:** `unit/verify` [`TestRFC8907IncompleteSessionReplacementDenied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L223). **negative:** `unit/verify` [`TestRFC8907PassReplCannotAuthorizeOriginalCommand`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L118) |
+| `RFC8907-6.2-3` | On TAC_PLUS_AUTHOR_STATUS_FAIL "the requested authorization MUST be denied" (§6.2, The Authorization REPLY Packet Body) | MUST | 6.2 | **positive:** `unit/verify` [`TestRFC8907AuthorizationFailDenies`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L113). **negative:** `unit/verify` [`TestRFC8907AuthorizationPassAddIsNotDenied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L121) |
+| `RFC8907-7.2-1` | The STOP flag MUST NOT be set in conjunction with the WATCHDOG flag. (§7.2, The Accounting REPLY Packet Body) | MUST NOT | 7.2 | **positive:** `unit/verify` [`TestRFC8907StopRecordCarriesStopFlagOnly`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L63). **negative:** `unit/verify` [`TestRFC8907AccountingStopWatchdogCombinationRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L299). **negative:** `unit/verify` [`TestRFC8907StopRecordNeverCarriesWatchdog`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L71) |
+| `RFC8907-8-1` | Clients MUST use these arguments when supporting the corresponding use cases. (§8, Argument-Value Pairs) | MUST | 8 | **positive:** `unit/verify` [`TestRFC8907CommandRecordsUseDictionaryArguments`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L87). **negative:** `unit/verify` [`TestRFC8907CommandRecordsCarryNoForeignArgument`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L103) |
+| `RFC8907-8.1-1` | "TACACS+ implementations MUST verify that they can accommodate the lengths of numeric arguments before attempting to process them", and a length that cannot be accommodated means "the argument MUST be regarded as not handled and the logic in 'Authorization' (Section 6.1) regarding the processing of arguments MUST be applied" (§8.1, Value Encoding) | MUST | 8.1 | **positive:** `unit/verify` [`TestRFC8907OverlongOptionalPrivilegeCannotElevate`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L191). **positive:** `unit/verify` [`TestRFC8907SessionPrivilegeApplied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L168). **negative:** `unit/verify` [`TestRFC8907InvalidMandatoryPrivilegeDenied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L178) |
+| `RFC8907-8.1-2` | For an absolute date/time argument, "The time zone MUST be UTC unless a time zone argument is specified." (§8.1, Value Encoding) | MUST | 8.1 | **positive:** `unit/verify` [`TestRFC8907StartTimeIsEpochSeconds`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L116). **negative:** `unit/verify` [`TestRFC8907StartTimeIgnoresLocalZone`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L132) |
+| `RFC8907-8.2-1` | The "service" argument "MUST always be included" (§8.2, Authorization Arguments) | MUST | 8.2 | **positive:** `unit/verify` [`TestRFC8907ServiceArgumentAlwaysFirst`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L161). **negative:** `unit/verify` [`TestRFC8907ServiceArgumentPresentForEmptyCommand`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L167) |
+| `RFC8907-8.2-2` | The "cmd" argument MUST be specified if service equals "shell". (§8.2, Authorization Arguments) | MUST | 8.2 | **positive:** `unit/verify` [`TestRFC8907CmdArgumentFollowsShellService`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L173). **negative:** `unit/verify` [`TestRFC8907CmdArgumentPresentForEmptyCommand`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L180) |
+| `RFC8907-8.3-1` | Accounting arguments "MUST precede any argument-value pairs that are defined in 'Authorization' (Section 6)" (§8.3, Accounting Arguments) | MUST | 8.3 | **positive:** `unit/verify` [`TestRFC8907AccountingArgumentsPrecedeAuthorizationOnes`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L155). **negative:** `unit/verify` [`TestRFC8907NoAuthorizationArgumentPrecedesAccountingOne`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L174) |
+| `RFC8907-8.3-2` | Start and stop records for the same event MUST have matching task_id argument values. (§8.3, Accounting Arguments) | MUST | 8.3 | **positive:** `unit/verify` [`TestRFC8907StartAndStopShareTaskID`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L191). **negative:** `unit/verify` [`TestRFC8907SecondCommandCarriesOtherTaskID`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L207) |
+| `RFC8907-8.3-3` | The client MUST ensure that active task_ids are not duplicated; a client MUST NOT reuse a task_id in a start record until it has sent a stop record for that task_id. (§8.3, Accounting Arguments) | MUST NOT | 8.3 | **positive:** `unit/verify` [`TestRFC8907ActiveTaskIDsAreDistinct`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L221). **negative:** `unit/verify` [`TestRFC8907TaskIDNeverReappears`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L236) |
+| `RFC8907-8.3-4` | To support this mode of operation, TACACS+ client devices MUST be configured to send an accounting start packet for every command entered, irrespective of how the commands were authorized. (§8.3, Accounting Arguments) | MUST | 8.3 | **positive:** `unit/verify` [`TestAPIStreamSourceRunsStreamingHandler`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/api_test.go#L277). **positive:** `unit/verify` [`TestDispatcherAccountingWithoutUsername`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/command_test.go#L1164). **positive:** `unit/verify` [`TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/aaa_lifecycle_test.go#L231). **positive:** `unit/verify` [`TestRFC8907AccountingSaturationRetainsEveryStart`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/accounting_test.go#L46). **positive:** `unit/verify` [`TestRFC8907PluginDispatchAccountsCommand`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L107). **positive:** `unit/verify` [`TestRFC8907TrustedDispatchIdentitiesReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L171). **positive:** `unit/verify` [`TestRFC8907TypedDispatchAccountsDeniedCommand`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L33). **negative:** `unit/verify` [`TestAPIStreamSourceAuthorizesReadOnly`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/api_test.go#L343). **negative:** `unit/verify` [`TestDispatcherAccountsRefusedCommands`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/command_test.go#L1224). **negative:** `unit/verify` [`TestRFC8907AccountingRequiresDestination`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L123). **negative:** `unit/verify` [`TestRFC8907AccountingStopDrainsAcceptedStarts`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/accounting_test.go#L90). **negative:** `unit/verify` [`TestRFC8907BundleRetirementWaitsForAccountingPair`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/aaa_lifecycle_test.go#L323). **negative:** `unit/verify` [`TestRFC8907OversizedCommandAccountingStillReachesWire`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L296) |
+| `RFC8907-8.3-5` | These "Command Accounting" packets MUST include the "service" and "cmd" arguments, and if needed, the "cmd-arg" arguments detailed in Section 8.2. (§8.3, Accounting Arguments) | MUST | 8.3 | **positive:** `unit/verify` [`TestRFC8907CommandRecordsCarryServiceCmdAndArgs`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L254). **negative:** `unit/verify` [`TestRFC8907EmptyCommandRecordStillCarriesServiceAndCmd`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L270) |
+| `RFC8907-10.5-1` | New implementations, and upgrades of current implementations, MUST implement these recommendations. (§10.5, TACACS+ Best Practices) | MUST | 10.5 | **positive:** no positive test. **negative:** no negative test. **{rollup}:** RFC8907-10.5.1-1, RFC8907-10.5.1-2, RFC8907-10.5.2-1, RFC8907-10.5.4-1; Section 10.5 makes "these recommendations" of Sections 10.5.1 to 10.5.4 mandatory for new implementations, and those four rows carry the client-side recommendations the checklist gates; the MUSTs of Sections 10.5.3 and 10.5.5 bind TACACS+ servers, a role ze does not fill. **derived:** met |
+| `RFC8907-10.5.1-1` | TACACS+ servers and clients MUST treat shared secrets as sensitive data to be managed securely, as would be expected for other sensitive data such as identity credential information. (§10.5.1, Shared Secrets) | MUST | 10.5.1 | **positive:** `unit/verify` [`TestRFC8907SharedSecretConfigBuildAndDisplay`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L37). **negative:** `unit/verify` [`TestRFC8907AccountingRedactsConfigSecretWithoutChangingExecution`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L84). **negative:** `unit/verify` [`TestRFC8907SharedSecretCommandRedaction`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L149). **negative:** `unit/verify` [`TestRFC8907SharedSecretDiagnosticRedaction`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L87) |
+| `RFC8907-10.5.1-2` | * TACACS+ servers and clients MUST support shared keys that are at least 32 characters long. (§10.5.1, Shared Secrets) | MUST | 10.5.1 | **positive:** `unit/verify` [`TestRFC8907LongSharedKeysAuthenticate`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L407). **positive:** `unit/verify` [`TestRFC8907SharedSecretConfigBuildAndDisplay`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L38). **negative:** `unit/verify` [`TestRFC8907SharedKeyIsNotTruncated`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L187) |
+| `RFC8907-10.5.4-1` | The cost of the flexibility is that administrators and implementers MUST ensure that the argument and value pairs shared between the clients and servers have consistent interpretation. (§10.5.4, Authorization) | MUST | 10.5.4 | **positive:** `unit/verify` [`TestRFC8907MandatoryCommandPolicyAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L51). **negative:** `unit/verify` [`TestRFC8907MandatoryCommandPolicyDenied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L62). **negative:** `unit/verify` [`TestRFC8907MandatorySessionPolicyDenied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L210) |
+| `RFC8907-4.6-2` | A request MUST be dropped if TAC_PLUS_UNENCRYPTED_FLAG is set to true. (§4.5, Data Obfuscation; stable historical ID) | MUST | 4.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this request-receiver obligation binds a TACACS+ server. Ze implements the management AAA client, not a TACACS+ server; the client's separate obfuscation and reply-validation obligations remain applicable |
 | `RFC8907-x-1` | Server SHOULD use a configurable connection timeout (Connection Management) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC8907-x-2` | The TAC_PLUS_AUTHEN_STATUS_FOLLOW redirection mechanism is deprecated, and "This mechanism MUST NOT be used in modern deployments. It MUST NOT be used outside a secured deployment." (Error Handling) | MUST NOT | x | **positive:** no positive test. **negative:** no negative test |
+| `RFC8907-x-2` | The TAC_PLUS_AUTHEN_STATUS_FOLLOW redirection mechanism is deprecated, and "This mechanism MUST NOT be used in modern deployments. It MUST NOT be used outside a secured deployment." (Error Handling) | MUST NOT | x | **positive:** `unit/verify` [`TestRFC8907AuthorizationFollowDeniesWithoutFallback`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L135). **positive:** `unit/verify` [`TestRFC8907FollowIsNotAuthenticated`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L127). **negative:** `unit/verify` [`TestRFC8907FollowTargetIsNeverContacted`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L143) |
 | `RFC8907-6-2` | Authorization argument separator `*` (asterisk): client MAY ignore optional attributes if not understood (§6, Authorization) | MAY | 6 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC8907-4.6-1`](#rfc8907-4.6-1) After decryption, unmarshalled field lengths must sum to header's body length; mismatch indicates wrong shared secret (§4.6, Body Encryption) | {gap}, no test | ze detects only gross truncation of the TACACS+ body (>= checks at internal/component/tacacs/authen.go:137-141, author.go:140-143, acct.go:136-140) and does not verify the decrypted body length exactly matches the header length; the ErrBadSecret error (internal/component/tacacs/packet.go:97) is defined but unused, so a wrong shared secret that yields a plausibly-sized body is not cleanly rejected |
-| [`RFC8907-5-1`](#rfc8907-5-1) Max sequence number is 0xFE (254); if reached, session MUST abort (§5, Authentication) | no test | no test carries this requirement id; annotated {not-applicable}: ze's TACACS+ client performs a single-exchange PAP authentication (internal/component/tacacs/client.go:219 sends seq 1 and expects seq 2, internal/component/tacacs/authen.go NewPAPAuthenStart with no CONTINUE loop), so the sequence number never approaches 0xFE and the ErrSeqOverflow guard (packet.go:99) has no reachable code path |
-| [`RFC8907-6-1`](#rfc8907-6-1) Authorization argument separator `=` (equals): client MUST be able to act on mandatory attributes or reject the authorization (§6, Authorization) | {gap}, no test | ze decides authorization on the response Status alone (internal/component/tacacs/authorizer.go:116-135); AuthorResponse.Args is unmarshalled (author.go:171-175) but never inspected, and no attribute-value =/* separator parsing exists, so a server PASS carrying an unknown mandatory argument is honored rather than rejected |
-| [`RFC8907-3.7-1`](#rfc8907-3.7-1) "Usernames MUST be encoded and handled using the UsernameCasePreserved Profile specified in [RFC8265]." (§3.7, Treatment of Text Strings) | no test | no test carries this requirement id |
-| [`RFC8907-3.7-2`](#rfc8907-3.7-2) "All other text fields in TACACS+ MUST be treated as printable byte arrays of US-ASCII as defined by [RFC0020]", and printable "MUST exclude the 'Control Characters' defined in Section 5.2 of [RFC0020]" (§3.7, Treatment of Text Strings) | no test | no test carries this requirement id |
-| [`RFC8907-4.1-1`](#rfc8907-4.1-1) A variable-length field whose length value is zero is unused, and such fields "MUST be ignored, and treated as if not present" (§4.1, The TACACS+ Packet Header) | no test | no test carries this requirement id |
-| [`RFC8907-4.1-2`](#rfc8907-4.1-2) "The first packet in a session MUST have the sequence number 1" (§4.1, The TACACS+ Packet Header) | no test | no test carries this requirement id |
-| [`RFC8907-4.1-3`](#rfc8907-4.1-3) Header flag bits other than TAC_PLUS_UNENCRYPTED_FLAG and TAC_PLUS_SINGLE_CONNECT_FLAG "MUST be ignored when reading, and SHOULD be set to zero when writing" (§4.1, The TACACS+ Packet Header) | no test | no test carries this requirement id |
-| [`RFC8907-4.3-1`](#rfc8907-4.3-1) "The client MUST NOT send a second packet on a connection until single-connect status has been established." (§4.3, Single Connection Mode) | no test | no test carries this requirement id |
-| [`RFC8907-4.3-2`](#rfc8907-4.3-2) "the client and server MUST ignore the flag after the second packet on a connection" (§4.3, Single Connection Mode) | no test | no test carries this requirement id |
-| [`RFC8907-4.3-3`](#rfc8907-4.3-3) "The client MUST accommodate such closures on a TCP session even after Single Connection Mode has been established." (§4.3, Single Connection Mode) | no test | no test carries this requirement id |
-| [`RFC8907-4.4-1`](#rfc8907-4.4-1) On a REPLY of ERROR "The client cannot apply the result, and it MUST behave as if the server could not be connected to." (§4.4, Session Completion) | no test | no test carries this requirement id |
-| [`RFC8907-4.4-2`](#rfc8907-4.4-2) After an ERROR caused by connection issues on a Single Connection Mode connection, "any further new sessions MUST NOT be accepted on the connection" (§4.4, Session Completion) | no test | no test carries this requirement id |
-| [`RFC8907-4.4-3`](#rfc8907-4.4-3) "Once all active sessions are completed, then the connection MUST be closed." (§4.4, Session Completion) | no test | no test carries this requirement id |
-| [`RFC8907-5.1-1`](#rfc8907-5.1-1) The username is optional in the START packet; "If it is absent, the client MUST set user_len to 0." (§5.1, The Authentication START Packet Body) | no test | no test carries this requirement id |
-| [`RFC8907-5.4-1`](#rfc8907-5.4-1) On a REPLY of GETDATA, GETUSER or GETPASS, "The client MUST then return a CONTINUE packet containing the requested information in the user_msg field." (§5.4, Description of Authentication Process) | no test | no test carries this requirement id |
-| [`RFC8907-5.4-2`](#rfc8907-5.4-2) When the client queries the user for information the server marked NOECHO, "the response MUST NOT be reflected in the user interface as it is entered" (§5.4, Description of Authentication Process) | no test | no test carries this requirement id |
-| [`RFC8907-5.4.2.2-1`](#rfc8907-5.4.2.2-1) A PAP login exchange "MUST consist of a single START packet and a single REPLY" (§5.4.2.2, PAP Login) | no test | no test carries this requirement id |
-| [`RFC8907-5.4.2.2-2`](#rfc8907-5.4.2.2-2) "The START packet MUST contain a username and the data field MUST contain the PAP ASCII password." (§5.4.2.2, PAP Login) | no test | no test carries this requirement id |
-| [`RFC8907-5.4.2.3-1`](#rfc8907-5.4.2.3-1) A CHAP login exchange "MUST consist of a single START packet and a single REPLY", and "The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response." (§5.4.2.3, CHAP Login) | no test | no test carries this requirement id |
-| [`RFC8907-5.4.2.4-1`](#rfc8907-5.4.2.4-1) An MS-CHAP v1 login exchange "MUST consist of a single START packet and a single REPLY", and "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response." (§5.4.2.4, MS-CHAP v1 Login) | no test | no test carries this requirement id |
-| [`RFC8907-5.4.2.5-1`](#rfc8907-5.4.2.5-1) An MS-CHAP v2 login exchange "MUST consist of a single START packet and a single REPLY", and "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response." (§5.4.2.5, MS-CHAP v2 Login) | no test | no test carries this requirement id |
-| [`RFC8907-5.4.2.6-1`](#rfc8907-5.4.2.6-1) "the value of the authen_service field MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE" (§5.4.2.6, Enable Requests) | no test | no test carries this requirement id |
-| [`RFC8907-5.4.2.6-2`](#rfc8907-5.4.2.6-2) authen_service "MUST NOT be set to this value when requesting any other operation" (§5.4.2.6, Enable Requests) | no test | no test carries this requirement id |
-| [`RFC8907-5.4.3-1`](#rfc8907-5.4.3-1) "If a client does not implement the TAC_PLUS_AUTHEN_STATUS_RESTART option, then it MUST process the response as if the status was TAC_PLUS_AUTHEN_STATUS_FAIL." (§5.4.3, Aborting an Authentication Session) | no test | no test carries this requirement id |
-| [`RFC8907-6.1-1`](#rfc8907-6.1-1) "The user_len MUST indicate the length of the user field, in bytes." (§6.1, The Authorization REQUEST Packet Body) | no test | no test carries this requirement id |
-| [`RFC8907-6.1-2`](#rfc8907-6.1-2) "An argument name MUST NOT contain either of the separators." (§6.1, The Authorization REQUEST Packet Body) | no test | no test carries this requirement id |
-| [`RFC8907-6.2-1`](#rfc8907-6.2-1) On TAC_PLUS_AUTHOR_STATUS_PASS_ADD "the arguments in the response MUST be applied according to the rules described above" (§6.2, The Authorization REPLY Packet Body) | no test | no test carries this requirement id |
-| [`RFC8907-6.2-2`](#rfc8907-6.2-2) On TAC_PLUS_AUTHOR_STATUS_PASS_REPL "the client MUST use the authorization argument-value pairs (if any) in the response instead of the authorization argument-value pairs from the request" (§6.2, The Authorization REPLY Packet Body) | no test | no test carries this requirement id |
-| [`RFC8907-6.2-3`](#rfc8907-6.2-3) On TAC_PLUS_AUTHOR_STATUS_FAIL "the requested authorization MUST be denied" (§6.2, The Authorization REPLY Packet Body) | no test | no test carries this requirement id |
-| [`RFC8907-7.2-1`](#rfc8907-7.2-1) "The STOP flag MUST NOT be set in conjunction with the WATCHDOG flag." (§7.2, The Accounting REPLY Packet Body) | no test | no test carries this requirement id |
-| [`RFC8907-8-1`](#rfc8907-8-1) "Clients MUST use these arguments when supporting the corresponding use cases." (§8, Argument-Value Pairs) | no test | no test carries this requirement id |
-| [`RFC8907-8.1-1`](#rfc8907-8.1-1) "TACACS+ implementations MUST verify that they can accommodate the lengths of numeric arguments before attempting to process them", and a length that cannot be accommodated means "the argument MUST be regarded as not handled and the logic in 'Authorization' (Section 6.1) regarding the processing of arguments MUST be applied" (§8.1, Value Encoding) | no test | no test carries this requirement id |
-| [`RFC8907-8.1-2`](#rfc8907-8.1-2) For an absolute date/time argument, "The time zone MUST be UTC unless a time zone argument is specified." (§8.1, Value Encoding) | no test | no test carries this requirement id |
-| [`RFC8907-8.2-1`](#rfc8907-8.2-1) The "service" argument "MUST always be included" (§8.2, Authorization Arguments) | no test | no test carries this requirement id |
-| [`RFC8907-8.2-2`](#rfc8907-8.2-2) "The 'cmd' argument MUST be specified if service equals 'shell'." (§8.2, Authorization Arguments) | no test | no test carries this requirement id |
-| [`RFC8907-8.3-1`](#rfc8907-8.3-1) Accounting arguments "MUST precede any argument-value pairs that are defined in 'Authorization' (Section 6)" (§8.3, Accounting Arguments) | no test | no test carries this requirement id |
-| [`RFC8907-8.3-2`](#rfc8907-8.3-2) "Start and stop records for the same event MUST have matching task_id argument values." (§8.3, Accounting Arguments) | no test | no test carries this requirement id |
-| [`RFC8907-8.3-3`](#rfc8907-8.3-3) "The client MUST ensure that active task_ids are not duplicated; a client MUST NOT reuse a task_id in a start record until it has sent a stop record for that task_id." (§8.3, Accounting Arguments) | no test | no test carries this requirement id |
-| [`RFC8907-8.3-4`](#rfc8907-8.3-4) "TACACS+ client devices MUST be configured to send an accounting start packet for every command entered, irrespective of how the commands were authorized." (§8.3, Accounting Arguments) | no test | no test carries this requirement id |
-| [`RFC8907-8.3-5`](#rfc8907-8.3-5) "These 'Command Accounting' packets MUST include the 'service' and 'cmd' arguments, and if needed, the 'cmd-arg' arguments detailed in Section 8.2." (§8.3, Accounting Arguments) | no test | no test carries this requirement id |
-| [`RFC8907-10.5-1`](#rfc8907-10.5-1) "New implementations, and upgrades of current implementations, MUST implement these recommendations." (§10.5, TACACS+ Best Practices) | no test | no test carries this requirement id |
-| [`RFC8907-10.5.1-1`](#rfc8907-10.5.1-1) "TACACS+ servers and clients MUST treat shared secrets as sensitive data to be managed securely, as would be expected for other sensitive data such as identity credential information." (§10.5.1, Shared Secrets) | no test | no test carries this requirement id |
-| [`RFC8907-10.5.1-2`](#rfc8907-10.5.1-2) "TACACS+ servers and clients MUST support shared keys that are at least 32 characters long." (§10.5.1, Shared Secrets) | no test | no test carries this requirement id |
-| [`RFC8907-10.5.4-1`](#rfc8907-10.5.4-1) "administrators and implementers MUST ensure that the argument and value pairs shared between the clients and servers have consistent interpretation" (§10.5.4, Authorization) | no test | no test carries this requirement id |
-| [`RFC8907-x-2`](#rfc8907-x-2) The TAC_PLUS_AUTHEN_STATUS_FOLLOW redirection mechanism is deprecated, and "This mechanism MUST NOT be used in modern deployments. It MUST NOT be used outside a secured deployment." (Error Handling) | no test | no test carries this requirement id |
+| [`RFC8907-5-1`](#rfc8907-5-1) "The sequence number must never wrap, i.e., if the sequence number 2^(8)-1 is ever reached, that session must terminate and be restarted with a sequence number of 1." (§4.1, Packet Header; maximum 255, not 254) | no test | no test carries this requirement id; annotated {not-applicable}: on 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`; internal/component/tacacs/client.go::Authenticate calls NewPAPAuthenStart and trySend emits sequence 1 and accepts only reply sequence 2. Section 5.4.2.2 requires one START and one REPLY for PAP, so no reachable authentication exchange approaches 255 or wraps; the separate initial/reply sequence tests remain applicable |
+| [`RFC8907-5.4-1`](#rfc8907-5.4-1) On a REPLY of GETDATA, GETUSER or GETPASS, "The client MUST then return a CONTINUE packet containing the requested information in the user_msg field." (§5.4, Description of Authentication Process) | no test | no test carries this requirement id; annotated {feature-declined}: "The entire exchange MUST consist of a single START packet and a single REPLY."; the PAP-specific rule is §5.4.2.2, which also restricts the reply to PASS, FAIL or ERROR. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding ASCII interactive workflows. internal/component/tacacs/client.go::Authenticate produces PAP through NewPAPAuthenStart, and validateReplyStatus rejects GETDATA/GETUSER/GETPASS rather than entering an interactive exchange; this is a selected method boundary, not a server-only obligation |
+| [`RFC8907-5.4-2`](#rfc8907-5.4-2) When the client queries the user for information the server marked NOECHO, "the response MUST NOT be reflected in the user interface as it is entered" (§5.4, Description of Authentication Process) | no test | no test carries this requirement id; annotated {feature-declined}: "When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered."; this rule is conditional on interactive prompting. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding ASCII interaction. internal/component/tacacs/client.go::Authenticate receives an already supplied username/password through aaa.AuthRequest and never prompts in response to a TACACS+ reply |
+| [`RFC8907-5.4.2.3-1`](#rfc8907-5.4.2.3-1) A CHAP login exchange "MUST consist of a single START packet and a single REPLY", and "The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response." (§5.4.2.3, CHAP Login) | no test | no test carries this requirement id; annotated {feature-declined}: "The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response."; §5.4.2.3 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_CHAP. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding CHAP. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product CHAP challenge/response workflow exists |
+| [`RFC8907-5.4.2.4-1`](#rfc8907-5.4.2.4-1) An MS-CHAP v1 login exchange "MUST consist of a single START packet and a single REPLY", and "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response." (§5.4.2.4, MS-CHAP v1 Login) | no test | no test carries this requirement id; annotated {feature-declined}: "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response."; §5.4.2.4 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_MSCHAP. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding MS-CHAP v1. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product MS-CHAP v1 challenge/response workflow exists |
+| [`RFC8907-5.4.2.5-1`](#rfc8907-5.4.2.5-1) An MS-CHAP v2 login exchange "MUST consist of a single START packet and a single REPLY", and "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response." (§5.4.2.5, MS-CHAP v2 Login) | no test | no test carries this requirement id; annotated {feature-declined}: "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response."; §5.4.2.5 scopes this construction to authen_type TAC_PLUS_AUTHEN_TYPE_MSCHAPV2. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding MS-CHAP v2. internal/component/tacacs/client.go::Authenticate accepts username/password and uses NewPAPAuthenStart; no product MS-CHAP v2 challenge/response workflow exists |
+| [`RFC8907-5.4.2.6-1`](#rfc8907-5.4.2.6-1) In order to readily distinguish "ENABLE" requests from other types of request, the value of the authen_service field MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE. (§5.4.2.6, Enable Requests) | no test | no test carries this requirement id; annotated {feature-declined}: "The exchange MAY consist of multiple messages while the server collects the information it requires in order to allow changing the principal's privilege level."; §5.4.2.6 defines an ENABLE privilege-change workflow, and the service rule applies when requesting an ENABLE. On 2026-09-21 the owner selected `tacacs_methods='Keep PAP authentication'`, excluding ENABLE workflows. internal/component/tacacs/authen.go::NewPAPAuthenStart sets the LOGIN service for the management password callback; it does not request a privilege change. The separate prohibition on using ENABLE for other operations remains tested |
+| [`RFC8907-10.5-1`](#rfc8907-10.5-1) New implementations, and upgrades of current implementations, MUST implement these recommendations. (§10.5, TACACS+ Best Practices) | no test | no test carries this requirement id; annotated {rollup}: RFC8907-10.5.1-1, RFC8907-10.5.1-2, RFC8907-10.5.2-1, RFC8907-10.5.4-1; Section 10.5 makes "these recommendations" of Sections 10.5.1 to 10.5.4 mandatory for new implementations, and those four rows carry the client-side recommendations the checklist gates; the MUSTs of Sections 10.5.3 and 10.5.5 bind TACACS+ servers, a role ze does not fill |
+| [`RFC8907-4.6-2`](#rfc8907-4.6-2) A request MUST be dropped if TAC_PLUS_UNENCRYPTED_FLAG is set to true. (§4.5, Data Obfuscation; stable historical ID) | no test | no test carries this requirement id; annotated {not-applicable}: this request-receiver obligation binds a TACACS+ server. Ze implements the management AAA client, not a TACACS+ server; the client's separate obfuscation and reply-validation obligations remain applicable |
 
 ## Proof state
 
@@ -252,13 +212,13 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8907-4-3`](#rfc8907-4-3)
 
-session_id MUST be cryptographically random (§4, Session Lifecycle)
+This number MUST be generated by a cryptographically strong random number generation method. (§4, Session Lifecycle)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRandomSessionIDDistinct`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L332) | unit/verify | unproven |
+| positive | [`TestRandomSessionIDDistinct`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/client_test.go#L327) | unit/verify | unproven |
 | positive | [`TestRFC8907SessionIDComesFromCryptoRand`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_sessionid_test.go#L38) | unit/verify | unproven |
 
 ### [`RFC8907-4-4`](#rfc8907-4-4)
@@ -283,15 +243,18 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8907-4.6-1`](#rfc8907-4.6-1)
 
-After decryption, unmarshalled field lengths must sum to header's body length; mismatch indicates wrong shared secret (§4.6, Body Encryption)
+After de-obfuscation, the sum of component lengths must equal the header's body length; discard a mismatch and signal ERROR (§4.5, Data Obfuscation)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-4.6-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907TrailingReplyBytesRejected`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L239) | unit/verify | unproven |
+| positive | [`TestRFC8907ExactReplyLengthsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L226) | unit/verify | unproven |
 
 ### [`RFC8907-5-1`](#rfc8907-5-1)
 
-Max sequence number is 0xFE (254); if reached, session MUST abort (§5, Authentication)
+"The sequence number must never wrap, i.e., if the sequence number 2^(8)-1 is ever reached, that session must terminate and be restarted with a sequence number of 1." (§4.1, Packet Header; maximum 255, not 254)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -305,6 +268,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestRFC8907AccountingMoreFlagRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L277) | unit/verify | unproven |
 | positive | [`TestAcctRequestMarshalStartStop`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/acct_test.go#L13) | unit/verify | unproven |
 
 ### [`RFC8907-7-2`](#rfc8907-7-2)
@@ -315,6 +279,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestRFC8907AccountingStartStopCombinationRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L288) | unit/verify | unproven |
 | positive | [`TestAcctRequestMarshalStartStop`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/acct_test.go#L14) | unit/verify | unproven |
 
 ### [`RFC8907-10-1`](#rfc8907-10-1)
@@ -331,13 +296,14 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8907-10-2`](#rfc8907-10-2)
 
-"TACACS+ clients MUST NOT set TAC_PLUS_UNENCRYPTED_FLAG." (§10, Security)
+TACACS+ clients MUST NOT set TAC_PLUS_UNENCRYPTED_FLAG. (§10, Security)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestPacketMarshalNoEncryption`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L167) | unit/verify | unproven |
+| negative | [`TestRFC8907BuildRejectsMissingSecret`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L111) | unit/verify | unproven |
 | positive | [`TestRFC8907ClientNeverSendsUnobfuscatedBody`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L142) | unit/verify | revert, verified |
 
 ### [`RFC8907-10.5.2-1`](#rfc8907-10.5.2-1)
@@ -348,8 +314,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8907ClientRefusesUnobfuscatedReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L198) | unit/verify | unproven |
-| positive | [`TestRFC8907ClientAcceptsObfuscatedReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L225) | unit/verify | unproven |
+| negative | [`TestRFC8907ClientRefusesUnobfuscatedReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L198) | unit/verify | revert, verified |
+| positive | [`TestRFC8907ClientAcceptsObfuscatedReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L222) | unit/verify | unproven |
 
 ### [`RFC8907-6-1`](#rfc8907-6-1)
 
@@ -357,15 +323,23 @@ Authorization argument separator `=` (equals): client MUST be able to act on man
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-6-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907MandatoryCommandPolicyDenied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L61) | unit/verify | unproven |
+| negative | [`TestRFC8907MandatorySessionPolicyDenied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L209) | unit/verify | unproven |
+| positive | [`TestRFC8907MandatoryCommandPolicyAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L50) | unit/verify | unproven |
+| positive | [`TestRFC8907OptionalCommandPolicyIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L79) | unit/verify | unproven |
 
 ### [`RFC8907-3.7-1`](#rfc8907-3.7-1)
 
-"Usernames MUST be encoded and handled using the UsernameCasePreserved Profile specified in [RFC8265]." (§3.7, Treatment of Text Strings)
+Usernames MUST be encoded and handled using the UsernameCasePreserved Profile specified in [RFC8265]. (§3.7, Treatment of Text Strings)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-3.7-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907ForbiddenUsernameNeverSent`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L90) | unit/verify | unproven |
+| positive | [`TestRFC8907UsernameProfileOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L63) | unit/verify | unproven |
 
 ### [`RFC8907-3.7-2`](#rfc8907-3.7-2)
 
@@ -373,7 +347,11 @@ No test carries RFC8907-3.7-1, so no unit is bound to it.
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-3.7-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907NonPrintableTextRejected`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L130) | unit/verify | unproven |
+| positive | [`TestRFC8907TrustedDispatchIdentitiesReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L172) | unit/verify | unproven |
+| positive | [`TestRFC8907PrintableTextRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L108) | unit/verify | unproven |
 
 ### [`RFC8907-4.1-1`](#rfc8907-4.1-1)
 
@@ -381,15 +359,21 @@ A variable-length field whose length value is zero is unused, and such fields "M
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-4.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907PresentZeroByteIsNotReadAsAbsent`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L67) | unit/verify | revert, verified |
+| positive | [`TestRFC8907ZeroLengthDataIsReadAsAbsent`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L59) | unit/verify | revert, verified |
 
 ### [`RFC8907-4.1-2`](#rfc8907-4.1-2)
 
-"The first packet in a session MUST have the sequence number 1" (§4.1, The TACACS+ Packet Header)
+The first packet in a session MUST have the sequence number 1, and each subsequent packet will increment the sequence number by one. (§4.1, The TACACS+ Packet Header)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-4.1-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907ReplyReusingSequenceOneIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L210) | unit/verify | revert, verified |
+| positive | [`TestRFC8907FirstPacketCarriesSequenceOne`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L194) | unit/verify | revert, verified |
 
 ### [`RFC8907-4.1-3`](#rfc8907-4.1-3)
 
@@ -397,31 +381,43 @@ Header flag bits other than TAC_PLUS_UNENCRYPTED_FLAG and TAC_PLUS_SINGLE_CONNEC
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-4.1-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907UnknownFlagsDoNotMaskDowngrade`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L165) | unit/verify | unproven |
+| positive | [`TestRFC8907UnknownHeaderFlagsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L153) | unit/verify | unproven |
 
 ### [`RFC8907-4.3-1`](#rfc8907-4.3-1)
 
-"The client MUST NOT send a second packet on a connection until single-connect status has been established." (§4.3, Single Connection Mode)
+The client MUST NOT send a second packet on a connection until single-connect status has been established. (§4.3, Single Connection Mode)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-4.3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907NoSecondPacketWithoutSingleConnect`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L240) | unit/verify | revert, verified |
+| positive | [`TestRFC8907SecondSessionReusesEstablishedConnection`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L229) | unit/verify | revert, verified |
 
 ### [`RFC8907-4.3-2`](#rfc8907-4.3-2)
 
-"the client and server MUST ignore the flag after the second packet on a connection" (§4.3, Single Connection Mode)
+No provision is made for changing Single Connection Mode after the first two packets; the client and server MUST ignore the flag after the second packet on a connection. (§4.3, Single Connection Mode)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-4.3-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907ClientDoesNotResignalSingleConnect`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L266) | unit/verify | revert, verified |
+| positive | [`TestRFC8907FlagClearedOnLaterReplyIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L254) | unit/verify | revert, verified |
 
 ### [`RFC8907-4.3-3`](#rfc8907-4.3-3)
 
-"The client MUST accommodate such closures on a TCP session even after Single Connection Mode has been established." (§4.3, Single Connection Mode)
+The client MUST accommodate such closures on a TCP session even after Single Connection Mode has been established. (§4.3, Single Connection Mode)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-4.3-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907ClosureOnFreshDialIsNotRetried`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L294) | unit/verify | revert, verified |
+| positive | [`TestRFC8907ServerClosureOfPooledConnectionIsAccommodated`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L281) | unit/verify | revert, verified |
 
 ### [`RFC8907-4.4-1`](#rfc8907-4.4-1)
 
@@ -429,7 +425,10 @@ On a REPLY of ERROR "The client cannot apply the result, and it MUST behave as i
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-4.4-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907FailDoesNotUseBackupServer`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L203) | unit/verify | unproven |
+| positive | [`TestRFC8907ErrorUsesBackupServer`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L177) | unit/verify | unproven |
 
 ### [`RFC8907-4.4-2`](#rfc8907-4.4-2)
 
@@ -437,15 +436,21 @@ After an ERROR caused by connection issues on a Single Connection Mode connectio
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-4.4-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L328) | unit/verify | revert, verified |
+| positive | [`TestRFC8907NoNewSessionOnBrokenPooledConnection`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L313) | unit/verify | revert, verified |
 
 ### [`RFC8907-4.4-3`](#rfc8907-4.4-3)
 
-"Once all active sessions are completed, then the connection MUST be closed." (§4.4, Session Completion)
+Once all active sessions are completed, then the connection MUST be closed. (§4.4, Session Completion)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-4.4-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907HealthyPooledConnectionStaysOpen`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L351) | unit/verify | revert, verified |
+| positive | [`TestRFC8907BrokenPooledConnectionIsClosed`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L339) | unit/verify | revert, verified |
 
 ### [`RFC8907-5.1-1`](#rfc8907-5.1-1)
 
@@ -453,7 +458,10 @@ The username is optional in the START packet; "If it is absent, the client MUST 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-5.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907AuthenStartPresentUserWritesItsLength`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L63) | unit/verify | revert, verified |
+| positive | [`TestRFC8907AuthenStartAbsentUserWritesZeroLength`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L47) | unit/verify | revert, verified |
 
 ### [`RFC8907-5.4-1`](#rfc8907-5.4-1)
 
@@ -477,15 +485,21 @@ A PAP login exchange "MUST consist of a single START packet and a single REPLY" 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-5.4.2.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907PAPClientSendsNoContinue`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L394) | unit/verify | revert, verified |
+| positive | [`TestRFC8907PAPExchangeIsOneStartOneReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L382) | unit/verify | revert, verified |
 
 ### [`RFC8907-5.4.2.2-2`](#rfc8907-5.4.2.2-2)
 
-"The START packet MUST contain a username and the data field MUST contain the PAP ASCII password." (§5.4.2.2, PAP Login)
+The START packet MUST contain a username and the data field MUST contain the PAP ASCII password. (§5.4.2.2, PAP Login)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-5.4.2.2-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907PAPStartRefusesPasswordItCannotCarry`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L89) | unit/verify | revert, verified |
+| positive | [`TestRFC8907PAPStartCarriesUserAndPassword`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L75) | unit/verify | revert, verified |
 
 ### [`RFC8907-5.4.2.3-1`](#rfc8907-5.4.2.3-1)
 
@@ -513,7 +527,7 @@ No test carries RFC8907-5.4.2.5-1, so no unit is bound to it.
 
 ### [`RFC8907-5.4.2.6-1`](#rfc8907-5.4.2.6-1)
 
-"the value of the authen_service field MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE" (§5.4.2.6, Enable Requests)
+In order to readily distinguish "ENABLE" requests from other types of request, the value of the authen_service field MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE. (§5.4.2.6, Enable Requests)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -525,31 +539,43 @@ authen_service "MUST NOT be set to this value when requesting any other operatio
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-5.4.2.6-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907LoginStartNeverCarriesEnableService`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L105) | unit/verify | revert, verified |
+| positive | [`TestRFC8907LoginStartCarriesLoginService`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L97) | unit/verify | revert, verified |
 
 ### [`RFC8907-5.4.3-1`](#rfc8907-5.4.3-1)
 
-"If a client does not implement the TAC_PLUS_AUTHEN_STATUS_RESTART option, then it MUST process the response as if the status was TAC_PLUS_AUTHEN_STATUS_FAIL." (§5.4.3, Aborting an Authentication Session)
+If a client does not implement the TAC_PLUS_AUTHEN_STATUS_RESTART option, then it MUST process the response as if the status was TAC_PLUS_AUTHEN_STATUS_FAIL. (§5.4.3, Aborting an Authentication Session)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-5.4.3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907ErrorIsNotProcessedAsFail`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L84) | unit/verify | revert, verified |
+| positive | [`TestRFC8907RestartIsProcessedAsFail`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L75) | unit/verify | revert, verified |
 
 ### [`RFC8907-6.1-1`](#rfc8907-6.1-1)
 
-"The user_len MUST indicate the length of the user field, in bytes." (§6.1, The Authorization REQUEST Packet Body)
+The user_len MUST indicate the length of the user field, in bytes. (§6.1, The Authorization REQUEST Packet Body)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-6.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907AuthorRequestRefusesUserItCannotMeasure`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L125) | unit/verify | revert, verified |
+| positive | [`TestRFC8907AuthorRequestUserLenMatchesUser`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L114) | unit/verify | revert, verified |
 
 ### [`RFC8907-6.1-2`](#rfc8907-6.1-2)
 
-"An argument name MUST NOT contain either of the separators." (§6.1, The Authorization REQUEST Packet Body)
+An argument name MUST NOT contain either of the separators. (§6.1, The Authorization REQUEST Packet Body)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-6.1-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907ArgumentValueKeepsSeparatorOutOfName`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L151) | unit/verify | revert, verified |
+| positive | [`TestRFC8907ArgumentNamesCarryNoSeparator`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L141) | unit/verify | revert, verified |
 
 ### [`RFC8907-6.2-1`](#rfc8907-6.2-1)
 
@@ -557,7 +583,11 @@ On TAC_PLUS_AUTHOR_STATUS_PASS_ADD "the arguments in the response MUST be applie
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-6.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907PassAddCannotIgnoreCommandExtension`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L97) | unit/verify | unproven |
+| positive | [`TestRFC8907PassAddRetainsCommand`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L89) | unit/verify | unproven |
+| positive | [`TestRFC8907SessionPrivilegeApplied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L169) | unit/verify | unproven |
 
 ### [`RFC8907-6.2-2`](#rfc8907-6.2-2)
 
@@ -565,7 +595,12 @@ On TAC_PLUS_AUTHOR_STATUS_PASS_REPL "the client MUST use the authorization argum
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-6.2-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907IncompleteSessionReplacementDenied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L223) | unit/verify | unproven |
+| negative | [`TestRFC8907PassReplCannotAuthorizeOriginalCommand`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L118) | unit/verify | unproven |
+| positive | [`TestRFC8907PassReplPreservesExactCommand`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L108) | unit/verify | unproven |
+| positive | [`TestRFC8907SessionReplacementMapsZero`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L200) | unit/verify | unproven |
 
 ### [`RFC8907-6.2-3`](#rfc8907-6.2-3)
 
@@ -573,23 +608,33 @@ On TAC_PLUS_AUTHOR_STATUS_FAIL "the requested authorization MUST be denied" (§6
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-6.2-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907AuthorizationPassAddIsNotDenied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L121) | unit/verify | revert, verified |
+| positive | [`TestRFC8907AuthorizationFailDenies`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L113) | unit/verify | revert, verified |
 
 ### [`RFC8907-7.2-1`](#rfc8907-7.2-1)
 
-"The STOP flag MUST NOT be set in conjunction with the WATCHDOG flag." (§7.2, The Accounting REPLY Packet Body)
+The STOP flag MUST NOT be set in conjunction with the WATCHDOG flag. (§7.2, The Accounting REPLY Packet Body)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-7.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907StopRecordNeverCarriesWatchdog`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L71) | unit/verify | revert, verified |
+| negative | [`TestRFC8907AccountingStopWatchdogCombinationRefused`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_validation_test.go#L299) | unit/verify | unproven |
+| positive | [`TestRFC8907StopRecordCarriesStopFlagOnly`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L63) | unit/verify | revert, verified |
 
 ### [`RFC8907-8-1`](#rfc8907-8-1)
 
-"Clients MUST use these arguments when supporting the corresponding use cases." (§8, Argument-Value Pairs)
+Clients MUST use these arguments when supporting the corresponding use cases. (§8, Argument-Value Pairs)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-8-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907CommandRecordsCarryNoForeignArgument`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L103) | unit/verify | revert, verified |
+| positive | [`TestRFC8907CommandRecordsUseDictionaryArguments`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L87) | unit/verify | revert, verified |
 
 ### [`RFC8907-8.1-1`](#rfc8907-8.1-1)
 
@@ -597,7 +642,11 @@ No test carries RFC8907-8-1, so no unit is bound to it.
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-8.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907InvalidMandatoryPrivilegeDenied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L178) | unit/verify | unproven |
+| positive | [`TestRFC8907OverlongOptionalPrivilegeCannotElevate`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L191) | unit/verify | unproven |
+| positive | [`TestRFC8907SessionPrivilegeApplied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L168) | unit/verify | unproven |
 
 ### [`RFC8907-8.1-2`](#rfc8907-8.1-2)
 
@@ -605,7 +654,10 @@ For an absolute date/time argument, "The time zone MUST be UTC unless a time zon
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-8.1-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907StartTimeIgnoresLocalZone`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L132) | unit/verify | revert, verified |
+| positive | [`TestRFC8907StartTimeIsEpochSeconds`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L116) | unit/verify | revert, verified |
 
 ### [`RFC8907-8.2-1`](#rfc8907-8.2-1)
 
@@ -613,15 +665,21 @@ The "service" argument "MUST always be included" (§8.2, Authorization Arguments
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-8.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907ServiceArgumentPresentForEmptyCommand`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L167) | unit/verify | revert, verified |
+| positive | [`TestRFC8907ServiceArgumentAlwaysFirst`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L161) | unit/verify | revert, verified |
 
 ### [`RFC8907-8.2-2`](#rfc8907-8.2-2)
 
-"The 'cmd' argument MUST be specified if service equals 'shell'." (§8.2, Authorization Arguments)
+The "cmd" argument MUST be specified if service equals "shell". (§8.2, Authorization Arguments)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-8.2-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907CmdArgumentPresentForEmptyCommand`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L180) | unit/verify | revert, verified |
+| positive | [`TestRFC8907CmdArgumentFollowsShellService`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L173) | unit/verify | revert, verified |
 
 ### [`RFC8907-8.3-1`](#rfc8907-8.3-1)
 
@@ -629,43 +687,69 @@ Accounting arguments "MUST precede any argument-value pairs that are defined in 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-8.3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907NoAuthorizationArgumentPrecedesAccountingOne`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L174) | unit/verify | revert, verified |
+| positive | [`TestRFC8907AccountingArgumentsPrecedeAuthorizationOnes`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L155) | unit/verify | revert, verified |
 
 ### [`RFC8907-8.3-2`](#rfc8907-8.3-2)
 
-"Start and stop records for the same event MUST have matching task_id argument values." (§8.3, Accounting Arguments)
+Start and stop records for the same event MUST have matching task_id argument values. (§8.3, Accounting Arguments)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-8.3-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907SecondCommandCarriesOtherTaskID`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L207) | unit/verify | revert, verified |
+| positive | [`TestRFC8907StartAndStopShareTaskID`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L191) | unit/verify | revert, verified |
 
 ### [`RFC8907-8.3-3`](#rfc8907-8.3-3)
 
-"The client MUST ensure that active task_ids are not duplicated; a client MUST NOT reuse a task_id in a start record until it has sent a stop record for that task_id." (§8.3, Accounting Arguments)
+The client MUST ensure that active task_ids are not duplicated; a client MUST NOT reuse a task_id in a start record until it has sent a stop record for that task_id. (§8.3, Accounting Arguments)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-8.3-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907TaskIDNeverReappears`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L236) | unit/verify | revert, verified |
+| positive | [`TestRFC8907ActiveTaskIDsAreDistinct`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L221) | unit/verify | revert, verified |
 
 ### [`RFC8907-8.3-4`](#rfc8907-8.3-4)
 
-"TACACS+ client devices MUST be configured to send an accounting start packet for every command entered, irrespective of how the commands were authorized." (§8.3, Accounting Arguments)
+To support this mode of operation, TACACS+ client devices MUST be configured to send an accounting start packet for every command entered, irrespective of how the commands were authorized. (§8.3, Accounting Arguments)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-8.3-4, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907BundleRetirementWaitsForAccountingPair`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/aaa_lifecycle_test.go#L323) | unit/verify | unproven |
+| negative | [`TestAPIStreamSourceAuthorizesReadOnly`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/api_test.go#L343) | unit/verify | unproven |
+| negative | [`TestDispatcherAccountsRefusedCommands`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/command_test.go#L1224) | unit/verify | unproven |
+| negative | [`TestRFC8907AccountingStopDrainsAcceptedStarts`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/accounting_test.go#L90) | unit/verify | unproven |
+| negative | [`TestRFC8907OversizedCommandAccountingStillReachesWire`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L296) | unit/verify | unproven |
+| negative | [`TestRFC8907AccountingRequiresDestination`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L123) | unit/verify | unproven |
+| positive | [`TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/aaa_lifecycle_test.go#L231) | unit/verify | revert, verified |
+| positive | [`TestAPIStreamSourceRunsStreamingHandler`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/api_test.go#L277) | unit/verify | unproven |
+| positive | [`TestDispatcherAccountingWithoutUsername`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/command_test.go#L1164) | unit/verify | unproven |
+| positive | [`TestRFC8907PluginDispatchAccountsCommand`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L107) | unit/verify | unproven |
+| positive | [`TestRFC8907TypedDispatchAccountsDeniedCommand`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L33) | unit/verify | unproven |
+| positive | [`TestRFC8907AccountingSaturationRetainsEveryStart`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/accounting_test.go#L46) | unit/verify | unproven |
+| positive | [`TestRFC8907TrustedDispatchIdentitiesReachWire`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_dispatch_wire_test.go#L171) | unit/verify | unproven |
 
 ### [`RFC8907-8.3-5`](#rfc8907-8.3-5)
 
-"These 'Command Accounting' packets MUST include the 'service' and 'cmd' arguments, and if needed, the 'cmd-arg' arguments detailed in Section 8.2." (§8.3, Accounting Arguments)
+These "Command Accounting" packets MUST include the "service" and "cmd" arguments, and if needed, the "cmd-arg" arguments detailed in Section 8.2. (§8.3, Accounting Arguments)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-8.3-5, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907EmptyCommandRecordStillCarriesServiceAndCmd`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L270) | unit/verify | revert, verified |
+| positive | [`TestRFC8907CommandRecordsCarryServiceCmdAndArgs`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_accounting_test.go#L254) | unit/verify | revert, verified |
 
 ### [`RFC8907-10.5-1`](#rfc8907-10.5-1)
 
-"New implementations, and upgrades of current implementations, MUST implement these recommendations." (§10.5, TACACS+ Best Practices)
+New implementations, and upgrades of current implementations, MUST implement these recommendations. (§10.5, TACACS+ Best Practices)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -673,27 +757,48 @@ No test carries RFC8907-10.5-1, so no unit is bound to it.
 
 ### [`RFC8907-10.5.1-1`](#rfc8907-10.5.1-1)
 
-"TACACS+ servers and clients MUST treat shared secrets as sensitive data to be managed securely, as would be expected for other sensitive data such as identity credential information." (§10.5.1, Shared Secrets)
+TACACS+ servers and clients MUST treat shared secrets as sensitive data to be managed securely, as would be expected for other sensitive data such as identity credential information. (§10.5.1, Shared Secrets)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-10.5.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907AccountingRedactsConfigSecretWithoutChangingExecution`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc8907_accounting_test.go#L84) | unit/verify | unproven |
+| negative | [`TestRFC8907SharedSecretCommandRedaction`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L149) | unit/verify | unproven |
+| negative | [`TestRFC8907SharedSecretDiagnosticRedaction`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L87) | unit/verify | unproven |
+| positive | [`TestRFC8907SharedSecretConfigBuildAndDisplay`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L37) | unit/verify | unproven |
 
 ### [`RFC8907-10.5.1-2`](#rfc8907-10.5.1-2)
 
-"TACACS+ servers and clients MUST support shared keys that are at least 32 characters long." (§10.5.1, Shared Secrets)
+* TACACS+ servers and clients MUST support shared keys that are at least 32 characters long. (§10.5.1, Shared Secrets)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-10.5.1-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907SharedKeyIsNotTruncated`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_body_test.go#L187) | unit/verify | revert, verified |
+| positive | [`TestRFC8907LongSharedKeysAuthenticate`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_connection_test.go#L407) | unit/verify | revert, verified |
+| positive | [`TestRFC8907SharedSecretConfigBuildAndDisplay`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_security_config_test.go#L38) | unit/verify | unproven |
 
 ### [`RFC8907-10.5.4-1`](#rfc8907-10.5.4-1)
 
-"administrators and implementers MUST ensure that the argument and value pairs shared between the clients and servers have consistent interpretation" (§10.5.4, Authorization)
+The cost of the flexibility is that administrators and implementers MUST ensure that the argument and value pairs shared between the clients and servers have consistent interpretation. (§10.5.4, Authorization)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-10.5.4-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907MandatoryCommandPolicyDenied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L62) | unit/verify | unproven |
+| negative | [`TestRFC8907MandatorySessionPolicyDenied`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L210) | unit/verify | unproven |
+| positive | [`TestRFC8907MandatoryCommandPolicyAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_authorization_test.go#L51) | unit/verify | unproven |
+
+### [`RFC8907-4.6-2`](#rfc8907-4.6-2)
+
+A request MUST be dropped if TAC_PLUS_UNENCRYPTED_FLAG is set to true. (§4.5, Data Obfuscation; stable historical ID)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC8907-4.6-2, so no unit is bound to it.
 
 ### [`RFC8907-x-2`](#rfc8907-x-2)
 
@@ -701,7 +806,11 @@ The TAC_PLUS_AUTHEN_STATUS_FOLLOW redirection mechanism is deprecated, and "This
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8907-x-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8907FollowTargetIsNeverContacted`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L143) | unit/verify | revert, verified |
+| positive | [`TestRFC8907AuthorizationFollowDeniesWithoutFallback`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L135) | unit/verify | unproven |
+| positive | [`TestRFC8907FollowIsNotAuthenticated`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_status_test.go#L127) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 
@@ -713,8 +822,8 @@ No test carries RFC8907-x-2, so no unit is bound to it.
 | Source | rfc/full/rfc8907.txt |
 | Source fingerprint | 8bc695c4b9949009 |
 | Record | rfc/extraction/rfc8907.json |
-| Mapped sentences | 49 |
-| Declined as scope | 55 |
+| Mapped sentences | 50 |
+| Declined as scope | 54 |
 | Relocated to a spec, which Ze OWES | 0 |
 | Unclassified | 0 |
 
@@ -795,7 +904,6 @@ No test carries RFC8907-x-2, so no unit is bound to it.
 | `4.5:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The same obligation seen from the sender: the flag is set to 0 so the body is obfuscated, which is what the client row already requires. | The flag field MUST be configured with TAC_PLUS_UNENCRYPTED_FLAG set to 0 so that the packet body is obfuscated by XORing it bytewise with a pseudo-random pad: |
 | `4.5:4` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship. | When a server detects that the secrets it has configured for the device do not match, it MUST return ERROR. |
 | `4.5:5` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the deprecation of the unencrypted option that the client row already carries. | This option is deprecated and MUST NOT be used in production. |
-| `4.5:6` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship. | A request MUST be dropped if TAC_PLUS_UNENCRYPTED_FLAG is set to true. |
 | `5.4.2:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship. | If the server does not implement an option, it MUST respond with TAC_PLUS_AUTHEN_STATUS_FAIL. |
 | `5.4.2.1:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship. | If the user does not include the username, then the server MUST obtain it from the client with a CONTINUE TAC_PLUS_AUTHEN_STATUS_GETUSER. |
 | `5.4.2.1:2` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship. | If the user does not provide a username, then the server can send another TAC_PLUS_AUTHEN_STATUS_GETUSER request, but the server MUST limit the number of retries that are permitted; the recommended limit is three attempts. |

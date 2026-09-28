@@ -104,8 +104,8 @@ Sender remains conservative at 128 bytes for interoperability.
 |---|---|---|---|---|
 | `RFC9003-2-1` | Shutdown Communication field MUST be encoded using UTF-8 (S2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L409). **negative:** `unit/verify` [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L427) |
 | `RFC9003-2-2` | UTF-8 "Shortest Form" encoding is REQUIRED (S2, S6) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L446). **negative:** `unit/verify` [`TestRFC8203ShortestFormUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L448) |
-| `RFC9003-2-3` | Error Subcode value MUST be one of: 2 (Administrative Shutdown) or 4 (Administrative Reset) (S2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L372). **negative:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L375) |
-| `RFC9003-2-4` | Receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences (S2) | MUST NOT | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L429). **negative:** `unit/verify` [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L411) |
+| `RFC9003-2-3` | Subcode: The Error Subcode value MUST be one of the following values: 2 ("Administrative Shutdown") or 4 ("Administrative Reset"). (S2) | MUST | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L372). **negative:** `unit/verify` [`TestRFC8203Subcode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L375) |
+| `RFC9003-2-4` | A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (S2) | MUST NOT | 2 - Shutdown Communication | **positive:** `unit/verify` [`TestRFC8203UTF8Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L429). **negative:** `unit/verify` [`TestRFC8203UTF8Valid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L411) |
 | `RFC9003-2-5` | Reporting mechanisms SHOULD include methods such as syslog (S2) | SHOULD | 2 - Shutdown Communication | **positive:** no positive test. **negative:** no negative test |
 | `RFC9003-4-1` | If invalid UTF-8 sequence received, a message indicating this event SHOULD be logged (S4) | SHOULD | 4 - Error Handling | **positive:** no positive test. **negative:** no negative test |
 | `RFC9003-3-1` | If peer support unknown, Shutdown Communication SHOULD NOT be longer than 128 octets (S3) | SHOULD NOT | 3 - Operational Considerations | **positive:** no positive test. **negative:** no negative test |
@@ -146,7 +146,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9003-2-3`](#rfc9003-2-3)
 
-Error Subcode value MUST be one of: 2 (Administrative Shutdown) or 4 (Administrative Reset) (S2)
+Subcode: The Error Subcode value MUST be one of the following values: 2 ("Administrative Shutdown") or 4 ("Administrative Reset"). (S2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -157,7 +157,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9003-2-4`](#rfc9003-2-4)
 
-Receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences (S2)
+A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (S2)
 
 Audit verdict: not audited: no reader has judged these tests
 

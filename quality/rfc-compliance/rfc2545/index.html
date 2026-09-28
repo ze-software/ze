@@ -242,7 +242,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing: four SHALL-level requirements, all in Section 3 and all about the MP_REACH_NLRI Network Address of Next Hop field. Each is proven in both polarities by the exabgp-compat encoding suite (verify tier, ./le functional exabgp-test): conf-llnh-update.ci pins the 32-octet form (global ::1 followed by link-local fe80::1, Length octet 0x20) and conf-llnh-lla-only.ci pins the 16-octet form (one address, Length octet 0x10). The two configs differ in ONE variable, the route&#39;s next hop: both declare the same local-link-local fe80::1, both enable the link-local-nexthop capability, and both peer with ::1. So the pair binds inclusion to the shared-subnet condition of Section 3 rather than to the leaf being set: ::1 shares the loopback subnet with the speaker, 2001:db8::ffff shares none. The pair discriminates: an encoder that always appended a second address would fail the second test, and one that never appended would fail the first. Section 2 binds network administrators and restates [ND]/[RIP], Section 4 restates the [BGP-4] BGP Identifier; those sites are classified in rfc/extraction/rfc2545.json. Enrolled 2026-08-07.</p>
+<p>Enrolled: Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing: four SHALL-level requirements, all in Section 3 and all about the MP_REACH_NLRI Network Address of Next Hop field. Each is proven in both polarities by the exabgp-compat encoding suite (verify tier, ./le test functional exabgp-test): conf-llnh-update.ci pins the 32-octet form (global ::1 followed by link-local fe80::1, Length octet 0x20) and conf-llnh-lla-only.ci pins the 16-octet form (one address, Length octet 0x10). The two configs differ in ONE variable, the route&#39;s next hop: both declare the same local-link-local fe80::1, both enable the link-local-nexthop capability, and both peer with ::1. So the pair binds inclusion to the shared-subnet condition of Section 3 rather than to the leaf being set: ::1 shares the loopback subnet with the speaker, 2001:db8::ffff shares none. The pair discriminates: an encoder that always appended a second address would fail the second test, and one that never appended would fail the first. Section 2 binds network administrators and restates [ND]/[RIP], Section 4 restates the [BGP-4] BGP Identifier; those sites are classified in rfc/extraction/rfc2545.json. Enrolled 2026-08-07.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Supported</p>
@@ -297,7 +297,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2545-3-1">RFC2545-3-1</code></td><td colspan="3"><span class="rfc-subject">&#34;A BGP speaker shall advertise to its peer in the Network Address of Next Hop field the global IPv6 address of the next hop, potentially followed by the link-local IPv6 address of the next hop&#34; (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2545-3-1">RFC2545-3-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker shall advertise to its peer in the Network Address of Next Hop field the global IPv6 address of the next hop, potentially followed by the link-local IPv6 address of the next hop. (§3)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>3 - Constructing the Next Hop field</td>
@@ -312,7 +312,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/encode/new-v6.ci#L1" title="test/encode/new-v6.ci" target="_blank" rel="noopener"><code>new-v6.ci</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2545-3-2">RFC2545-3-2</code></td><td colspan="3"><span class="rfc-subject">&#34;The value of the Length of Next Hop Network Address field on a MP_REACH_NLRI attribute shall be set to 16, when only a global address is present, or 32 if a link-local address is also included in the Next Hop field&#34; (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2545-3-2">RFC2545-3-2</code></td><td colspan="3"><span class="rfc-subject">The value of the Length of Next Hop Network Address field on a MP_REACH_NLRI attribute shall be set to 16, when only a global address is present, or 32 if a link-local address is also included in the Next Hop field. (§3)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>3 - Constructing the Next Hop field</td>
@@ -324,10 +324,10 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci#L21" title="test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-rfc2545-next-hop.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L13" title="test/exabgp-compat/encoding/conf-llnh-update.ci" target="_blank" rel="noopener"><code>conf-llnh-update.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/encode/new-v6.ci#L8" title="test/encode/new-v6.ci" target="_blank" rel="noopener"><code>new-v6.ci</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L519" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC2545NextHops</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L517" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC2545NextHops</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2545-3-3">RFC2545-3-3</code></td><td colspan="3"><span class="rfc-subject">&#34;The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to&#34; (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2545-3-3">RFC2545-3-3</code></td><td colspan="3"><span class="rfc-subject">The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to. (§3)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>3 - Constructing the Next Hop field</td>
@@ -338,11 +338,11 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L176" title="internal/component/bgp/reactor/peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceOmitsLinkLocalWhenPeerOffLink</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L16" title="test/exabgp-compat/encoding/conf-llnh-update.ci" target="_blank" rel="noopener"><code>conf-llnh-update.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-lla-only.ci#L7" title="test/exabgp-compat/encoding/conf-llnh-lla-only.ci" target="_blank" rel="noopener"><code>conf-llnh-lla-only.ci</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L525" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC2545NextHops</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L531" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC2545NextHops</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L523" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC2545NextHops</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L529" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC2545NextHops</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2545-3-4">RFC2545-3-4</code></td><td colspan="3"><span class="rfc-subject">&#34;In all other cases a BGP speaker shall advertise to its peer in the Network Address field only the global IPv6 address of the next hop (the value of the Length of Network Address of Next Hop field shall be set to 16)&#34; (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2545-3-4">RFC2545-3-4</code></td><td colspan="3"><span class="rfc-subject">In all other cases a BGP speaker shall advertise to its peer in the Network Address field only the global IPv6 address of the next hop (the value of the Length of Network Address of Next Hop field shall be set to 16). (§3)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>3 - Constructing the Next Hop field</td>
@@ -381,7 +381,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2545-3-1"><code>RFC2545-3-1</code></a></h3>
-<p>&#34;A BGP speaker shall advertise to its peer in the Network Address of Next Hop field the global IPv6 address of the next hop, potentially followed by the link-local IPv6 address of the next hop&#34; (§3)</p>
+<p>A BGP speaker shall advertise to its peer in the Network Address of Next Hop field the global IPv6 address of the next hop, potentially followed by the link-local IPv6 address of the next hop. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -431,7 +431,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 </table>
 </div>
 <h3><a href="#rfc2545-3-2"><code>RFC2545-3-2</code></a></h3>
-<p>&#34;The value of the Length of Next Hop Network Address field on a MP_REACH_NLRI attribute shall be set to 16, when only a global address is present, or 32 if a link-local address is also included in the Next Hop field&#34; (§3)</p>
+<p>The value of the Length of Next Hop Network Address field on a MP_REACH_NLRI attribute shall be set to 16, when only a global address is present, or 32 if a link-local address is also included in the Next Hop field. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -463,7 +463,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L519" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC2545NextHops</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L517" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC2545NextHops</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -481,7 +481,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 </table>
 </div>
 <h3><a href="#rfc2545-3-3"><code>RFC2545-3-3</code></a></h3>
-<p>&#34;The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to&#34; (§3)</p>
+<p>The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -498,7 +498,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L531" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC2545NextHops</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L529" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC2545NextHops</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -518,7 +518,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L525" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC2545NextHops</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L523" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC2545NextHops</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -531,7 +531,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 </table>
 </div>
 <h3><a href="#rfc2545-3-4"><code>RFC2545-3-4</code></a></h3>
-<p>&#34;In all other cases a BGP speaker shall advertise to its peer in the Network Address field only the global IPv6 address of the next hop (the value of the Length of Network Address of Next Hop field shall be set to 16)&#34; (§3)</p>
+<p>In all other cases a BGP speaker shall advertise to its peer in the Network Address field only the global IPv6 address of the next hop (the value of the Length of Network Address of Next Hop field shall be set to 16). (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -733,7 +733,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 20 September 2026 08:15 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

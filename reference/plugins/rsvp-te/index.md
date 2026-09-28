@@ -17,7 +17,7 @@ RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209)
 
 ## Dependencies
 
-- Required: [`fib-kernel`](../fib-kernel/index.md), [`sysctl`](../sysctl/index.md)
+- Required: [`interface`](../interface/index.md), [`fib-kernel`](../fib-kernel/index.md), [`sysctl`](../sysctl/index.md)
 - Optional: None
 
 ## Used by

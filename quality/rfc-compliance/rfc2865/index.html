@@ -344,7 +344,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a retransmission resends the identical pre-encoded request buffer (internal/component/radius/client.go:159), so the Identifier and Request Authenticator are unchanged by construction and there is no divergent-retransmit code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5-1">RFC2865-5-1</code></td><td colspan="3"><span class="rfc-subject">The User-Name attribute MUST be sent in Access-Request packets if available (§5, sentence at §5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5-1">RFC2865-5-1</code></td><td colspan="3"><span class="rfc-subject">It MUST be sent in Access-Request packets if available. (§5, sentence at §5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - Attributes</td>
@@ -405,7 +405,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L146" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-1.1-2">RFC2865-1.1-2</code></td><td colspan="3"><span class="rfc-subject">A NAS MUST treat a RADIUS access-accept authorizing an unavailable service as an access-reject instead, and MUST treat unknown or unsupported Service-Types the same way (§1.1, restated at §5.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-1.1-2">RFC2865-1.1-2</code></td><td colspan="3"><span class="rfc-subject">A NAS MUST treat a RADIUS access-accept authorizing an unavailable service as an access-reject instead. (§1.1, restated at §5.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>1.1 - Specification of Requirements</td>
@@ -461,7 +461,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L345" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestRetransmitToTheSameServerKeepsItsRequestAuthenticator</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-4.1-2">RFC2865-4.1-2</code></td><td colspan="3"><span class="rfc-subject">An Access-Request MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both) (§4.1, restated at §5.44 Note 2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-4.1-2">RFC2865-4.1-2</code></td><td colspan="3"><span class="rfc-subject">It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both). (§4.1, restated at §5.44 Note 2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1 - Access-Request</td>
@@ -471,7 +471,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L49" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-4.1-3">RFC2865-4.1-3</code></td><td colspan="3"><span class="rfc-subject">An Access-Request MUST contain either a User-Password or a CHAP-Password or a State (§4.1, restated at §5.44 Note 1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-4.1-3">RFC2865-4.1-3</code></td><td colspan="3"><span class="rfc-subject">An Access-Request MUST contain either a User-Password or a CHAP- Password or a State. (§4.1, restated at §5.44 Note 1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1 - Access-Request</td>
@@ -483,7 +483,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L128" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessRequestCarriesCredential</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-4.4-1">RFC2865-4.4-1</code></td><td colspan="3"><span class="rfc-subject">A NAS that does not support challenge/response MUST treat an Access-Challenge as though it had received an Access-Reject instead (§4.4; ze supports challenge/response for the two EAP auth-methods and not for PAP or CHAP, so the rule binds the PAP and CHAP paths)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-4.4-1">RFC2865-4.4-1</code></td><td colspan="3"><span class="rfc-subject">If the NAS does not support challenge/response, it MUST treat an Access-Challenge as though it had received an Access-Reject instead. (§4.4; ze supports challenge/response for the two EAP auth-methods and not for PAP or CHAP, so the rule binds the PAP and CHAP paths)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4 - Access-Challenge</td>
@@ -504,7 +504,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_attribute_order_test.go#L101" title="internal/component/l2tp/plugins/authradius/rfc2865_attribute_order_test.go" target="_blank" rel="noopener"><code>TestRFC2865AttributeOrderIsObservableByPosition</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5-8">RFC2865-5-8</code></td><td colspan="3"><span class="rfc-subject">Text or String of length zero (0) MUST NOT be sent; omit the entire attribute instead (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5-8">RFC2865-5-8</code></td><td colspan="3"><span class="rfc-subject">Text of length zero (0) MUST NOT be sent; omit the entire attribute instead. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5 - Attributes</td>
@@ -517,7 +517,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L282" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865ZeroLengthTextIsOmitted</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-3-7">RFC2865-3-7</code></td><td colspan="3"><span class="rfc-subject">A packet shorter than its Length field indicates MUST be silently discarded (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-3-7">RFC2865-3-7</code></td><td colspan="3"><span class="rfc-subject">If the packet is shorter than the Length field indicates, it MUST be silently discarded. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3 - Packet Format</td>
@@ -554,7 +554,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> FindAllAttr walks the whole attribute list, so no contiguity-requiring path exists to drive a negative</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5-6">RFC2865-5-6</code></td><td colspan="3"><span class="rfc-subject">An Attribute received in an Access-Accept, Access-Reject or Access-Challenge with an invalid length MUST cause the packet to be treated as an Access-Reject or else silently discarded (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5-6">RFC2865-5-6</code></td><td colspan="3"><span class="rfc-subject">If an Attribute is received in an Access-Accept, Access-Reject or Access-Challenge packet with an invalid length, the packet MUST either be treated as an Access-Reject or else silently discarded. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - Attributes</td>
@@ -563,7 +563,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L462" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestResponseWithAnInvalidAttributeLengthIsDiscarded</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5-7">RFC2865-5-7</code></td><td colspan="3"><span class="rfc-subject">Servers and clients MUST be able to deal with embedded nulls (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5-7">RFC2865-5-7</code></td><td colspan="3"><span class="rfc-subject">Servers and servers and clients MUST be able to deal with embedded nulls. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - Attributes</td>
@@ -758,7 +758,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-5-1"><code>RFC2865-5-1</code></a></h3>
-<p>The User-Name attribute MUST be sent in Access-Request packets if available (§5, sentence at §5.1)</p>
+<p>It MUST be sent in Access-Request packets if available. (§5, sentence at §5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -908,7 +908,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-1.1-2"><code>RFC2865-1.1-2</code></a></h3>
-<p>A NAS MUST treat a RADIUS access-accept authorizing an unavailable service as an access-reject instead, and MUST treat unknown or unsupported Service-Types the same way (§1.1, restated at §5.6)</p>
+<p>A NAS MUST treat a RADIUS access-accept authorizing an unavailable service as an access-reject instead. (§1.1, restated at §5.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1063,7 +1063,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-4.1-2"><code>RFC2865-4.1-2</code></a></h3>
-<p>An Access-Request MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both) (§4.1, restated at §5.44 Note 2)</p>
+<p>It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both). (§4.1, restated at §5.44 Note 2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1088,7 +1088,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-4.1-3"><code>RFC2865-4.1-3</code></a></h3>
-<p>An Access-Request MUST contain either a User-Password or a CHAP-Password or a State (§4.1, restated at §5.44 Note 1)</p>
+<p>An Access-Request MUST contain either a User-Password or a CHAP- Password or a State. (§4.1, restated at §5.44 Note 1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1123,7 +1123,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-4.4-1"><code>RFC2865-4.4-1</code></a></h3>
-<p>A NAS that does not support challenge/response MUST treat an Access-Challenge as though it had received an Access-Reject instead (§4.4; ze supports challenge/response for the two EAP auth-methods and not for PAP or CHAP, so the rule binds the PAP and CHAP paths)</p>
+<p>If the NAS does not support challenge/response, it MUST treat an Access-Challenge as though it had received an Access-Reject instead. (§4.4; ze supports challenge/response for the two EAP auth-methods and not for PAP or CHAP, so the rule binds the PAP and CHAP paths)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1178,7 +1178,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-5-8"><code>RFC2865-5-8</code></a></h3>
-<p>Text or String of length zero (0) MUST NOT be sent; omit the entire attribute instead (§5)</p>
+<p>Text of length zero (0) MUST NOT be sent; omit the entire attribute instead. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1218,7 +1218,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-3-7"><code>RFC2865-3-7</code></a></h3>
-<p>A packet shorter than its Length field indicates MUST be silently discarded (§3)</p>
+<p>If the packet is shorter than the Length field indicates, it MUST be silently discarded. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1293,7 +1293,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-5-6"><code>RFC2865-5-6</code></a></h3>
-<p>An Attribute received in an Access-Accept, Access-Reject or Access-Challenge with an invalid length MUST cause the packet to be treated as an Access-Reject or else silently discarded (§5)</p>
+<p>If an Attribute is received in an Access-Accept, Access-Reject or Access-Challenge packet with an invalid length, the packet MUST either be treated as an Access-Reject or else silently discarded. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1313,7 +1313,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
 </table>
 </div>
 <h3><a href="#rfc2865-5-7"><code>RFC2865-5-7</code></a></h3>
-<p>Servers and clients MUST be able to deal with embedded nulls (§5)</p>
+<p>Servers and servers and clients MUST be able to deal with embedded nulls. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2207,7 +2207,7 @@ Operator/admin login RADIUS is a separate backend under <code>system/authenticat
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

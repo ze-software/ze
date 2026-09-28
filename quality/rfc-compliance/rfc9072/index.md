@@ -111,14 +111,14 @@ Four MUST-level gaps, each annotated in [`rfc/short/rfc9072.md`](https://github.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC9072-2-1` | If Optional Parameters length exceeds 255, the OPEN message MUST be encoded using the extended procedure (S2) | MUST | 2 | **positive:** `unit/verify` [`TestOpenPackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L419). **negative:** `unit/verify` [`TestTheExtendedEnvelopeAndItsParametersAgree`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9072_extended_open_test.go#L21) |
-| `RFC9072-2-2` | An implementation MUST accept an OPEN message using extended encoding even if Optional Parameters length is 255 or less (S2) | MUST | 2 | **positive:** `unit/verify` [`TestOpenUnpackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L208). **negative:** `unit/verify` [`TestOpenUnpackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L195) |
+| `RFC9072-2-1` | However, if the length of the Optional Parameters in the BGP OPEN message does exceed 255, the OPEN message MUST be encoded according to the procedure below. (S2) | MUST | 2 | **positive:** `unit/verify` [`TestOpenPackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L419). **negative:** `unit/verify` [`TestTheExtendedEnvelopeAndItsParametersAgree`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9072_extended_open_test.go#L21) |
+| `RFC9072-2-2` | (In any case, an implementation MUST accept an OPEN message that uses the encoding of this specification even if the length of the Optional Parameters is 255 or less.) (S2) | MUST | 2 | **positive:** `unit/verify` [`TestOpenUnpackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L208). **negative:** `unit/verify` [`TestOpenUnpackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L195) |
 | `RFC9072-2-3` | Non-Ext OP Len MUST NOT be set to 0 when using extended format (S2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestOpenPackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L420). **negative:** no negative test. **{single-polarity}:** writeToExtended sets the Non-Ext OP Len to the constant 0xFF marker (open.go:130), so it is structurally never 0 and no code path can produce the negative case |
-| `RFC9072-2-4` | Non-Ext OP Type MUST be set to 255 on transmission (S2) | MUST | 2 | **positive:** `unit/verify` [`TestOpenPackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L422). **negative:** no negative test. **{single-polarity}:** writeToExtended sets the Non-Ext OP Type to the constant 0xFF (open.go:131), so no code path emits any other value and there is no negative case |
+| `RFC9072-2-4` | The subsequent one-octet field (which would be the first Optional Parameter Type field in the non-extended format and is called "Non- Ext OP Type" in the figure above) MUST be set to 255 on transmission. (S2) | MUST | 2 | **positive:** `unit/verify` [`TestOpenPackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L422). **negative:** no negative test. **{single-polarity}:** writeToExtended sets the Non-Ext OP Type to the constant 0xFF (open.go:131), so no code path emits any other value and there is no negative case |
 | `RFC9072-2-5` | Non-Ext OP Len MUST be ignored on receipt once extended format is determined (S2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's OPEN decoder (internal/component/bgp/message/open.go:190) requires the Non-Ext OP Len octet to equal 255 to select the extended form, so it does not ignore that octet once the extended format would be determined; the octet stays load-bearing and a conformant sender using a non-255 Non-Ext OP Len is mis-parsed as a classic OPEN |
-| `RFC9072-2-6` | If Non-Ext OP Len is non-zero, BGP speaker MUST use value of following octet to determine encoding format (S2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's OPEN decoder (internal/component/bgp/message/open.go:190) inspects the octet following Non-Ext OP Len only when Non-Ext OP Len equals 255, so for any other non-zero Non-Ext OP Len it never uses the following octet to determine the encoding and always decodes the classic form |
+| `RFC9072-2-6` | In parsing an OPEN message, if the one-octet Optional Parameters Length field (labeled "Non-Ext OP Len." in Figure 1) is non-zero, a BGP speaker MUST use the value of the octet following the one-octet Optional Parameters Length field (labeled "Non-Ext OP Type" in Figure 1) to determine both the encoding of the Optional Parameters length and the size of the Parameter Length field of individual Optional Parameters. (S2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's OPEN decoder (internal/component/bgp/message/open.go:190) inspects the octet following Non-Ext OP Len only when Non-Ext OP Len equals 255, so for any other non-zero Non-Ext OP Len it never uses the following octet to determine the encoding and always decodes the classic form |
 | `RFC9072-3-1` | If first type code is 255 (even when Non-Ext OP Len != 255), extended encoding MUST be used for decoding (S3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's OPEN decoder (internal/component/bgp/message/open.go:190) selects the extended form only when Non-Ext OP Len equals 255, not whenever the first type code is 255; the open.go:186-189 comment and the TestOpenUnpackExtendedParams standard-format-first-param-byte-0xFF case cement this, so a first type code of 255 with Non-Ext OP Len != 255 is decoded as a classic OPEN instead of extended |
-| `RFC9072-3-2` | Type code 255 MUST NOT be used other than as the extended length indicator (S3) | MUST NOT | 3 | **positive:** `unit/verify` [`TestOpenPackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L423). **negative:** no negative test. **{single-polarity}:** ze's OPEN encoder emits only optional-parameter type 2 (Capabilities) via buildOptionalParams (internal/component/bgp/reactor/session_negotiate.go:193) and uses 255 solely as the extended-length indicator; no code path emits any other classic opt-param type, so there is no negative case |
+| `RFC9072-3-2` | Although the Optional Parameter type code 255 is used in this specification as the indication that the extended encoding is in use, it is not a bona fide Optional Parameter type code in the usual sense and MUST NOT be used other than as described above. (S3) | MUST NOT | 3 | **positive:** `unit/verify` [`TestOpenPackExtendedParams`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L423). **negative:** no negative test. **{single-polarity}:** ze's OPEN encoder emits only optional-parameter type 2 (Capabilities) via buildOptionalParams (internal/component/bgp/reactor/session_negotiate.go:193) and uses 255 solely as the extended-length indicator; no code path emits any other classic opt-param type, so there is no negative case |
 | `RFC9072-3-3` | Type code 255 in non-indicator position MUST be treated as unrecognized Optional Parameter per RFC 4271 S6.2 (S3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze silently ignores an unrecognized BGP OPEN optional-parameter type; ParseFromOptionalParams (internal/core/bgp/capability/capability.go:867-874) skips any parameter whose type is not 2 instead of emitting the RFC 4271 Section 6.2 OPEN Message Error (Unsupported Optional Parameter) NOTIFICATION |
 | `RFC9072-2-7` | When Optional Parameters length does not exceed 255, standard RFC 4271 encoding SHOULD be used (S2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9072-2-8` | Non-Ext OP Len SHOULD be set to 255 on transmission (S2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
@@ -129,7 +129,7 @@ Four MUST-level gaps, each annotated in [`rfc/short/rfc9072.md`](https://github.
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC9072-2-5`](#rfc9072-2-5) Non-Ext OP Len MUST be ignored on receipt once extended format is determined (S2) | {gap}, no test | ze's OPEN decoder (internal/component/bgp/message/open.go:190) requires the Non-Ext OP Len octet to equal 255 to select the extended form, so it does not ignore that octet once the extended format would be determined; the octet stays load-bearing and a conformant sender using a non-255 Non-Ext OP Len is mis-parsed as a classic OPEN |
-| [`RFC9072-2-6`](#rfc9072-2-6) If Non-Ext OP Len is non-zero, BGP speaker MUST use value of following octet to determine encoding format (S2) | {gap}, no test | ze's OPEN decoder (internal/component/bgp/message/open.go:190) inspects the octet following Non-Ext OP Len only when Non-Ext OP Len equals 255, so for any other non-zero Non-Ext OP Len it never uses the following octet to determine the encoding and always decodes the classic form |
+| [`RFC9072-2-6`](#rfc9072-2-6) In parsing an OPEN message, if the one-octet Optional Parameters Length field (labeled "Non-Ext OP Len." in Figure 1) is non-zero, a BGP speaker MUST use the value of the octet following the one-octet Optional Parameters Length field (labeled "Non-Ext OP Type" in Figure 1) to determine both the encoding of the Optional Parameters length and the size of the Parameter Length field of individual Optional Parameters. (S2) | {gap}, no test | ze's OPEN decoder (internal/component/bgp/message/open.go:190) inspects the octet following Non-Ext OP Len only when Non-Ext OP Len equals 255, so for any other non-zero Non-Ext OP Len it never uses the following octet to determine the encoding and always decodes the classic form |
 | [`RFC9072-3-1`](#rfc9072-3-1) If first type code is 255 (even when Non-Ext OP Len != 255), extended encoding MUST be used for decoding (S3) | {gap}, no test | ze's OPEN decoder (internal/component/bgp/message/open.go:190) selects the extended form only when Non-Ext OP Len equals 255, not whenever the first type code is 255; the open.go:186-189 comment and the TestOpenUnpackExtendedParams standard-format-first-param-byte-0xFF case cement this, so a first type code of 255 with Non-Ext OP Len != 255 is decoded as a classic OPEN instead of extended |
 | [`RFC9072-3-3`](#rfc9072-3-3) Type code 255 in non-indicator position MUST be treated as unrecognized Optional Parameter per RFC 4271 S6.2 (S3) | {gap}, no test | ze silently ignores an unrecognized BGP OPEN optional-parameter type; ParseFromOptionalParams (internal/core/bgp/capability/capability.go:867-874) skips any parameter whose type is not 2 instead of emitting the RFC 4271 Section 6.2 OPEN Message Error (Unsupported Optional Parameter) NOTIFICATION |
 
@@ -139,7 +139,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC9072-2-1`](#rfc9072-2-1)
 
-If Optional Parameters length exceeds 255, the OPEN message MUST be encoded using the extended procedure (S2)
+However, if the length of the Optional Parameters in the BGP OPEN message does exceed 255, the OPEN message MUST be encoded according to the procedure below. (S2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -150,7 +150,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9072-2-2`](#rfc9072-2-2)
 
-An implementation MUST accept an OPEN message using extended encoding even if Optional Parameters length is 255 or less (S2)
+(In any case, an implementation MUST accept an OPEN message that uses the encoding of this specification even if the length of the Optional Parameters is 255 or less.) (S2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -171,7 +171,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9072-2-4`](#rfc9072-2-4)
 
-Non-Ext OP Type MUST be set to 255 on transmission (S2)
+The subsequent one-octet field (which would be the first Optional Parameter Type field in the non-extended format and is called "Non- Ext OP Type" in the figure above) MUST be set to 255 on transmission. (S2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -189,7 +189,7 @@ No test carries RFC9072-2-5, so no unit is bound to it.
 
 ### [`RFC9072-2-6`](#rfc9072-2-6)
 
-If Non-Ext OP Len is non-zero, BGP speaker MUST use value of following octet to determine encoding format (S2)
+In parsing an OPEN message, if the one-octet Optional Parameters Length field (labeled "Non-Ext OP Len." in Figure 1) is non-zero, a BGP speaker MUST use the value of the octet following the one-octet Optional Parameters Length field (labeled "Non-Ext OP Type" in Figure 1) to determine both the encoding of the Optional Parameters length and the size of the Parameter Length field of individual Optional Parameters. (S2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -205,7 +205,7 @@ No test carries RFC9072-3-1, so no unit is bound to it.
 
 ### [`RFC9072-3-2`](#rfc9072-3-2)
 
-Type code 255 MUST NOT be used other than as the extended length indicator (S3)
+Although the Optional Parameter type code 255 is used in this specification as the indication that the extended encoding is in use, it is not a bona fide Optional Parameter type code in the usual sense and MUST NOT be used other than as described above. (S3)
 
 Audit verdict: not audited: no reader has judged these tests
 

@@ -292,35 +292,35 @@ Main public claim uses RFC 8950.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-4-1">RFC5549-4-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if it has ascertained via Capability Advertisement that the peer supports Extended Next Hop Encoding for the relevant AFI/SAFI pair (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-4-1">RFC5549-4-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4 - Use of BGP Capability Advertisement</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5549-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1147" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1151" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L287" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiateExtendedNextHop</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1178" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1182" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L326" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiateExtendedNextHopMismatch</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-4-2">RFC5549-4-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that wishes to advertise an IPv6 Next Hop for IPv4 or VPN-IPv4 NLRI MUST use the Capability Advertisement procedures defined in RFC 5492 (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-4-2">RFC5549-4-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that wishes to advertise to a BGP peer an IPv6 Next Hop for IPv4 NLRI or for VPN-IPv4 NLRI as per this specification MUST use the Capability Advertisement procedures defined in [RFC5492] with the Extended Next Hop Encoding Capability to establish whether its peer supports this for the NLRI AFI/SAFI pair(s) of interest. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4 - Use of BGP Capability Advertisement</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5549-4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L506" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopCapability</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L539" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L541" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L574" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopRoundTrip</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze advertises and parses the Extended Next Hop Encoding capability exclusively through the RFC 5492 capability TLV framework (internal/core/bgp/capability/capability.go:644 WriteTo, :667 parseExtendedNextHop). There is no non-RFC-5492 signalling path in ze, so no wrong-procedure case exists to assert as a negative; the peer-support-not-ascertained negative is covered by RFC5549-4-1</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-4-3">RFC5549-4-3</code></td><td colspan="3"><span class="rfc-subject">The Capability Code field MUST be set to 5 (Extended Next Hop Encoding) (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-4-3">RFC5549-4-3</code></td><td colspan="3"><span class="rfc-subject">o The Capability Code field MUST be set to 5 (which indicates the Extended Next Hop Encoding capability). (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4 - Use of BGP Capability Advertisement</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5549-4-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L17" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestCapabilityCodeConstants</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L509" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopCapability</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L542" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L544" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L577" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopRoundTrip</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the Extended Next Hop Encoding capability code is the fixed constant CodeExtendedNextHop = 5 (internal/core/bgp/capability/capability.go:70); Code() returns it (capability.go:640) and WriteTo emits it (capability.go:646). The code has no alternate-value code path, so there is no wrong-code case to reject as a negative</p></td>
 </tr>
@@ -335,7 +335,7 @@ Main public claim uses RFC 8950.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L493" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestParseMPReachNLRI_InvalidNextHopLength</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-5-1">RFC5549-5-1</code></td><td colspan="3"><span class="rfc-subject">When a next hop address needs to be passed along unchanged (e.g., Route Reflector), its encoding MUST NOT be changed (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-5-1">RFC5549-5-1</code></td><td colspan="3"><span class="rfc-subject">When a next hop address needs to be passed along unchanged (e.g., as a Route Reflector (RR) would do), its encoding MUST NOT be changed. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5 - Operations</td>
@@ -349,9 +349,9 @@ Main public claim uses RFC 8950.
 <td>MUST NOT</td>
 <td>4 - Use of BGP Capability Advertisement</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5549-4-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1150" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1181" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1202" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_NilSendCtx</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1154" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1185" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1206" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_NilSendCtx</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5549-5-2">RFC5549-5-2</code></td><td colspan="3"><span class="rfc-subject">By default, if a BGP session is running over IPvx, the next hop address SHOULD be specified as an IPvx address (§5)</span></td></tr>
@@ -391,14 +391,14 @@ Main public claim uses RFC 8950.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5549-4-1"><code>RFC5549-4-1</code></a></h3>
-<p>A BGP speaker MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if it has ascertained via Capability Advertisement that the peer supports Extended Next Hop Encoding for the relevant AFI/SAFI pair (§4)</p>
+<p>A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1178" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1182" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -408,7 +408,7 @@ Main public claim uses RFC 8950.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1147" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1151" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -421,19 +421,19 @@ Main public claim uses RFC 8950.
 </table>
 </div>
 <h3><a href="#rfc5549-4-2"><code>RFC5549-4-2</code></a></h3>
-<p>A BGP speaker that wishes to advertise an IPv6 Next Hop for IPv4 or VPN-IPv4 NLRI MUST use the Capability Advertisement procedures defined in RFC 5492 (§4)</p>
+<p>A BGP speaker that wishes to advertise to a BGP peer an IPv6 Next Hop for IPv4 NLRI or for VPN-IPv4 NLRI as per this specification MUST use the Capability Advertisement procedures defined in [RFC5492] with the Extended Next Hop Encoding Capability to establish whether its peer supports this for the NLRI AFI/SAFI pair(s) of interest. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L506" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L541" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopCapability</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L539" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopRoundTrip</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L574" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopRoundTrip</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -441,7 +441,7 @@ Main public claim uses RFC 8950.
 </table>
 </div>
 <h3><a href="#rfc5549-4-3"><code>RFC5549-4-3</code></a></h3>
-<p>The Capability Code field MUST be set to 5 (Extended Next Hop Encoding) (§4)</p>
+<p>o The Capability Code field MUST be set to 5 (which indicates the Extended Next Hop Encoding capability). (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -453,12 +453,12 @@ Main public claim uses RFC 8950.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L509" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L544" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopCapability</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L542" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopRoundTrip</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L577" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopRoundTrip</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -496,7 +496,7 @@ Main public claim uses RFC 8950.
 </table>
 </div>
 <h3><a href="#rfc5549-5-1"><code>RFC5549-5-1</code></a></h3>
-<p>When a next hop address needs to be passed along unchanged (e.g., Route Reflector), its encoding MUST NOT be changed (§5)</p>
+<p>When a next hop address needs to be passed along unchanged (e.g., as a Route Reflector (RR) would do), its encoding MUST NOT be changed. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -518,17 +518,17 @@ Main public claim uses RFC 8950.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1181" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1185" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1202" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_NilSendCtx</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1206" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_NilSendCtx</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1150" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1154" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -692,17 +692,17 @@ Main public claim uses RFC 8950.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Disposition</th><th>Now stated at</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc5549-4-1"><code>RFC5549-4-1</code></a> A BGP speaker MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if it has ascertained via Capability Advertisement that the peer supports Extended Next Hop Encoding for the relevant AFI/SAFI pair (§4)</td>
+<tr><td><a href="#rfc5549-4-1"><code>RFC5549-4-1</code></a> A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)</td>
 <td>restated</td>
 <td>RFC8950-4-1</td>
 <td>RFC 8950 Section 4 states the same obligation in the same words, that a speaker MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop to a peer that has advertised the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair</td>
 </tr>
-<tr><td><a href="#rfc5549-4-2"><code>RFC5549-4-2</code></a> A BGP speaker that wishes to advertise an IPv6 Next Hop for IPv4 or VPN-IPv4 NLRI MUST use the Capability Advertisement procedures defined in RFC 5492 (§4)</td>
+<tr><td><a href="#rfc5549-4-2"><code>RFC5549-4-2</code></a> A BGP speaker that wishes to advertise to a BGP peer an IPv6 Next Hop for IPv4 NLRI or for VPN-IPv4 NLRI as per this specification MUST use the Capability Advertisement procedures defined in [RFC5492] with the Extended Next Hop Encoding Capability to establish whether its peer supports this for the NLRI AFI/SAFI pair(s) of interest. (§4)</td>
 <td>restated</td>
 <td>RFC8950-4-2</td>
 <td>RFC 8950 Section 4 keeps the RFC 5492 Capability Advertisement procedures unchanged as the way to determine peer support</td>
 </tr>
-<tr><td><a href="#rfc5549-4-3"><code>RFC5549-4-3</code></a> The Capability Code field MUST be set to 5 (Extended Next Hop Encoding) (§4)</td>
+<tr><td><a href="#rfc5549-4-3"><code>RFC5549-4-3</code></a> o The Capability Code field MUST be set to 5 (which indicates the Extended Next Hop Encoding capability). (§4)</td>
 <td>restated</td>
 <td>RFC8950-4-3</td>
 <td>RFC 8950 Section 4 keeps Capability Code 5, and its Section 7 records that IANA moved the registration of that code point to RFC 8950</td>
@@ -712,7 +712,7 @@ Main public claim uses RFC 8950.
 <td>RFC8950-3-1</td>
 <td>RFC 8950 Section 3 keeps the Length of Next Hop Address field as the field that tells a receiver which network-layer protocol the next-hop address belongs to</td>
 </tr>
-<tr><td><a href="#rfc5549-5-1"><code>RFC5549-5-1</code></a> When a next hop address needs to be passed along unchanged (e.g., Route Reflector), its encoding MUST NOT be changed (§5)</td>
+<tr><td><a href="#rfc5549-5-1"><code>RFC5549-5-1</code></a> When a next hop address needs to be passed along unchanged (e.g., as a Route Reflector (RR) would do), its encoding MUST NOT be changed. (§5)</td>
 <td>restated</td>
 <td>RFC8950-5-1</td>
 <td>RFC 8950 Section 5 keeps the sentence unchanged, that an encoding passed along unchanged MUST NOT be changed</td>
@@ -770,7 +770,7 @@ Main public claim uses RFC 8950.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

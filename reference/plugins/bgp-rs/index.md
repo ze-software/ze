@@ -17,7 +17,7 @@ Route Server
 
 ## Dependencies
 
-- Required: None
+- Required: [`bgp-rib`](../bgp-rib/index.md)
 - Optional: [`bgp-adj-rib-in`](../bgp-adj-rib-in/index.md)
 
 ## Used by

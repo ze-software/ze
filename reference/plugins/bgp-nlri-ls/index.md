@@ -22,7 +22,7 @@ None
 
 ## Used by
 
-- Required dependency for: None
+- Required dependency for: [`bgp-ls-export`](../bgp-ls-export/index.md)
 - Optional dependency for: None
 
 ## Repository artifacts

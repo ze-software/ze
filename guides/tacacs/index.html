@@ -78,17 +78,17 @@ device.</p>
 <tr>
 <td>Authentication</td>
 <td>Production</td>
-<td>PAP (login over the SSH password callback). RFC 8907 §5.</td>
+<td>PAP login followed by shell-session authorization for profile assignment. RFC 8907 sections 5 and 9.</td>
 </tr>
 <tr>
 <td>Accounting</td>
 <td>Production</td>
-<td>START + STOP records around every dispatched CLI command.</td>
+<td>START and STOP records for every entered command, including denied and unknown commands.</td>
 </tr>
 <tr>
 <td>Authorization</td>
 <td>Production</td>
-<td><code>authorization true</code> switches per-command authorization on. By default the bridge falls back to local profiles on TACACS+ ERROR; <code>strict-fallback true</code> denies instead.</td>
+<td><code>authorization true</code> enables per-command authorization. ERROR tries configured backups before local fallback; <code>strict-fallback true</code> denies when all servers are unavailable.</td>
 </tr>
 </tbody>
 </table>
@@ -99,8 +99,8 @@ device.</p>
 <pre><code>system {
     authentication {
         tacacs {
-            server 10.0.0.1 { port 49; key "$9$encrypted-key"; }
-            server 10.0.0.2 { port 49; key "$9$encrypted-key"; }
+            server 10.0.0.1 { port 49; key "unique-secret-for-the-first-server"; }
+            server 10.0.0.2 { port 49; key "unique-secret-for-the-backup-server"; }
             timeout 5
         }
         tacacs-profile 15 { profile [ admin ]; }
@@ -126,7 +126,7 @@ device.</p>
 <td><code>tacacs.server &lt;ip&gt;</code></td>
 <td>list, ordered-by-user</td>
 <td>-</td>
-<td>Tried in declaration order on connection failure</td>
+<td>Tried in declaration order on connection failure or ERROR</td>
 </tr>
 <tr>
 <td><code>tacacs.server &lt;ip&gt;.port</code></td>
@@ -138,7 +138,7 @@ device.</p>
 <td><code>tacacs.server &lt;ip&gt;.key</code></td>
 <td>string (<code>ze:sensitive</code>)</td>
 <td>required</td>
-<td>Shared secret. A server with none disables the whole AAA bundle. See below: what that costs depends on when the bundle is built</td>
+<td>Shared secret. A missing key refuses the TACACS+ backend; other successfully built backends remain available at boot</td>
 </tr>
 <tr>
 <td><code>tacacs.timeout</code></td>
@@ -179,6 +179,8 @@ device.</p>
 </tbody>
 </table>
 <!-- source: internal/component/tacacs/yang/ze-tacacs-conf.yang -- system.authentication.tacacs -->
+<p>Enabling authorization or accounting requires at least one server. A selected
+capability with no destination is refused at build, rather than silently omitted.</p>
 <p>The key is not optional. RFC 8907 Section 4.5 builds the obfuscation pad from
 the shared secret. Section 10.5.2 says "TACACS+ clients MUST NOT set
 TAC_PLUS_UNENCRYPTED_FLAG", which is the only honest wire form for an
@@ -220,6 +222,10 @@ continues. So <code>ze config validate</code> before a reboot.</p>
 does NOT encrypt what the commit path writes. Ze decodes a <code>$9$</code> value you write
 by hand, and the editor stores a key as you typed it. Only <code>ze config dump</code>
 encodes on the way out, so a dump round-trips and the key stays hidden.</p>
+<p><code>$9$</code> is reversible obfuscation, so configuration storage needs credential-grade
+access protection. Diagnostic strings, structured logs and JSON configuration
+rendering redact the extracted shared key. <code>ze doctor</code> warns when a key has fewer
+than sixteen characters; keys of thirty-two characters or longer are supported.</p>
 <!-- source: internal/component/tacacs/register.go -- tacacsBackend.Build -->
 <!-- source: cmd/ze/hub/main_reload.go -- the reload refusal -->
 <!-- source: cmd/ze/hub/main.go -- the boot warning, noBGPAAAWiring -->
@@ -231,13 +237,12 @@ encodes on the way out, so a dump round-trips and the key stays hidden.</p>
 <li>Daemon's AAA chain calls <code>TacacsAuthenticator</code> first (priority 100; local
 bcrypt is priority 200).</li>
 <li>The client opens TCP to the first configured server and sends a PAP
-AUTHEN START. The body is XOR-encrypted with the MD5 pseudo-pad keyed
-on the shared secret.</li>
-<li><strong>PASS</strong> -- the server's reply data byte is the priv-lvl. The
-authenticator looks up <code>tacacs-profile &lt;priv-lvl&gt;.profile</code>. A matching
-entry yields the authz profiles attached to the SSH session. An
-unmapped priv-lvl rejects the login (AC-18) so adding new TACACS+
-levels in the upstream server does not accidentally grant access.</li>
+AUTHEN START. The MD5 pseudo-pad obfuscates the body using the shared secret.</li>
+<li><strong>PASS</strong> -- Ze requests shell-session authorization with <code>service=shell</code> and
+an empty <code>cmd</code>. The server returns a decimal <code>priv-lvl</code> argument, which maps
+through <code>tacacs-profile &lt;priv-lvl&gt;.profile</code>. Missing privilege uses level one.
+Unmapped levels and mandatory policy that Ze cannot enforce reject the login.
+Authentication reply data never supplies a privilege level.</li>
 <li><strong>FAIL</strong> -- explicit rejection. The chain stops here. Local bcrypt is
 NOT tried. This prevents a wrong password against TACACS+ from
 succeeding via a stale local hash.</li>
@@ -245,13 +250,33 @@ succeeding via a stale local hash.</li>
 tried. When every server is unreachable (or all return ERROR) the
 chain falls through to the local bcrypt authenticator.</li>
 </ol>
+<p>RESTART, FOLLOW and a reply whose unencrypted flag disagrees with the configured
+shared secret are terminal denials. A backup server or local password cannot
+override them.</p>
+<p>The web login fallback follows the same terminal-rejection rule for ordinary
+local accounts. The separate ZeFS super-admin remains a recovery path through
+its reserved local profile; assigning a normal <code>admin</code> profile does not grant
+that exception.</p>
+<p>Usernames are width-mapped and NFC-normalized without case folding under the
+RFC 8265 UsernameCasePreserved profile. PAP passwords and other text fields use
+printable US-ASCII; invalid fields are refused without sending them.</p>
+<p>Internal plugin/RPC and shared-token API callers keep their trusted local
+identities, but use printable wire usernames of the form
+<code>~ze~r:&lt;base64url identity bytes&gt;</code> without padding. Human usernames beginning
+<code>~ze~</code> after normalization use the separate form
+<code>~ze~u:&lt;base64url username bytes&gt;</code> in authentication, authorization and accounting.
+Configure server policy for these wire names; a human lookalike cannot acquire
+the internal caller's identity. The wire username limit is 255 bytes, so either
+encoded form accepts at most 186 input bytes. Longer names are refused rather
+than hashed or truncated.</p>
+<!-- source: internal/component/tacacs/text.go -- prepareWireUsername -->
 <!-- source: internal/component/aaa/aaa.go -- ChainAuthenticator, ErrAuthRejected -->
 <!-- source: internal/component/tacacs/authenticator.go -- handlePass, AuthenStatusFail handling -->
 <h2 id="privilege-level-mapping">Privilege level mapping</h2>
-<p>TACACS+ servers send a numeric priv-lvl (0-15) in the AUTHEN REPLY. Ze's
-internal authorization model is name-based, so each priv-lvl must be
-mapped to one or more locally-defined <code>system.authorization.profile</code>
-entries.</p>
+<p>TACACS+ servers return numeric <code>priv-lvl</code> values from zero through fifteen in the
+shell-session AUTHOR response. Ze maps each value to locally defined
+<code>system.authorization.profile</code> entries. The parser checks numeric length before
+conversion; an oversized mandatory value denies login.</p>
 <table>
 <thead>
 <tr>
@@ -307,7 +332,9 @@ session exactly what the local <code>read-only</code> profile allows and refuses
 with <code>command restricted by access control</code>.</p>
 <p>Only the profile <em>names</em> are fixed at login. Each command is evaluated against
 the profile as it is defined at that moment, so editing <code>read-only</code> and
-committing applies to sessions already open, without a reconnect.</p>
+committing applies to sessions already open, without a reconnect.
+With per-command TACACS+ authorization enabled, an existing SSH password
+session also uses the current server configuration on its next command.</p>
 <p>A local <code>system.authentication.user</code> block with the same username takes
 precedence over the mapped profiles: an explicit local assignment is a stated
 intent for that name, so it is not widened or narrowed by how the user logged in.</p>
@@ -323,10 +350,17 @@ for everyone, so it passes whatever the mapping says and proves nothing.</p>
 itself: Ze sends an AUTHOR REQUEST per command, and the profiles above apply only
 as the fallback when the server is unreachable, unless <code>strict-fallback true</code>
 makes that case deny.</p>
+<p>PASS_ADD retains the requested command arguments and applies response attributes.
+PASS_REPL uses only the response attributes. The complete effective <code>service</code>,
+<code>cmd</code> and ordered <code>cmd-arg</code> values must still describe the command Ze will execute.
+A server cannot approve one command while replacing its arguments with another.
+Unknown mandatory attributes, session ACLs or timers Ze cannot enforce, and
+per-command privilege changes deny authorization. Unsupported optional attributes
+may be ignored.</p>
 <!-- source: internal/component/tacacs/authenticator.go -- handlePass priv-lvl lookup -->
 <h2 id="accounting">Accounting</h2>
-<p>When <code>accounting true</code> is set, every command dispatched through the CLI
-emits two records:</p>
+<p>When <code>accounting true</code> is set, each command entering dispatch or the API/SSH
+streaming path emits a paired record set:</p>
 <table>
 <thead>
 <tr>
@@ -338,26 +372,41 @@ emits two records:</p>
 <tbody>
 <tr>
 <td>START (0x02)</td>
-<td>Just after authorization passes, before the handler runs</td>
-<td><code>task_id</code>, <code>service=shell</code>, <code>cmd=&lt;input&gt;</code>, <code>start_time</code></td>
+<td>Before lookup or authorization</td>
+<td><code>task_id</code>, <code>start_time</code>, <code>service=shell</code>, <code>cmd</code>, ordered <code>cmd-arg</code> values</td>
 </tr>
 <tr>
 <td>STOP (0x04)</td>
-<td>After the handler returns, regardless of outcome</td>
-<td><code>task_id</code>, <code>service=shell</code>, <code>cmd=&lt;input&gt;</code>, <code>stop_time</code></td>
+<td>After refusal, handler return or stream completion</td>
+<td>Matching <code>task_id</code>, <code>stop_time</code>, the same service and command arguments</td>
 </tr>
 </tbody>
 </table>
-<p>Records are queued to a single long-lived background worker. The worker
-sends one record at a time over the same TACACS+ client used for
-authentication, with the same server failover. Accounting failures are
-logged (<code>TACACS+ accounting failed</code>) and never block the command. Records
-that cannot be queued increment the local drop counter.</p>
+<p>Command values use reversible Go string escapes without surrounding quotes.
+For example, <code>café</code> is sent as <code>caf\u00e9</code>; an actual backslash is doubled.
+The command handler still receives the original argument. TACACS+ command
+authorization uses this same lossless representation and denies a request that
+cannot fit the protocol's field/count limits.</p>
+<p>Accounting alone bounds oversized displays to 255 bytes per argument and 255
+arguments per packet. Such a record explicitly includes <code>ze-command-truncated=1</code>
+and <code>ze-command-sha256=&lt;digest&gt;</code> before <code>service</code> and <code>cmd</code>. Long fields end in
+<code>...</code>, and excess arguments are omitted. The digest identifies the complete
+redacted argument sequence, not the secret values; it and the task ID match
+between START and STOP. This preserves evidence that the command was entered
+without silently losing the record or altering execution.</p>
+<!-- source: internal/component/tacacs/command_text.go -- accountingArguments -->
+<p>Records pass through a bounded queue to one background worker. A full queue waits
+for capacity, and shutdown drains accepted records. Network failures are logged
+and never refuse command execution. Requests after the accountant has stopped
+are refused and counted; queue saturation no longer discards records.</p>
+<p>A configuration reload keeps each active command's original accountant and
+server configuration alive until STOP. Only then can the retired bundle close.
+Task identifiers remain unique across those overlapping generations.</p>
 <p>Use <code>ze show aaa accounting</code> to inspect the counter:</p>
 <pre><code>ze show aaa accounting
 </code></pre>
-<p>The response includes <code>dropped-records</code>. A non-zero value means at least one
-START/STOP record was lost locally before the TACACS+ client could send it.</p>
+<p>The response includes <code>dropped-records</code>, the count of records refused after
+shutdown. Delivery failures at the network or server are logged separately.</p>
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher accountant hook -->
 <!-- source: internal/component/tacacs/accounting.go -- worker, processOne, enqueue -->
 <h2 id="verification">Verification</h2>
@@ -414,19 +463,24 @@ satisfying backend on every login, e.g.:</p>
 <p><code>source=tacacs</code> confirms the chain consulted TACACS+ and returned PASS.
 <code>source=local</code> means TACACS+ was unreachable (or unconfigured) and the
 local bcrypt user accepted the credentials.</p>
-<!-- source: internal/test/mock/tacacs/tacacs.go -- ze-test tacacs-mock for .ci tests -->
+<!-- source: internal/test/mock/tacacs/tacacs.go -- le test tacacs-mock for .ci tests -->
 <h2 id="operational-notes">Operational notes</h2>
 <ul>
-<li><strong>Shared secrets</strong> are stored as <code>$9$</code>-encoded ciphertext, never as
-plaintext. The CLI never echoes them; <code>ze config dump --strip-private</code>
-replaces them with <code>/* SECRET-DATA */</code>.</li>
+<li><strong>Shared secrets</strong> are sensitive data. <code>$9$</code> values are obfuscated, not
+encrypted; a committed configuration can contain the original text.
+<code>ze config dump --strip-private</code> replaces secrets with <code>/* SECRET-DATA */</code>.</li>
 <li><strong>VRF</strong>: when the SSH server runs in a non-default VRF, TACACS+ TCP
 connections inherit the same VRF context.</li>
-<li><strong>Single-connect mode</strong> (RFC 8907 §4.4) is tested via <code>tacacs-singleconnect.ci</code>.</li>
+<li><strong>Single-connect mode</strong> (RFC 8907 section 4.3) is tested via <code>tacacs-singleconnect.ci</code>.</li>
 <li><strong>Operational tooling</strong>: <code>ze tacacs show &lt;config&gt;</code> probes every TACACS+
 server the config names and reports whether it answers, with no daemon
 running. Runtime <code>ze show aaa accounting</code> exposes local accounting queue
 drops.</li>
+<li><strong>Transport security</strong>: RFC 8907 section 10.5 requires privacy, integrity and
+separation from other traffic. The MD5 pseudo-pad does not provide these.
+A successful reachability probe does not establish a secure deployment.</li>
+<li><strong>Authentication methods</strong>: the supported method is PAP. ASCII interaction,
+CHAP, MS-CHAP and ENABLE workflows are outside the selected product scope.</li>
 </ul>
 <h2 id="rfc-reference">RFC reference</h2>
 <ul>
@@ -475,7 +529,7 @@ Local summary: <code>rfc/short/rfc8907.md</code>.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

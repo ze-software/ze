@@ -292,7 +292,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-2-1">RFC8203-2-1</code></td><td colspan="3"><span class="rfc-subject">Error Subcode value must be 2 (&#34;Administrative Shutdown&#34;) or 4 (&#34;Administrative Reset&#34;) (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-2-1">RFC8203-2-1</code></td><td colspan="3"><span class="rfc-subject">Subcode: the Error Subcode value MUST be one of the following values: 2 (&#34;Administrative Shutdown&#34;) or 4 (&#34;Administrative Reset&#34;). (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2 - Shutdown Communication</td>
@@ -301,7 +301,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L370" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203Subcode</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-2-2">RFC8203-2-2</code></td><td colspan="3"><span class="rfc-subject">Length field must range from 0 to 128 inclusive (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-2-2">RFC8203-2-2</code></td><td colspan="3"><span class="rfc-subject">The length value MUST range from 0 to 128 inclusive. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2 - Shutdown Communication</td>
@@ -310,7 +310,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the sender enforces the 0-128 range -- BuildShutdownData truncates a longer message to 128 at a UTF-8 boundary (internal/component/bgp/message/notification.go:312) -- but the receiver deliberately follows RFC 9003, which obsoletes RFC 8203 and raised the cap to 255 (ShutdownMessage reads a 1-byte length up to 255, notification.go:268-284), so ze intentionally does not reject a 129-255 length on receive and there is no over-128-rejected behavior to assert</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-2-3">RFC8203-2-3</code></td><td colspan="3"><span class="rfc-subject">Shutdown Communication field must be encoded using UTF-8 (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-2-3">RFC8203-2-3</code></td><td colspan="3"><span class="rfc-subject">Shutdown Communication: to support international characters, the Shutdown Communication field MUST be encoded using UTF-8. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2 - Shutdown Communication</td>
@@ -319,7 +319,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L423" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203UTF8Invalid</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-6-1">RFC8203-6-1</code></td><td colspan="3"><span class="rfc-subject">UTF-8 &#34;Shortest Form&#34; encoding is required (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-6-1">RFC8203-6-1</code></td><td colspan="3"><span class="rfc-subject">UTF-8 &#34;Shortest Form&#34; encoding is REQUIRED to guard against the technical issues outlined in [UTR36]. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6 - Security Considerations</td>
@@ -328,7 +328,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification_test.go#L443" title="internal/component/bgp/message/notification_test.go" target="_blank" rel="noopener"><code>TestRFC8203ShortestFormUTF8</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-2-4">RFC8203-2-4</code></td><td colspan="3"><span class="rfc-subject">Receiving BGP speaker must not interpret invalid UTF-8 sequences (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8203-2-4">RFC8203-2-4</code></td><td colspan="3"><span class="rfc-subject">A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2 - Shutdown Communication</td>
@@ -383,7 +383,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8203-2-1"><code>RFC8203-2-1</code></a></h3>
-<p>Error Subcode value must be 2 (&#34;Administrative Shutdown&#34;) or 4 (&#34;Administrative Reset&#34;) (§2)</p>
+<p>Subcode: the Error Subcode value MUST be one of the following values: 2 (&#34;Administrative Shutdown&#34;) or 4 (&#34;Administrative Reset&#34;). (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -403,7 +403,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 </table>
 </div>
 <h3><a href="#rfc8203-2-2"><code>RFC8203-2-2</code></a></h3>
-<p>Length field must range from 0 to 128 inclusive (§2)</p>
+<p>The length value MUST range from 0 to 128 inclusive. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -418,7 +418,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 </table>
 </div>
 <h3><a href="#rfc8203-2-3"><code>RFC8203-2-3</code></a></h3>
-<p>Shutdown Communication field must be encoded using UTF-8 (§2)</p>
+<p>Shutdown Communication: to support international characters, the Shutdown Communication field MUST be encoded using UTF-8. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -438,7 +438,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 </table>
 </div>
 <h3><a href="#rfc8203-6-1"><code>RFC8203-6-1</code></a></h3>
-<p>UTF-8 &#34;Shortest Form&#34; encoding is required (§6)</p>
+<p>UTF-8 &#34;Shortest Form&#34; encoding is REQUIRED to guard against the technical issues outlined in [UTR36]. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -458,7 +458,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
 </table>
 </div>
 <h3><a href="#rfc8203-2-4"><code>RFC8203-2-4</code></a></h3>
-<p>Receiving BGP speaker must not interpret invalid UTF-8 sequences (§2)</p>
+<p>A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -625,7 +625,7 @@ Sender keeps the conservative 128-byte RFC 8203 limit.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

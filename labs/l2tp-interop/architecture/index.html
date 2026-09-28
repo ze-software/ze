@@ -102,8 +102,8 @@ it fails strictly.</p>
 <p>Setting <code>ZE_L2TP_SKIP_KERNEL_PROBE</code> or <code>ze.l2tp.skip-kernel-probe</code> in the
 environment causes an immediate refusal.</p>
 <h2 id="running">Running</h2>
-<pre><code>./le deployment docker-l2tp-ppp-test
-ZE_L2TP_INTEROP_SCENARIO=01-ppp-ipv4 ./le deployment docker-l2tp-ppp-test
+<pre><code>./le test deployment docker-l2tp-ppp-test
+ZE_L2TP_INTEROP_SCENARIO=01-ppp-ipv4 ./le test deployment docker-l2tp-ppp-test
 </code></pre>
 <p>Environment variables: <code>FRR_IMAGE</code> (default
 <code>quay.io/frrouting/frr:10.3.1</code>), <code>NO_BUILD</code>, <code>SESSION_TIMEOUT</code> (default 90s),
@@ -136,7 +136,7 @@ control-plane-only scenario is selected alone. <code>xl2tpd</code> cannot answer
 that follows because it has no outgoing-call answerer (it logs <code>Unimplemented message 7</code>), so the RPC returns an error by design and the established control
 connection is the interop proof. The full OCRQ→OCRP→OCCN call flow is proven
 functionally by <code>test/l2tp/lns-outgoing-call.ci</code>. The LAC incoming-call PPP data
-plane is covered by <code>./le deployment gokrazy-l2tp-ppp-test</code>.</p>
+plane is covered by <code>./le test deployment gokrazy-l2tp-ppp-test</code>.</p>
 <h3 id="04-radius-acct-attrs">04-radius-acct-attrs</h3>
 <p>Proves the subscriber attributes ze sends to a RADIUS server for a real PPP
 session: NAS-Port-Id (RFC 2869 Section 5.17) resolved from the operator's
@@ -177,22 +177,22 @@ no Access-Request without one.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>./le deployment l2tp-test</code></td>
+<td><code>./le test deployment l2tp-test</code></td>
 <td>Control tunnel and incoming-call session</td>
 <td class="cell-no">✕</td>
 </tr>
 <tr>
-<td><code>./le deployment l2tp-ppp-test</code></td>
+<td><code>./le test deployment l2tp-ppp-test</code></td>
 <td>Native Linux full PPP/NCP/kernel proof in peer-isolated netns</td>
 <td class="cell-yes">✓</td>
 </tr>
 <tr>
-<td><code>./le deployment docker-l2tp-ppp-test</code></td>
+<td><code>./le test deployment docker-l2tp-ppp-test</code></td>
 <td>Peer-isolated Docker lab (this)</td>
 <td class="cell-yes">✓</td>
 </tr>
 <tr>
-<td><code>./le deployment gokrazy-l2tp-ppp-test</code></td>
+<td><code>./le test deployment gokrazy-l2tp-ppp-test</code></td>
 <td>QEMU gokrazy appliance LNS with a netns LAC</td>
 <td class="cell-yes">✓</td>
 </tr>
@@ -216,7 +216,7 @@ resolves that kernel itself because the pinned rtr7 kernel has no L2TP support.
 It validates an operator-supplied kernel package or materialises the runtime
 kernel from the durable cache and fails before boot when neither can carry
 PPPoL2TP.</p>
-<!-- source: internal/le/deployment/actions.go -- Answer -->
+<!-- source: internal/le/test/deployment/actions.go -- Answer -->
 <h2 id="design-pattern">Design Pattern</h2>
 <p>The lab follows the repository's native interop pattern: checked-in scenario
 configuration, a per-run Docker network with a unique suffix, fixed peer
@@ -253,7 +253,7 @@ specific to this protocol.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

@@ -193,7 +193,7 @@ Wants=network-online.target
 Type=simple
 User=ze
 Group=ze
-ExecStart=&lt;prefix&gt;/bin/ze start
+ExecStart=/bin/sh -c 'trap "" HUP; exec &lt;prefix&gt;/bin/ze start'
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5
@@ -213,6 +213,13 @@ RuntimeDirectory=ze
 [Install]
 WantedBy=multi-user.target
 </code></pre>
+<p>The shell in <code>ExecStart</code> starts ze with SIGHUP ignored, then execs it, so ze
+keeps the main PID. A <code>systemctl reload</code> during the first few hundred
+milliseconds, before ze can register a handler, is then lost instead of killing
+the daemon (<code>docs/architecture/behavior/signals.md</code>). The install refuses a
+binary or config path holding a character that systemd or <code>/bin/sh</code> interprets:
+a quote, a backslash, <code>$</code>, <code>%</code>, <code>;</code>, <code>&amp;</code>, <code>|</code>, <code>&lt;</code>, <code>&gt;</code>, parentheses, a
+backtick, or a glob character.</p>
 <p><code>ze install systemd</code> requires <code>&lt;config-dir&gt;/database/</code> and refuses while another
 process owns the store. It creates the <code>ze</code> user and group if missing,
 recursively transfers the store to <code>ze:ze</code>, writes
@@ -273,7 +280,7 @@ confirmation before proceeding.</p>
 <p>To check the service status, use <code>systemctl status ze.service</code> directly.</p>
 <h2 id="installing-on-real-hardware-end-to-end">Installing on Real Hardware (End to End)</h2>
 <p>This bare-metal PXE walkthrough follows the same chain as
-<code>./le qemu install-test</code>: build an image, serve it, boot an installer kernel
+<code>./le test qemu install-test</code>: build an image, serve it, boot an installer kernel
 and initrd, write the disk, then log in over SSH. The reference sections below
 describe each piece.</p>
 <h3 id="1-build-the-disk-image">1. Build the disk image</h3>
@@ -343,6 +350,13 @@ command line with <code>ze.server</code>, <code>ze.image</code>, and <code>ip=dh
 <code>database.zefs.replaced-*</code>, and serves its configuration. A credential-only
 seed enters <a href="#bootstrap-mode">bootstrap mode</a>.</li>
 </ol>
+<p>A device that already runs Ze can take the same seed without reinstalling:
+<code>ze init --from http://&lt;server&gt;/install/database.zefs --sha256 &lt;hex&gt;</code> fetches
+it with the installer's download helper, checks the digest and every entry
+before a key is written, imports it into <code>database/</code>, and removes the fetched
+copy. A local path (<code>ze init --from ./backup.zefs</code>) imports a file in place and
+retires it as <code>.replaced-&lt;stamp&gt;</code>, as the appliance does with its seed.</p>
+<!-- source: internal/plugins/init/main.go -- runImport, runFetchImport -->
 <h3 id="5-log-in-and-configure">5. Log in and configure</h3>
 <pre><code class="language-bash">ssh admin@&lt;target-ip&gt;      # the password given to --ssh-password
 </code></pre>
@@ -358,7 +372,7 @@ the installer stops and names the candidates rather than picking one. Pass
 <code>ze.target=/dev/vda</code> in the cmdline, or detach the extra fixed disks.</li>
 <li><strong>Download stalls / non-standard port</strong>: confirm the image server's port and
 pass <code>ze.port=</code> in the iPXE cmdline.</li>
-<li><strong>Dry-run first</strong>: <code>./le qemu install-test</code> reproduces the whole chain and
+<li><strong>Dry-run first</strong>: <code>./le test qemu install-test</code> reproduces the whole chain and
 reports a broken image, kernel, or initrd before hardware is touched.</li>
 </ul>
 <h2 id="appliance-iso-install">Appliance ISO Install</h2>
@@ -913,8 +927,8 @@ console / fatal policy):</p>
 </code></pre>
 <p>End-to-end boot and install are covered by the QEMU evidence harness, which
 boots the real Go initrd:</p>
-<pre><code class="language-bash">./le qemu install-test       # HTTP PXE install
-./le qemu install-iso-test   # ISO install
+<pre><code class="language-bash">./le test qemu install-test       # HTTP PXE install
+./le test qemu install-iso-test   # ISO install
 </code></pre>
 <h3 id="no-external-binaries">No External Binaries</h3>
 <p>The initrd contains exactly one file: the <code>cmd/ze-installer</code> Go binary as
@@ -974,25 +988,25 @@ architecture, profile, config, and kernel version.</p>
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 <!-- source: internal/appliance/kernelbuilder/qemu.go -- runQEMU -->
 <h2 id="end-to-end-qemu-verification">End-to-End QEMU Verification</h2>
-<p><code>./le qemu install-test</code> builds the initrd and an appliance image, boots the
+<p><code>./le test qemu install-test</code> builds the initrd and an appliance image, boots the
 installer against a blank virtio disk, and transfers the image over HTTP. It
 then boots the installed disk and authenticates over SSH. The storage proof
 also checks the logged first-boot import, the live tree's seed key values, and
 the retired seed. An incomplete staging tree is planted before boot to exercise
 restart with an interrupted import.</p>
-<pre><code class="language-bash">ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le --name storage-proof qemu install-test
+<pre><code class="language-bash">ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le --name storage-proof test qemu install-test
 </code></pre>
-<p><code>./le qemu install-iso-test</code> exercises the ISO transport. It creates an ISO
+<p><code>./le test qemu install-iso-test</code> exercises the ISO transport. It creates an ISO
 through <code>ze appliance iso</code>, boots it, verifies the embedded image is written
 without the PXE-only branch, checks safe poweroff and the GPT layout, then logs
 in with the embedded ZeFS credentials.</p>
-<!-- source: internal/le/qemu/actions.go -- Actions -->
-<pre><code class="language-bash">ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le qemu install-iso-test
+<!-- source: internal/le/test/qemu/actions.go -- Actions -->
+<pre><code class="language-bash">ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le test qemu install-iso-test
 </code></pre>
 <p>The ISO evidence self-skips with <code>INSTALL-ISO-QEMU: SKIP</code> when QEMU, a suitable
 installer kernel, UEFI firmware, <code>grub-mkstandalone</code>/<code>grub2-mkstandalone</code>,
 <code>xorriso</code>, or image-build tooling is unavailable.</p>
-<!-- source: internal/le/qemu/actions.go -- Answer -->
+<!-- source: internal/le/test/qemu/actions.go -- Answer -->
 <p>The test self-skips (does not fail) when <code>ZE_INSTALL_KERNEL</code> is unset or a
 container runtime / <code>qemu-system-*</code> is unavailable, because there is no safe
 default installer kernel.</p>
@@ -1096,7 +1110,7 @@ real network and <code>ze install remote</code> on port 80.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

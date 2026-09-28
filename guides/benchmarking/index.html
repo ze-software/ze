@@ -47,8 +47,8 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="benchmarking">Benchmarking</h1>
-    <p>Ze includes <code>ze-perf</code>, a standalone tool for measuring BGP route propagation
-latency through a device under test (DUT). It works with any BGP implementation,
+    <p>Ze includes <code>le perf</code>, a tool for measuring BGP route propagation latency
+through a device under test (DUT). It works with any BGP implementation,
 including Ze.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
@@ -77,17 +77,21 @@ including Ze.</p>
 <li><a href="#interpreting-results">Interpreting Results</a></li>
 </ol></li>
 </ol></nav>
-<!-- source: internal/perf/cli/register.go -- ze-perf CLI entry point -->
+<!-- source: internal/perf/cli/register.go -- perf CLI entry point -->
+<p><code>le perf send</code> runs one benchmark against a DUT, <code>le perf report</code> compares
+result files, and <code>le perf track</code> follows the history. Every word after the verb reaches the program
+unchanged, and the program's exit code is le's.</p>
+<!-- source: internal/le/perf/actions.go -- programVerbs -->
 <h2 id="architecture">Architecture</h2>
 <pre><code>                  +-----------+
-  ze-perf         |           |         ze-perf
+  le perf send    |           |         le perf send
   (sender)  ----&gt; |    DUT    | ----&gt;  (receiver)
   AS 65001        |  AS 65000 |         AS 65002
                   +-----------+
 </code></pre>
 <p>The sender establishes a BGP session with the DUT, injects routes, and the
 receiver measures when those routes arrive. Both sessions are managed by
-<code>ze-perf</code> in a single process. Timing starts when the sender writes the first
+<code>le perf send</code> in a single process. Timing starts when the sender writes the first
 UPDATE and stops when the receiver has collected all expected prefixes.</p>
 <!-- source: internal/perf/sender.go -- sender UPDATE construction -->
 <!-- source: internal/perf/receiver.go -- receiver prefix extraction -->
@@ -97,14 +101,14 @@ UPDATE and stops when the receiver has collected all expected prefixes.</p>
 ze start test-config.conf &amp;
 
 # Run the benchmark
-ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze --routes 1000
+./le perf send --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze --routes 1000
 </code></pre>
 <p>With JSON output saved to a file:</p>
-<pre><code class="language-bash">ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze \
+<pre><code class="language-bash">./le perf send --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze \
   --routes 1000 --output result-ze.json
 </code></pre>
 <h2 id="running-benchmarks">Running Benchmarks</h2>
-<p>For a complete flag reference, see <a href="../command-reference/#ze-perf-run">ze-perf run</a>.</p>
+<p>For a complete flag reference, see <a href="../command-reference/#le-perf-send">le perf send</a>.</p>
 <h3 id="encoding-modes">Encoding Modes</h3>
 <p>Three encoding modes measure different code paths through the DUT:</p>
 <table>
@@ -135,7 +139,7 @@ ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze --routes 1000
 </table>
 <!-- source: internal/perf/cli/cmd_run.go -- family and force-mp validation -->
 <h3 id="multi-iteration">Multi-Iteration</h3>
-<p>By default, <code>ze-perf run</code> executes 5 iterations with 1 warmup run. The warmup
+<p>By default, <code>le perf send</code> executes 5 iterations with 1 warmup run. The warmup
 run is discarded, and outliers beyond 2 standard deviations from the median
 convergence time are removed (minimum 3 iterations kept). Final results report
 median and standard deviation across the kept iterations.</p>
@@ -168,7 +172,7 @@ median and standard deviation across the kept iterations.</p>
 </table>
 <p>More iterations improve statistical confidence. For reliable results, use at
 least <code>--repeat 10</code>:</p>
-<pre><code class="language-bash">ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --repeat 10 --warmup-runs 2
+<pre><code class="language-bash">./le perf send --dut-addr 172.31.0.2 --dut-asn 65000 --repeat 10 --warmup-runs 2
 </code></pre>
 <h3 id="timing">Timing</h3>
 <table>
@@ -269,65 +273,68 @@ a pause. Longer delays give the DUT time to settle between measurements.</p>
 </table>
 <!-- source: internal/test/perfrunner/run.go -- native Docker benchmark runner -->
 <!-- source: test/interop/Dockerfile.rustbgpd -- rustbgpd Docker image -->
-<pre><code class="language-bash"># Build the benchmark binary.
-go build -tags ze_perf -o bin/ze-perf ./cmd/ze
-
-# Build all DUT images and run the native benchmark driver.
-go run ./cmd/ze-perf-run --build --test
-
-# Run selected DUTs or override the workload.
-go run ./cmd/ze-perf-run --build --test ze bird rustbgpd
-DUT_ROUTES=10000 DUT_REPEAT=5 go run ./cmd/ze-perf-run --test ze
-</code></pre>
-<!-- source: cmd/ze-perf-run/main.go -- main -->
-<!-- source: internal/test/perfrunner/run.go -- RunCLI -->
-<p>The native action runs the same chain, and it records the run so the perf nudge
-(<code>./le perf-bench suggestion-report</code>) stops asking for one:</p>
-<pre><code class="language-bash"># Build bin/ze-perf, measure every DUT, and record the run.
-./le perf-bench run
+<pre><code class="language-bash"># Build every DUT image, measure every DUT, and record the run.
+./le perf run
 
 # Measure one DUT, or several.
-./le perf-bench run dut ze
-./le perf-bench run dut "ze bird"
+./le perf run dut ze
+./le perf run dut "ze bird rustbgpd"
+
+# Run one step: build the images only, or measure with the images that exist.
+./le perf run step build
+DUT_ROUTES=10000 DUT_REPEAT=5 ./le perf run step test dut ze
 
 # Append the results of the last measurement to the committed NDJSON history.
-./le perf-bench history-record
+./le perf history-record
 
 # The release evidence gate: measure ze, append the result, fail on a regression.
-./le perf-bench evidence-record
+./le perf evidence-record
 </code></pre>
-<!-- source: internal/le/perfbench/bench.go -- Bench -->
+<!-- source: internal/le/perf/actions.go -- runParameters -->
+<!-- source: internal/le/perf/bench.go -- Bench -->
+<p>A run with no <code>step</code> keyword builds the images and measures. <code>step build</code>
+records nothing, because it measured nothing. Any other <code>step</code> value exits 2
+and names the value. A run that measured records the commit, so the perf nudge
+(<code>./le perf suggest</code>) stops asking for one.</p>
+<p>The runner builds no host benchmark program. It cross-builds <code>le</code> for linux
+with <code>CGO_ENABLED=0</code> into <code>tmp/perf-run/linux-&lt;arch&gt;/le</code>, and prints how long
+that build took. It mounts the file at <code>/usr/local/bin/le</code> in the sender
+container, which runs <code>le perf send</code>. The <code>le</code> that started the run renders
+the report as <code>le perf report</code>. The terminal-demo recorder container runs a
+linux <code>le</code> built by the same recipe (<code>docs/contributing/gh-pages.md</code>).</p>
+<!-- source: internal/test/perfrunner/run.go -- Execute -->
+<!-- source: internal/le/linuxle/linuxle.go -- Tags -->
 <p>Results are written to <code>test/perf/results/</code> as JSON files. An HTML comparison report is generated automatically.</p>
 <h3 id="manual-reports">Manual Reports</h3>
 <p>After running benchmarks, generate reports from the result files:</p>
 <pre><code class="language-bash"># Markdown report (default)
-ze-perf report result-ze.json result-gobgp.json result-rustbgpd.json
+./le perf report result-ze.json result-gobgp.json result-rustbgpd.json
 
 # HTML report
-ze-perf report --html result-ze.json result-gobgp.json &gt; comparison.html
+./le perf report --html result-ze.json result-gobgp.json &gt; comparison.html
 </code></pre>
 <!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
 <!-- source: internal/perf/report/markdown.go -- Markdown report generation -->
 <!-- source: internal/perf/report/html.go -- HTML report generation -->
-<p>For the full flag reference, see <a href="../command-reference/#ze-perf-report">ze-perf report</a>.</p>
+<p>For the full flag reference, see <a href="../command-reference/#le-perf-report">le perf report</a>.</p>
 <h2 id="tracking-performance-over-time">Tracking Performance Over Time</h2>
 <h3 id="ndjson-history">NDJSON History</h3>
-<p>Each <code>ze-perf run --json</code> invocation produces a single JSON object. Append
+<p>Each <code>le perf send --json</code> invocation produces a single JSON object. Append
 results to an NDJSON (newline-delimited JSON) file to build a history:</p>
-<pre><code class="language-bash">ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --json &gt;&gt; history.ndjson
+<pre><code class="language-bash">./le perf send --dut-addr 127.0.0.1 --dut-asn 65000 --json &gt;&gt; history.ndjson
 </code></pre>
 <!-- source: internal/perf/result.go -- ReadNDJSON and WriteNDJSON -->
 <h3 id="trend-reports">Trend Reports</h3>
 <p>Generate a trend report from a history file:</p>
-<pre><code class="language-bash">ze-perf track history.ndjson
-ze-perf track --html history.ndjson &gt; trend.html
+<pre><code class="language-bash">./le perf track history.ndjson
+./le perf track --html history.ndjson &gt; trend.html
 </code></pre>
 <!-- source: internal/perf/cli/cmd_track.go -- track subcommand -->
 <!-- source: internal/perf/report/trend.go -- trend report generation -->
 <h3 id="regression-detection">Regression Detection</h3>
 <p>Use <code>--check</code> in CI to detect performance regressions. The tool compares the
 most recent entry against the previous one using stddev-aware thresholds:</p>
-<pre><code class="language-bash">ze-perf track --check history.ndjson
+<pre><code class="language-bash">./le perf track --check history.ndjson
 </code></pre>
 <!-- source: internal/perf/regression.go -- CheckRegression and CheckHistory -->
 <p>Exit code 0 means no regression. Exit code 1 means a regression was detected.</p>
@@ -368,12 +375,12 @@ prevents false positives from noisy measurements.</p>
 </table>
 <!-- source: internal/perf/regression.go -- DefaultThresholds -->
 <p>Custom thresholds:</p>
-<pre><code class="language-bash">ze-perf track --check --threshold-convergence 15 --threshold-throughput 10 --threshold-p99 25 history.ndjson
+<pre><code class="language-bash">./le perf track --check --threshold-convergence 15 --threshold-throughput 10 --threshold-p99 25 history.ndjson
 </code></pre>
 <p>Limit the comparison window to the last N entries with <code>--last</code>:</p>
-<pre><code class="language-bash">ze-perf track --check --last 5 history.ndjson
+<pre><code class="language-bash">./le perf track --check --last 5 history.ndjson
 </code></pre>
-<p>For the full flag reference, see <a href="../command-reference/#ze-perf-track">ze-perf track</a>.</p>
+<p>For the full flag reference, see <a href="../command-reference/#le-perf-track">le perf track</a>.</p>
 <h2 id="understanding-results">Understanding Results</h2>
 <h3 id="json-output-fields">JSON Output Fields</h3>
 <p>The JSON result object contains these key fields:</p>
@@ -525,7 +532,7 @@ routes, which the regression checker always flags.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

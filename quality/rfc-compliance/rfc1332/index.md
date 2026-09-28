@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 42.9% | 3 of 7 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 71.4% | 5 of 7 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 7 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 7 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 6 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 40.0% | 4 of 10 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -33,7 +33,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 42.9% | 3 of 7 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 14.3% | 1 of 7 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -63,19 +63,19 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 7 |
 | Not applicable, so out of scope | 1 |
 | Declared gaps | 1 |
-| Gated with no test | 2 |
+| Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 6 |
-| Tagged units | 6 |
+| Test tags | 10 |
+| Tagged units | 10 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 4 |
 | Summary | `rfc/short/rfc1332.md` |
 | Requirement shard | `rfc/requirements/rfc1332.md` |
 | RFC text | `rfc/full/rfc1332.txt` |
 
 ## Enrolment
 
-Enrolled: PPP Internet Protocol Control Protocol (IPCP): seven MUST-level requirements after the 2026-09-21 extraction walk. Three are met with positive+negative tags in internal/component/l2tp/ppp: 2-1 (one IPCP packet per 0x8021 frame), 2.1-1 (IPCP reaches Opened before IP is programmed), 3-1 (options follow RFC 1661 TLV format). 2-2 (codes 8-11 on IPCP MUST be Code-Rejected) is {gap}: ze's shared codeToEvent (session_run.go:688-709) maps codes 8-11 to LCP echo/protocol-reject handling, so only codes >= 12 are Code-Rejected; disclosed in the docs/features/rfc-status.md RFC 1332 row. 4.1-1 (no Van Jacobson Type 2) is {not-applicable}: ze emits only IPCP options 3/129/131 and Configure-Rejects a peer Type-2 option. The walk added two MUST rows with no test: 2.1-3 (fragment an IP datagram larger than the maximum length of the PPP Information field) and 3.3-2 (an IP-Address value appended to a Configure-Nak must be acceptable as the remote address or request that the peer supply it). 3.1-1 left the MUST-level population in the same walk: §3.1 states the IP-Addresses rule as a SHOULD NOT, so the row is advisory now and its {not-applicable} note was removed with the gate it excused.
+Enrolled: PPP Internet Protocol Control Protocol under L2TP and PPPoE. Ze implements the IPCP option codec, address negotiation and interface programming. Tagged tests cover packet framing, negotiation ordering, address suggestions and the MTU passed to the backend. The checklist retains the unsupported IPCP-code gap and distinguishes Linux IP fragmentation from Ze's MTU setup.
 
 ## What the public ledger says
 
@@ -87,25 +87,23 @@ IPv4 address negotiation and pool integration, IPCP option codec (IP-Address typ
 
 **What the ledger says remains**
 
-One MUST gap gated in [`rfc/short/rfc1332.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc1332.md): codes 8-11 received on IPCP are not Code-Rejected (mapped to LCP echo/protocol-reject handling); codes 12 and above are Code-Rejected. Two MUST rows the 2026-09-21 extraction walk added carry no test: [`RFC1332-2.1-3`](#rfc1332-2.1-3) (fragment an oversized IP datagram, §2.1) and [`RFC1332-3.3-2`](#rfc1332-3.3-2) (the IP-Address value in a Configure-Nak, §3.3).
+One MUST row carries {gap}. Codes 8-11 received on IPCP are not Code-Rejected: the shared dispatcher maps them to LCP echo/protocol-reject handling. Codes 12 and above are Code-Rejected. [`RFC1332-2.1-3`](#rfc1332-2.1-3) is exercised at the backend MTU boundary: `afterLCPOpen` sets the IP MTU to the peer's negotiated Information-field MRU, without subtracting PPP framing; actual IP fragmentation belongs to the Linux IP stack and needs kernel-path verification. [`RFC1332-3.3-2`](#rfc1332-3.3-2) has tagged tests for the IP-Address value in a Configure-Nak.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 3 | one part of the gated population |
+| Positive and negative tests | 5 | one part of the gated population |
 | Annotated instead of tested | 2 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 2 | one part of the gated population |
+| No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **7** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (3):** [`RFC1332-2-1`](#rfc1332-2-1), [`RFC1332-2.1-1`](#rfc1332-2.1-1), [`RFC1332-3-1`](#rfc1332-3-1)
+**Positive and negative tests (5):** [`RFC1332-2-1`](#rfc1332-2-1), [`RFC1332-2.1-1`](#rfc1332-2.1-1), [`RFC1332-2.1-3`](#rfc1332-2.1-3), [`RFC1332-3-1`](#rfc1332-3-1), [`RFC1332-3.3-2`](#rfc1332-3.3-2)
 
 **Annotated instead of tested (2):** [`RFC1332-2-2`](#rfc1332-2-2), [`RFC1332-4.1-1`](#rfc1332-4.1-1)
-
-**No test and no annotation (2):** [`RFC1332-2.1-3`](#rfc1332-2.1-3), [`RFC1332-3.3-2`](#rfc1332-3.3-2)
 
 ## Requirements
 
@@ -114,14 +112,14 @@ One MUST gap gated in [`rfc/short/rfc1332.md`](https://github.com/ze-software/ze
 | `RFC1332-2-1` | Exactly one IPCP packet encapsulated per PPP frame with Protocol field 0x8021 (Section 2) | MUST | 2 | **positive:** `unit/verify` [`TestIPCPFrameCarriesExactlyOnePacket`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/frame_test.go#L145). **negative:** `unit/verify` [`TestIPCPFrameRejectsNonSinglePacket`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/frame_test.go#L188) |
 | `RFC1332-2-2` | Only Codes 1-7 accepted; other codes treated as unrecognized and result in Code-Reject (Section 2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's shared codeToEvent (internal/component/l2tp/ppp/session_run.go:688-709) maps PPP control codes 8-11 to LCP echo/protocol-reject events rather than RUC, so ze does not Code-Reject codes 8-11 received on IPCP; only codes 12 and above are Code-Rejected |
 | `RFC1332-2.1-1` | IPCP reach Opened state before any IP packets may be communicated (Section 2.1) | MUST | 2.1 | **positive:** `unit/verify` [`TestIPResponseConfiguresInterface`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L110). **negative:** `unit/verify` [`TestIPCPNoAddressBeforeOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L171) |
-| `RFC1332-2.1-3` | An IP datagram larger than the maximum length of the PPP Information field must be fragmented as necessary (Section 2.1) | MUST | 2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1332-2.1-3` | An IP datagram larger than the maximum length of the PPP Information field must be fragmented as necessary (Section 2.1) | MUST | 2.1 | **positive:** `unit/verify` [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/mtu_rfc1332_test.go#L18). **negative:** `unit/verify` [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/mtu_rfc1332_test.go#L19) |
 | `RFC1332-3-1` | Configuration options follow the format defined in RFC 1661 (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestIPCPParseOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ipcp_test.go#L14). **negative:** `unit/verify` [`TestIPCPParseRejects`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ipcp_test.go#L71) |
-| `RFC1332-3.3-2` | "The value of the IP-address given must be acceptable as the remote IP-address, or indicate a request that the peer provide the information" when the IP-Address option is appended to a Configure-Nak (Section 3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1332-3.3-2` | "The value of the IP-address given must be acceptable as the remote IP-address, or indicate a request that the peer provide the information" when the IP-Address option is appended to a Configure-Nak (Section 3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestIPCPNakCarriesTheAssignedRemoteAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L296). **negative:** `unit/verify` [`TestIPCPNakNeverCarriesAnUnacceptableAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L310) |
 | `RFC1332-3.1-1` | The IP-Addresses option SHOULD NOT be sent in a Configure-Request if a Configure-Request has been received which includes either an IP-Addresses or IP-Address option (Section 3.1) | SHOULD NOT | 3.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC1332-4.1-1` | Comp-Slot-Id=1 must not be enabled on links without link-level error-indication mechanism (Section 4.1) | MUST NOT | 4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze does not negotiate the IP-Compression-Protocol (Type 2) Van Jacobson option; isKnownIPCPOption (internal/component/l2tp/ppp/ipcp.go:53-55) recognizes only options 3/129/131 and Configure-Rejects a peer Type-2 option; Comp-Slot-Id is never set |
 | `RFC1332-2-3` | Be prepared to wait for Authentication and Link Quality Determination to finish before timing out waiting for Configure-Ack (Section 2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC1332-2.1-2` | IP datagrams should use mechanisms (TCP MSS, PMTUD) to avoid fragmentation (Section 2.1) | SHOULD | 2.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC1332-3.3-1` | If negotiation about remote IP-address is required and peer did not provide the option, append IP-Address option to Configure-Nak (Section 3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1332-3.3-1` | If negotiation about the remote IP-address is required, and the peer did not provide the option in its Configure-Request, the option SHOULD be appended to a Configure-Nak. (Section 3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC1332-3.1-2` | Send IP-Addresses option if previously received Configure-Reject for IP-Address or Configure-Nak with IP-Addresses (Section 3.1) | MAY | 3.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC1332-3.1-3` | Support for IP-Addresses option may be removed (Section 3.1) | MAY | 3.1 | **positive:** no positive test. **negative:** no negative test |
 
@@ -130,8 +128,6 @@ One MUST gap gated in [`rfc/short/rfc1332.md`](https://github.com/ze-software/ze
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC1332-2-2`](#rfc1332-2-2) Only Codes 1-7 accepted; other codes treated as unrecognized and result in Code-Reject (Section 2) | {gap}, no test | ze's shared codeToEvent (internal/component/l2tp/ppp/session_run.go:688-709) maps PPP control codes 8-11 to LCP echo/protocol-reject events rather than RUC, so ze does not Code-Reject codes 8-11 received on IPCP; only codes 12 and above are Code-Rejected |
-| [`RFC1332-2.1-3`](#rfc1332-2.1-3) An IP datagram larger than the maximum length of the PPP Information field must be fragmented as necessary (Section 2.1) | no test | no test carries this requirement id |
-| [`RFC1332-3.3-2`](#rfc1332-3.3-2) "The value of the IP-address given must be acceptable as the remote IP-address, or indicate a request that the peer provide the information" when the IP-Address option is appended to a Configure-Nak (Section 3.3) | no test | no test carries this requirement id |
 | [`RFC1332-4.1-1`](#rfc1332-4.1-1) Comp-Slot-Id=1 must not be enabled on links without link-level error-indication mechanism (Section 4.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze does not negotiate the IP-Compression-Protocol (Type 2) Van Jacobson option; isKnownIPCPOption (internal/component/l2tp/ppp/ipcp.go:53-55) recognizes only options 3/129/131 and Configure-Rejects a peer Type-2 option; Comp-Slot-Id is never set |
 
 ## Proof state
@@ -174,7 +170,10 @@ An IP datagram larger than the maximum length of the PPP Information field must 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC1332-2.1-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/mtu_rfc1332_test.go#L19) | unit/verify | revert, verified |
+| positive | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/mtu_rfc1332_test.go#L18) | unit/verify | revert, verified |
 
 ### [`RFC1332-3-1`](#rfc1332-3-1)
 
@@ -193,7 +192,10 @@ Audit verdict: not audited: no reader has judged these tests
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC1332-3.3-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestIPCPNakNeverCarriesAnUnacceptableAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L310) | unit/verify | revert, verified |
+| positive | [`TestIPCPNakCarriesTheAssignedRemoteAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L296) | unit/verify | revert, verified |
 
 ### [`RFC1332-4.1-1`](#rfc1332-4.1-1)
 

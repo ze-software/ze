@@ -306,7 +306,7 @@ Read-only TFTP server for PXE bootloader delivery.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze is the DATA sender and always frames output at the block size, ending on a short or zero block (handler.go:360, 373, 379), so no client input can make it emit a non-conforming block and there is no reject path for a negative</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-2-2">RFC1350-2-2</code></td><td colspan="3"><span class="rfc-subject">Each data packet must be acknowledged before the next packet can be sent (Section 2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-2-2">RFC1350-2-2</code></td><td colspan="3"><span class="rfc-subject">Each data packet contains one block of data, and must be acknowledged by an acknowledgment packet before the next packet can be sent. (Section 2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2 - Overview of the Protocol</td>
@@ -315,7 +315,7 @@ Read-only TFTP server for PXE bootloader delivery.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L726" title="internal/plugins/tftpserver/handler_test.go" target="_blank" rel="noopener"><code>TestTFTPConcurrentLimit</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-6-1">RFC1350-6-1</code></td><td colspan="3"><span class="rfc-subject">Host sending the last DATA must retransmit it until acknowledged or timed out (Section 6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-6-1">RFC1350-6-1</code></td><td colspan="3"><span class="rfc-subject">The host sending the last DATA must retransmit it until the packet is acknowledged or the sending host times out. (Section 6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6 - Normal Termination</td>
@@ -324,7 +324,7 @@ Read-only TFTP server for PXE bootloader delivery.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> retransmission fires only on ackTimeout expiry in sendAndWaitACK (handler.go:392-400). Its only counterpart, ceasing to resend once a valid ACK arrives, is the lockstep advance already pinned by RFC1350-2-2, so no distinct negative remains</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-5-1">RFC1350-5-1</code></td><td colspan="3"><span class="rfc-subject">Host receiving netascii mode data must translate the data to its own format (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-5-1">RFC1350-5-1</code></td><td colspan="3"><span class="rfc-subject">A host which receives netascii mode data must translate the data to its own format. (Section 5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - TFTP Packets</td>
@@ -333,7 +333,7 @@ Read-only TFTP server for PXE bootloader delivery.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is a read-only TFTP server that rejects WRQ (internal/plugins/tftpserver/handler.go:227) and accepts only octet mode (handler.go:248), so it never receives file data to translate between netascii and its local format</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-5-2">RFC1350-5-2</code></td><td colspan="3"><span class="rfc-subject">If a host receives an octet file and then returns it, the returned file must be identical to the original (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-5-2">RFC1350-5-2</code></td><td colspan="3"><span class="rfc-subject">If a host receives a octet file and then returns it, the returned file must be identical to the original. (Section 5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - TFTP Packets</td>
@@ -371,7 +371,7 @@ Read-only TFTP server for PXE bootloader delivery.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the server always allocates a fresh transfer socket via net.DialUDP per RRQ (handler.go:287), so no configuration or input reuses port 69 and there is no stale-TID negative case</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-7-1">RFC1350-7-1</code></td><td colspan="3"><span class="rfc-subject">Timeouts must be used to detect errors (Section 7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1350-7-1">RFC1350-7-1</code></td><td colspan="3"><span class="rfc-subject">Timeouts must also be used to detect errors. (Section 7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7 - Premature Termination</td>
@@ -444,7 +444,7 @@ Read-only TFTP server for PXE bootloader delivery.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc1350-5-1"><code>RFC1350-5-1</code></a> Host receiving netascii mode data must translate the data to its own format (Section 5)</td>
+<tr><td><a href="#rfc1350-5-1"><code>RFC1350-5-1</code></a> A host which receives netascii mode data must translate the data to its own format. (Section 5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is a read-only TFTP server that rejects WRQ (internal/plugins/tftpserver/handler.go:227) and accepts only octet mode (handler.go:248), so it never receives file data to translate between netascii and its local format</td>
 </tr>
@@ -483,7 +483,7 @@ Read-only TFTP server for PXE bootloader delivery.
 </table>
 </div>
 <h3><a href="#rfc1350-2-2"><code>RFC1350-2-2</code></a></h3>
-<p>Each data packet must be acknowledged before the next packet can be sent (Section 2)</p>
+<p>Each data packet contains one block of data, and must be acknowledged by an acknowledgment packet before the next packet can be sent. (Section 2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -503,7 +503,7 @@ Read-only TFTP server for PXE bootloader delivery.
 </table>
 </div>
 <h3><a href="#rfc1350-6-1"><code>RFC1350-6-1</code></a></h3>
-<p>Host sending the last DATA must retransmit it until acknowledged or timed out (Section 6)</p>
+<p>The host sending the last DATA must retransmit it until the packet is acknowledged or the sending host times out. (Section 6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -518,11 +518,11 @@ Read-only TFTP server for PXE bootloader delivery.
 </table>
 </div>
 <h3><a href="#rfc1350-5-1"><code>RFC1350-5-1</code></a></h3>
-<p>Host receiving netascii mode data must translate the data to its own format (Section 5)</p>
+<p>A host which receives netascii mode data must translate the data to its own format. (Section 5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC1350-5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc1350-5-2"><code>RFC1350-5-2</code></a></h3>
-<p>If a host receives an octet file and then returns it, the returned file must be identical to the original (Section 5)</p>
+<p>If a host receives a octet file and then returns it, the returned file must be identical to the original. (Section 5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -581,7 +581,7 @@ Read-only TFTP server for PXE bootloader delivery.
 </table>
 </div>
 <h3><a href="#rfc1350-7-1"><code>RFC1350-7-1</code></a></h3>
-<p>Timeouts must be used to detect errors (Section 7)</p>
+<p>Timeouts must also be used to detect errors. (Section 7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -786,7 +786,7 @@ Read-only TFTP server for PXE bootloader delivery.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

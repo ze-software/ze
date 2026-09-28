@@ -110,14 +110,14 @@ Read-only TFTP server for PXE bootloader delivery.
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC1350-2-1` | File is sent in fixed length blocks of 512 bytes (Section 2) | MUST | 2 - Overview of the Protocol | **positive:** `unit/verify` [`TestTFTPReadExact512`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L471). **positive:** `unit/verify` [`TestTFTPReadLargeFile`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L390). **negative:** no negative test. **{single-polarity}:** ze is the DATA sender and always frames output at the block size, ending on a short or zero block (handler.go:360, 373, 379), so no client input can make it emit a non-conforming block and there is no reject path for a negative |
-| `RFC1350-2-2` | Each data packet must be acknowledged before the next packet can be sent (Section 2) | MUST | 2 - Overview of the Protocol | **positive:** `unit/verify` [`TestTFTPReadLargeFile`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L393). **negative:** `unit/verify` [`TestTFTPConcurrentLimit`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L726) |
-| `RFC1350-6-1` | Host sending the last DATA must retransmit it until acknowledged or timed out (Section 6) | MUST | 6 - Normal Termination | **positive:** `unit/verify` [`TestTFTPRetransmitOnTimeout`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L757). **negative:** no negative test. **{single-polarity}:** retransmission fires only on ackTimeout expiry in sendAndWaitACK (handler.go:392-400). Its only counterpart, ceasing to resend once a valid ACK arrives, is the lockstep advance already pinned by RFC1350-2-2, so no distinct negative remains |
-| `RFC1350-5-1` | Host receiving netascii mode data must translate the data to its own format (Section 5) | MUST | 5 - TFTP Packets | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a read-only TFTP server that rejects WRQ (internal/plugins/tftpserver/handler.go:227) and accepts only octet mode (handler.go:248), so it never receives file data to translate between netascii and its local format |
-| `RFC1350-5-2` | If a host receives an octet file and then returns it, the returned file must be identical to the original (Section 5) | MUST | 5 - TFTP Packets | **positive:** `unit/verify` [`TestTFTPReadLargeFile`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L398). **positive:** `unit/verify` [`TestTFTPReadRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L335). **negative:** no negative test. **{single-polarity}:** octet is the only accepted mode (handler.go:248) and serveFile copies file bytes verbatim into DATA (handler.go:360, 373), so no octet code path transforms bytes and there is no altered-bytes negative to test |
+| `RFC1350-2-2` | Each data packet contains one block of data, and must be acknowledged by an acknowledgment packet before the next packet can be sent. (Section 2) | MUST | 2 - Overview of the Protocol | **positive:** `unit/verify` [`TestTFTPReadLargeFile`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L393). **negative:** `unit/verify` [`TestTFTPConcurrentLimit`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L726) |
+| `RFC1350-6-1` | The host sending the last DATA must retransmit it until the packet is acknowledged or the sending host times out. (Section 6) | MUST | 6 - Normal Termination | **positive:** `unit/verify` [`TestTFTPRetransmitOnTimeout`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L757). **negative:** no negative test. **{single-polarity}:** retransmission fires only on ackTimeout expiry in sendAndWaitACK (handler.go:392-400). Its only counterpart, ceasing to resend once a valid ACK arrives, is the lockstep advance already pinned by RFC1350-2-2, so no distinct negative remains |
+| `RFC1350-5-1` | A host which receives netascii mode data must translate the data to its own format. (Section 5) | MUST | 5 - TFTP Packets | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a read-only TFTP server that rejects WRQ (internal/plugins/tftpserver/handler.go:227) and accepts only octet mode (handler.go:248), so it never receives file data to translate between netascii and its local format |
+| `RFC1350-5-2` | If a host receives a octet file and then returns it, the returned file must be identical to the original. (Section 5) | MUST | 5 - TFTP Packets | **positive:** `unit/verify` [`TestTFTPReadLargeFile`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L398). **positive:** `unit/verify` [`TestTFTPReadRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L335). **negative:** no negative test. **{single-polarity}:** octet is the only accepted mode (handler.go:248) and serveFile copies file bytes verbatim into DATA (handler.go:360, 373), so no octet code path transforms bytes and there is no altered-bytes negative to test |
 | `RFC1350-4-1` | Block numbers are consecutive and begin with one (Section 4) | MUST | 4 - Initial Connection Protocol | **positive:** `unit/verify` [`TestTFTPReadLargeFile`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L396). **positive:** `unit/verify` [`TestTFTPReadRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L332). **negative:** no negative test. **{single-polarity}:** the server assigns block numbers itself, starting at 1 and incrementing (handler.go:362, 382), so no input can make it emit a non-1-based or non-consecutive number and there is no reject path for a negative |
 | `RFC1350-4-2` | Positive response to a write request is an ACK with block number zero (Section 4) | MUST | 4 - Initial Connection Protocol | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze serves reads only and rejects WRQ with an ERROR (internal/plugins/tftpserver/handler.go:227-230), so there is no WRQ-to-ACK-block-0 write-initiation path |
 | `RFC1350-4-3` | Each end of the connection chooses a TID for itself, used for the duration of that connection (Section 4) | MUST | 4 - Initial Connection Protocol | **positive:** `unit/verify` [`TestListenTFTPLoopbackRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/socket_integration_linux_test.go#L144). **negative:** no negative test. **{single-polarity}:** the server always allocates a fresh transfer socket via net.DialUDP per RRQ (handler.go:287), so no configuration or input reuses port 69 and there is no stale-TID negative case |
-| `RFC1350-7-1` | Timeouts must be used to detect errors (Section 7) | MUST | 7 - Premature Termination | **positive:** `unit/verify` [`TestTFTPRetransmitOnTimeout`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L760). **negative:** no negative test. **{single-polarity}:** the failure branch (abort after maxRetransmit ackTimeout expiries, handler.go:387 and 411, roughly 4x5s) needs about 20 seconds of real timeouts to reach, so a unit test exercises only the positive timeout-detection |
+| `RFC1350-7-1` | Timeouts must also be used to detect errors. (Section 7) | MUST | 7 - Premature Termination | **positive:** `unit/verify` [`TestTFTPRetransmitOnTimeout`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L760). **negative:** no negative test. **{single-polarity}:** the failure branch (abort after maxRetransmit ackTimeout expiries, handler.go:387 and 411, roughly 4x5s) needs about 20 seconds of real timeouts to reach, so a unit test exercises only the positive timeout-detection |
 | `RFC1350-2-3` | Duplicate ACKs must be silently ignored; must not resend next DATA block (Sorcerer's Apprentice fix, Section 2 / RFC 1123 Section 4.2) | MUST | 2 - Overview of the Protocol | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's sendAndWaitACK (internal/plugins/tftpserver/handler.go:386-413) retransmits the DATA block on any non-matching ACK (ackBlock != block, handler.go:407) rather than silently ignoring a duplicate or stale ACK, so the RFC 1350 Sorcerer's Apprentice Syndrome fix is not implemented |
 | `RFC1350-5-3` | When file size is exact multiple of 512, a final DATA packet with zero bytes of data must be sent (Section 5, Section 6) | MUST | 5 - TFTP Packets | **positive:** `unit/verify` [`TestTFTPReadEmptyFile`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L537). **positive:** `unit/verify` [`TestTFTPReadExact512`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L474). **negative:** no negative test. **{single-polarity}:** ze is the sender and always appends the zero-length terminator when the file length is an exact multiple of the block size (handler.go:364-383, 379), so no input can suppress or misplace it and there is no reject-path negative for this framing requirement |
 | `RFC1350-4-4` | If source TID does not match, packet should be discarded; an error packet should be sent to incorrect source while not disturbing the transfer (Section 4) | SHOULD | 4 - Initial Connection Protocol | **positive:** no positive test. **negative:** no negative test |
@@ -129,7 +129,7 @@ Read-only TFTP server for PXE bootloader delivery.
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC1350-5-1`](#rfc1350-5-1) Host receiving netascii mode data must translate the data to its own format (Section 5) | no test | no test carries this requirement id; annotated {not-applicable}: ze is a read-only TFTP server that rejects WRQ (internal/plugins/tftpserver/handler.go:227) and accepts only octet mode (handler.go:248), so it never receives file data to translate between netascii and its local format |
+| [`RFC1350-5-1`](#rfc1350-5-1) A host which receives netascii mode data must translate the data to its own format. (Section 5) | no test | no test carries this requirement id; annotated {not-applicable}: ze is a read-only TFTP server that rejects WRQ (internal/plugins/tftpserver/handler.go:227) and accepts only octet mode (handler.go:248), so it never receives file data to translate between netascii and its local format |
 | [`RFC1350-4-2`](#rfc1350-4-2) Positive response to a write request is an ACK with block number zero (Section 4) | no test | no test carries this requirement id; annotated {not-applicable}: ze serves reads only and rejects WRQ with an ERROR (internal/plugins/tftpserver/handler.go:227-230), so there is no WRQ-to-ACK-block-0 write-initiation path |
 | [`RFC1350-2-3`](#rfc1350-2-3) Duplicate ACKs must be silently ignored; must not resend next DATA block (Sorcerer's Apprentice fix, Section 2 / RFC 1123 Section 4.2) | {gap}, no test | ze's sendAndWaitACK (internal/plugins/tftpserver/handler.go:386-413) retransmits the DATA block on any non-matching ACK (ackBlock != block, handler.go:407) rather than silently ignoring a duplicate or stale ACK, so the RFC 1350 Sorcerer's Apprentice Syndrome fix is not implemented |
 
@@ -150,7 +150,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1350-2-2`](#rfc1350-2-2)
 
-Each data packet must be acknowledged before the next packet can be sent (Section 2)
+Each data packet contains one block of data, and must be acknowledged by an acknowledgment packet before the next packet can be sent. (Section 2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -161,7 +161,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1350-6-1`](#rfc1350-6-1)
 
-Host sending the last DATA must retransmit it until acknowledged or timed out (Section 6)
+The host sending the last DATA must retransmit it until the packet is acknowledged or the sending host times out. (Section 6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -171,7 +171,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1350-5-1`](#rfc1350-5-1)
 
-Host receiving netascii mode data must translate the data to its own format (Section 5)
+A host which receives netascii mode data must translate the data to its own format. (Section 5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -179,7 +179,7 @@ No test carries RFC1350-5-1, so no unit is bound to it.
 
 ### [`RFC1350-5-2`](#rfc1350-5-2)
 
-If a host receives an octet file and then returns it, the returned file must be identical to the original (Section 5)
+If a host receives a octet file and then returns it, the returned file must be identical to the original. (Section 5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -219,7 +219,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC1350-7-1`](#rfc1350-7-1)
 
-Timeouts must be used to detect errors (Section 7)
+Timeouts must also be used to detect errors. (Section 7)
 
 Audit verdict: not audited: no reader has judged these tests
 

@@ -287,7 +287,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-2.2-1">RFC2784-2.2-1</code></td><td colspan="3"><span class="rfc-subject">A compliant implementation MUST accept and process the Checksum field when present (C bit set) (§2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-2.2-1">RFC2784-2.2-1</code></td><td colspan="3"><span class="rfc-subject">Note that a compliant implementation MUST accept and process this field. (§2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.2</td>
@@ -332,7 +332,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this header-construction obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-2.6-1">RFC2784-2.6-1</code></td><td colspan="3"><span class="rfc-subject">Reserved1 field, if present, MUST be transmitted as zero (§2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-2.6-1">RFC2784-2.6-1</code></td><td colspan="3"><span class="rfc-subject">The Reserved1 field is reserved for future use, and if present, MUST be transmitted as zero. (§2.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.6</td>
@@ -377,7 +377,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this packet-forwarding/decapsulation obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-5.2-1">RFC2784-5.2-1</code></td><td colspan="3"><span class="rfc-subject">Packets from an RFC 1701 transmitter with non-zero bits in bits 1-5 MUST be discarded unless the receiver implements RFC 1701 (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2784-5.2-1">RFC2784-5.2-1</code></td><td colspan="3"><span class="rfc-subject">As stated in Section 5.3, a packet with non-zero bits in any of bits 1-5 MUST be discarded unless the receiver implements RFC 1701. (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2</td>
@@ -413,7 +413,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc2784-2.2-1"><code>RFC2784-2.2-1</code></a> A compliant implementation MUST accept and process the Checksum field when present (C bit set) (§2.2)</td>
+<tr><td><a href="#rfc2784-2.2-1"><code>RFC2784-2.2-1</code></a> Note that a compliant implementation MUST accept and process this field. (§2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this receive-side obligation has no ze code path</td>
 </tr>
@@ -433,7 +433,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this header-construction obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2784-2.6-1"><code>RFC2784-2.6-1</code></a> Reserved1 field, if present, MUST be transmitted as zero (§2.6)</td>
+<tr><td><a href="#rfc2784-2.6-1"><code>RFC2784-2.6-1</code></a> The Reserved1 field is reserved for future use, and if present, MUST be transmitted as zero. (§2.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this header-construction obligation has no ze code path</td>
 </tr>
@@ -453,7 +453,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this packet-forwarding/decapsulation obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2784-5.2-1"><code>RFC2784-5.2-1</code></a> Packets from an RFC 1701 transmitter with non-zero bits in bits 1-5 MUST be discarded unless the receiver implements RFC 1701 (§5.2)</td>
+<tr><td><a href="#rfc2784-5.2-1"><code>RFC2784-5.2-1</code></a> As stated in Section 5.3, a packet with non-zero bits in any of bits 1-5 MUST be discarded unless the receiver implements RFC 1701. (§5.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this receive-side obligation has no ze code path</td>
 </tr>
@@ -464,7 +464,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2784-2.2-1"><code>RFC2784-2.2-1</code></a></h3>
-<p>A compliant implementation MUST accept and process the Checksum field when present (C bit set) (§2.2)</p>
+<p>Note that a compliant implementation MUST accept and process this field. (§2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2784-2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2784-2.3-1"><code>RFC2784-2.3-1</code></a></h3>
@@ -484,7 +484,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2784-2.3.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2784-2.6-1"><code>RFC2784-2.6-1</code></a></h3>
-<p>Reserved1 field, if present, MUST be transmitted as zero (§2.6)</p>
+<p>The Reserved1 field is reserved for future use, and if present, MUST be transmitted as zero. (§2.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2784-2.6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2784-3-1"><code>RFC2784-3-1</code></a></h3>
@@ -504,7 +504,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2784-3.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc2784-5.2-1"><code>RFC2784-5.2-1</code></a></h3>
-<p>Packets from an RFC 1701 transmitter with non-zero bits in bits 1-5 MUST be discarded unless the receiver implements RFC 1701 (§5.2)</p>
+<p>As stated in Section 5.3, a packet with non-zero bits in any of bits 1-5 MUST be discarded unless the receiver implements RFC 1701. (§5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2784-5.2-1, so no unit is bound to it.</p>
 </section>
@@ -755,7 +755,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

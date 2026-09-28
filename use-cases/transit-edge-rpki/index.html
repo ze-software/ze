@@ -71,13 +71,15 @@
 <h2 id="complete-edge-configuration">Complete edge configuration</h2>
 <p>Save this two-transit example as <code>transit-edge.conf</code>. Transit A receives local
 preference 200 and Transit B receives 100, so Transit A wins when both paths are
-otherwise eligible. RPKI Invalid routes are rejected before they reach the RIB.</p>
+otherwise eligible. RPKI Invalid routes remain in Adj-RIB-In but cannot be selected
+or exported.</p>
 <pre><code class="language-text">plugin {
     internal rib { use bgp-rib; }
     internal adj-rib-in { use bgp-adj-rib-in; }
     internal rpki { use bgp-rpki; }
     internal role { use bgp-role; }
     internal modify { use bgp-filter-modify; }
+    internal transit-filter { use bgp-filter-path-asn; }
 }
 
 bgp {
@@ -85,11 +87,12 @@ bgp {
     session { asn { local 64500; } }
 
     rpki {
-        cache-server 203.0.113.53 { port 323; }
+        cache-server 203.0.113.53 { port 323; trusted-network true; }
         action { invalid reject; not-found accept; }
     }
 
     policy {
+        reject-asn NO-TRANSIT { indirect [ 174 701 3356 ]; }
         modify TRANSIT-A-PREF {
             set { local-preference 200; }
         }
@@ -105,8 +108,15 @@ bgp {
             }
         }
         role { import customer; strict false; }
-        process rpki { receive [ update ]; }
-        process adj-rib-in { receive [ update state ]; }
+        attach process rpki { receive [ update-received state ]; }
+        filter { export [ NO-TRANSIT ]; }
+        attach process adj-rib-in {
+            receive [ update-received state ];
+            send [ update ];
+        }
+        attach process rib {
+            receive [ update state refresh ];
+        }
 
         peer transit-a {
             connection {
@@ -128,9 +138,10 @@ bgp {
     }
 }
 </code></pre>
-<p>Replace the documentation addresses, RTR cache, ASNs, and limits. Keep
-<code>strict false</code> until both providers advertise a compatible BGP Role, then test
-and enable strict enforcement deliberately.</p>
+<p>Replace the documentation addresses, RTR cache, ASNs, limits, and transit-AS list.
+The example permits plaintext RTR on a trusted network; use TLS for a cache
+outside that boundary. Keep <code>strict false</code> until both providers advertise a
+compatible BGP Role, then test and enable strict enforcement deliberately.</p>
 <pre><code class="language-console">ze config validate transit-edge.conf
 ze start transit-edge.conf
 </code></pre>
@@ -158,7 +169,11 @@ as a capacity claim.</p>
 </ul>
 <p>Use <a href="../../guides/bgp-policy/">BGP policy</a> to keep these filters ordered and independently testable.</p>
 <h2 id="failure-behaviour">Failure behaviour</h2>
-<p>Decide cache failure behaviour before deployment. A cache timeout can fail open, fail closed, or retain a previously validated state depending on the configured component and policy. Record that decision and test it with the cache unavailable.</p>
+<p>After a cache disconnects, Ze retains its last complete payload set until the
+original RTR expiration deadline. Expiry removes that set and revalidates retained
+routes against the remaining cache data. Pending validations have a separate
+fail-open timeout. Test both transitions with the deployment's Invalid and NotFound
+actions; a disconnected cache alone does not make its unexpired VRPs disappear.</p>
 <p>A transit failure and an RPKI cache failure are different events. Monitor them separately so a routing incident does not hide a validation outage.</p>
 <h2 id="verification">Verification</h2>
 <pre><code class="language-console">ze cli -c "show bgp"
@@ -176,7 +191,10 @@ ze cli -c "show warnings"
 <li>A NotFound route with the deployment's chosen action.</li>
 <li>The same valid prefix from both transits, proving the expected best path and failover.</li>
 </ol>
-<p>Then disconnect the preferred transit. Confirm the alternate path becomes active and is installed in the FIB. Restore the session and verify the intended preference returns without stale paths.</p>
+<p>Then disconnect the preferred transit. Confirm the alternate path becomes selected
+in the RIB. If the deployment also configures a forwarding backend, check its FIB
+and packet delivery separately. Restore the session and verify the intended
+preference returns without stale paths.</p>
 <h2 id="what-to-watch">What to watch</h2>
 <ul>
 <li>RTR session state and serial updates</li>
@@ -222,7 +240,7 @@ ze cli -c "show warnings"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9728 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9728: OAuth 2.0 Protected Resource Metadata. 26 gated MUST-level requirements, 0 declared gaps, 24 with no test." />
+        <meta name="description" content="RFC 9728: OAuth 2.0 Protected Resource Metadata. 27 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 9728 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9728: OAuth 2.0 Protected Resource Metadata. 26 gated MUST-level requirements, 0 declared gaps, 24 with no test." />
+        <meta property="og:description" content="RFC 9728: OAuth 2.0 Protected Resource Metadata. 27 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9728 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9728: OAuth 2.0 Protected Resource Metadata. 26 gated MUST-level requirements, 0 declared gaps, 24 with no test." />
+        <meta name="twitter:description" content="RFC 9728: OAuth 2.0 Protected Resource Metadata. 27 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,26 +116,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3.8%</strong><b>1 of 26 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 6 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>48.1%</strong><b>13 of 27 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3.7%</strong><b>1 of 27 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 27 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 27 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>56.2%</strong><b>18 of 32 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>26</strong><b>of 32 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 26 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>3.8%</strong><b>1 of 26 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>27</strong><b>of 33 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>13</strong><b>of 27 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>25.9%</strong><b>7 of 27 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 27 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>22.2%</strong><b>6 of 27 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>92.3%</strong><b>24 of 26 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-</div>
-<p>The 7 shares marked as a part above are the whole of the 26 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 27 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -163,7 +159,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -203,34 +199,34 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>32</td>
+<td>33</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>26</td>
+<td>27</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>1</td>
+<td>7</td>
 </tr>
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>24</td>
+<td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>6</td>
+<td>32</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>6</td>
+<td>32</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>18</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9728.md</code></td>
@@ -246,7 +242,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: OAuth 2.0 Protected Resource Metadata (ze publishes the protected-resource metadata as an OAuth resource server). The checklist was walked against the RFC&#39;s own text on 2026-09-21 and rewritten: it now carries 24 MUST-level rows, of which 2-1 (the metadata contains `resource`) is {single-polarity: positive} and 3.2-5 (unknown parameters are ignored, the row RFC9728-2-3 carried until its section citation was corrected to §3.2) is {not-applicable}. The other 22 were added from sentences the checklist had not carried and none of them has a test: §2 JWK Set and signing-algorithm rules, §2.1 language tags, §2.2 signed metadata, §3 and §3.1 document location and request, §3.2 response shape, §3.3 validation, §6 string comparison, §7.1 TLS and §7.3 certificate checking. Three rows were deleted because no sentence in RFC 9728 states them at any level: 3.1-1 (the metadata endpoint is reachable without authentication), 5.1-2 (the resource_metadata URL is absolute) and 3-1 (metadata TLS matches the resource, plaintext only on loopback). internal/component/mcp/oauth_e2e_test.go and oauth_test.go still carry `RFC requirement:` tags naming 3.1-1 and 5.1-2.</p>
+<p>Enrolled: Ze publishes protected-resource metadata for its MCP resource server. Thomas selected &#34;Keep present OAuth roles&#34; on 2026-09-21: MCP resource server and external-AS metadata consumer, with no authorization server, protected-resource discovery client, response signing or signed metadata.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p>No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 9728.</p>
@@ -257,11 +253,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>0</strong></td>
+<td><strong>13</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>2</strong></td>
+<td><strong>14</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -269,7 +265,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>24</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -280,12 +276,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>26</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>27</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Annotated instead of tested (2):</strong> <a href="#rfc9728-2-1"><code>RFC9728-2-1</code></a>, <a href="#rfc9728-3.2-5"><code>RFC9728-3.2-5</code></a></p>
-<p class="rfc-id-list"><strong>No test and no annotation (24):</strong> <a href="#rfc9728-2-6"><code>RFC9728-2-6</code></a>, <a href="#rfc9728-2-7"><code>RFC9728-2-7</code></a>, <a href="#rfc9728-2-8"><code>RFC9728-2-8</code></a>, <a href="#rfc9728-2.1-1"><code>RFC9728-2.1-1</code></a>, <a href="#rfc9728-2.1-2"><code>RFC9728-2.1-2</code></a>, <a href="#rfc9728-2.2-1"><code>RFC9728-2.2-1</code></a>, <a href="#rfc9728-2.2-2"><code>RFC9728-2.2-2</code></a>, <a href="#rfc9728-3-2"><code>RFC9728-3-2</code></a>, <a href="#rfc9728-3-3"><code>RFC9728-3-3</code></a>, <a href="#rfc9728-3-4"><code>RFC9728-3-4</code></a>, <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code></a>, <a href="#rfc9728-3.1-3"><code>RFC9728-3.1-3</code></a>, <a href="#rfc9728-3.2-3"><code>RFC9728-3.2-3</code></a>, <a href="#rfc9728-3.2-4"><code>RFC9728-3.2-4</code></a>, <a href="#rfc9728-3.3-1"><code>RFC9728-3.3-1</code></a>, <a href="#rfc9728-3.3-2"><code>RFC9728-3.3-2</code></a>, <a href="#rfc9728-3.3-3"><code>RFC9728-3.3-3</code></a>, <a href="#rfc9728-3.3-4"><code>RFC9728-3.3-4</code></a>, <a href="#rfc9728-6-1"><code>RFC9728-6-1</code></a>, <a href="#rfc9728-6-2"><code>RFC9728-6-2</code></a>, <a href="#rfc9728-7.1-1"><code>RFC9728-7.1-1</code></a>, <a href="#rfc9728-7.1-2"><code>RFC9728-7.1-2</code></a>, <a href="#rfc9728-7.3-1"><code>RFC9728-7.3-1</code></a>, <a href="#rfc9728-7.3-2"><code>RFC9728-7.3-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (13):</strong> <a href="#rfc9728-3-2"><code>RFC9728-3-2</code></a>, <a href="#rfc9728-3-3"><code>RFC9728-3-3</code></a>, <a href="#rfc9728-3-4"><code>RFC9728-3-4</code></a>, <a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code></a>, <a href="#rfc9728-3.1-3"><code>RFC9728-3.1-3</code></a>, <a href="#rfc9728-3.2-3"><code>RFC9728-3.2-3</code></a>, <a href="#rfc9728-3.2-4"><code>RFC9728-3.2-4</code></a>, <a href="#rfc9728-3.3-1"><code>RFC9728-3.3-1</code></a>, <a href="#rfc9728-6-1"><code>RFC9728-6-1</code></a>, <a href="#rfc9728-6-2"><code>RFC9728-6-2</code></a>, <a href="#rfc9728-6-3"><code>RFC9728-6-3</code></a>, <a href="#rfc9728-7.1-1"><code>RFC9728-7.1-1</code></a>, <a href="#rfc9728-7.1-2"><code>RFC9728-7.1-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (14):</strong> <a href="#rfc9728-2-1"><code>RFC9728-2-1</code></a>, <a href="#rfc9728-2-6"><code>RFC9728-2-6</code></a>, <a href="#rfc9728-2-7"><code>RFC9728-2-7</code></a>, <a href="#rfc9728-2-8"><code>RFC9728-2-8</code></a>, <a href="#rfc9728-2.1-1"><code>RFC9728-2.1-1</code></a>, <a href="#rfc9728-2.1-2"><code>RFC9728-2.1-2</code></a>, <a href="#rfc9728-2.2-1"><code>RFC9728-2.2-1</code></a>, <a href="#rfc9728-2.2-2"><code>RFC9728-2.2-2</code></a>, <a href="#rfc9728-3.3-2"><code>RFC9728-3.3-2</code></a>, <a href="#rfc9728-3.3-3"><code>RFC9728-3.3-3</code></a>, <a href="#rfc9728-3.3-4"><code>RFC9728-3.3-4</code></a>, <a href="#rfc9728-7.3-1"><code>RFC9728-7.3-1</code></a>, <a href="#rfc9728-7.3-2"><code>RFC9728-7.3-2</code></a>, <a href="#rfc9728-3.2-5"><code>RFC9728-3.2-5</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -297,28 +293,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L290" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_MetadataEndpoint</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L321" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_MetadataEndpoint</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_test.go#L212" title="internal/component/mcp/oauth_test.go" target="_blank" rel="noopener"><code>TestResourceMetadata_Document</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the resource field is emitted unconditionally by writeResourceMetadata (internal/component/mcp/oauth.go:170-171,184-192), so no input can make it absent and there is no negative to assert</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-2-6">RFC9728-2-6</code></td><td colspan="3"><span class="rfc-subject">The `jwks_uri` URL MUST use the https scheme (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-2-6">RFC9728-2-6</code></td><td colspan="3"><span class="rfc-subject">This URL MUST use the https scheme. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-2-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;OPTIONAL. URL of the protected resource&#39;s JSON Web Key (JWK) Set [JWK] document.&#34;; §2 describes the resource&#39;s own keys, not its external AS&#39;s verification keys. Thomas excluded response signing on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata publishes no jwks_uri; internal/component/mcp/streamable.go::ServeHTTP exposes no resource signing-key endpoint</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-2-7">RFC9728-2-7</code></td><td colspan="3"><span class="rfc-subject">When both signing and encryption keys are made available in the referenced JWK Set, a `use` (public key use) parameter value is REQUIRED for all keys to indicate each key&#39;s intended usage (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-2-7">RFC9728-2-7</code></td><td colspan="3"><span class="rfc-subject">When both signing and encryption keys are made available, a use (public key use) parameter value is REQUIRED for all keys in the referenced JWK Set to indicate each key&#39;s intended usage. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-2-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;OPTIONAL. URL of the protected resource&#39;s JSON Web Key (JWK) Set [JWK] document.&#34;; Thomas excluded response signing on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata publishes no resource jwks_uri and internal/component/mcp/streamable.go::ServeHTTP has no resource-key response producer. The AS verification-key cache is a different key set governed by RFC8414-2-8</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-2-8">RFC9728-2-8</code></td><td colspan="3"><span class="rfc-subject">The value `none` MUST NOT be used in `resource_signing_alg_values_supported` (§2)</span></td></tr>
 <tr><td></td>
@@ -327,7 +323,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-2-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;OPTIONAL. JSON array containing a list of the JWS [JWS] signing algorithms (alg values) [JWA] supported by the protected resource for signing resource responses, for instance, as described in [FAPI.MessageSigning].&#34;; Thomas excluded response signing on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata emits no resource_signing_alg_values_supported; token-verification algorithms are not resource-response signing capabilities</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-2.1-1">RFC9728-2.1-1</code></td><td colspan="3"><span class="rfc-subject">If any human-readable field is sent without a language tag, parties using it MUST NOT make any assumptions about the language, character set, or script of the string value (§2.1)</span></td></tr>
 <tr><td></td>
@@ -336,7 +332,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-2.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> §2.1 addresses &#34;parties using it&#34; when a human-readable field is received. Thomas excluded the protected-resource discovery-client role on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata emits resource/authorization_servers/scopes_supported/bearer_methods_supported only; internal/component/mcp/as_metadata.go::fetchASMetadata consumes AS issuer and jwks_uri, not human-readable resource metadata or a metadata user interface</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-2.1-2">RFC9728-2.1-2</code></td><td colspan="3"><span class="rfc-subject">A human-readable string value sent without a language tag MUST be used as is wherever it is presented in a user interface (§2.1)</span></td></tr>
 <tr><td></td>
@@ -345,16 +341,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-2.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> §2.1 conditions this on &#34;wherever it is presented in a user interface.&#34; Thomas excluded the protected-resource discovery-client role on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata is a JSON publisher, not a metadata-consuming UI; internal/component/mcp/as_metadata.go::fetchASMetadata reads AS issuer and jwks_uri without displaying resource names or documentation</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-2.2-1">RFC9728-2.2-1</code></td><td colspan="3"><span class="rfc-subject">Signed metadata MUST be digitally signed or MACed using a JWS and MUST contain an `iss` (issuer) claim denoting the party attesting to the claims in the signed metadata (§2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-2.2-1">RFC9728-2.2-1</code></td><td colspan="3"><span class="rfc-subject">The signed metadata MUST be digitally signed or MACed (protected with a Message Authentication Code) using a JSON Web Signature (JWS) [JWS] and MUST contain an iss (issuer) claim denoting the party attesting to the claims in the signed metadata. (§2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-2.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;In addition to JSON elements, metadata values MAY also be provided as a signed_metadata value, which is a JSON Web Token (JWT) [JWT] that asserts metadata values about the protected resource as a bundle.&#34;; Thomas excluded signed metadata on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata emits plain JSON and no signed_metadata parameter</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-2.2-2">RFC9728-2.2-2</code></td><td colspan="3"><span class="rfc-subject">If the consumer of the metadata supports signed metadata, metadata values conveyed in the signed metadata MUST take precedence over the corresponding values conveyed using plain JSON elements (§2.2)</span></td></tr>
 <tr><td></td>
@@ -363,15 +359,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-2.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;Consumers of the metadata MAY ignore the signed metadata if they do not support this feature.&#34;; Thomas excluded signed metadata and resource-discovery clients on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata publishes plain JSON; internal/component/mcp/streamable_auth.go::buildAuthForMode consumes AS issuer/keys, not protected-resource signed metadata</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3-2">RFC9728-3-2</code></td><td colspan="3"><span class="rfc-subject">Protected resources supporting metadata MUST make a JSON document containing the Section 2 metadata available at a URL formed by inserting a well-known URI string into the resource identifier between the host component and the path and/or query components (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3-2">RFC9728-3-2</code></td><td colspan="3"><span class="rfc-subject">Protected resources supporting metadata MUST make a JSON document containing metadata as specified in Section 2 available at a URL formed by inserting a well-known URI string into the protected resource&#39;s resource identifier between the host component and the path and/or query components, if any. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L87" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728WellKnownInsertedBetweenHostAndPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L88" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728WellKnownInsertedBetweenHostAndPath</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3-3">RFC9728-3-3</code></td><td colspan="3"><span class="rfc-subject">The well-known URI path suffix used MUST be registered in the &#34;Well-Known URIs&#34; registry (§3)</span></td></tr>
@@ -379,8 +375,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L135" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L136" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3-4">RFC9728-3-4</code></td><td colspan="3"><span class="rfc-subject">An OAuth 2.0 application using this specification MUST specify what well-known URI suffix it will use for this purpose (§3)</span></td></tr>
@@ -388,35 +384,35 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L137" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L138" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.1-2">RFC9728-3.1-2</code></td><td colspan="3"><span class="rfc-subject">A protected resource metadata document MUST be queried using an HTTP GET request at the specified URL (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.1-2">RFC9728-3.1-2</code></td><td colspan="3"><span class="rfc-subject">A protected resource metadata document MUST be queried using an HTTP GET request at the previously specified URL. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L150" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MetadataQueriedWithGET</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L151" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MetadataQueriedWithGET</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.1-3">RFC9728-3.1-3</code></td><td colspan="3"><span class="rfc-subject">If the resource identifier value contains a path or query component, any terminating slash following the host component MUST be removed before inserting /.well-known/ and the well-known URI path suffix (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.1-3">RFC9728-3.1-3</code></td><td colspan="3"><span class="rfc-subject">If the resource identifier value contains a path or query component, any terminating slash (/) following the host component MUST be removed before inserting /.well-known/ and the well-known URI path suffix between the host component and the path and/or query components. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L111" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728TerminatingSlashRemovedBeforeInsertion</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L112" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728TerminatingSlashRemovedBeforeInsertion</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.2-3">RFC9728-3.2-3</code></td><td colspan="3"><span class="rfc-subject">A successful response MUST use the 200 OK HTTP status code and return a JSON object using the application/json content type whose members are a subset of the metadata parameters defined in Section 2 (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.2-3">RFC9728-3.2-3</code></td><td colspan="3"><span class="rfc-subject">A successful response MUST use the 200 OK HTTP status code and return a JSON object using the application/json content type that contains a set of metadata parameters as its members that are a subset of the metadata parameters defined in Section 2. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L166" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResponseShape</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L167" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResponseShape</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.2-4">RFC9728-3.2-4</code></td><td colspan="3"><span class="rfc-subject">Parameters with zero values MUST be omitted from the response (§3.2)</span></td></tr>
@@ -424,36 +420,36 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L188" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ZeroValuedParametersOmitted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L189" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ZeroValuedParametersOmitted</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.3-1">RFC9728-3.3-1</code></td><td colspan="3"><span class="rfc-subject">The `resource` value returned MUST be identical to the protected resource&#39;s resource identifier value into which the well-known URI path suffix was inserted to create the URL used to retrieve the metadata (§3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.3-1">RFC9728-3.3-1</code></td><td colspan="3"><span class="rfc-subject">The resource value returned MUST be identical to the protected resource&#39;s resource identifier value into which the well-known URI path suffix was inserted to create the URL used to retrieve the metadata. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L204" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceMatchesInsertedIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L205" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceMatchesInsertedIdentifier</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.3-2">RFC9728-3.3-2</code></td><td colspan="3"><span class="rfc-subject">If the `resource` value and the resource identifier are not identical, the data contained in the response MUST NOT be used (§3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.3-2">RFC9728-3.3-2</code></td><td colspan="3"><span class="rfc-subject">If the returned `resource` value differs from the identifier used to construct the metadata URL, or from the resource request URL when discovery used a WWW-Authenticate `resource_metadata` parameter, the data contained in the response MUST NOT be used (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> §3.3 forbids using a mismatched metadata response, a consumer operation; §7.3 makes the subject explicit: &#34;the client MUST ensure&#34; the resource identifiers match. Thomas excluded protected-resource discovery clients on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata publishes the configured identity; internal/component/mcp/streamable_auth.go::buildAuthForMode fetches AS metadata only and consumes no resource metadata response</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.3-3">RFC9728-3.3-3</code></td><td colspan="3"><span class="rfc-subject">If the metadata was retrieved from a URL returned by the protected resource via the WWW-Authenticate `resource_metadata` parameter, the `resource` value returned MUST be identical to the URL that the client used to make the request to the resource server (§3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.3-3">RFC9728-3.3-3</code></td><td colspan="3"><span class="rfc-subject">If the protected resource metadata was retrieved from a URL returned by the protected resource via the WWW-Authenticate resource_metadata parameter, then the resource value returned MUST be identical to the URL that the client used to make the request to the resource server. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3.3-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> §3.3 conditions this consumer check on metadata &#34;retrieved from a URL returned by the protected resource via the WWW-Authenticate resource_metadata parameter&#34;. Thomas excluded protected-resource discovery clients on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata and internal/component/mcp/streamable.go::ServeHTTP produce the document/challenge, but never follow another resource&#39;s challenge or consume its metadata</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-3.3-4">RFC9728-3.3-4</code></td><td colspan="3"><span class="rfc-subject">The recipient MUST validate that any signed metadata was signed by a key belonging to the issuer and that the signature is valid (§3.3)</span></td></tr>
 <tr><td></td>
@@ -462,24 +458,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3.3-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;Consumers of the metadata MAY ignore the signed metadata if they do not support this feature.&#34;; Thomas excluded signed metadata and resource-discovery clients on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata emits only plain JSON; internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a local access-token verifier, not a protected-resource signed-metadata recipient</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-6-1">RFC9728-6-1</code></td><td colspan="3"><span class="rfc-subject">Unicode Normalization MUST NOT be applied at any point to either the JSON string or the string it is to be compared against (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-6-1">RFC9728-6-1</code></td><td colspan="3"><span class="rfc-subject">Unicode Normalization [USA15] MUST NOT be applied at any point to either the JSON string or the string it is to be compared against. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L227" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L228" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-6-2">RFC9728-6-2</code></td><td colspan="3"><span class="rfc-subject">Comparisons between two strings MUST be performed as a Unicode code-point-to-code-point equality comparison (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-6-2">RFC9728-6-2</code></td><td colspan="3"><span class="rfc-subject">Comparisons between the two strings MUST be performed as a Unicode code-point-to-code-point equality comparison. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-6-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L229" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L230" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-6-3">RFC9728-6-3</code></td><td colspan="3"><span class="rfc-subject">Comparisons between JSON strings and other Unicode strings MUST follow the Section 6 procedure, including removal of any JSON-applied escaping to produce an array of Unicode code points before comparison (§6, step 1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-6-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_rfc9728_test.go#L48" title="internal/component/mcp/jwt_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728EscapedAudienceMatchesResource</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_rfc9728_test.go#L69" title="internal/component/mcp/jwt_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728EscapeTextIsNotUnescapedTwice</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-7.1-1">RFC9728-7.1-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST support TLS (§7.1)</span></td></tr>
@@ -487,43 +492,43 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-7.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/service_mcp_rfc9728_test.go#L124" title="cmd/ze/hub/service_mcp_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/service_mcp_rfc9728_test.go#L74" title="cmd/ze/hub/service_mcp_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPListenerSupportsTLS</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-7.1-2">RFC9728-7.1-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST follow the guidance in BCP 195 (§7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-7.1-2">RFC9728-7.1-2</code></td><td colspan="3"><span class="rfc-subject">They MUST follow the guidance in [BCP195], which provides recommendations and requirements for improving the security of deployed services that use TLS. (§7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-7.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/service_mcp_rfc9728_test.go#L125" title="cmd/ze/hub/service_mcp_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/service_mcp_rfc9728_test.go#L126" title="cmd/ze/hub/service_mcp_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-7.3-1">RFC9728-7.3-1</code></td><td colspan="3"><span class="rfc-subject">TLS certificate checking MUST be performed by the client as described in RFC 9525 when making a protected resource metadata request (§7.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-7.3-1">RFC9728-7.3-1</code></td><td colspan="3"><span class="rfc-subject">TLS certificate checking MUST be performed by the client as described in [RFC9525] when making a protected resource metadata request. (§7.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-7.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> §7.3 specifies &#34;by the client&#34; and &#34;when making a protected resource metadata request.&#34; Thomas excluded that client role on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata is the publisher; internal/component/mcp/as_metadata.go::fetchASMetadata requests AS metadata only, whose certificate checks remain required by RFC8414-6.1-3</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-7.3-2">RFC9728-7.3-2</code></td><td colspan="3"><span class="rfc-subject">The client MUST ensure that the resource identifier URL it is using as the prefix for the metadata request exactly matches the value of the `resource` metadata parameter in the protected resource metadata document received (§7.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-7.3-2">RFC9728-7.3-2</code></td><td colspan="3"><span class="rfc-subject">To prevent this, the client MUST ensure that the resource identifier URL it is using as the prefix for the metadata request exactly matches the value of the resource metadata parameter in the protected resource metadata document received by the client, as described in Section 3.3. (§7.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-7.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> §7.3 explicitly addresses &#34;the client&#34; and its protected-resource &#34;metadata document received&#34;. Thomas excluded that client role on 2026-09-21. internal/component/mcp/streamable_auth.go::buildAuthForMode requests AS metadata only; internal/component/mcp/oauth.go::writeResourceMetadata publishes the local resource identity rather than accepting a remote resource identity</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-2-2">RFC9728-2-2</code></td><td colspan="3"><span class="rfc-subject">The `authorization_servers` field MAY be included as a JSON array of AS issuer URLs (§2; the RFC marks the parameter OPTIONAL: &#34;authorization_servers OPTIONAL. JSON array containing a list of OAuth authorization server issuer identifiers&#34;)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L294" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_MetadataEndpoint</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L325" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_MetadataEndpoint</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_test.go#L216" title="internal/component/mcp/oauth_test.go" target="_blank" rel="noopener"><code>TestResourceMetadata_Document</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
@@ -535,14 +540,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-3.2-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> this obligation binds an OAuth client consuming the metadata to ignore unrecognized members; ze is the protected-resource-metadata publisher (internal/component/mcp/oauth.go:169-179 emits only defined fields) and does not consume the document</p></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> §3.2 says &#34;any metadata parameters that are not understood MUST be ignored&#34;, an operation on the received response. Thomas excluded protected-resource discovery clients on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata publishes defined fields; internal/component/mcp/as_metadata.go::fetchASMetadata consumes a different document, AS metadata, and no producer decodes a protected-resource metadata response</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-5.1-1">RFC9728-5.1-1</code></td><td colspan="3"><span class="rfc-subject">The `resource_metadata` parameter of the WWW-Authenticate response header field carries the URL of the protected resource metadata, and MAY also be used in WWW-Authenticate responses using authorization schemes other than &#34;Bearer&#34; (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-5.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L216" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_RejectsMissingBearer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L247" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_RejectsMissingBearer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_test.go#L48" title="internal/component/mcp/oauth_test.go" target="_blank" rel="noopener"><code>TestOAuth_Authenticate_MissingHeader</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
@@ -556,9 +561,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-2-4">RFC9728-2-4</code></td><td colspan="3"><span class="rfc-subject">The `scopes_supported` field MAY be included as a JSON array of scope names (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9728-2-4">RFC9728-2-4</code></td><td colspan="3"><span class="rfc-subject">The `scopes_supported` field is RECOMMENDED as a JSON array of scope values used in authorization requests to request access to this protected resource (§2)</span></td></tr>
 <tr><td></td>
-<td>MAY</td>
+<td>RECOMMENDED</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9728-2-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
@@ -592,105 +597,57 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc9728-2-6"><code>RFC9728-2-6</code></a> The `jwks_uri` URL MUST use the https scheme (§2)</td>
+<tr><td><a href="#rfc9728-2-6"><code>RFC9728-2-6</code></a> This URL MUST use the https scheme. (§2)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;OPTIONAL. URL of the protected resource&#39;s JSON Web Key (JWK) Set [JWK] document.&#34;; §2 describes the resource&#39;s own keys, not its external AS&#39;s verification keys. Thomas excluded response signing on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata publishes no jwks_uri; internal/component/mcp/streamable.go::ServeHTTP exposes no resource signing-key endpoint</td>
 </tr>
-<tr><td><a href="#rfc9728-2-7"><code>RFC9728-2-7</code></a> When both signing and encryption keys are made available in the referenced JWK Set, a `use` (public key use) parameter value is REQUIRED for all keys to indicate each key&#39;s intended usage (§2)</td>
+<tr><td><a href="#rfc9728-2-7"><code>RFC9728-2-7</code></a> When both signing and encryption keys are made available, a use (public key use) parameter value is REQUIRED for all keys in the referenced JWK Set to indicate each key&#39;s intended usage. (§2)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;OPTIONAL. URL of the protected resource&#39;s JSON Web Key (JWK) Set [JWK] document.&#34;; Thomas excluded response signing on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata publishes no resource jwks_uri and internal/component/mcp/streamable.go::ServeHTTP has no resource-key response producer. The AS verification-key cache is a different key set governed by RFC8414-2-8</td>
 </tr>
 <tr><td><a href="#rfc9728-2-8"><code>RFC9728-2-8</code></a> The value `none` MUST NOT be used in `resource_signing_alg_values_supported` (§2)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;OPTIONAL. JSON array containing a list of the JWS [JWS] signing algorithms (alg values) [JWA] supported by the protected resource for signing resource responses, for instance, as described in [FAPI.MessageSigning].&#34;; Thomas excluded response signing on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata emits no resource_signing_alg_values_supported; token-verification algorithms are not resource-response signing capabilities</td>
 </tr>
 <tr><td><a href="#rfc9728-2.1-1"><code>RFC9728-2.1-1</code></a> If any human-readable field is sent without a language tag, parties using it MUST NOT make any assumptions about the language, character set, or script of the string value (§2.1)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {not-applicable}: §2.1 addresses &#34;parties using it&#34; when a human-readable field is received. Thomas excluded the protected-resource discovery-client role on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata emits resource/authorization_servers/scopes_supported/bearer_methods_supported only; internal/component/mcp/as_metadata.go::fetchASMetadata consumes AS issuer and jwks_uri, not human-readable resource metadata or a metadata user interface</td>
 </tr>
 <tr><td><a href="#rfc9728-2.1-2"><code>RFC9728-2.1-2</code></a> A human-readable string value sent without a language tag MUST be used as is wherever it is presented in a user interface (§2.1)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {not-applicable}: §2.1 conditions this on &#34;wherever it is presented in a user interface.&#34; Thomas excluded the protected-resource discovery-client role on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata is a JSON publisher, not a metadata-consuming UI; internal/component/mcp/as_metadata.go::fetchASMetadata reads AS issuer and jwks_uri without displaying resource names or documentation</td>
 </tr>
-<tr><td><a href="#rfc9728-2.2-1"><code>RFC9728-2.2-1</code></a> Signed metadata MUST be digitally signed or MACed using a JWS and MUST contain an `iss` (issuer) claim denoting the party attesting to the claims in the signed metadata (§2.2)</td>
+<tr><td><a href="#rfc9728-2.2-1"><code>RFC9728-2.2-1</code></a> The signed metadata MUST be digitally signed or MACed (protected with a Message Authentication Code) using a JSON Web Signature (JWS) [JWS] and MUST contain an iss (issuer) claim denoting the party attesting to the claims in the signed metadata. (§2.2)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;In addition to JSON elements, metadata values MAY also be provided as a signed_metadata value, which is a JSON Web Token (JWT) [JWT] that asserts metadata values about the protected resource as a bundle.&#34;; Thomas excluded signed metadata on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata emits plain JSON and no signed_metadata parameter</td>
 </tr>
 <tr><td><a href="#rfc9728-2.2-2"><code>RFC9728-2.2-2</code></a> If the consumer of the metadata supports signed metadata, metadata values conveyed in the signed metadata MUST take precedence over the corresponding values conveyed using plain JSON elements (§2.2)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;Consumers of the metadata MAY ignore the signed metadata if they do not support this feature.&#34;; Thomas excluded signed metadata and resource-discovery clients on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata publishes plain JSON; internal/component/mcp/streamable_auth.go::buildAuthForMode consumes AS issuer/keys, not protected-resource signed metadata</td>
 </tr>
-<tr><td><a href="#rfc9728-3-2"><code>RFC9728-3-2</code></a> Protected resources supporting metadata MUST make a JSON document containing the Section 2 metadata available at a URL formed by inserting a well-known URI string into the resource identifier between the host component and the path and/or query components (§3)</td>
+<tr><td><a href="#rfc9728-3.3-2"><code>RFC9728-3.3-2</code></a> If the returned `resource` value differs from the identifier used to construct the metadata URL, or from the resource request URL when discovery used a WWW-Authenticate `resource_metadata` parameter, the data contained in the response MUST NOT be used (§3.3)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {not-applicable}: §3.3 forbids using a mismatched metadata response, a consumer operation; §7.3 makes the subject explicit: &#34;the client MUST ensure&#34; the resource identifiers match. Thomas excluded protected-resource discovery clients on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata publishes the configured identity; internal/component/mcp/streamable_auth.go::buildAuthForMode fetches AS metadata only and consumes no resource metadata response</td>
 </tr>
-<tr><td><a href="#rfc9728-3-3"><code>RFC9728-3-3</code></a> The well-known URI path suffix used MUST be registered in the &#34;Well-Known URIs&#34; registry (§3)</td>
+<tr><td><a href="#rfc9728-3.3-3"><code>RFC9728-3.3-3</code></a> If the protected resource metadata was retrieved from a URL returned by the protected resource via the WWW-Authenticate resource_metadata parameter, then the resource value returned MUST be identical to the URL that the client used to make the request to the resource server. (§3.3)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9728-3-4"><code>RFC9728-3-4</code></a> An OAuth 2.0 application using this specification MUST specify what well-known URI suffix it will use for this purpose (§3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code></a> A protected resource metadata document MUST be queried using an HTTP GET request at the specified URL (§3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9728-3.1-3"><code>RFC9728-3.1-3</code></a> If the resource identifier value contains a path or query component, any terminating slash following the host component MUST be removed before inserting /.well-known/ and the well-known URI path suffix (§3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9728-3.2-3"><code>RFC9728-3.2-3</code></a> A successful response MUST use the 200 OK HTTP status code and return a JSON object using the application/json content type whose members are a subset of the metadata parameters defined in Section 2 (§3.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9728-3.2-4"><code>RFC9728-3.2-4</code></a> Parameters with zero values MUST be omitted from the response (§3.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9728-3.3-1"><code>RFC9728-3.3-1</code></a> The `resource` value returned MUST be identical to the protected resource&#39;s resource identifier value into which the well-known URI path suffix was inserted to create the URL used to retrieve the metadata (§3.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9728-3.3-2"><code>RFC9728-3.3-2</code></a> If the `resource` value and the resource identifier are not identical, the data contained in the response MUST NOT be used (§3.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9728-3.3-3"><code>RFC9728-3.3-3</code></a> If the metadata was retrieved from a URL returned by the protected resource via the WWW-Authenticate `resource_metadata` parameter, the `resource` value returned MUST be identical to the URL that the client used to make the request to the resource server (§3.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {not-applicable}: §3.3 conditions this consumer check on metadata &#34;retrieved from a URL returned by the protected resource via the WWW-Authenticate resource_metadata parameter&#34;. Thomas excluded protected-resource discovery clients on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata and internal/component/mcp/streamable.go::ServeHTTP produce the document/challenge, but never follow another resource&#39;s challenge or consume its metadata</td>
 </tr>
 <tr><td><a href="#rfc9728-3.3-4"><code>RFC9728-3.3-4</code></a> The recipient MUST validate that any signed metadata was signed by a key belonging to the issuer and that the signature is valid (§3.3)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;Consumers of the metadata MAY ignore the signed metadata if they do not support this feature.&#34;; Thomas excluded signed metadata and resource-discovery clients on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata emits only plain JSON; internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a local access-token verifier, not a protected-resource signed-metadata recipient</td>
 </tr>
-<tr><td><a href="#rfc9728-6-1"><code>RFC9728-6-1</code></a> Unicode Normalization MUST NOT be applied at any point to either the JSON string or the string it is to be compared against (§6)</td>
+<tr><td><a href="#rfc9728-7.3-1"><code>RFC9728-7.3-1</code></a> TLS certificate checking MUST be performed by the client as described in [RFC9525] when making a protected resource metadata request. (§7.3)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {not-applicable}: §7.3 specifies &#34;by the client&#34; and &#34;when making a protected resource metadata request.&#34; Thomas excluded that client role on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata is the publisher; internal/component/mcp/as_metadata.go::fetchASMetadata requests AS metadata only, whose certificate checks remain required by RFC8414-6.1-3</td>
 </tr>
-<tr><td><a href="#rfc9728-6-2"><code>RFC9728-6-2</code></a> Comparisons between two strings MUST be performed as a Unicode code-point-to-code-point equality comparison (§6)</td>
+<tr><td><a href="#rfc9728-7.3-2"><code>RFC9728-7.3-2</code></a> To prevent this, the client MUST ensure that the resource identifier URL it is using as the prefix for the metadata request exactly matches the value of the resource metadata parameter in the protected resource metadata document received by the client, as described in Section 3.3. (§7.3)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9728-7.1-1"><code>RFC9728-7.1-1</code></a> Implementations MUST support TLS (§7.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9728-7.1-2"><code>RFC9728-7.1-2</code></a> Implementations MUST follow the guidance in BCP 195 (§7.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9728-7.3-1"><code>RFC9728-7.3-1</code></a> TLS certificate checking MUST be performed by the client as described in RFC 9525 when making a protected resource metadata request (§7.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc9728-7.3-2"><code>RFC9728-7.3-2</code></a> The client MUST ensure that the resource identifier URL it is using as the prefix for the metadata request exactly matches the value of the `resource` metadata parameter in the protected resource metadata document received (§7.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {not-applicable}: §7.3 explicitly addresses &#34;the client&#34; and its protected-resource &#34;metadata document received&#34;. Thomas excluded that client role on 2026-09-21. internal/component/mcp/streamable_auth.go::buildAuthForMode requests AS metadata only; internal/component/mcp/oauth.go::writeResourceMetadata publishes the local resource identity rather than accepting a remote resource identity</td>
 </tr>
 <tr><td><a href="#rfc9728-3.2-5"><code>RFC9728-3.2-5</code></a> Metadata parameters that are not understood MUST be ignored by the consumer of the metadata response (§3.2)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: this obligation binds an OAuth client consuming the metadata to ignore unrecognized members; ze is the protected-resource-metadata publisher (internal/component/mcp/oauth.go:169-179 emits only defined fields) and does not consume the document</td>
+<td>no test carries this requirement id; annotated {not-applicable}: §3.2 says &#34;any metadata parameters that are not understood MUST be ignored&#34;, an operation on the received response. Thomas excluded protected-resource discovery clients on 2026-09-21. internal/component/mcp/oauth.go::writeResourceMetadata publishes defined fields; internal/component/mcp/as_metadata.go::fetchASMetadata consumes a different document, AS metadata, and no producer decodes a protected-resource metadata response</td>
 </tr>
 </tbody>
 </table>
@@ -706,7 +663,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L290" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_MetadataEndpoint</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L321" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_MetadataEndpoint</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -719,11 +676,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc9728-2-6"><code>RFC9728-2-6</code></a></h3>
-<p>The `jwks_uri` URL MUST use the https scheme (§2)</p>
+<p>This URL MUST use the https scheme. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9728-2-6, so no unit is bound to it.</p>
 <h3><a href="#rfc9728-2-7"><code>RFC9728-2-7</code></a></h3>
-<p>When both signing and encryption keys are made available in the referenced JWK Set, a `use` (public key use) parameter value is REQUIRED for all keys to indicate each key&#39;s intended usage (§2)</p>
+<p>When both signing and encryption keys are made available, a use (public key use) parameter value is REQUIRED for all keys in the referenced JWK Set to indicate each key&#39;s intended usage. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9728-2-7, so no unit is bound to it.</p>
 <h3><a href="#rfc9728-2-8"><code>RFC9728-2-8</code></a></h3>
@@ -739,7 +696,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9728-2.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9728-2.2-1"><code>RFC9728-2.2-1</code></a></h3>
-<p>Signed metadata MUST be digitally signed or MACed using a JWS and MUST contain an `iss` (issuer) claim denoting the party attesting to the claims in the signed metadata (§2.2)</p>
+<p>The signed metadata MUST be digitally signed or MACed (protected with a Message Authentication Code) using a JSON Web Signature (JWS) [JWS] and MUST contain an iss (issuer) claim denoting the party attesting to the claims in the signed metadata. (§2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9728-2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9728-2.2-2"><code>RFC9728-2.2-2</code></a></h3>
@@ -747,43 +704,171 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9728-2.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9728-3-2"><code>RFC9728-3-2</code></a></h3>
-<p>Protected resources supporting metadata MUST make a JSON document containing the Section 2 metadata available at a URL formed by inserting a well-known URI string into the resource identifier between the host component and the path and/or query components (§3)</p>
+<p>Protected resources supporting metadata MUST make a JSON document containing metadata as specified in Section 2 available at a URL formed by inserting a well-known URI string into the protected resource&#39;s resource identifier between the host component and the path and/or query components, if any. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9728-3-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L88" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728WellKnownInsertedBetweenHostAndPath</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L87" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728WellKnownInsertedBetweenHostAndPath</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9728-3-3"><code>RFC9728-3-3</code></a></h3>
 <p>The well-known URI path suffix used MUST be registered in the &#34;Well-Known URIs&#34; registry (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9728-3-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L136" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L135" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9728-3-4"><code>RFC9728-3-4</code></a></h3>
 <p>An OAuth 2.0 application using this specification MUST specify what well-known URI suffix it will use for this purpose (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9728-3-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L138" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L137" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728RegisteredSuffix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9728-3.1-2"><code>RFC9728-3.1-2</code></a></h3>
-<p>A protected resource metadata document MUST be queried using an HTTP GET request at the specified URL (§3.1)</p>
+<p>A protected resource metadata document MUST be queried using an HTTP GET request at the previously specified URL. (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9728-3.1-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L151" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MetadataQueriedWithGET</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L150" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MetadataQueriedWithGET</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9728-3.1-3"><code>RFC9728-3.1-3</code></a></h3>
-<p>If the resource identifier value contains a path or query component, any terminating slash following the host component MUST be removed before inserting /.well-known/ and the well-known URI path suffix (§3.1)</p>
+<p>If the resource identifier value contains a path or query component, any terminating slash (/) following the host component MUST be removed before inserting /.well-known/ and the well-known URI path suffix between the host component and the path and/or query components. (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9728-3.1-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L112" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728TerminatingSlashRemovedBeforeInsertion</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L111" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728TerminatingSlashRemovedBeforeInsertion</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9728-3.2-3"><code>RFC9728-3.2-3</code></a></h3>
-<p>A successful response MUST use the 200 OK HTTP status code and return a JSON object using the application/json content type whose members are a subset of the metadata parameters defined in Section 2 (§3.2)</p>
+<p>A successful response MUST use the 200 OK HTTP status code and return a JSON object using the application/json content type that contains a set of metadata parameters as its members that are a subset of the metadata parameters defined in Section 2. (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9728-3.2-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L167" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResponseShape</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L166" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResponseShape</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9728-3.2-4"><code>RFC9728-3.2-4</code></a></h3>
 <p>Parameters with zero values MUST be omitted from the response (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9728-3.2-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L189" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ZeroValuedParametersOmitted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L188" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ZeroValuedParametersOmitted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9728-3.3-1"><code>RFC9728-3.3-1</code></a></h3>
-<p>The `resource` value returned MUST be identical to the protected resource&#39;s resource identifier value into which the well-known URI path suffix was inserted to create the URL used to retrieve the metadata (§3.3)</p>
+<p>The resource value returned MUST be identical to the protected resource&#39;s resource identifier value into which the well-known URI path suffix was inserted to create the URL used to retrieve the metadata. (§3.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9728-3.3-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L205" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceMatchesInsertedIdentifier</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L204" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceMatchesInsertedIdentifier</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9728-3.3-2"><code>RFC9728-3.3-2</code></a></h3>
-<p>If the `resource` value and the resource identifier are not identical, the data contained in the response MUST NOT be used (§3.3)</p>
+<p>If the returned `resource` value differs from the identifier used to construct the metadata URL, or from the resource request URL when discovery used a WWW-Authenticate `resource_metadata` parameter, the data contained in the response MUST NOT be used (§3.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9728-3.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9728-3.3-3"><code>RFC9728-3.3-3</code></a></h3>
-<p>If the metadata was retrieved from a URL returned by the protected resource via the WWW-Authenticate `resource_metadata` parameter, the `resource` value returned MUST be identical to the URL that the client used to make the request to the resource server (§3.3)</p>
+<p>If the protected resource metadata was retrieved from a URL returned by the protected resource via the WWW-Authenticate resource_metadata parameter, then the resource value returned MUST be identical to the URL that the client used to make the request to the resource server. (§3.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9728-3.3-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9728-3.3-4"><code>RFC9728-3.3-4</code></a></h3>
@@ -791,27 +876,111 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9728-3.3-4, so no unit is bound to it.</p>
 <h3><a href="#rfc9728-6-1"><code>RFC9728-6-1</code></a></h3>
-<p>Unicode Normalization MUST NOT be applied at any point to either the JSON string or the string it is to be compared against (§6)</p>
+<p>Unicode Normalization [USA15] MUST NOT be applied at any point to either the JSON string or the string it is to be compared against. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9728-6-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L228" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L227" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9728-6-2"><code>RFC9728-6-2</code></a></h3>
-<p>Comparisons between two strings MUST be performed as a Unicode code-point-to-code-point equality comparison (§6)</p>
+<p>Comparisons between the two strings MUST be performed as a Unicode code-point-to-code-point equality comparison. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9728-6-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L230" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/metadata_rfc9728_test.go#L229" title="internal/component/mcp/metadata_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728ResourceIdentityPreserved</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc9728-6-3"><code>RFC9728-6-3</code></a></h3>
+<p>Comparisons between JSON strings and other Unicode strings MUST follow the Section 6 procedure, including removal of any JSON-applied escaping to produce an array of Unicode code points before comparison (§6, step 1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_rfc9728_test.go#L69" title="internal/component/mcp/jwt_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728EscapeTextIsNotUnescapedTwice</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_rfc9728_test.go#L48" title="internal/component/mcp/jwt_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728EscapedAudienceMatchesResource</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9728-7.1-1"><code>RFC9728-7.1-1</code></a></h3>
 <p>Implementations MUST support TLS (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9728-7.1-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/service_mcp_rfc9728_test.go#L74" title="cmd/ze/hub/service_mcp_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPListenerSupportsTLS</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/service_mcp_rfc9728_test.go#L124" title="cmd/ze/hub/service_mcp_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9728-7.1-2"><code>RFC9728-7.1-2</code></a></h3>
-<p>Implementations MUST follow the guidance in BCP 195 (§7.1)</p>
+<p>They MUST follow the guidance in [BCP195], which provides recommendations and requirements for improving the security of deployed services that use TLS. (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC9728-7.1-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/service_mcp_rfc9728_test.go#L126" title="cmd/ze/hub/service_mcp_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/service_mcp_rfc9728_test.go#L125" title="cmd/ze/hub/service_mcp_rfc9728_test.go" target="_blank" rel="noopener"><code>TestRFC9728MCPServingTLSVersions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc9728-7.3-1"><code>RFC9728-7.3-1</code></a></h3>
-<p>TLS certificate checking MUST be performed by the client as described in RFC 9525 when making a protected resource metadata request (§7.3)</p>
+<p>TLS certificate checking MUST be performed by the client as described in [RFC9525] when making a protected resource metadata request. (§7.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9728-7.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9728-7.3-2"><code>RFC9728-7.3-2</code></a></h3>
-<p>The client MUST ensure that the resource identifier URL it is using as the prefix for the metadata request exactly matches the value of the `resource` metadata parameter in the protected resource metadata document received (§7.3)</p>
+<p>To prevent this, the client MUST ensure that the resource identifier URL it is using as the prefix for the metadata request exactly matches the value of the resource metadata parameter in the protected resource metadata document received by the client, as described in Section 3.3. (§7.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9728-7.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9728-2-2"><code>RFC9728-2-2</code></a></h3>
@@ -822,7 +991,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L294" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_MetadataEndpoint</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L325" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_MetadataEndpoint</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -846,7 +1015,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L216" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_RejectsMissingBearer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L247" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_RejectsMissingBearer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -865,10 +1034,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Reviewer</td>
-<td>claude</td>
+<td>Main integration; independent source-mapping review: OAuthMappingReview</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-21</td>
+<td>2026-09-22</td>
 </tr>
 <tr><td>Register</td>
 <td>rfc2119</td>
@@ -883,10 +1052,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>rfc/extraction/rfc9728.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>25</td>
+<td>26</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>2</td>
+<td>1</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -930,13 +1099,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not stated</td>
 <td>4</td>
 <td>walked</td>
-<td>not stated</td>
+<td>Section 2 marks authorization_servers and bearer_methods_supported OPTIONAL, and scopes_supported RECOMMENDED. The retained advisory IDs have no separate MUST-level inventory sites.</td>
 </tr>
 <tr><td><code>2.1</code></td>
 <td>not stated</td>
 <td>1</td>
 <td>walked</td>
-<td>not stated</td>
+<td>The sentence mapped at 2.1:1 contains both RFC9728-2.1-1 and RFC9728-2.1-2: If any human-readable field is sent without a language tag, parties using it MUST NOT make any assumptions about the language, character set, or script of the string value, and the string value MUST be used as is wherever it is presented in a user interface. One site has one mapped-to field, so the second MUST is accounted for here under its existing ID.</td>
 </tr>
 <tr><td><code>2.2</code></td>
 <td>not stated</td>
@@ -984,7 +1153,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not stated</td>
 <td>0</td>
 <td>walked</td>
-<td>not stated</td>
+<td>Section 5.1 defines resource_metadata as the URL of the protected resource metadata and permits its use with non-Bearer schemes using MAY. The retained advisory ID has no separate MUST-level inventory site.</td>
 </tr>
 <tr><td><code>5.2</code></td>
 <td>not stated</td>
@@ -1074,13 +1243,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not stated</td>
 <td>0</td>
 <td>walked</td>
-<td>not stated</td>
+<td>Section 7.10 says normal HTTP caching behaviours apply and recommends caching directives with lowercase should. The existing advisory IDs record that text and have no MUST-level inventory sites.</td>
 </tr>
 <tr><td><code>8</code></td>
-<td>not stated</td>
+<td>Registration procedure addresses IANA and designated experts</td>
 <td>0</td>
 <td>walked</td>
-<td>not stated</td>
+<td>Registration procedure addresses IANA and designated experts. Its lowercase registry instructions do not create an additional MUST-level site in this document&#39;s selected inventory.</td>
 </tr>
 <tr><td><code>8.1</code></td>
 <td>not stated</td>
@@ -1152,13 +1321,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><code>3.3:4</code></td>
 <td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
-<td>Section 3.3 states the same consequence twice, once for each identity check; the first is mapped at site 3.3:2.</td>
+<td>Section 3.3 repeats: If these values are not identical, the data contained in the response MUST NOT be used. The first occurrence follows the well-known URL identity check and maps directly at 3.3:2; this occurrence follows discovery through WWW-Authenticate. RFC9728-3.3-2 now explicitly includes both contexts, so the duplicate target records the obligation of this sentence as well.</td>
 <td>If these values are not identical, the data contained in the response MUST NOT be used.</td>
-</tr>
-<tr><td><code>6:1</code></td>
-<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
-<td>Chapeau introducing the two comparison rules that follow it, mapped at sites 6:2 and 6:3: &#39;comparisons between JSON strings and other Unicode strings MUST be performed as specified below:&#39;.</td>
-<td>Therefore, comparisons between JSON strings and other Unicode strings MUST be performed as specified below:</td>
 </tr>
 </tbody>
 </table>
@@ -1196,7 +1360,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,12 +1,12 @@
 # Chaos MCP Server
 
-ze-chaos includes an MCP (Model Context Protocol) server that lets AI assistants
+`./le chaos run` includes an MCP (Model Context Protocol) server that lets AI assistants
 query chaos test state, detect problems, and control the chaos scheduler.
 
 ## Starting
 
 ```bash
-ze-chaos --mcp :8001 --web :8000 --peers 4 --routes 1000
+./le chaos run --mcp :8001 --web :8000 --peers 4 --routes 1000
 ```
 
 The `--mcp` flag starts an HTTP MCP server on the given address. The `--web`
@@ -17,15 +17,15 @@ Use `--ai-help` to print the tool definitions as JSON (for configuring AI
 clients):
 
 ```bash
-ze-chaos --ai-help
+./le chaos run --ai-help
 ```
 
 ## Ze MCP Injection
 
-To inject an MCP server into the Ze daemon started by ze-chaos:
+To inject an MCP server into the Ze daemon started by `./le chaos run`:
 
 ```bash
-ze-chaos --ze-mcp 9718 ...
+./le chaos run --ze-mcp 9718 ...
 ```
 
 This adds `environment { mcp { port 9718; } }` to the generated Ze config.
@@ -103,7 +103,7 @@ request therefore carries the same standard headers and the same
 `params._meta` block as any other MCP request.
 <!-- source: internal/component/mcp/streamable.go -- StreamableConfig.Provider, handlePOST -->
 
-`ze-chaos` configures no token and no auth mode, which infers `auth-mode none`:
+`./le chaos run` configures no token and no auth mode, which infers `auth-mode none`:
 an authenticator that accepts every caller as an anonymous identity. There is
 no unauthenticated code path, only an accept-all authenticator.
 <!-- source: internal/component/mcp/bearer.go -- noneAuthenticator.Authenticate -->

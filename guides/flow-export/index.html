@@ -161,8 +161,28 @@ configure several collectors at once (for example one sFlow and one IPFIX).</p>
 <td>-</td>
 <td>sFlow agent address (the device's own stable IP, for example a loopback)</td>
 </tr>
+<tr>
+<td><code>source-address</code></td>
+<td>-</td>
+<td>Local source IP for the collector's UDP socket</td>
+</tr>
+<tr>
+<td><code>max-datagram-size</code></td>
+<td>464</td>
+<td>Maximum UDP payload bytes, including protocol padding (464-1400)</td>
+</tr>
 </tbody>
 </table>
+<!-- source: internal/plugins/flowexport/yang/ze-flowexport-conf.yang -- collector -->
+<p>The default reserves IPv6 and UDP headers within a 512-byte packet when the
+path MTU is unknown. Raise it only when the path MTU is known, after subtracting
+all IP, UDP and tunnel headers. Encoders split batches or cap sampled headers
+to this bound. Oversized sends return an error.</p>
+<!-- source: internal/plugins/flowexport/sender.go -- DatagramSizeDefault, Sender.Send -->
+<p>sFlow uses expanded counter and flow samples for every interface, preserving
+full-width interface indexes without mixing compact and expanded formats.</p>
+<!-- source: internal/plugins/flowexport/sflow/counter.go -- writeCounterSample -->
+<!-- source: internal/plugins/flowexport/sflow/flow.go -- writeFlowSample -->
 <p>An sFlow counter collector:</p>
 <pre><code>flow-export {
     collector edge-sflow {
@@ -358,17 +378,22 @@ format <code>environment cli format default</code> names, whose registered value
 </tr>
 <tr>
 <td><code>sequence</code></td>
-<td>Current export sequence number</td>
+<td>Shared collector sequence: successful data records for IPFIX, successful packets for NetFlow v9, generated datagrams for sFlow</td>
 </tr>
 <tr>
 <td><code>last-export-time</code></td>
-<td>Unix timestamp of the most recent poll (omitted before the first poll)</td>
+<td>Unix timestamp of the most recent successful counter poll (omitted before the first successful poll)</td>
 </tr>
 </tbody>
 </table>
 <p>The command answers structured data, rendered in the format
 <code>environment cli format default</code> names. The registered value is <code>text</code>. The full
 set of pipe operators selects another one.</p>
+<p>Datagram and byte totals include successfully sent templates and any packets
+sent before a later error in the same batch. A failed template blocks its data
+batch until a subsequent template attempt succeeds. Counter and flow exporters
+share the sequence; a configuration reload creates a new transport session.</p>
+<!-- source: internal/plugins/flowexport/exporter.go -- collectorState.recordSent, notifySnapshot, exportFlows, status -->
 <h2 id="prometheus-metrics">Prometheus Metrics</h2>
 <p>The component registers the following metrics:</p>
 <table>
@@ -430,9 +455,13 @@ error/discard counters, promiscuous mode, ifSpeed, ifDirection (duplex), and
 inbound multicast packets are populated. ifSpeed and ifDirection come from
 sysfs (<code>/sys/class/net/&lt;if&gt;/speed</code> and <code>/duplex</code>) and read zero / unknown for
 virtual or down links, where the kernel does not report them. Outbound
-multicast and both inbound and outbound broadcast packet counts are left zero:
-<code>rtnl_link_stats64</code> exposes only an inbound multicast counter, with no
-transmit-multicast and no broadcast counters at all.</li>
+multicast, broadcast and unknown-protocol counts carry <code>0xFFFFFFFF</code>, the
+unavailable-counter value: Linux does not expose these counters through
+<code>rtnl_link_stats64</code>. IPFIX packet totals use the original 64-bit receive and
+transmit counts, without the sFlow sentinels.
+<!-- source: internal/plugins/flowexport/register.go -- interfaceCountersFrom -->
+<!-- source: internal/plugins/flowexport/ipfix/data.go -- writeCounterRecord -->
+</li>
 <li><strong>Conntrack export combines periodic dumps with destroy events.</strong> Records
 are emitted on each table dump (<code>active-timeout</code>), and a
 <code>NFNLGRP_CONNTRACK_DESTROY</code> netlink listener exports each torn-down flow's
@@ -448,7 +477,7 @@ flow samples are produced.</li>
 <p>Conntrack per-flow export gives <strong>exact</strong> per-flow accounting and suits edge /
 moderate scale (up to low-thousands of new flows per second). Its cost scales
 with flow <strong>churn</strong>: the delta tracker holds one entry per recently-seen flow,
-the kernel table dump serialises every tracked flow over netlink each
+the kernel table dump serializes every tracked flow over netlink each
 <code>active-timeout</code>, and the destroy-event socket must keep up with the teardown
 rate. A torn-down flow's tracking state is reclaimed within a few seconds of its
 destroy event (or at <code>2 × active-timeout</code> if the event is missed), so memory is
@@ -508,7 +537,7 @@ the collector endpoints off any untrusted path.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

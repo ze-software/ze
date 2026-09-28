@@ -74,7 +74,7 @@ CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bg
 <h3 id="or-go-install">Or: go install</h3>
 <p>To get a <code>ze</code> binary without cloning the repository, use <code>go install</code> with the
 default feature tags derived from <code>feature-gates.txt</code>:</p>
-<!-- source: internal/le/featuretags/daemontags.go -- DaemonTags -->
+<!-- source: internal/le/repo/featuretags/daemontags.go -- DaemonTags -->
 <pre><code class="language-bash">CGO_ENABLED=0 go install -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' github.com/ze-software/ze/cmd/ze@latest
 </code></pre>
 <p>This tracks the module's default branch (development version), not a
@@ -300,12 +300,12 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
 <h2 id="test-without-a-real-peer">Test Without a Real Peer</h2>
 <p>Use the built-in test peer to accept any BGP session:</p>
 <pre><code class="language-bash"># Terminal 1: start a sink peer (accepts sessions, replies keepalive)
-bin/ze-test peer --mode sink --port 1179 --asn 65001
+bin/le test peer --mode sink --port 1179 --asn 65001
 
 # Terminal 2: start ze with config pointing to localhost:1179
 ./ze start example-local.conf
 </code></pre>
-<!-- source: internal/test/cli/cmd_peer.go -- ze-test peer command -->
+<!-- source: internal/test/cli/cmd_peer.go -- le test peer command -->
 <p>Where <code>example-local.conf</code> is the config above with the peer's <code>connection</code>
 block pointed at the local sink, so ze dials <code>127.0.0.1:1179</code> instead of
 <code>10.0.0.2</code>:</p>
@@ -385,7 +385,7 @@ announce a route; the address split is what keeps it working when you do.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

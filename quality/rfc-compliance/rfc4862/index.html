@@ -287,7 +287,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.1-1">RFC4862-5.1-1</code></td><td colspan="3"><span class="rfc-subject">A node MUST allow the DupAddrDetectTransmits autoconfiguration variable to be configured by system management for each multicast-capable interface (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.1-1">RFC4862-5.1-1</code></td><td colspan="3"><span class="rfc-subject">A node MUST allow the following autoconfiguration-related variable to be configured by system management for each multicast-capable interface: DupAddrDetectTransmits The number of consecutive Neighbor Solicitation messages sent while performing Duplicate Address Detection on a tentative address. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
@@ -341,7 +341,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> multicast group membership for DAD and the tentative NS are issued by the kernel; ze joins no such groups for autoconfiguration</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4.2-4">RFC4862-5.4.2-4</code></td><td colspan="3"><span class="rfc-subject">An interface MUST receive and process datagrams sent to the all-nodes multicast address or solicited-node multicast address of the tentative address during the delay period (§5.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.4.2-4">RFC4862-5.4.2-4</code></td><td colspan="3"><span class="rfc-subject">In order to improve the robustness of the Duplicate Address Detection algorithm, an interface MUST receive and process datagrams sent to the all-nodes multicast address or solicited-node multicast address of the tentative address during the delay period. (§5.4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4.2</td>
@@ -368,7 +368,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> the kernel decides DAD outcome and refuses assignment on collision; ze only observes the resulting non-tentative address via netlink (internal/plugins/iface/netlink/slaac_linux.go:30)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5-2">RFC4862-5.5-2</code></td><td colspan="3"><span class="rfc-subject">The global-address creation processing described in this section MUST be enabled by default (§5.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5-2">RFC4862-5.5-2</code></td><td colspan="3"><span class="rfc-subject">However, the processing described below MUST be enabled by default. (§5.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.5</td>
@@ -389,7 +389,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.4-3">RFC4862-5.5.4-3</code></td><td colspan="3"><span class="rfc-subject">IP and higher layers (e.g., TCP, UDP) MUST continue to accept and process datagrams destined to a deprecated address as normal (§5.5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5.5.4</td>
+<td>5.5.4 - Four sites</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4862-5.5.4-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -398,7 +398,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.4-5">RFC4862-5.5.4-5</code></td><td colspan="3"><span class="rfc-subject">If an implementation prevents new communication from using a deprecated address, system management MUST have the ability to disable that facility (§5.5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5.5.4</td>
+<td>5.5.4 - Four sites</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4862-5.5.4-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -407,7 +407,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.4-6">RFC4862-5.5.4-6</code></td><td colspan="3"><span class="rfc-subject">The facility preventing new communication on a deprecated address MUST be disabled by default (§5.5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5.5.4</td>
+<td>5.5.4 - Four sites</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4862-5.5.4-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -416,7 +416,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.4-7">RFC4862-5.5.4-7</code></td><td colspan="3"><span class="rfc-subject">An invalid address MUST NOT be used as a source address in outgoing communications (§5.5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>5.5.4</td>
+<td>5.5.4 - Four sites</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4862-5.5.4-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -425,7 +425,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.4-8">RFC4862-5.5.4-8</code></td><td colspan="3"><span class="rfc-subject">An invalid address MUST NOT be recognized as a destination on a receiving interface (§5.5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
-<td>5.5.4</td>
+<td>5.5.4 - Four sites</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4862-5.5.4-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -497,7 +497,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.4-1">RFC4862-5.5.4-1</code></td><td colspan="3"><span class="rfc-subject">A deprecated address SHOULD continue to be used as a source address in existing communications (§5.5.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>5.5.4</td>
+<td>5.5.4 - Four sites</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4862-5.5.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -506,7 +506,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.4-2">RFC4862-5.5.4-2</code></td><td colspan="3"><span class="rfc-subject">A deprecated address SHOULD NOT be used to initiate new communications if an alternate (non-deprecated) address of sufficient scope can easily be used instead (§5.5.4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
-<td>5.5.4</td>
+<td>5.5.4 - Four sites</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4862-5.5.4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -551,7 +551,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4862-5.5.4-4">RFC4862-5.5.4-4</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY prevent any new communication from using a deprecated address (§5.5.4)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>5.5.4</td>
+<td>5.5.4 - Four sites</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4862-5.5.4-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -566,7 +566,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc4862-5.1-1"><code>RFC4862-5.1-1</code></a> A node MUST allow the DupAddrDetectTransmits autoconfiguration variable to be configured by system management for each multicast-capable interface (§5.1)</td>
+<tr><td><a href="#rfc4862-5.1-1"><code>RFC4862-5.1-1</code></a> A node MUST allow the following autoconfiguration-related variable to be configured by system management for each multicast-capable interface: DupAddrDetectTransmits The number of consecutive Neighbor Solicitation messages sent while performing Duplicate Address Detection on a tentative address. (§5.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: DAD is run by the kernel, so DupAddrDetectTransmits is the kernel&#39;s net.ipv6.conf.&lt;if&gt;.dad_transmits sysctl; ze configures kernel IPv6 conf keys and owns no DAD variable of its own (internal/component/iface/config_sysctl.go:73-79)</td>
 </tr>
@@ -590,7 +590,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: multicast group membership for DAD and the tentative NS are issued by the kernel; ze joins no such groups for autoconfiguration</td>
 </tr>
-<tr><td><a href="#rfc4862-5.4.2-4"><code>RFC4862-5.4.2-4</code></a> An interface MUST receive and process datagrams sent to the all-nodes multicast address or solicited-node multicast address of the tentative address during the delay period (§5.4.2)</td>
+<tr><td><a href="#rfc4862-5.4.2-4"><code>RFC4862-5.4.2-4</code></a> In order to improve the robustness of the Duplicate Address Detection algorithm, an interface MUST receive and process datagrams sent to the all-nodes multicast address or solicited-node multicast address of the tentative address during the delay period. (§5.4.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: receiving DAD-window multicast datagrams is a kernel IPv6 input action; ze has no per-packet SLAAC receive path</td>
 </tr>
@@ -602,7 +602,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the kernel decides DAD outcome and refuses assignment on collision; ze only observes the resulting non-tentative address via netlink (internal/plugins/iface/netlink/slaac_linux.go:30)</td>
 </tr>
-<tr><td><a href="#rfc4862-5.5-2"><code>RFC4862-5.5-2</code></a> The global-address creation processing described in this section MUST be enabled by default (§5.5)</td>
+<tr><td><a href="#rfc4862-5.5-2"><code>RFC4862-5.5-2</code></a> However, the processing described below MUST be enabled by default. (§5.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: global-address formation from RAs is the kernel&#39;s addrconf, on by default via net.ipv6.conf.*.autoconf; ze forwards this knob to the kernel and forms no addresses itself (internal/component/iface/config_sysctl.go:74-75)</td>
 </tr>
@@ -637,7 +637,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc4862-5.1-1"><code>RFC4862-5.1-1</code></a></h3>
-<p>A node MUST allow the DupAddrDetectTransmits autoconfiguration variable to be configured by system management for each multicast-capable interface (§5.1)</p>
+<p>A node MUST allow the following autoconfiguration-related variable to be configured by system management for each multicast-capable interface: DupAddrDetectTransmits The number of consecutive Neighbor Solicitation messages sent while performing Duplicate Address Detection on a tentative address. (§5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4862-5.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4862-5.4-1"><code>RFC4862-5.4-1</code></a></h3>
@@ -661,7 +661,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4862-5.4.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4862-5.4.2-4"><code>RFC4862-5.4.2-4</code></a></h3>
-<p>An interface MUST receive and process datagrams sent to the all-nodes multicast address or solicited-node multicast address of the tentative address during the delay period (§5.4.2)</p>
+<p>In order to improve the robustness of the Duplicate Address Detection algorithm, an interface MUST receive and process datagrams sent to the all-nodes multicast address or solicited-node multicast address of the tentative address during the delay period. (§5.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4862-5.4.2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4862-5.4.3-1"><code>RFC4862-5.4.3-1</code></a></h3>
@@ -673,7 +673,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4862-5.4.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4862-5.5-2"><code>RFC4862-5.5-2</code></a></h3>
-<p>The global-address creation processing described in this section MUST be enabled by default (§5.5)</p>
+<p>However, the processing described below MUST be enabled by default. (§5.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4862-5.5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4862-5.5.3-2"><code>RFC4862-5.5.3-2</code></a></h3>
@@ -871,10 +871,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not stated</td>
 </tr>
 <tr><td><code>5.5.4</code></td>
-<td>not stated</td>
+<td>Four sites</td>
 <td>4</td>
 <td>walked</td>
-<td>not stated</td>
+<td>Four sites. Two of them carry two independent obligations each and a site maps to one id. Site 5.5.4:3 maps to RFC4862-5.5.4-5 (management MUST be able to disable the facility) and its second clause, &#34;and the facility MUST be disabled by default&#34;, is RFC4862-5.5.4-6. Site 5.5.4:4 maps to RFC4862-5.5.4-7 (MUST NOT be used as a source address) and its second clause, &#34;and MUST NOT be recognized as a destination on a receiving interface&#34;, is RFC4862-5.5.4-8.</td>
 </tr>
 <tr><td><code>5.6</code></td>
 <td>not stated</td>
@@ -1070,7 +1070,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3768 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3768: Virtual Router Redundancy Protocol (VRRP). 40 gated MUST-level requirements, 0 declared gaps, 1 with no test." />
+        <meta name="description" content="RFC 3768: Virtual Router Redundancy Protocol (VRRP). 40 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 3768 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3768: Virtual Router Redundancy Protocol (VRRP). 40 gated MUST-level requirements, 0 declared gaps, 1 with no test." />
+        <meta property="og:description" content="RFC 3768: Virtual Router Redundancy Protocol (VRRP). 40 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3768 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3768: Virtual Router Redundancy Protocol (VRRP). 40 gated MUST-level requirements, 0 declared gaps, 1 with no test." />
+        <meta name="twitter:description" content="RFC 3768: Virtual Router Redundancy Protocol (VRRP). 40 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,10 +116,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>77.5%</strong><b>31 of 40 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>80.0%</strong><b>32 of 40 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>12.5%</strong><b>5 of 40 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>2.9%</strong><b>2 of 69 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>2.8%</strong><b>2 of 71 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -129,11 +130,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>7.5%</strong><b>3 of 40 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>2.5%</strong><b>1 of 40 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 40 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -163,7 +159,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -215,16 +211,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>1</td>
+<td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>69</td>
+<td>71</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>69</td>
+<td>71</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
@@ -246,16 +242,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Virtual Router Redundancy Protocol v2 / VRRP (RFC 3768): 30 MET (advertisement format, priority/master election, skew time, virtual MAC, gratuitous ARP, adoption) + 5 single-polarity positive + 1 gap (accept-mode) + 3 not-applicable (deprecated authentication) + RFC3768-8.1-1, added 2026-09-21 from the Section 8.1 ICMP redirect sentence the checklist had not carried, and carrying no test</p>
+<p>Enrolled: VRRPv2 advertisement format, election and timers, virtual-MAC ownership, and the IPv4 Master dataplane, including redirect source selection for non-owner virtual routers.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Experimental</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
 Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding, v2 advert format, the v2 receive-validation ladder (version, complete-packet, checksum, VRID, Auth Type 0, interval-mismatch discard, address-list discard), the Section 6.4 state machine (priority/master election, skew time, preemption, silent losing-advert discard), virtual-MAC ownership of the VIP via a per-group macvlan, and the v2 rejection rules (no accept-mode, no IPv6).
 </details>
-<details class="rfc-fold"><summary>What the ledger says remains</summary>
-<a href="#rfc3768-8.1-1"><code>RFC3768-8.1-1</code></a>, added 2026-09-21, carries no test: Section 8.1 states that a VRRP router acting as Master for virtual routers containing addresses it does not own &#34;must determine which virtual router the packet was sent to when selecting the redirect source address&#34;, and the VRRP plugin sends no ICMP redirects. RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section 9 removed them as providing no real security. Same VRRP experimental status.
-</details>
+<p><strong>What the ledger says remains:</strong></p>
+RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section 9 removed them as providing no real security. Same VRRP experimental status.
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -263,7 +258,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>31</strong></td>
+<td><strong>32</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -275,7 +270,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>1</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -290,9 +285,8 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (31):</strong> <a href="#rfc3768-5.2.3-2"><code>RFC3768-5.2.3-2</code></a>, <a href="#rfc3768-5.3.2-1"><code>RFC3768-5.3.2-1</code></a>, <a href="#rfc3768-5.3.4-1"><code>RFC3768-5.3.4-1</code></a>, <a href="#rfc3768-5.3.4-2"><code>RFC3768-5.3.4-2</code></a>, <a href="#rfc3768-5.3.6-1"><code>RFC3768-5.3.6-1</code></a>, <a href="#rfc3768-6.4.2-1"><code>RFC3768-6.4.2-1</code></a>, <a href="#rfc3768-6.4.2-2"><code>RFC3768-6.4.2-2</code></a>, <a href="#rfc3768-6.4.2-3"><code>RFC3768-6.4.2-3</code></a>, <a href="#rfc3768-6.4.2-4"><code>RFC3768-6.4.2-4</code></a>, <a href="#rfc3768-6.4.2-5"><code>RFC3768-6.4.2-5</code></a>, <a href="#rfc3768-6.4.2-6"><code>RFC3768-6.4.2-6</code></a>, <a href="#rfc3768-6.4.2-7"><code>RFC3768-6.4.2-7</code></a>, <a href="#rfc3768-6.4.2-8"><code>RFC3768-6.4.2-8</code></a>, <a href="#rfc3768-6.4.3-1"><code>RFC3768-6.4.3-1</code></a>, <a href="#rfc3768-6.4.3-2"><code>RFC3768-6.4.3-2</code></a>, <a href="#rfc3768-6.4.3-3"><code>RFC3768-6.4.3-3</code></a>, <a href="#rfc3768-6.4.3-4"><code>RFC3768-6.4.3-4</code></a>, <a href="#rfc3768-6.4.3-5"><code>RFC3768-6.4.3-5</code></a>, <a href="#rfc3768-6.4.3-6"><code>RFC3768-6.4.3-6</code></a>, <a href="#rfc3768-6.4.3-7"><code>RFC3768-6.4.3-7</code></a>, <a href="#rfc3768-6.4.3-8"><code>RFC3768-6.4.3-8</code></a>, <a href="#rfc3768-6.4.3-9"><code>RFC3768-6.4.3-9</code></a>, <a href="#rfc3768-7.1-1"><code>RFC3768-7.1-1</code></a>, <a href="#rfc3768-7.1-2"><code>RFC3768-7.1-2</code></a>, <a href="#rfc3768-7.1-3"><code>RFC3768-7.1-3</code></a>, <a href="#rfc3768-7.1-4"><code>RFC3768-7.1-4</code></a>, <a href="#rfc3768-7.1-5"><code>RFC3768-7.1-5</code></a>, <a href="#rfc3768-7.1-6"><code>RFC3768-7.1-6</code></a>, <a href="#rfc3768-7.1-7"><code>RFC3768-7.1-7</code></a>, <a href="#rfc3768-7.1-8"><code>RFC3768-7.1-8</code></a>, <a href="#rfc3768-8.2-1"><code>RFC3768-8.2-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (32):</strong> <a href="#rfc3768-5.2.3-2"><code>RFC3768-5.2.3-2</code></a>, <a href="#rfc3768-5.3.2-1"><code>RFC3768-5.3.2-1</code></a>, <a href="#rfc3768-5.3.4-1"><code>RFC3768-5.3.4-1</code></a>, <a href="#rfc3768-5.3.4-2"><code>RFC3768-5.3.4-2</code></a>, <a href="#rfc3768-5.3.6-1"><code>RFC3768-5.3.6-1</code></a>, <a href="#rfc3768-6.4.2-1"><code>RFC3768-6.4.2-1</code></a>, <a href="#rfc3768-6.4.2-2"><code>RFC3768-6.4.2-2</code></a>, <a href="#rfc3768-6.4.2-3"><code>RFC3768-6.4.2-3</code></a>, <a href="#rfc3768-6.4.2-4"><code>RFC3768-6.4.2-4</code></a>, <a href="#rfc3768-6.4.2-5"><code>RFC3768-6.4.2-5</code></a>, <a href="#rfc3768-6.4.2-6"><code>RFC3768-6.4.2-6</code></a>, <a href="#rfc3768-6.4.2-7"><code>RFC3768-6.4.2-7</code></a>, <a href="#rfc3768-6.4.2-8"><code>RFC3768-6.4.2-8</code></a>, <a href="#rfc3768-6.4.3-1"><code>RFC3768-6.4.3-1</code></a>, <a href="#rfc3768-6.4.3-2"><code>RFC3768-6.4.3-2</code></a>, <a href="#rfc3768-6.4.3-3"><code>RFC3768-6.4.3-3</code></a>, <a href="#rfc3768-6.4.3-4"><code>RFC3768-6.4.3-4</code></a>, <a href="#rfc3768-6.4.3-5"><code>RFC3768-6.4.3-5</code></a>, <a href="#rfc3768-6.4.3-6"><code>RFC3768-6.4.3-6</code></a>, <a href="#rfc3768-6.4.3-7"><code>RFC3768-6.4.3-7</code></a>, <a href="#rfc3768-6.4.3-8"><code>RFC3768-6.4.3-8</code></a>, <a href="#rfc3768-6.4.3-9"><code>RFC3768-6.4.3-9</code></a>, <a href="#rfc3768-7.1-1"><code>RFC3768-7.1-1</code></a>, <a href="#rfc3768-7.1-2"><code>RFC3768-7.1-2</code></a>, <a href="#rfc3768-7.1-3"><code>RFC3768-7.1-3</code></a>, <a href="#rfc3768-7.1-4"><code>RFC3768-7.1-4</code></a>, <a href="#rfc3768-7.1-5"><code>RFC3768-7.1-5</code></a>, <a href="#rfc3768-7.1-6"><code>RFC3768-7.1-6</code></a>, <a href="#rfc3768-7.1-7"><code>RFC3768-7.1-7</code></a>, <a href="#rfc3768-7.1-8"><code>RFC3768-7.1-8</code></a>, <a href="#rfc3768-8.1-1"><code>RFC3768-8.1-1</code></a>, <a href="#rfc3768-8.2-1"><code>RFC3768-8.2-1</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (8):</strong> <a href="#rfc3768-5.2.2-1"><code>RFC3768-5.2.2-1</code></a>, <a href="#rfc3768-5.2.3-1"><code>RFC3768-5.2.3-1</code></a>, <a href="#rfc3768-7.2-1"><code>RFC3768-7.2-1</code></a>, <a href="#rfc3768-7.2-2"><code>RFC3768-7.2-2</code></a>, <a href="#rfc3768-7.2-3"><code>RFC3768-7.2-3</code></a>, <a href="#rfc3768-7.2-4"><code>RFC3768-7.2-4</code></a>, <a href="#rfc3768-8.3-1"><code>RFC3768-8.3-1</code></a>, <a href="#rfc3768-9.2-1"><code>RFC3768-9.2-1</code></a></p>
-<p class="rfc-id-list"><strong>No test and no annotation (1):</strong> <a href="#rfc3768-8.1-1"><code>RFC3768-8.1-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -317,7 +311,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> buildIPv4Header unconditionally sets TTL 255 at internal/plugins/vrrp/transport/transport.go:562, so no input yields a different TTL -- the rx TTL!=255 discard is the separate RFC3768-5.2.3-2</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-5.2.3-2">RFC3768-5.2.3-2</code></td><td colspan="3"><span class="rfc-subject">Discard received VRRP packets whose TTL is not equal to 255 (§5.2.3, §7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-5.2.3-2">RFC3768-5.2.3-2</code></td><td colspan="3"><span class="rfc-subject">A VRRP router receiving a packet with the TTL not equal to 255 MUST discard the packet. (§5.2.3, §7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2.3</td>
@@ -335,7 +329,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L150" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-5.3.4-1">RFC3768-5.3.4-1</code></td><td colspan="3"><span class="rfc-subject">Use Priority 255 for the VRRP router that owns the virtual router&#39;s IP address(es) (§5.3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-5.3.4-1">RFC3768-5.3.4-1</code></td><td colspan="3"><span class="rfc-subject">The priority value for the VRRP router that owns the IP address(es) associated with the virtual router MUST be 255 (decimal). (§5.3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.3.4</td>
@@ -344,7 +338,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L772" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestOwnerAutoDetection</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-5.3.4-2">RFC3768-5.3.4-2</code></td><td colspan="3"><span class="rfc-subject">Use Priority values 1-254 for VRRP routers backing up a virtual router (§5.3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-5.3.4-2">RFC3768-5.3.4-2</code></td><td colspan="3"><span class="rfc-subject">VRRP routers backing up a virtual router MUST use priority values between 1-254 (decimal). (§5.3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.3.4</td>
@@ -353,7 +347,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L317" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestBoundaryPriority</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-5.3.6-1">RFC3768-5.3.6-1</code></td><td colspan="3"><span class="rfc-subject">Discard packets with unknown Auth Type or an Auth Type that does not match the locally configured authentication method (§5.3.6, §7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-5.3.6-1">RFC3768-5.3.6-1</code></td><td colspan="3"><span class="rfc-subject">A packet with unknown authentication type or that does not match the locally configured authentication method MUST be discarded. (§5.3.6, §7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.3.6</td>
@@ -362,7 +356,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L598" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.2-1">RFC3768-6.4.2-1</code></td><td colspan="3"><span class="rfc-subject">Backup: never respond to ARP requests for the IP address(es) associated with the virtual router (§6.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.2-1">RFC3768-6.4.2-1</code></td><td colspan="3"><span class="rfc-subject">- MUST NOT respond to ARP requests for the IP address(s) associated with the virtual router. (§6.4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.4.2</td>
@@ -371,7 +365,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L362" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.2-2">RFC3768-6.4.2-2</code></td><td colspan="3"><span class="rfc-subject">Backup: discard packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.2-2">RFC3768-6.4.2-2</code></td><td colspan="3"><span class="rfc-subject">- MUST discard packets with a destination link layer MAC address equal to the virtual router MAC address. (§6.4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.4.2</td>
@@ -380,7 +374,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L363" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.2-3">RFC3768-6.4.2-3</code></td><td colspan="3"><span class="rfc-subject">Backup: never accept packets addressed to the IP address(es) associated with the virtual router (§6.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.2-3">RFC3768-6.4.2-3</code></td><td colspan="3"><span class="rfc-subject">- MUST NOT accept packets addressed to the IP address(es) associated with the virtual router. (§6.4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.4.2</td>
@@ -434,16 +428,16 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L95" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.3-1">RFC3768-6.4.3-1</code></td><td colspan="3"><span class="rfc-subject">Master: respond to ARP requests for the IP address(es) associated with the virtual router, answering with the virtual MAC address (§6.4.3, §8.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.3-1">RFC3768-6.4.3-1</code></td><td colspan="3"><span class="rfc-subject">- MUST respond to ARP requests for the IP address(es) associated with the virtual router. (§6.4.3, §8.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-6.4.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L61" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L122" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L69" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L131" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.3-2">RFC3768-6.4.3-2</code></td><td colspan="3"><span class="rfc-subject">Master: forward packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.3-2">RFC3768-6.4.3-2</code></td><td colspan="3"><span class="rfc-subject">- MUST forward packets with a destination link layer MAC address equal to the virtual router MAC address. (§6.4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.4.3</td>
@@ -452,7 +446,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L321" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.3-3">RFC3768-6.4.3-3</code></td><td colspan="3"><span class="rfc-subject">Master: never accept packets addressed to the virtual router IP address(es) when not the IP address owner (§6.4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.3-3">RFC3768-6.4.3-3</code></td><td colspan="3"><span class="rfc-subject">- MUST NOT accept packets addressed to the IP address(es) associated with the virtual router if it is not the IP address owner. (§6.4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.4.3</td>
@@ -461,7 +455,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L376" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.3-4">RFC3768-6.4.3-4</code></td><td colspan="3"><span class="rfc-subject">Master: accept packets addressed to the virtual router IP address(es) when the IP address owner (§6.4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-6.4.3-4">RFC3768-6.4.3-4</code></td><td colspan="3"><span class="rfc-subject">- MUST accept packets addressed to the IP address(es) associated with the virtual router if it is the IP address owner. (§6.4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.4.3</td>
@@ -570,7 +564,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L463" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxDecodeErrorMapsReason</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-7.1-7">RFC3768-7.1-7</code></td><td colspan="3"><span class="rfc-subject">Rx: if the optional address-list check fails and the sender is not the address owner (Priority != 255), drop the packet (§7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-7.1-7">RFC3768-7.1-7</code></td><td colspan="3"><span class="rfc-subject">If the packet was not generated by the address owner (Priority does not equal 255 (decimal)), the receiver MUST drop the packet, otherwise continue processing. (§7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1</td>
@@ -579,7 +573,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L526" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceV2AddressListMismatchDrops</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-7.1-8">RFC3768-7.1-8</code></td><td colspan="3"><span class="rfc-subject">Rx: verify the Adver Interval in the packet equals the locally configured value; discard the packet on mismatch (§7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-7.1-8">RFC3768-7.1-8</code></td><td colspan="3"><span class="rfc-subject">- MUST verify that the Adver Interval in the packet is the same as the locally configured for this virtual router (§7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1</td>
@@ -625,25 +619,25 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> buildIPv4Header sets IP protocol 112 at internal/plugins/vrrp/transport/transport.go:563 and SendAdvert targets 224.0.0.18 at internal/plugins/vrrp/transport/backend_linux.go:256, both constants with no input that changes them</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-8.1-1">RFC3768-8.1-1</code></td><td colspan="3"><span class="rfc-subject">Master: when acting for virtual router(s) containing addresses it does not own, determine which virtual router the packet was sent to when selecting the ICMP redirect source address (§8.1; lowercase &#34;must&#34; in the RFC)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-8.1-1">RFC3768-8.1-1</code></td><td colspan="3"><span class="rfc-subject">If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address. (§8.1; lowercase &#34;must&#34; in the RFC)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-8.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L20" title="internal/plugins/vrrp/redirect_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPRedirectSourceFollowsVirtualMAC</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L21" title="internal/plugins/vrrp/redirect_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPRedirectSourceFollowsVirtualMAC</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-8.2-1">RFC3768-8.2-1</code></td><td colspan="3"><span class="rfc-subject">Master: never respond to host ARP requests for virtual addresses with the physical MAC address (§8.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-8.2-1">RFC3768-8.2-1</code></td><td colspan="3"><span class="rfc-subject">The Master virtual router MUST NOT respond with its physical MAC address. (§8.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>8.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-8.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L62" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L123" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L70" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L132" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-8.3-1">RFC3768-8.3-1</code></td><td colspan="3"><span class="rfc-subject">Advertise the virtual router MAC address in Proxy ARP messages sent on behalf of VRRP-protected addresses (§8.3; lowercase &#34;must&#34; in the RFC)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-8.3-1">RFC3768-8.3-1</code></td><td colspan="3"><span class="rfc-subject">If Proxy ARP is to be used on a VRRP router, then the VRRP router must advertise the Virtual Router MAC address in the Proxy ARP message. (§8.3; lowercase &#34;must&#34; in the RFC)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.3</td>
@@ -652,7 +646,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze performs no proxy ARP for virtual addresses -- the per-group virtual-MAC macvlan answers ARP for the VIP directly (createMacvlan internal/plugins/vrrp/register.go:329 plus the sole-responder sysctl recipe internal/plugins/vrrp/dataplane_linux.go:64), and no proxy-ARP path exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-9.2-1">RFC3768-9.2-1</code></td><td colspan="3"><span class="rfc-subject">Token ring: implement the functional-address mode of operation when supporting VRRP on token ring (§9.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3768-9.2-1">RFC3768-9.2-1</code></td><td colspan="3"><span class="rfc-subject">The functional address mode of operation MUST be implemented by routers supporting VRRP on token ring. (§9.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>9.2</td>
@@ -773,15 +767,11 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the VRRP plugin performs no IP datagram forwarding -- instance.onPacket internal/plugins/vrrp/instance.go:453 consumes each received advert into the FSM and never re-emits it, and tx scopes adverts to link-local multicast with IP_MULTICAST_LOOP 0 at internal/plugins/vrrp/transport/backend_linux.go:143</td>
 </tr>
-<tr><td><a href="#rfc3768-8.1-1"><code>RFC3768-8.1-1</code></a> Master: when acting for virtual router(s) containing addresses it does not own, determine which virtual router the packet was sent to when selecting the ICMP redirect source address (§8.1; lowercase &#34;must&#34; in the RFC)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3768-8.3-1"><code>RFC3768-8.3-1</code></a> Advertise the virtual router MAC address in Proxy ARP messages sent on behalf of VRRP-protected addresses (§8.3; lowercase &#34;must&#34; in the RFC)</td>
+<tr><td><a href="#rfc3768-8.3-1"><code>RFC3768-8.3-1</code></a> If Proxy ARP is to be used on a VRRP router, then the VRRP router must advertise the Virtual Router MAC address in the Proxy ARP message. (§8.3; lowercase &#34;must&#34; in the RFC)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze performs no proxy ARP for virtual addresses -- the per-group virtual-MAC macvlan answers ARP for the VIP directly (createMacvlan internal/plugins/vrrp/register.go:329 plus the sole-responder sysctl recipe internal/plugins/vrrp/dataplane_linux.go:64), and no proxy-ARP path exists</td>
 </tr>
-<tr><td><a href="#rfc3768-9.2-1"><code>RFC3768-9.2-1</code></a> Token ring: implement the functional-address mode of operation when supporting VRRP on token ring (§9.2)</td>
+<tr><td><a href="#rfc3768-9.2-1"><code>RFC3768-9.2-1</code></a> The functional address mode of operation MUST be implemented by routers supporting VRRP on token ring. (§9.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze supports only Ethernet-family parents (ethernet, veth, bridge, dummy -- internal/plugins/vrrp/groups.go:76) over AF_PACKET macvlan transport internal/plugins/vrrp/transport/backend_linux.go, with no token-ring transport, so the functional-address mode has no applicable code path</td>
 </tr>
@@ -811,7 +801,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 </table>
 </div>
 <h3><a href="#rfc3768-5.2.3-2"><code>RFC3768-5.2.3-2</code></a></h3>
-<p>Discard received VRRP packets whose TTL is not equal to 255 (§5.2.3, §7.1)</p>
+<p>A VRRP router receiving a packet with the TTL not equal to 255 MUST discard the packet. (§5.2.3, §7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -851,7 +841,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 </table>
 </div>
 <h3><a href="#rfc3768-5.3.4-1"><code>RFC3768-5.3.4-1</code></a></h3>
-<p>Use Priority 255 for the VRRP router that owns the virtual router&#39;s IP address(es) (§5.3.4)</p>
+<p>The priority value for the VRRP router that owns the IP address(es) associated with the virtual router MUST be 255 (decimal). (§5.3.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -871,7 +861,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 </table>
 </div>
 <h3><a href="#rfc3768-5.3.4-2"><code>RFC3768-5.3.4-2</code></a></h3>
-<p>Use Priority values 1-254 for VRRP routers backing up a virtual router (§5.3.4)</p>
+<p>VRRP routers backing up a virtual router MUST use priority values between 1-254 (decimal). (§5.3.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -891,7 +881,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 </table>
 </div>
 <h3><a href="#rfc3768-5.3.6-1"><code>RFC3768-5.3.6-1</code></a></h3>
-<p>Discard packets with unknown Auth Type or an Auth Type that does not match the locally configured authentication method (§5.3.6, §7.1)</p>
+<p>A packet with unknown authentication type or that does not match the locally configured authentication method MUST be discarded. (§5.3.6, §7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -911,7 +901,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 </table>
 </div>
 <h3><a href="#rfc3768-6.4.2-1"><code>RFC3768-6.4.2-1</code></a></h3>
-<p>Backup: never respond to ARP requests for the IP address(es) associated with the virtual router (§6.4.2)</p>
+<p>- MUST NOT respond to ARP requests for the IP address(s) associated with the virtual router. (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -931,7 +921,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 </table>
 </div>
 <h3><a href="#rfc3768-6.4.2-2"><code>RFC3768-6.4.2-2</code></a></h3>
-<p>Backup: discard packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.2)</p>
+<p>- MUST discard packets with a destination link layer MAC address equal to the virtual router MAC address. (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -951,7 +941,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 </table>
 </div>
 <h3><a href="#rfc3768-6.4.2-3"><code>RFC3768-6.4.2-3</code></a></h3>
-<p>Backup: never accept packets addressed to the IP address(es) associated with the virtual router (§6.4.2)</p>
+<p>- MUST NOT accept packets addressed to the IP address(es) associated with the virtual router. (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1071,19 +1061,19 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 </table>
 </div>
 <h3><a href="#rfc3768-6.4.3-1"><code>RFC3768-6.4.3-1</code></a></h3>
-<p>Master: respond to ARP requests for the IP address(es) associated with the virtual router, answering with the virtual MAC address (§6.4.3, §8.2)</p>
+<p>- MUST respond to ARP requests for the IP address(es) associated with the virtual router. (§6.4.3, §8.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L122" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L131" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L61" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L69" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1091,7 +1081,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 </table>
 </div>
 <h3><a href="#rfc3768-6.4.3-2"><code>RFC3768-6.4.3-2</code></a></h3>
-<p>Master: forward packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.3)</p>
+<p>- MUST forward packets with a destination link layer MAC address equal to the virtual router MAC address. (§6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1111,7 +1101,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 </table>
 </div>
 <h3><a href="#rfc3768-6.4.3-3"><code>RFC3768-6.4.3-3</code></a></h3>
-<p>Master: never accept packets addressed to the virtual router IP address(es) when not the IP address owner (§6.4.3)</p>
+<p>- MUST NOT accept packets addressed to the IP address(es) associated with the virtual router if it is not the IP address owner. (§6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1131,7 +1121,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 </table>
 </div>
 <h3><a href="#rfc3768-6.4.3-4"><code>RFC3768-6.4.3-4</code></a></h3>
-<p>Master: accept packets addressed to the virtual router IP address(es) when the IP address owner (§6.4.3)</p>
+<p>- MUST accept packets addressed to the IP address(es) associated with the virtual router if it is the IP address owner. (§6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1376,7 +1366,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 </table>
 </div>
 <h3><a href="#rfc3768-7.1-7"><code>RFC3768-7.1-7</code></a></h3>
-<p>Rx: if the optional address-list check fails and the sender is not the address owner (Priority != 255), drop the packet (§7.1)</p>
+<p>If the packet was not generated by the address owner (Priority does not equal 255 (decimal)), the receiver MUST drop the packet, otherwise continue processing. (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1396,7 +1386,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 </table>
 </div>
 <h3><a href="#rfc3768-7.1-8"><code>RFC3768-7.1-8</code></a></h3>
-<p>Rx: verify the Adver Interval in the packet equals the locally configured value; discard the packet on mismatch (§7.1)</p>
+<p>- MUST verify that the Adver Interval in the packet is the same as the locally configured for this virtual router (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1481,23 +1471,39 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 </table>
 </div>
 <h3><a href="#rfc3768-8.1-1"><code>RFC3768-8.1-1</code></a></h3>
-<p>Master: when acting for virtual router(s) containing addresses it does not own, determine which virtual router the packet was sent to when selecting the ICMP redirect source address (§8.1; lowercase &#34;must&#34; in the RFC)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3768-8.1-1, so no unit is bound to it.</p>
-<h3><a href="#rfc3768-8.2-1"><code>RFC3768-8.2-1</code></a></h3>
-<p>Master: never respond to host ARP requests for virtual addresses with the physical MAC address (§8.2)</p>
+<p>If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address. (§8.1; lowercase &#34;must&#34; in the RFC)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L123" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L21" title="internal/plugins/vrrp/redirect_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPRedirectSourceFollowsVirtualMAC</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L62" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L20" title="internal/plugins/vrrp/redirect_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPRedirectSourceFollowsVirtualMAC</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc3768-8.2-1"><code>RFC3768-8.2-1</code></a></h3>
+<p>The Master virtual router MUST NOT respond with its physical MAC address. (§8.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L132" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L70" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1505,11 +1511,11 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 </table>
 </div>
 <h3><a href="#rfc3768-8.3-1"><code>RFC3768-8.3-1</code></a></h3>
-<p>Advertise the virtual router MAC address in Proxy ARP messages sent on behalf of VRRP-protected addresses (§8.3; lowercase &#34;must&#34; in the RFC)</p>
+<p>If Proxy ARP is to be used on a VRRP router, then the VRRP router must advertise the Virtual Router MAC address in the Proxy ARP message. (§8.3; lowercase &#34;must&#34; in the RFC)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3768-8.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3768-9.2-1"><code>RFC3768-9.2-1</code></a></h3>
-<p>Token ring: implement the functional-address mode of operation when supporting VRRP on token ring (§9.2)</p>
+<p>The functional address mode of operation MUST be implemented by routers supporting VRRP on token ring. (§9.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3768-9.2-1, so no unit is bound to it.</p>
 </section>
@@ -2013,7 +2019,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <td>RFC9568-5.1.1.3-1</td>
 <td>RFC 9568 Section 5.1.1.3 keeps the IPv4 TTL of 255 and adds the IPv6 Hop Limit counterpart at RFC9568-5.1.2.3-1</td>
 </tr>
-<tr><td><a href="#rfc3768-5.2.3-2"><code>RFC3768-5.2.3-2</code></a> Discard received VRRP packets whose TTL is not equal to 255 (§5.2.3, §7.1)</td>
+<tr><td><a href="#rfc3768-5.2.3-2"><code>RFC3768-5.2.3-2</code></a> A VRRP router receiving a packet with the TTL not equal to 255 MUST discard the packet. (§5.2.3, §7.1)</td>
 <td>restated</td>
 <td>RFC9568-5.1.1.3-2</td>
 <td>RFC 9568 Section 5.1.1.3 keeps the discard rule for IPv4 and adds the IPv6 Hop Limit counterpart at RFC9568-5.1.2.3-2</td>
@@ -2023,32 +2029,32 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <td>RFC9568-5.2.2-1</td>
 <td>RFC 9568 Section 5.2.2 keeps ADVERTISEMENT as the only defined type and keeps the discard rule for any other value</td>
 </tr>
-<tr><td><a href="#rfc3768-5.3.4-1"><code>RFC3768-5.3.4-1</code></a> Use Priority 255 for the VRRP router that owns the virtual router&#39;s IP address(es) (§5.3.4)</td>
+<tr><td><a href="#rfc3768-5.3.4-1"><code>RFC3768-5.3.4-1</code></a> The priority value for the VRRP router that owns the IP address(es) associated with the virtual router MUST be 255 (decimal). (§5.3.4)</td>
 <td>restated</td>
 <td>RFC9568-5.2.4-1</td>
 <td>RFC 9568 Section 5.2.4 keeps Priority 255 for the router owning the Virtual Router addresses, over both address families</td>
 </tr>
-<tr><td><a href="#rfc3768-5.3.4-2"><code>RFC3768-5.3.4-2</code></a> Use Priority values 1-254 for VRRP routers backing up a virtual router (§5.3.4)</td>
+<tr><td><a href="#rfc3768-5.3.4-2"><code>RFC3768-5.3.4-2</code></a> VRRP routers backing up a virtual router MUST use priority values between 1-254 (decimal). (§5.3.4)</td>
 <td>restated</td>
 <td>RFC9568-5.2.4-2</td>
 <td>RFC 9568 Section 5.2.4 keeps the 1 to 254 range for backup routers</td>
 </tr>
-<tr><td><a href="#rfc3768-5.3.6-1"><code>RFC3768-5.3.6-1</code></a> Discard packets with unknown Auth Type or an Auth Type that does not match the locally configured authentication method (§5.3.6, §7.1)</td>
+<tr><td><a href="#rfc3768-5.3.6-1"><code>RFC3768-5.3.6-1</code></a> A packet with unknown authentication type or that does not match the locally configured authentication method MUST be discarded. (§5.3.6, §7.1)</td>
 <td>dropped</td>
 <td>not stated</td>
 <td>VRRPv3 removes authentication. RFC 9568 Section 9 states that VRRP for IPvX does not currently include any type of authentication, and its packet format carries no Auth Type field, so no unknown-or-mismatched Auth Type can be received. The octet that held Auth Type in VRRPv2 is the Reserve field of RFC 9568 Section 5.2.6</td>
 </tr>
-<tr><td><a href="#rfc3768-6.4.2-1"><code>RFC3768-6.4.2-1</code></a> Backup: never respond to ARP requests for the IP address(es) associated with the virtual router (§6.4.2)</td>
+<tr><td><a href="#rfc3768-6.4.2-1"><code>RFC3768-6.4.2-1</code></a> - MUST NOT respond to ARP requests for the IP address(s) associated with the virtual router. (§6.4.2)</td>
 <td>restated</td>
 <td>RFC9568-6.4.2-1</td>
 <td>RFC 9568 Section 6.4.2 keeps the rule for IPv4 ARP and adds the IPv6 counterparts, RFC9568-6.4.2-2 for Neighbor Solicitations and RFC9568-6.4.2-3 for Router Advertisements</td>
 </tr>
-<tr><td><a href="#rfc3768-6.4.2-2"><code>RFC3768-6.4.2-2</code></a> Backup: discard packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.2)</td>
+<tr><td><a href="#rfc3768-6.4.2-2"><code>RFC3768-6.4.2-2</code></a> - MUST discard packets with a destination link layer MAC address equal to the virtual router MAC address. (§6.4.2)</td>
 <td>restated</td>
 <td>RFC9568-6.4.2-4</td>
 <td>RFC 9568 Section 6.4.2 keeps the rule that a Backup Router discards packets whose destination link-layer address is the Virtual Router MAC</td>
 </tr>
-<tr><td><a href="#rfc3768-6.4.2-3"><code>RFC3768-6.4.2-3</code></a> Backup: never accept packets addressed to the IP address(es) associated with the virtual router (§6.4.2)</td>
+<tr><td><a href="#rfc3768-6.4.2-3"><code>RFC3768-6.4.2-3</code></a> - MUST NOT accept packets addressed to the IP address(es) associated with the virtual router. (§6.4.2)</td>
 <td>restated</td>
 <td>RFC9568-6.4.2-5</td>
 <td>RFC 9568 Section 6.4.2 keeps the rule and states it over both address families</td>
@@ -2078,22 +2084,22 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <td>RFC9568-6.4.2-10</td>
 <td>RFC 9568 Section 6.4.2 keeps the discard rule for a lower-priority advertisement under Preempt_Mode</td>
 </tr>
-<tr><td><a href="#rfc3768-6.4.3-1"><code>RFC3768-6.4.3-1</code></a> Master: respond to ARP requests for the IP address(es) associated with the virtual router, answering with the virtual MAC address (§6.4.3, §8.2)</td>
+<tr><td><a href="#rfc3768-6.4.3-1"><code>RFC3768-6.4.3-1</code></a> - MUST respond to ARP requests for the IP address(es) associated with the virtual router. (§6.4.3, §8.2)</td>
 <td>restated</td>
 <td>RFC9568-6.4.3-1</td>
 <td>RFC 9568 Section 6.4.3 keeps the ARP obligation for IPv4 and adds the IPv6 Neighbor Discovery counterparts at RFC9568-6.4.3-2, RFC9568-6.4.3-3 and RFC9568-6.4.3-4</td>
 </tr>
-<tr><td><a href="#rfc3768-6.4.3-2"><code>RFC3768-6.4.3-2</code></a> Master: forward packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.3)</td>
+<tr><td><a href="#rfc3768-6.4.3-2"><code>RFC3768-6.4.3-2</code></a> - MUST forward packets with a destination link layer MAC address equal to the virtual router MAC address. (§6.4.3)</td>
 <td>restated</td>
 <td>RFC9568-6.4.3-5</td>
 <td>RFC 9568 Section 6.4.3 keeps the rule that the Active Router forwards packets whose destination link-layer address is the Virtual Router MAC</td>
 </tr>
-<tr><td><a href="#rfc3768-6.4.3-3"><code>RFC3768-6.4.3-3</code></a> Master: never accept packets addressed to the virtual router IP address(es) when not the IP address owner (§6.4.3)</td>
+<tr><td><a href="#rfc3768-6.4.3-3"><code>RFC3768-6.4.3-3</code></a> - MUST NOT accept packets addressed to the IP address(es) associated with the virtual router if it is not the IP address owner. (§6.4.3)</td>
 <td>restated</td>
 <td>RFC9568-6.4.3-7</td>
 <td>RFC 9568 Section 6.4.3 keeps the prohibition and narrows it, because VRRPv3 adds Accept_Mode: the Active Router refuses such packets only when it is neither the address owner nor configured with Accept_Mode True</td>
 </tr>
-<tr><td><a href="#rfc3768-6.4.3-4"><code>RFC3768-6.4.3-4</code></a> Master: accept packets addressed to the virtual router IP address(es) when the IP address owner (§6.4.3)</td>
+<tr><td><a href="#rfc3768-6.4.3-4"><code>RFC3768-6.4.3-4</code></a> - MUST accept packets addressed to the IP address(es) associated with the virtual router if it is the IP address owner. (§6.4.3)</td>
 <td>restated</td>
 <td>RFC9568-6.4.3-6</td>
 <td>RFC 9568 Section 6.4.3 keeps the owner case and widens it to Accept_Mode True</td>
@@ -2153,12 +2159,12 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <td>RFC9568-7.1-6</td>
 <td>RFC 9568 Section 7.1 keeps the discard on a failed mandatory check, and keeps the SHOULD log and MAY network-management indication beside it</td>
 </tr>
-<tr><td><a href="#rfc3768-7.1-7"><code>RFC3768-7.1-7</code></a> Rx: if the optional address-list check fails and the sender is not the address owner (Priority != 255), drop the packet (§7.1)</td>
+<tr><td><a href="#rfc3768-7.1-7"><code>RFC3768-7.1-7</code></a> If the packet was not generated by the address owner (Priority does not equal 255 (decimal)), the receiver MUST drop the packet, otherwise continue processing. (§7.1)</td>
 <td>dropped</td>
 <td>not stated</td>
 <td>RFC 9568 Section 7.1 removes the drop. The address-list check is a MAY at RFC9568-7.1-11, and on failure the receiver only SHOULD log the event and MAY indicate a misconfiguration. No sender-priority condition and no packet drop remain</td>
 </tr>
-<tr><td><a href="#rfc3768-7.1-8"><code>RFC3768-7.1-8</code></a> Rx: verify the Adver Interval in the packet equals the locally configured value; discard the packet on mismatch (§7.1)</td>
+<tr><td><a href="#rfc3768-7.1-8"><code>RFC3768-7.1-8</code></a> - MUST verify that the Adver Interval in the packet is the same as the locally configured for this virtual router (§7.1)</td>
 <td>restated</td>
 <td>RFC9568-7.1-8</td>
 <td>RFC 9568 Section 7.1 lowers the check from MUST to SHOULD and removes the drop, stating that the mismatch will not result in the VRRP packet being dropped. RFC 9568 Section 1.2 lists that as change 8. The field is also renamed and rescaled, from Adver Int in seconds to Max Advertise Interval in centiseconds</td>
@@ -2183,17 +2189,22 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
 <td>RFC9568-7.2-4</td>
 <td>RFC 9568 Section 7.2 keeps IP protocol 112 and adds the IPv6 destination group ff02::12 beside 224.0.0.18</td>
 </tr>
-<tr><td><a href="#rfc3768-8.2-1"><code>RFC3768-8.2-1</code></a> Master: never respond to host ARP requests for virtual addresses with the physical MAC address (§8.2)</td>
+<tr><td><a href="#rfc3768-8.1-1"><code>RFC3768-8.1-1</code></a> If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address. (§8.1; lowercase &#34;must&#34; in the RFC)</td>
+<td>unextracted</td>
+<td>§8.1.1</td>
+<td>RFC 9568 §8.1.1 restates it in the same words, and rfc/short/rfc9568.md declares no row for it</td>
+</tr>
+<tr><td><a href="#rfc3768-8.2-1"><code>RFC3768-8.2-1</code></a> The Master virtual router MUST NOT respond with its physical MAC address. (§8.2)</td>
 <td>restated</td>
 <td>RFC9568-8.1.2-1</td>
 <td>RFC 9568 Section 8.1.2 keeps the prohibition for IPv4 ARP and adds the IPv6 Neighbor Discovery counterpart at RFC9568-8.2.2-1</td>
 </tr>
-<tr><td><a href="#rfc3768-8.3-1"><code>RFC3768-8.3-1</code></a> Advertise the virtual router MAC address in Proxy ARP messages sent on behalf of VRRP-protected addresses (§8.3; lowercase &#34;must&#34; in the RFC)</td>
+<tr><td><a href="#rfc3768-8.3-1"><code>RFC3768-8.3-1</code></a> If Proxy ARP is to be used on a VRRP router, then the VRRP router must advertise the Virtual Router MAC address in the Proxy ARP message. (§8.3; lowercase &#34;must&#34; in the RFC)</td>
 <td>restated</td>
 <td>RFC9568-8.1.3-1</td>
 <td>RFC 9568 Section 8.1.3 keeps the Proxy ARP obligation and states it with an uppercase MUST</td>
 </tr>
-<tr><td><a href="#rfc3768-9.2-1"><code>RFC3768-9.2-1</code></a> Token ring: implement the functional-address mode of operation when supporting VRRP on token ring (§9.2)</td>
+<tr><td><a href="#rfc3768-9.2-1"><code>RFC3768-9.2-1</code></a> The functional address mode of operation MUST be implemented by routers supporting VRRP on token ring. (§9.2)</td>
 <td>dropped</td>
 <td>not stated</td>
 <td>RFC 9568 removes token ring. Its Section 1.2 lists as change 6 that the appendices describing operation over legacy technologies, FDDI, Token Ring and ATM LAN Emulation, were removed, so RFC 9568 states no functional-address obligation</td>
@@ -2286,7 +2297,7 @@ Opt-in via <code>version 2</code>. Whole-second Advertisement_Interval encoding,
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

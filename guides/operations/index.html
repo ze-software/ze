@@ -158,7 +158,8 @@ daemon started on a non-default folder, set <code>ZE_CONFIG_DIR</code> to that f
 the explicit file on every start. Its daemon commits update that file and stored
 history. Bare <code>ze start</code> reads the stored active configuration. A <code>database.zefs</code>
 beside the live location is refused without conversion. The diagnostic names
-<code>ze init --from &lt;blob&gt;</code>, which imports a local blob; the URL form is storage-2.
+<code>ze init --from &lt;source&gt;</code>, which imports a blob from a local path or from an
+<code>http</code> or <code>https</code> URL, optionally pinned with <code>--sha256 &lt;hex&gt;</code>.
 Appliance first boot already imports its seed explicitly.</p>
 <!-- source: cmd/ze/ze_core_start.go -- openExplicitStore, cmdStart -->
 <!-- source: internal/plugins/init/main.go -- Run -->
@@ -222,6 +223,30 @@ never the tree's framing bytes.</p>
 <tr>
 <td><code>ze data repair --output &lt;path&gt;</code></td>
 <td>Copy recoverable keys into a new destination</td>
+</tr>
+<tr>
+<td><code>ze data backup &lt;file&gt; [spare &lt;n&gt;]</code></td>
+<td>Copy every key to one exact-fit 0600 blob artifact under the store lock; offline only</td>
+</tr>
+<tr>
+<td><code>ze data restore &lt;file&gt; config [name &lt;source-name&gt;]</code></td>
+<td>Commit the artifact's config as a new active version; offline only</td>
+</tr>
+<tr>
+<td><code>ze data restore &lt;file&gt; full</code></td>
+<td>Replace the whole tree with the artifact's keys; the previous tree is kept as <code>database.replaced-&lt;stamp&gt;</code> and the artifact is unchanged; offline only</td>
+</tr>
+<tr>
+<td><code>request data backup path &lt;absolute-file&gt; [spare &lt;n&gt;] [force]</code></td>
+<td>Live backup of the daemon's store, written on the daemon's host</td>
+</tr>
+<tr>
+<td><code>request data restore path &lt;absolute-file&gt; config [name &lt;source-name&gt;]</code></td>
+<td>Live config restore: staged as the candidate, active only when the reload accepts it</td>
+</tr>
+<tr>
+<td><code>request data restore path &lt;absolute-file&gt; config [name &lt;source-name&gt;] client &lt;name&gt;</code></td>
+<td>On a hub: restore the config it serves to managed client <code>&lt;name&gt;</code>; the hub pushes <code>config-changed</code> and does not reload</td>
 </tr>
 <tr>
 <td><code>ze data encode [--crc|--header] [--cap N] &lt;string|-&gt;</code></td>
@@ -306,6 +331,15 @@ ze signal reload --host 10.0.0.1 --port 2222
 <p>Reload writes the edited config as a candidate version. The active pointer moves
 only after verification, apply, and subsystem reload succeed. A failed reload
 clears the candidate and keeps the previous active config.</p>
+<p>A SIGHUP that arrives while the process is still in Go package initialization,
+before <code>main</code> registers any handler, kills ze. That window is the first few
+hundred milliseconds after exec, and nothing in ze runs earlier. The remedy is
+the supervisor's: start ze with SIGHUP ignored. Go keeps an inherited ignored
+SIGHUP until ze registers it, so the signal is lost in that window instead of
+fatal, and every later SIGHUP reloads. <code>ze install systemd</code> writes this into the
+unit (<code>sh -c 'trap "" HUP; exec ze start'</code>), because systemd has no directive
+that ignores a signal. A supervisor you write yourself does the same, or never
+sends SIGHUP before ze is ready. Details: <code>docs/architecture/behavior/signals.md</code>.</p>
 <h3 id="exit-codes-signal-command">Exit Codes (signal command)</h3>
 <table>
 <thead>
@@ -566,7 +600,7 @@ Wants=network-online.target
 Type=simple
 User=ze
 Group=ze
-ExecStart=/usr/local/bin/ze start
+ExecStart=/bin/sh -c 'trap "" HUP; exec /usr/local/bin/ze start'
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5
@@ -811,7 +845,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 06:03 UTC</span>
                 </div>
             </div>
         </footer>

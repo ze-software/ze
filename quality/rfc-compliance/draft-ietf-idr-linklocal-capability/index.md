@@ -113,15 +113,15 @@ Enrolled: Link-Local Next Hop capability for BGP (code 77): twelve MUST-level re
 |---|---|---|---|---|
 | `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-1` | "BGP speakers SHOULD NOT advertise a route whose Next Hop is a Link-Local address that is in the tentative state (Section 5.4 of [RFC4862]); this applies both to a first-party Next Hop (the speaker's own Link-Local address) and to a third-party Next Hop re-advertised from another peer" (§1) | SHOULD NOT | 1 | **positive:** no positive test. **negative:** no negative test |
 | `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-2-1` | "A BGP speaker that is willing to use (send and receive) IPv6 Link-Local-only next hops SHOULD advertise the Link-Local Next Hop Capability to its peers only when: 1. It is capable of sending IPv6 Link-Local-only next hops for a route. 2. IPv6 Link-Local neighbors are associated with interfaces as part of their configuration to assist in determining the interface scope of received IPv6 Link-Local-only next hops" (§2) | SHOULD | 2 | **positive:** no positive test. **negative:** no negative test |
-| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1` | "If an implementation intends to send a single IPv6 Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 16 and include only the IPv6 Link-Local address in the Next Hop field" (§3) | MUST | 3 | **positive:** `unit/verify` [`TestLinkLocalOnlyNextHopFieldIsSixteenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L87). **negative:** `unit/verify` [`TestLinkLocalNextHopWithAGlobalIsNotSentAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L118) |
-| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2` | "If an implementation intends to send both a IPv6 Global and Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 32 and include both the IPv6 Global and Link-Local addresses in the Next Hop field" (§3) | MUST | 3 | **positive:** `unit/verify` [`TestLinkLocalBothAddressesUseThirtyTwoOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L48). **negative:** `unit/verify` [`TestLinkLocalSingleAddressKeepsSixteenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L61) |
-| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1` | "If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer" (§4) | MUST | 4 | **positive:** `unit/verify` [`TestLinkLocalRouteWithNoNextHopIsNotAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L70). **negative:** `unit/verify` [`TestLinkLocalRouteWithANextHopIsAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L83) |
-| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2` | "If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop" (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestLinkLocalNotIncludedForPeerMoreThanOneHopAway`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L73). **negative:** `unit/verify` [`TestLinkLocalIncludedForPeerOneHopAway`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L84) |
-| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3` | "If the route is directly connected to the speaker, or if the interface address of the router through which the announced network is reachable for the speaker is the internal peer's address, the next hop MUST include its own Link-Local IPv6 address" (§4) | MUST | 4 | **positive:** `unit/verify` [`TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L135). **negative:** `unit/verify` [`TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L150) |
-| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4` | "If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker" (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L96). **negative:** `unit/verify` [`TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L105) |
-| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5` | "A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser" (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L192). **negative:** `unit/verify` [`TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L201) |
-| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6` | "For all other clients, the RR MUST either rewrite the next hop to its own address (next-hop-self) or consider the route ineligible for advertisement to that specific peer" (§4) | MUST | 4 | **positive:** `unit/verify` [`TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L228). **negative:** `unit/verify` [`TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L258) |
-| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7` | "If no next hops are included, the route MUST NOT be announced (treat-as-withdraw)" (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L117). **negative:** `unit/verify` [`TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L126) |
+| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1` | If an implementation intends to send a single IPv6 Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 16 and include only the IPv6 Link-Local address in the Next Hop field. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestLinkLocalOnlyNextHopFieldIsSixteenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L87). **negative:** `unit/verify` [`TestLinkLocalNextHopWithAGlobalIsNotSentAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L118) |
+| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2` | If an implementation intends to send both a IPv6 Global and Link- Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 32 and include both the IPv6 Global and Link-Local addresses in the Next Hop field. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestLinkLocalBothAddressesUseThirtyTwoOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L48). **negative:** `unit/verify` [`TestLinkLocalSingleAddressKeepsSixteenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L61) |
+| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1` | If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestLinkLocalRouteWithNoNextHopIsNotAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L70). **negative:** `unit/verify` [`TestLinkLocalRouteWithANextHopIsAdvertised`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L83) |
+| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2` | If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop. (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestLinkLocalNotIncludedForPeerMoreThanOneHopAway`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L73). **negative:** `unit/verify` [`TestLinkLocalIncludedForPeerOneHopAway`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L84) |
+| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3` | If the route is directly connected to the speaker, or if the interface address of the router through which the announced network is reachable for the speaker is the internal peer's address, the next hop MUST include its own Link- Local IPv6 address. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L135). **negative:** `unit/verify` [`TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L150) |
+| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4` | If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker. (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L96). **negative:** `unit/verify` [`TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L105) |
+| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5` | A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser. (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L192). **negative:** `unit/verify` [`TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L201) |
+| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6` | For all other clients, the RR MUST either rewrite the next hop to its own address (next-hop-self) or consider the route ineligible for advertisement to that specific peer. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L228). **negative:** `unit/verify` [`TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L258) |
+| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7` | If no next hops are included, the route MUST NOT be announced (treat-as- withdraw). (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L117). **negative:** `unit/verify` [`TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L126) |
 | `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8` | "Link-Local IPv6 next hops MUST NOT be included" for an external peer that "is multiple IP hops away from the speaker (aka \\"multihop EBGP\\")" (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestLinkLocalNotIncludedForMultihopExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L95). **negative:** `unit/verify` [`TestLinkLocalIncludedForDirectlyAttachedExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L108) |
 | `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9` | "If a Global IPv6 next hop is not included, the route MUST NOT be advertised to the external peer (treat-as-withdraw)" (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L137). **negative:** `unit/verify` [`TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L151) |
 | `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-10` | "When sending a message to an internal peer, if the route is not locally-originated, the BGP speaker SHOULD NOT modify the Global IPv6 next hop, if one is present, unless it has been explicitly configured to announce its own IP address as the next hop" (§4) | SHOULD NOT | 4 | **positive:** no positive test. **negative:** no negative test |
@@ -129,7 +129,7 @@ Enrolled: Link-Local Next Hop capability for BGP (code 77): twelve MUST-level re
 | `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-12` | "If the external peer is one IP hop away, the announcing BGP speaker SHOULD include a Link-Local IPv6 next hop" (§4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
 | `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-13` | "If a BGP speaker receives a route with a link-local-only next hop, the route SHOULD be considered unusable for forwarding, consistent with the next-hop resolvability requirements described in [RFC4271]" (§4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
 | `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-14` | "By default, the BGP speaker SHOULD use the Global IPv6 address of the interface that the speaker uses in the next hop to establish the BGP connection to peer X" (§4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
-| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1` | "When this combination has not been negotiated, a sender MUST follow the rules in Section 3 of [RFC8950] and encode the Next Hop as 32 octets" (§5) | MUST | 5 | **positive:** `unit/verify` [`TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L141). **negative:** `unit/verify` [`TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L173) |
+| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1` | When this combination has not been negotiated, a sender MUST follow the rules in Section 3 of [RFC8950] and encode the Next Hop as 32 octets. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L141). **negative:** `unit/verify` [`TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L173) |
 | `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1` | "If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of \\"treat-as-withdraw\\", as described in section 7.3 of [RFC7606]" (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** validateMPReachNextHop (internal/component/bgp/message/rfc7606.go) answers a next-hop length outside attribute.ValidNextHopLens with RFC7606ActionSessionReset, which is RFC 7606 Section 7.11's approach and not the treat-as-withdraw of Section 7.3 this requirement names, and no producer inspects the CONTENT of a field whose length is admitted |
 | `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-2` | "Receivers SHOULD use the second Link-Local IPv6 address for forwarding, because the second slot is the position that carries the Link-Local address in the conforming Global-then-Link-Local layout defined by [RFC2545], and thus is the value the sender most likely intended as the Link-Local next hop" (§6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
 | `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-3` | "If the Next Hop field is properly formed, but the IPv6 Link-Local next hop is not reachable (as determined by an examination of the IPv6 neighbor table), the route SHOULD be considered unusable for forwarding purposes, in accordance with the next hop resolvability conditions described in [RFC4271]" (§6) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
@@ -149,7 +149,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1`](#draft-ietf-idr-linklocal-capability-3-1)
 
-"If an implementation intends to send a single IPv6 Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 16 and include only the IPv6 Link-Local address in the Next Hop field" (§3)
+If an implementation intends to send a single IPv6 Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 16 and include only the IPv6 Link-Local address in the Next Hop field. (§3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -160,7 +160,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2`](#draft-ietf-idr-linklocal-capability-3-2)
 
-"If an implementation intends to send both a IPv6 Global and Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 32 and include both the IPv6 Global and Link-Local addresses in the Next Hop field" (§3)
+If an implementation intends to send both a IPv6 Global and Link- Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 32 and include both the IPv6 Global and Link-Local addresses in the Next Hop field. (§3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -171,7 +171,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1`](#draft-ietf-idr-linklocal-capability-4-1)
 
-"If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer" (§4)
+If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -182,7 +182,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2`](#draft-ietf-idr-linklocal-capability-4-2)
 
-"If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop" (§4)
+If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -193,7 +193,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3`](#draft-ietf-idr-linklocal-capability-4-3)
 
-"If the route is directly connected to the speaker, or if the interface address of the router through which the announced network is reachable for the speaker is the internal peer's address, the next hop MUST include its own Link-Local IPv6 address" (§4)
+If the route is directly connected to the speaker, or if the interface address of the router through which the announced network is reachable for the speaker is the internal peer's address, the next hop MUST include its own Link- Local IPv6 address. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -204,7 +204,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4`](#draft-ietf-idr-linklocal-capability-4-4)
 
-"If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker" (§4)
+If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -215,7 +215,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5`](#draft-ietf-idr-linklocal-capability-4-5)
 
-"A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser" (§4)
+A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -226,7 +226,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6`](#draft-ietf-idr-linklocal-capability-4-6)
 
-"For all other clients, the RR MUST either rewrite the next hop to its own address (next-hop-self) or consider the route ineligible for advertisement to that specific peer" (§4)
+For all other clients, the RR MUST either rewrite the next hop to its own address (next-hop-self) or consider the route ineligible for advertisement to that specific peer. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -237,7 +237,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7`](#draft-ietf-idr-linklocal-capability-4-7)
 
-"If no next hops are included, the route MUST NOT be announced (treat-as-withdraw)" (§4)
+If no next hops are included, the route MUST NOT be announced (treat-as- withdraw). (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -270,7 +270,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1`](#draft-ietf-idr-linklocal-capability-5-1)
 
-"When this combination has not been negotiated, a sender MUST follow the rules in Section 3 of [RFC8950] and encode the Next Hop as 32 octets" (§5)
+When this combination has not been negotiated, a sender MUST follow the rules in Section 3 of [RFC8950] and encode the Next Hop as 32 octets. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 

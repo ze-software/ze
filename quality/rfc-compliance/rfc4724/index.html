@@ -307,25 +307,25 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s GR sender emits exactly one code-64 declaration per peer (internal/component/bgp/plugins/gr/gr.go:703 extractGRCapabilities appends one CapabilityDecl per peer) and the encoder writes a single TLV (internal/core/bgp/capability/capability.go:553 WriteTo); there is no code path that emits two instances, so the more-than-one case cannot be constructed to test negatively</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-3-2">RFC4724-3-2</code></td><td colspan="3"><span class="rfc-subject">Reserved bits in Restart Flags MUST be set to zero by the sender (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-3-2">RFC4724-3-2</code></td><td colspan="3"><span class="rfc-subject">The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver. (Section 3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L422" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L433" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L457" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L468" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-3-3">RFC4724-3-3</code></td><td colspan="3"><span class="rfc-subject">Reserved bits in Address Family Flags MUST be set to zero by the sender (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-3-3">RFC4724-3-3</code></td><td colspan="3"><span class="rfc-subject">The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver. (Section 3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L428" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L442" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L463" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L477" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-3-4">RFC4724-3-4</code></td><td colspan="3"><span class="rfc-subject">If more than one instance of the Graceful Restart Capability is received, the receiver MUST ignore all but the last instance (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-3-4">RFC4724-3-4</code></td><td colspan="3"><span class="rfc-subject">If more than one instance of the Graceful Restart Capability is carried in the capability advertisement, the receiver of the advertisement MUST ignore all but the last instance of the Graceful Restart Capability. (Section 3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -343,7 +343,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze advertises its Adj-RIB-Out and per-family End-of-RIB immediately on reaching Established (internal/component/bgp/reactor/peer_initial_sync.go:277,334) and has no receive-side mechanism that gates advertisement on a peer&#39;s End-of-RIB; the only End-of-RIB timer (internal/component/bgp/reactor/session_health.go:114 startEORTimer) raises a health warning and never defers advertisement, so there is no wait state for the R bit to override</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4-1">RFC4724-4-1</code></td><td colspan="3"><span class="rfc-subject">The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update for an address family (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4-1">RFC4724-4-1</code></td><td colspan="3"><span class="rfc-subject">The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update (including the case when there is no update to send) for an address family after the BGP session is established. (Section 4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -355,10 +355,10 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L341" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L419" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestRoutePushingBindingsCountBothRails</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L224" title="internal/component/bgp/message/eor_test.go" target="_blank" rel="noopener"><code>TestIsEndOfRIBAnyFamily</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1196" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNoFamilyEndOfRIB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1194" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNoFamilyEndOfRIB</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4-2">RFC4724-4-2</code></td><td colspan="3"><span class="rfc-subject">Normal BGP procedures MUST be followed when the TCP session terminates due to sending or receiving a NOTIFICATION message (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4-2">RFC4724-4-2</code></td><td colspan="3"><span class="rfc-subject">It is noted that the normal BGP procedures MUST be followed when the TCP session terminates due to the sending or receiving of a BGP NOTIFICATION message. (Section 4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -385,7 +385,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> because ze does not retain its own Loc-RIB across a restart (see RFC4724-4.1-1), there is no retained own-forwarding state to mark stale; the stale-marking machinery (internal/component/bgp/plugins/rib/rib_commands.go:817 markStaleCommand) applies to routes received from a restarting peer, not to ze&#39;s own routes on ze&#39;s restart</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.1-3">RFC4724-4.1-3</code></td><td colspan="3"><span class="rfc-subject">Restarting Speaker MUST NOT differentiate between stale and other information during forwarding (Section 4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.1-3">RFC4724-4.1-3</code></td><td colspan="3"><span class="rfc-subject">It MUST NOT differentiate between stale and other information during forwarding. (Section 4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.1</td>
@@ -394,13 +394,13 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> this governs forwarding over ze&#39;s own retained stale Loc-RIB, which ze does not build on restart (see RFC4724-4.1-1); the generic non-differentiation of level-1 stale in best-path selection (internal/component/bgp/plugins/rib/bestpath.go:308) is the Receiving Speaker path for peer routes, not ze&#39;s own routes as a Restarting Speaker</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.1-4">RFC4724-4.1-4</code></td><td colspan="3"><span class="rfc-subject">Restarting Speaker MUST set the &#34;Restart State&#34; (R) bit in the Graceful Restart Capability of the OPEN message (Section 4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.1-4">RFC4724-4.1-4</code></td><td colspan="3"><span class="rfc-subject">To re-establish the session with its peer, the Restarting Speaker MUST set the &#34;Restart State&#34; bit in the Graceful Restart Capability of the OPEN message. (Section 4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-4.1-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L260" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitOnCapability</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L499" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitTimeGatePattern</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L262" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitOnCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L497" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitTimeGatePattern</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.1-5">RFC4724-4.1-5</code></td><td colspan="3"><span class="rfc-subject">Restarting Speaker MUST defer route selection per address family until End-of-RIB from all peers or Selection_Deferral_Timer expires (Section 4.1)</span></td></tr>
@@ -412,7 +412,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze runs best-path selection as updates arrive and has no selection-deferral path keyed on End-of-RIB; the only End-of-RIB timer (internal/component/bgp/reactor/session_health.go:114 startEORTimer) raises a health warning and does not gate route selection</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.1-6">RFC4724-4.1-6</code></td><td colspan="3"><span class="rfc-subject">After route selection, forwarding state MUST be updated and stale information MUST be removed (Section 4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.1-6">RFC4724-4.1-6</code></td><td colspan="3"><span class="rfc-subject">After the BGP speaker performs route selection, the forwarding state of the speaker MUST be updated and any previously marked stale information MUST be removed. (Section 4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -421,7 +421,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> this is the completion step of the deferred-selection cycle ze does not run (see RFC4724-4.1-5); with no own-Loc-RIB stale state (RFC4724-4.1-1) there is no post-selection stale removal on ze&#39;s own restart</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.1-7">RFC4724-4.1-7</code></td><td colspan="3"><span class="rfc-subject">Once initial update is complete, the End-of-RIB marker MUST be sent (Section 4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.1-7">RFC4724-4.1-7</code></td><td colspan="3"><span class="rfc-subject">Once the initial update is complete for an address family (including the case that there is no routing update to send), the End-of-RIB marker MUST be sent. (Section 4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -430,7 +430,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L228" title="internal/component/bgp/message/eor_test.go" target="_blank" rel="noopener"><code>TestIsEndOfRIBAnyFamily</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.1-8">RFC4724-4.1-8</code></td><td colspan="3"><span class="rfc-subject">An implementation MUST support a configurable Selection_Deferral_Timer (Section 4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.1-8">RFC4724-4.1-8</code></td><td colspan="3"><span class="rfc-subject">To put an upper bound on the amount of time a router defers its route selection, an implementation MUST support a (configurable) timer that imposes this upper bound. (Section 4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -448,7 +448,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze follows plain RFC 4271 Section 6.8 collision detection -- a new inbound connection while the session is Established is rejected with Cease/Connection Collision (internal/component/bgp/reactor/reactor_connection.go:134-136), with no GR-capability branch that treats the new OPEN as terminating the old session</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-2">RFC4724-4.2-2</code></td><td colspan="3"><span class="rfc-subject">Previous TCP session MUST be closed, and the new one retained (Section 4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-2">RFC4724-4.2-2</code></td><td colspan="3"><span class="rfc-subject">&#34;Acting accordingly&#34; in this context means that the previous TCP session MUST be closed, and the new one retained. (Section 4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2</td>
@@ -457,7 +457,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the same RFC 4271 collision path closes the NEW connection and keeps the existing Established session (internal/component/bgp/reactor/reactor_connection.go:134-136 rejectConnectionCollisionWithSettings), the opposite of the RFC 4724 Section 4.2 override that closes the previous session and retains the new one</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-3">RFC4724-4.2-3</code></td><td colspan="3"><span class="rfc-subject">Receiving Speaker MUST retain routes from peer for all address families previously in Graceful Restart Capability and MUST mark them as stale (Section 4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-3">RFC4724-4.2-3</code></td><td colspan="3"><span class="rfc-subject">When the Receiving Speaker detects termination of the TCP session for a BGP session with a peer that has advertised the Graceful Restart Capability, it MUST retain the routes received from the peer for all the address families that were previously received in the Graceful Restart Capability and MUST mark them as stale routing information. (Section 4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2</td>
@@ -469,7 +469,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/rfc4724_retention_test.go#L96" title="internal/component/bgp/plugins/gr/rfc4724_retention_test.go" target="_blank" rel="noopener"><code>TestRFC4724SessionDownWithoutCapabilityRetainsNothing</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-4">RFC4724-4.2-4</code></td><td colspan="3"><span class="rfc-subject">On consecutive restarts, previously stale routes from the peer MUST be deleted (Section 4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-4">RFC4724-4.2-4</code></td><td colspan="3"><span class="rfc-subject">To deal with possible consecutive restarts, a route (from the peer) previously marked as stale MUST be deleted. (Section 4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2</td>
@@ -478,7 +478,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L286" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRConsecutiveRestartClearsPriorStale</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-5">RFC4724-4.2-5</code></td><td colspan="3"><span class="rfc-subject">Receiving Speaker MUST NOT differentiate between stale and other routing information during forwarding (Section 4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-5">RFC4724-4.2-5</code></td><td colspan="3"><span class="rfc-subject">The router MUST NOT differentiate between stale and other routing information during forwarding. (Section 4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.2</td>
@@ -487,16 +487,16 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L808" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestComparePair_LLGRStale</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-6">RFC4724-4.2-6</code></td><td colspan="3"><span class="rfc-subject">The &#34;Restart State&#34; bit in the Receiving Speaker&#39;s OPEN MUST NOT be set unless the Receiving Speaker has itself restarted (Section 4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-6">RFC4724-4.2-6</code></td><td colspan="3"><span class="rfc-subject">In re-establishing the session, the &#34;Restart State&#34; bit in the Graceful Restart Capability of the OPEN message sent by the Receiving Speaker MUST NOT be set unless the Receiving Speaker has restarted. (Section 4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4724-4.2-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L496" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitTimeGatePattern</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L263" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitOnCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L494" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitTimeGatePattern</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L265" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitOnCapability</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-7">RFC4724-4.2-7</code></td><td colspan="3"><span class="rfc-subject">If session not re-established within Restart Time, Receiving Speaker MUST delete all stale routes from the peer (Section 4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-7">RFC4724-4.2-7</code></td><td colspan="3"><span class="rfc-subject">If the session does not get re-established within the &#34;Restart Time&#34; that the peer advertised previously, the Receiving Speaker MUST delete all the stale routes from the peer that it is retaining. (Section 4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2</td>
@@ -505,7 +505,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L105" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRStateManagerReconnectWithFBit</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-8">RFC4724-4.2-8</code></td><td colspan="3"><span class="rfc-subject">If F bit not set, or AFI/SAFI missing, or no GR capability on re-establishment, Receiving Speaker MUST immediately remove all stale routes for that address family (Section 4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-8">RFC4724-4.2-8</code></td><td colspan="3"><span class="rfc-subject">Once the session is re-established, if the &#34;Forwarding State&#34; bit for a specific address family is not set in the newly received Graceful Restart Capability, or if a specific address family is not included in the newly received Graceful Restart Capability, or if the Graceful Restart Capability is not received in the re-established session at all, then the Receiving Speaker MUST immediately remove all the stale routes from the peer that it is retaining for that address family. (Section 4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2</td>
@@ -514,7 +514,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/gr_state_test.go#L102" title="internal/component/bgp/plugins/gr/gr_state_test.go" target="_blank" rel="noopener"><code>TestGRStateManagerReconnectWithFBit</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-9">RFC4724-4.2-9</code></td><td colspan="3"><span class="rfc-subject">Receiving Speaker MUST send End-of-RIB marker once it completes the initial update (Section 4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-9">RFC4724-4.2-9</code></td><td colspan="3"><span class="rfc-subject">The Receiving Speaker MUST send the End-of-RIB marker once it completes the initial update for an address family (including the case that it has no routes to send) to the peer. (Section 4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2</td>
@@ -524,7 +524,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/eor_test.go#L229" title="internal/component/bgp/message/eor_test.go" target="_blank" rel="noopener"><code>TestIsEndOfRIBAnyFamily</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-10">RFC4724-4.2-10</code></td><td colspan="3"><span class="rfc-subject">Receiving Speaker MUST replace stale routes by routing updates received from the peer (Section 4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-10">RFC4724-4.2-10</code></td><td colspan="3"><span class="rfc-subject">The Receiving Speaker MUST replace the stale routes by the routing updates received from the peer. (Section 4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2</td>
@@ -533,7 +533,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/stale_test.go#L179" title="internal/component/bgp/plugins/rib/storage/stale_test.go" target="_blank" rel="noopener"><code>TestFamilyRIB_InsertNewDuringStale</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-11">RFC4724-4.2-11</code></td><td colspan="3"><span class="rfc-subject">Once End-of-RIB is received from peer, Receiving Speaker MUST immediately remove any routes still marked as stale for that address family (Section 4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4724-4.2-11">RFC4724-4.2-11</code></td><td colspan="3"><span class="rfc-subject">Once the End-of-RIB marker for an address family is received from the peer, it MUST immediately remove any routes from the peer that are still marked as stale for that address family. (Section 4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2</td>
@@ -608,7 +608,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>{gap}, no test</td>
 <td>because ze does not retain its own Loc-RIB across a restart (see RFC4724-4.1-1), there is no retained own-forwarding state to mark stale; the stale-marking machinery (internal/component/bgp/plugins/rib/rib_commands.go:817 markStaleCommand) applies to routes received from a restarting peer, not to ze&#39;s own routes on ze&#39;s restart</td>
 </tr>
-<tr><td><a href="#rfc4724-4.1-3"><code>RFC4724-4.1-3</code></a> Restarting Speaker MUST NOT differentiate between stale and other information during forwarding (Section 4.1)</td>
+<tr><td><a href="#rfc4724-4.1-3"><code>RFC4724-4.1-3</code></a> It MUST NOT differentiate between stale and other information during forwarding. (Section 4.1)</td>
 <td>{gap}, no test</td>
 <td>this governs forwarding over ze&#39;s own retained stale Loc-RIB, which ze does not build on restart (see RFC4724-4.1-1); the generic non-differentiation of level-1 stale in best-path selection (internal/component/bgp/plugins/rib/bestpath.go:308) is the Receiving Speaker path for peer routes, not ze&#39;s own routes as a Restarting Speaker</td>
 </tr>
@@ -616,11 +616,11 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>{gap}, no test</td>
 <td>ze runs best-path selection as updates arrive and has no selection-deferral path keyed on End-of-RIB; the only End-of-RIB timer (internal/component/bgp/reactor/session_health.go:114 startEORTimer) raises a health warning and does not gate route selection</td>
 </tr>
-<tr><td><a href="#rfc4724-4.1-6"><code>RFC4724-4.1-6</code></a> After route selection, forwarding state MUST be updated and stale information MUST be removed (Section 4.1)</td>
+<tr><td><a href="#rfc4724-4.1-6"><code>RFC4724-4.1-6</code></a> After the BGP speaker performs route selection, the forwarding state of the speaker MUST be updated and any previously marked stale information MUST be removed. (Section 4.1)</td>
 <td>{gap}, no test</td>
 <td>this is the completion step of the deferred-selection cycle ze does not run (see RFC4724-4.1-5); with no own-Loc-RIB stale state (RFC4724-4.1-1) there is no post-selection stale removal on ze&#39;s own restart</td>
 </tr>
-<tr><td><a href="#rfc4724-4.1-8"><code>RFC4724-4.1-8</code></a> An implementation MUST support a configurable Selection_Deferral_Timer (Section 4.1)</td>
+<tr><td><a href="#rfc4724-4.1-8"><code>RFC4724-4.1-8</code></a> To put an upper bound on the amount of time a router defers its route selection, an implementation MUST support a (configurable) timer that imposes this upper bound. (Section 4.1)</td>
 <td>{gap}, no test</td>
 <td>ze exposes no Selection_Deferral_Timer configuration -- the GR YANG model (internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang) carries restart-time and long-lived-stale-time only, and no code defers selection (see RFC4724-4.1-5)</td>
 </tr>
@@ -628,7 +628,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>{gap}, no test</td>
 <td>ze follows plain RFC 4271 Section 6.8 collision detection -- a new inbound connection while the session is Established is rejected with Cease/Connection Collision (internal/component/bgp/reactor/reactor_connection.go:134-136), with no GR-capability branch that treats the new OPEN as terminating the old session</td>
 </tr>
-<tr><td><a href="#rfc4724-4.2-2"><code>RFC4724-4.2-2</code></a> Previous TCP session MUST be closed, and the new one retained (Section 4.2)</td>
+<tr><td><a href="#rfc4724-4.2-2"><code>RFC4724-4.2-2</code></a> &#34;Acting accordingly&#34; in this context means that the previous TCP session MUST be closed, and the new one retained. (Section 4.2)</td>
 <td>{gap}, no test</td>
 <td>the same RFC 4271 collision path closes the NEW connection and keeps the existing Established session (internal/component/bgp/reactor/reactor_connection.go:134-136 rejectConnectionCollisionWithSettings), the opposite of the RFC 4724 Section 4.2 override that closes the previous session and retains the new one</td>
 </tr>
@@ -654,19 +654,19 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc4724-3-2"><code>RFC4724-3-2</code></a></h3>
-<p>Reserved bits in Restart Flags MUST be set to zero by the sender (Section 3)</p>
+<p>The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver. (Section 3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L433" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L468" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L422" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L457" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -674,19 +674,19 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc4724-3-3"><code>RFC4724-3-3</code></a></h3>
-<p>Reserved bits in Address Family Flags MUST be set to zero by the sender (Section 3)</p>
+<p>The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver. (Section 3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L442" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L477" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L428" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L463" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestGracefulRestartEncodeReservedBits</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -694,7 +694,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc4724-3-4"><code>RFC4724-3-4</code></a></h3>
-<p>If more than one instance of the Graceful Restart Capability is received, the receiver MUST ignore all but the last instance (Section 3)</p>
+<p>If more than one instance of the Graceful Restart Capability is carried in the capability advertisement, the receiver of the advertisement MUST ignore all but the last instance of the Graceful Restart Capability. (Section 3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -718,7 +718,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4724-3-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4724-4-1"><code>RFC4724-4-1</code></a></h3>
-<p>The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update for an address family (Section 4)</p>
+<p>The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update (including the case when there is no update to send) for an address family after the BGP session is established. (Section 4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -760,7 +760,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1196" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNoFamilyEndOfRIB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1194" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNoFamilyEndOfRIB</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -768,7 +768,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc4724-4-2"><code>RFC4724-4-2</code></a></h3>
-<p>Normal BGP procedures MUST be followed when the TCP session terminates due to sending or receiving a NOTIFICATION message (Section 4)</p>
+<p>It is noted that the normal BGP procedures MUST be followed when the TCP session terminates due to the sending or receiving of a BGP NOTIFICATION message. (Section 4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -796,23 +796,23 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4724-4.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4724-4.1-3"><code>RFC4724-4.1-3</code></a></h3>
-<p>Restarting Speaker MUST NOT differentiate between stale and other information during forwarding (Section 4.1)</p>
+<p>It MUST NOT differentiate between stale and other information during forwarding. (Section 4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4724-4.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4724-4.1-4"><code>RFC4724-4.1-4</code></a></h3>
-<p>Restarting Speaker MUST set the &#34;Restart State&#34; (R) bit in the Graceful Restart Capability of the OPEN message (Section 4.1)</p>
+<p>To re-establish the session with its peer, the Restarting Speaker MUST set the &#34;Restart State&#34; bit in the Graceful Restart Capability of the OPEN message. (Section 4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L499" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitTimeGatePattern</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L497" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitTimeGatePattern</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L260" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitOnCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L262" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitOnCapability</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -824,11 +824,11 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4724-4.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4724-4.1-6"><code>RFC4724-4.1-6</code></a></h3>
-<p>After route selection, forwarding state MUST be updated and stale information MUST be removed (Section 4.1)</p>
+<p>After the BGP speaker performs route selection, the forwarding state of the speaker MUST be updated and any previously marked stale information MUST be removed. (Section 4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4724-4.1-6, so no unit is bound to it.</p>
 <h3><a href="#rfc4724-4.1-7"><code>RFC4724-4.1-7</code></a></h3>
-<p>Once initial update is complete, the End-of-RIB marker MUST be sent (Section 4.1)</p>
+<p>Once the initial update is complete for an address family (including the case that there is no routing update to send), the End-of-RIB marker MUST be sent. (Section 4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -848,7 +848,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc4724-4.1-8"><code>RFC4724-4.1-8</code></a></h3>
-<p>An implementation MUST support a configurable Selection_Deferral_Timer (Section 4.1)</p>
+<p>To put an upper bound on the amount of time a router defers its route selection, an implementation MUST support a (configurable) timer that imposes this upper bound. (Section 4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4724-4.1-8, so no unit is bound to it.</p>
 <h3><a href="#rfc4724-4.2-1"><code>RFC4724-4.2-1</code></a></h3>
@@ -856,11 +856,11 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4724-4.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4724-4.2-2"><code>RFC4724-4.2-2</code></a></h3>
-<p>Previous TCP session MUST be closed, and the new one retained (Section 4.2)</p>
+<p>&#34;Acting accordingly&#34; in this context means that the previous TCP session MUST be closed, and the new one retained. (Section 4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4724-4.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4724-4.2-3"><code>RFC4724-4.2-3</code></a></h3>
-<p>Receiving Speaker MUST retain routes from peer for all address families previously in Graceful Restart Capability and MUST mark them as stale (Section 4.2)</p>
+<p>When the Receiving Speaker detects termination of the TCP session for a BGP session with a peer that has advertised the Graceful Restart Capability, it MUST retain the routes received from the peer for all the address families that were previously received in the Graceful Restart Capability and MUST mark them as stale routing information. (Section 4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -895,7 +895,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc4724-4.2-4"><code>RFC4724-4.2-4</code></a></h3>
-<p>On consecutive restarts, previously stale routes from the peer MUST be deleted (Section 4.2)</p>
+<p>To deal with possible consecutive restarts, a route (from the peer) previously marked as stale MUST be deleted. (Section 4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -915,7 +915,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc4724-4.2-5"><code>RFC4724-4.2-5</code></a></h3>
-<p>Receiving Speaker MUST NOT differentiate between stale and other routing information during forwarding (Section 4.2)</p>
+<p>The router MUST NOT differentiate between stale and other routing information during forwarding. (Section 4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -935,19 +935,19 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc4724-4.2-6"><code>RFC4724-4.2-6</code></a></h3>
-<p>The &#34;Restart State&#34; bit in the Receiving Speaker&#39;s OPEN MUST NOT be set unless the Receiving Speaker has itself restarted (Section 4.2)</p>
+<p>In re-establishing the session, the &#34;Restart State&#34; bit in the Graceful Restart Capability of the OPEN message sent by the Receiving Speaker MUST NOT be set unless the Receiving Speaker has restarted. (Section 4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L263" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitOnCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L265" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitOnCapability</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L496" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitTimeGatePattern</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/grmarker/grmarker_test.go#L494" title="internal/component/bgp/grmarker/grmarker_test.go" target="_blank" rel="noopener"><code>TestSetRBitTimeGatePattern</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -955,7 +955,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc4724-4.2-7"><code>RFC4724-4.2-7</code></a></h3>
-<p>If session not re-established within Restart Time, Receiving Speaker MUST delete all stale routes from the peer (Section 4.2)</p>
+<p>If the session does not get re-established within the &#34;Restart Time&#34; that the peer advertised previously, the Receiving Speaker MUST delete all the stale routes from the peer that it is retaining. (Section 4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -975,7 +975,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc4724-4.2-8"><code>RFC4724-4.2-8</code></a></h3>
-<p>If F bit not set, or AFI/SAFI missing, or no GR capability on re-establishment, Receiving Speaker MUST immediately remove all stale routes for that address family (Section 4.2)</p>
+<p>Once the session is re-established, if the &#34;Forwarding State&#34; bit for a specific address family is not set in the newly received Graceful Restart Capability, or if a specific address family is not included in the newly received Graceful Restart Capability, or if the Graceful Restart Capability is not received in the re-established session at all, then the Receiving Speaker MUST immediately remove all the stale routes from the peer that it is retaining for that address family. (Section 4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -995,7 +995,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc4724-4.2-9"><code>RFC4724-4.2-9</code></a></h3>
-<p>Receiving Speaker MUST send End-of-RIB marker once it completes the initial update (Section 4.2)</p>
+<p>The Receiving Speaker MUST send the End-of-RIB marker once it completes the initial update for an address family (including the case that it has no routes to send) to the peer. (Section 4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1020,7 +1020,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc4724-4.2-10"><code>RFC4724-4.2-10</code></a></h3>
-<p>Receiving Speaker MUST replace stale routes by routing updates received from the peer (Section 4.2)</p>
+<p>The Receiving Speaker MUST replace the stale routes by the routing updates received from the peer. (Section 4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1040,7 +1040,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc4724-4.2-11"><code>RFC4724-4.2-11</code></a></h3>
-<p>Once End-of-RIB is received from peer, Receiving Speaker MUST immediately remove any routes still marked as stale for that address family (Section 4.2)</p>
+<p>Once the End-of-RIB marker for an address family is received from the peer, it MUST immediately remove any routes from the peer that are still marked as stale for that address family. (Section 4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1278,7 +1278,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

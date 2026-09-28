@@ -141,11 +141,11 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 </ol></li>
 <li><a href="#ze-env">ze env</a></li>
 <li><a href="#ze-resolve">ze resolve</a></li>
-<li><a href="#ze-perf">ze-perf</a>
+<li><a href="#le-perf">le perf</a>
 <ol>
-<li><a href="#ze-perf-run">ze-perf run</a></li>
-<li><a href="#ze-perf-report">ze-perf report</a></li>
-<li><a href="#ze-perf-track">ze-perf track</a></li>
+<li><a href="#le-perf-send">le perf send</a></li>
+<li><a href="#le-perf-report">le perf report</a></li>
+<li><a href="#le-perf-track">le perf track</a></li>
 </ol></li>
 </ol></li>
 <li><a href="#runtime-commands">Runtime Commands</a>
@@ -185,14 +185,14 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 </ol></li>
 <li><a href="#interactive-cli-features">Interactive CLI Features</a></li>
 <li><a href="#signal-handling">Signal Handling</a></li>
-<li><a href="#ze-chaos">ze-chaos</a>
+<li><a href="#le-chaos-run">le chaos run</a>
 <ol>
 <li><a href="#ai-integration-flags">AI Integration Flags</a></li>
 </ol></li>
 </ol></nav>
 <!-- source: cmd/ze/main.go -- main dispatch -->
 <p>This page explains the command model. For a live list of every command, run
-<code>ze help command</code>. <code>./le wiki-catalog update file &lt;destination&gt;</code> writes the
+<code>ze help command</code>. <code>./le cli catalog update file &lt;destination&gt;</code> writes the
 Markdown catalog from the same live registries.</p>
 <p>For the generated cross-vendor migration view (Junos MX, Cisco IOS XR,
 Nokia SR OS, and VyOS), use the website's
@@ -383,7 +383,9 @@ the running daemon produces on reload. See
 <p>Configuration management.</p>
 <p><strong>Editing:</strong></p>
 <pre><code>ze config edit [file]            # Interactive editor
+ze config edit --backup &lt;artifact&gt; [name]  # Edit a config inside a backup, no daemon
 ze config set &lt;file&gt; &lt;path&gt; &lt;value&gt;
+ze config set --backup &lt;artifact&gt; &lt;name&gt; &lt;path&gt; &lt;value&gt;
 ze config deactivate &lt;file&gt; &lt;path&gt;  # Mark a node inactive (kept in file, skipped at apply)
 ze config activate &lt;file&gt; &lt;path&gt;    # Clear the inactive flag on a node
 </code></pre>
@@ -395,6 +397,7 @@ skipped at apply time. See <code>docs/guide/config-deactivate.md</code>.</p>
 ze config import --name &lt;n&gt; &lt;file&gt;  # Import under a different name
 ze config rename &lt;old&gt; &lt;new&gt;     # Rename a config in the database
 ze config list [prefix]          # List files in database
+ze config list --backup &lt;artifact&gt;  # List the configs inside a backup
 ze config cat &lt;key&gt;              # Print database entry
 </code></pre>
 <p><strong>Inspection:</strong></p>
@@ -404,7 +407,15 @@ ze config dump &lt;file&gt;            # Dump parsed configuration
 ze config diff &lt;f1&gt; &lt;f2&gt;         # Compare two configs
 ze config diff &lt;N&gt; &lt;file&gt;        # Compare with rollback revision
 ze config fmt &lt;file&gt;             # Format and normalize
+ze config show --backup &lt;artifact&gt; &lt;name&gt; [path...]  # Read a config inside a backup
+ze config diff --backup &lt;artifact&gt; &lt;N&gt; &lt;name&gt;        # Diff inside a backup
 </code></pre>
+<p><code>--backup &lt;artifact&gt;</code> points <code>edit</code>, <code>show</code>, <code>diff</code>, <code>set</code> and <code>list</code> at the
+configs inside a backup artifact instead of the live store, with no daemon. A
+commit or a <code>set</code> publishes a new version and its pointers into the artifact,
+and the artifact's lock refuses a second writer. <code>--backup</code> with <code>-f</code> is
+refused. See "Backup mode" in <code>docs/guide/config-editor.md</code>.</p>
+<!-- source: internal/component/config/cli/backup_flag.go -- openBackup -->
 <p><code>show</code> is the one-shot, non-interactive way to inspect a config subtree:
 <code>ze config show ze.conf bgp peer edge1</code> prints only that subtree (list entries
 are addressed by key). With no path it prints the whole parsed tree; <code>--json</code>
@@ -1915,12 +1926,12 @@ of them declares.</p>
 cache server, as siblings. That shape is what leaves <code>| summary</code> a half to
 select. The RPKI plugin declares the alias on its <code>registry.Registration</code>, which
 every reader that links the composition root sees, so <code>ze help command --json</code>
-and <code>./le command list</code> both list <code>summary</code> on the command. Each row carries the
+and <code>./le cli list</code> both list <code>summary</code> on the command. Each row carries the
 command's summary under <code>description</code> and its long explanation under
 <code>description</code>. The full RPKI command list is in <code>docs/guide/rpki.md</code>.</p>
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
 <!-- source: cmd/ze/help_command.go -- appendPluginCommands -->
-<!-- source: internal/le/command/list/commandlist.go -- aliasesFor -->
+<!-- source: internal/le/cli/list/commandlist.go -- aliasesFor -->
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 <p><code>show bgp summary</code> was a second spelling of this command until 2026-08. It is
 removed, not aliased, so it answers an unknown-command error. <code>show bgp</code> gives
@@ -2236,6 +2247,7 @@ are durable. An existing tree or blob refuses initialization.</p>
 ze init --managed                # Fleet mode
 ze init --force --yes             # Replace an unowned store with a backup
 ze init --from database.zefs      # Import a local blob into the live store
+ze init --from https://provision.example.net/install/database.zefs --sha256 &lt;hex&gt;
 </code></pre>
 <p>Input fields are username, password, host, port, and instance name.
 The default host is <code>127.0.0.1</code>, the port is <code>2222</code>, and the name is the hostname.
@@ -2273,14 +2285,26 @@ Normal initialization discovers interfaces and stores their initial config.</p>
 <td>Build a <code>database.zefs</code> appliance seed without host interface discovery</td>
 </tr>
 <tr>
-<td><code>--from &lt;blob&gt;</code></td>
-<td>Import a local blob into the live store and retire it as <code>.replaced-&lt;stamp&gt;</code>; reads no credentials; refuses <code>--seed</code>; with <code>--force --yes</code> replaces an existing store</td>
+<td><code>--from &lt;source&gt;</code></td>
+<td>Import a blob from a local path or an <code>http</code> or <code>https</code> URL into the live store; reads no credentials; refuses <code>--seed</code>; with <code>--force --yes</code> replaces an existing store. A local blob is retired as <code>.replaced-&lt;stamp&gt;</code>. A URL is fetched into a <code>database.fetch-*</code> folder beside the store, and that folder is removed after the import</td>
+</tr>
+<tr>
+<td><code>--sha256 &lt;hex&gt;</code></td>
+<td>Refuse the <code>--from</code> source unless its bytes have this SHA-256, 64 hex digits; the check runs before a key is written</td>
 </tr>
 </tbody>
 </table>
+<p>Every <code>--from</code> source is checked whole (<code>zefs.Check</code>) before a key is written.
+A digest mismatch, a body that is not a blob, or a corrupt entry imports
+nothing, and the error names the reason or the key. Any other scheme is refused
+with the supported list. A redirect is followed only within the scheme and host
+of the URL. When an import stops after it recorded its intent, the fetched copy
+stays and the error names it, because the recovery command
+<code>ze init --from &lt;copy&gt;</code> reads it.</p>
 <p>Replacement refuses a live store owner, regardless of the selected SSH target.
 Run maintenance as the store owner, including when you have root access.</p>
-<!-- source: internal/plugins/init/main.go -- Run, runInit, runImport, defaultHost, defaultPort -->
+<!-- source: internal/plugins/init/main.go -- Run, runInit, runImport, runFetchImport, defaultHost, defaultPort -->
+<!-- source: internal/core/fetch/scheme.go -- Resolve, Schemes -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
 <!-- source: internal/component/iface/emit.go -- EmitConfig -->
 <h3 id="ze-install">ze install</h3>
@@ -2566,6 +2590,9 @@ ze data rm &lt;key&gt;...
 ze data registered [pattern]
 ze data check
 ze data repair --output &lt;new-path&gt;
+ze data backup &lt;file&gt; [spare &lt;n&gt;]  # Copy every key to one blob artifact
+ze data restore &lt;file&gt; config [name &lt;source-name&gt;]  # Commit the artifact's config
+ze data restore &lt;file&gt; full        # Replace the whole tree with the artifact's keys
 ze data encode [--crc|--header] [--cap N] &lt;string|-&gt;
 </code></pre>
 <p><code>--path &lt;store&gt;</code> selects the exact tree directory or <code>.zefs</code> artifact.
@@ -2575,7 +2602,68 @@ Data commands never initialize a missing live store.</p>
 and writes verified keys to a new tree or blob. It refuses an existing output.
 Integrity exits are <code>0</code> for success, <code>1</code> for corruption or skipped keys, and <code>2</code>
 for an I/O failure or unsafe path.</p>
+<p><code>backup</code> copies every key of the store, at any depth and in any namespace, to
+one new blob artifact under one write lock, so a commit is in the backup whole
+or not at all. The artifact is exact-fit unless <code>spare &lt;n&gt;</code> names a percentage
+from 0 to 100, is created mode 0600, and holds credentials and private keys.
+It refuses an existing file and every name the live store owns in its folder
+(<code>database</code>, <code>database.zefs</code>, <code>*.lock</code>, <code>database.import-intent</code>, the
+<code>.replaced-*</code> names and the init and import stages). It is offline only: while
+a daemon owns the store it refuses, naming as <code>host:port</code> the SSH endpoint
+<code>ze init</code> recorded in <code>meta/ssh/default</code> (or saying that none is recorded, or
+that the record cannot be read) and the live route,
+<code>request data backup path &lt;file&gt;</code>.</p>
+<p><code>restore &lt;file&gt; config</code> runs <code>ze data check</code>'s verification over the artifact, then
+commits one config from it as a new version of this device's config (the name
+in <code>meta/instance/name</code>, or <code>ze.conf</code>). The active pointer moves to the new
+version, the previous active becomes the rollback, and <code>file/active/&lt;name&gt;</code>
+holds the new bytes. Credentials, identity, runtime state and every other
+version are unchanged. The artifact's config is its active version, or its
+<code>file/active/&lt;name&gt;</code> mirror when it has no pointer (a seed). <code>name &lt;source-name&gt;</code> selects one config from an artifact that holds several. Without
+it the artifact's only config is taken, else the one named like this device;
+any other case is refused, listing the artifact's configs. A differing source
+name is printed. A staged candidate refuses the restore. It is offline only:
+while a daemon owns the store it names the live route, <code>request data restore path &lt;file&gt; config</code>.</p>
+<p><code>ze data restore &lt;file&gt; full</code> replaces the whole live tree with every key of the
+artifact, history, credentials and identity included. The previous tree moves to
+<code>database.replaced-&lt;stamp&gt;</code>, and an unrelated <code>database.zefs</code> beside it moves to
+<code>database.zefs.replaced-&lt;stamp&gt;</code>. The artifact stays at its name, unchanged. An
+artifact that fails <code>ze data check</code> is refused before anything is written. The
+canonical seed name <code>&lt;configdir&gt;/database.zefs</code> is refused before the store lock,
+because the live store refuses that name: import it with <code>ze init --from</code>, or
+move it to another name and restore that. A full restore is offline only: while
+a daemon owns the store it names the daemon's SSH endpoint and asks you to stop
+the daemon; there is no live full restore. The restore records a durable
+<code>database.import-intent</code> before it moves anything. When it is interrupted, every
+opener, <code>ze start</code> included, refuses and prints <code>ze data restore &lt;file&gt; full</code>,
+and that command alone finishes the restore.</p>
+<p>The daemon answers two RPCs over SSH, for a file on its own host:</p>
+<pre><code>request data backup path &lt;absolute-file&gt; [spare &lt;n&gt;] [force]
+request data restore path &lt;absolute-file&gt; config [name &lt;source-name&gt;] [client &lt;name&gt;]
+</code></pre>
+<p>Both refuse a relative path, a <code>..</code> element and a symlink, each naming the
+rule. <code>backup</code> walks the daemon's own store under its write lock and answers
+<code>path</code>, <code>keys</code> and <code>bytes</code>. <code>force</code> replaces an existing file and never lifts
+the refusal of a name the store owns. <code>restore</code> stages the artifact's config
+as the candidate and runs the reload a SIGHUP runs: the config becomes active
+only when that reload accepts it, and a refused config leaves the active config
+and its pointers as they were. It answers <code>path</code>, <code>source-name</code>, <code>config-name</code>
+and <code>version</code>.</p>
+<p><code>client &lt;name&gt;</code> restores the config a hub serves to one managed client instead
+of the hub's own. The selected config becomes a new active version of
+<code>client-&lt;name&gt;.conf</code> under the store guard, and <code>file/active/client-&lt;name&gt;.conf</code>
+holds it. The hub does not reload. The write pushes <code>config-changed</code> to the
+client, which fetches the config and applies it through its own reload. The
+source selection is the same, with <code>client-&lt;name&gt;.conf</code> in place of the
+device's name. A daemon that serves no managed client refuses, and so does a
+hub with no <code>client &lt;name&gt;</code> entry under <code>plugin hub server</code>. The answer also
+carries <code>client</code>.</p>
 <!-- source: internal/component/config/storage/cli/main.go -- Run, openStore, cmdWrite, cmdImport -->
+<!-- source: internal/component/config/storage/cli/cmd_restore.go -- cmdRestore, parseRestoreArgs -->
+<!-- source: internal/component/config/storage/restore.go -- ReadRestoreSource, RestoreConfig -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataBackup, handleDataRestore, restoreClientConfig -->
+<!-- source: internal/component/config/storage/cli/cmd_backup.go -- cmdBackup, daemonAddress -->
+<!-- source: internal/component/config/storage/backup.go -- Backup, storeOwnedName -->
 <!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, cmdRepair, cmdEncode -->
 <h3 id="ze-plugin">ze plugin</h3>
 <p>Plugin management.</p>
@@ -2688,10 +2776,13 @@ ze resolve rir 15169                                   # Which registry holds an
 </tr>
 </tbody>
 </table>
-<h3 id="ze-perf">ze-perf</h3>
-<p>BGP propagation latency benchmark tool. Separate binary from <code>ze</code>.</p>
-<!-- source: internal/perf/cli/register.go -- ze-perf CLI entry point -->
-<pre><code>ze-perf &lt;command&gt; [flags]
+<h3 id="le-perf">le perf</h3>
+<p>BGP propagation latency benchmark tool, run by the development tool <code>le</code>.</p>
+<!-- source: internal/perf/cli/register.go -- perf CLI entry point -->
+<p><code>le perf send</code> runs one benchmark against a DUT, <code>le perf report</code> compares
+result files, and <code>le perf track</code> follows the history.</p>
+<!-- source: internal/le/perf/actions.go -- programVerbs -->
+<pre><code>./le perf &lt;command&gt; [flags]
 </code></pre>
 <table>
 <thead>
@@ -2702,7 +2793,7 @@ ze resolve rir 15169                                   # Which registry holds an
 </thead>
 <tbody>
 <tr>
-<td><code>run</code></td>
+<td><code>send</code></td>
 <td>Run benchmark against a BGP DUT</td>
 </tr>
 <tr>
@@ -2715,15 +2806,15 @@ ze resolve rir 15169                                   # Which registry holds an
 </tr>
 </tbody>
 </table>
-<h4 id="ze-perf-run">ze-perf run</h4>
+<h4 id="le-perf-send">le perf send</h4>
 <p>Run a BGP propagation benchmark against a device under test (DUT). Establishes
 sender and receiver sessions with the DUT, injects routes from the sender, and
 measures how quickly they propagate through to the receiver.</p>
 <!-- source: internal/perf/cli/cmd_run.go -- run subcommand -->
-<pre><code>ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000
-ze-perf run --dut-addr 172.31.0.5 --dut-asn 65000 --dut-name gobgp --routes 10000 --json
-ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --family ipv6/unicast
-ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --force-mp --repeat 10
+<pre><code>./le perf send --dut-addr 172.31.0.2 --dut-asn 65000
+./le perf send --dut-addr 172.31.0.5 --dut-asn 65000 --dut-name gobgp --routes 10000 --json
+./le perf send --dut-addr 172.31.0.2 --dut-asn 65000 --family ipv6/unicast
+./le perf send --dut-addr 172.31.0.2 --dut-asn 65000 --force-mp --repeat 10
 </code></pre>
 <p><strong>DUT flags:</strong></p>
 <table>
@@ -2935,11 +3026,11 @@ ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --force-mp --repeat 10
 </tbody>
 </table>
 <p>Exit codes: 0 = success, 1 = error (missing flags, validation failure, benchmark failure).</p>
-<h4 id="ze-perf-report">ze-perf report</h4>
+<h4 id="le-perf-report">le perf report</h4>
 <p>Generate a comparison report from one or more result JSON files.</p>
 <!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
-<pre><code>ze-perf report result-ze.json result-gobgp.json
-ze-perf report --html result-ze.json result-gobgp.json &gt; report.html
+<pre><code>./le perf report result-ze.json result-gobgp.json
+./le perf report --html result-ze.json result-gobgp.json &gt; report.html
 </code></pre>
 <table>
 <thead>
@@ -2965,15 +3056,15 @@ ze-perf report --html result-ze.json result-gobgp.json &gt; report.html
 </tr>
 </tbody>
 </table>
-<p>Reads result JSON files produced by <code>ze-perf run --json</code> and generates a
+<p>Reads result JSON files produced by <code>le perf send --json</code> and generates a
 side-by-side comparison table.</p>
-<h4 id="ze-perf-track">ze-perf track</h4>
+<h4 id="le-perf-track">le perf track</h4>
 <p>Track performance history and detect regressions from an NDJSON file.</p>
 <!-- source: internal/perf/cli/cmd_track.go -- track subcommand -->
-<pre><code>ze-perf track history.ndjson
-ze-perf track --check history.ndjson
-ze-perf track --html history.ndjson &gt; trend.html
-ze-perf track --check --threshold-convergence 15 history.ndjson
+<pre><code>./le perf track history.ndjson
+./le perf track --check history.ndjson
+./le perf track --html history.ndjson &gt; trend.html
+./le perf track --check --threshold-convergence 15 history.ndjson
 </code></pre>
 <table>
 <thead>
@@ -4414,8 +4505,10 @@ reaches, where the daemon expands the chain.</p>
 </tr>
 </tbody>
 </table>
-<h2 id="ze-chaos">ze-chaos</h2>
-<p>Chaos monkey for testing Ze BGP route server propagation.</p>
+<h2 id="le-chaos-run">le chaos run</h2>
+<p>Chaos monkey for testing Ze BGP route server propagation. Run it as
+<code>./le chaos run &lt;flags&gt;</code>, which takes every flag below.</p>
+<!-- source: internal/le/chaos/run/run.go -- Answer -->
 <h3 id="ai-integration-flags">AI Integration Flags</h3>
 <table>
 <thead>
@@ -4439,9 +4532,9 @@ reaches, where the daemon expands the chain.</p>
 </tr>
 </tbody>
 </table>
-<pre><code class="language-bash">ze-chaos --mcp :8001 --web :8000 --peers 4  # MCP + web dashboard
-ze-chaos --ze-mcp 9718 --peers 4             # Inject MCP into Ze config
-ze-chaos --ai-help                           # Print tool schemas
+<pre><code class="language-bash">./le chaos run --mcp :8001 --web :8000 --peers 4  # MCP + web dashboard
+./le chaos run --ze-mcp 9718 --peers 4             # Inject MCP into Ze config
+./le chaos run --ai-help                           # Print tool schemas
 </code></pre>
 <!-- source: internal/chaos/orchestrator/cli.go -- CLI flags -->
 
@@ -4486,7 +4579,7 @@ ze-chaos --ai-help                           # Print tool schemas
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 06:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -154,10 +154,14 @@ directories, and <code>PATH</code>.</p>
 plus <code>xorriso</code>.
 <code>ze appliance iso</code> checks those tools before it stages an ISO.</p>
 <!-- source: internal/appliance/cmd_iso.go -- resolveISOBuilder -->
-<p>The vendored gokrazy command lives at <code>cmd/ze-gok</code>; the appliance builder calls
-it in process. No separate gokrazy installation or first-party script is
-required.</p>
+<p>The vendored gokrazy command (<code>github.com/gokrazy/tools/gok</code>) runs in process.
+<code>ze appliance build</code> calls it directly. A developer runs it with
+<code>./le build gokrazy &lt;gok args&gt;</code>, which uses the checked-in module cache, forbids
+network module lookups, and builds <code>overwrite</code> from a prepared copy of the
+instance under <code>tmp/</code>. No separate gokrazy installation or
+first-party script is required.</p>
 <!-- source: internal/appliance/cmd_build.go -- runGokInProcess -->
+<!-- source: internal/le/build/gokrazy/gokrazy.go -- Run -->
 <h2 id="first-time-setup">First-time setup</h2>
 <p>Initialize the named appliance before its first build:</p>
 <pre><code class="language-bash">ze appliance init edge-01
@@ -246,7 +250,7 @@ can be used.</p>
 <p>On a Linux runner with QEMU, <code>xl2tpd</code>, <code>pppd</code>, <code>/dev/ppp</code>, and PPPoL2TP kernel
 support, the deployment proof target builds an L2TP-enabled appliance image and
 drives a real LAC against it:</p>
-<pre><code class="language-bash">./le deployment gokrazy-l2tp-ppp-test
+<pre><code class="language-bash">./le test deployment gokrazy-l2tp-ppp-test
 </code></pre>
 <p>The proof image is built from a temporary gokrazy instance config so the normal
 appliance config is left unchanged. It disables IPv6CP in that proof image
@@ -258,7 +262,7 @@ resolution, and an image on the pinned rtr7 kernel (which has no l2tp support)
 crash-loops at first boot instead of serving.</p>
 <!-- source: gokrazy/kernel/runtime.config -- Ze L2TP/PPP kernel config -->
 <!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
-<!-- source: internal/le/deployment/actions.go -- Answer -->
+<!-- source: internal/le/test/deployment/actions.go -- Answer -->
 <h2 id="build-an-image">Build an image</h2>
 <p>Create a named appliance once, then build it:</p>
 <pre><code class="language-bash">ze appliance init edge-01
@@ -469,8 +473,7 @@ remains beside it for recovery.</p>
 cmd/ze-serial-shell/        # serial console login gate (replaces serial-busybox)
   main.go                   # gokrazy wrapper: symlink + DontStartOnBoot
   _gokrazy/                 # renamed busybox extrafiles per arch
-cmd/ze-gok/
-  main.go                   # vendored gokrazy command wrapper
+internal/le/build/gokrazy/  # `le build gokrazy`: the vendored gokrazy command wrapper
 </code></pre>
 <p>The gok source is vendored under <code>vendor/github.com/gokrazy/</code>. The small
 <code>builddir/</code> modules pin the system-package versions.</p>
@@ -1001,7 +1004,7 @@ config was saved. If the window completes, the active config hash is written to
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

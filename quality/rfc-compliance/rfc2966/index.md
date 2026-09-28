@@ -10,10 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 60.0% | 3 of 5 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 100.0% | 5 of 5 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 5 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 5 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 6 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| No test at all | 0.0% | 0 of 5 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 0.0% | 0 of 10 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,18 +23,10 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 5 | of 7 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 5 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 20.0% | 1 of 5 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Out of scope | 0 | of 5 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 5 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 5 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 5 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| No test at all | 20.0% | 1 of 5 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -46,7 +39,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -61,12 +54,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Enrolment | Enrolled |
 | Requirements | 7 |
 | Gated MUST-level | 5 |
-| Not applicable, so out of scope | 1 |
+| Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
-| Gated with no test | 1 |
+| Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 6 |
-| Tagged units | 6 |
+| Test tags | 10 |
+| Tagged units | 10 |
 | Recorded audit verdicts | 0 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc2966.md` |
@@ -93,38 +86,31 @@ Same IS-IS experimental status. [`RFC2966-3.2-1`](#rfc2966-3.2-1), the Section 3
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 3 | one part of the gated population |
-| Annotated instead of tested | 1 | one part of the gated population |
+| Positive and negative tests | 5 | one part of the gated population |
+| Annotated instead of tested | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 1 | one part of the gated population |
+| No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **5** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (3):** [`RFC2966-2-1`](#rfc2966-2-1), [`RFC2966-2-2`](#rfc2966-2-2), [`RFC2966-2-3`](#rfc2966-2-3)
-
-**Annotated instead of tested (1):** [`RFC2966-x-1`](#rfc2966-x-1)
-
-**No test and no annotation (1):** [`RFC2966-3.2-1`](#rfc2966-3.2-1)
+**Positive and negative tests (5):** [`RFC2966-2-1`](#rfc2966-2-1), [`RFC2966-2-2`](#rfc2966-2-2), [`RFC2966-2-3`](#rfc2966-2-3), [`RFC2966-3.2-1`](#rfc2966-3.2-1), [`RFC2966-x-1`](#rfc2966-x-1)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2966-2-1` | Set the up/down bit to one for L2-derived prefixes advertised into L1 LSPs, zero otherwise (Section 2) | MUST | 2 | **positive:** `unit/verify` [`TestISISLeakOriginationL1L2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L52). **negative:** `unit/verify` [`TestISISLeakOriginationL1L2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L56) |
+| `RFC2966-2-1` | L1L2 routers must set this bit to one for prefixes that are derived from L2 routing and are advertised into L1 LSPs. (Section 2) | MUST | 2 | **positive:** `unit/verify` [`TestISISLeakOriginationL1L2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L52). **negative:** `unit/verify` [`TestISISLeakOriginationL1L2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L56) |
 | `RFC2966-2-2` | Never advertise up/down-bit-set, L1-learned prefixes back into L2 (Section 2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestISISLeakOriginationL1L2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L59). **negative:** `unit/verify` [`TestISISLeakOriginationL1L2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L62) |
 | `RFC2966-2-3` | L1L2 routers never advertise L2->L1 inter-area routes learned via L1 routing back into L2 (Section 2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestISISLeakFixpoint`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L129). **negative:** `unit/verify` [`TestISISLeakFixpoint`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L133) |
-| `RFC2966-3.2-1` | Apply the six-level route preference order this document defines, from L1 intra-area routes with internal metric down to L2->L1 inter-area external routes with external metric: "Some types of routes must always preferred over others, regardless of the costs that were computed in the Dijkstra calculation" (Section 3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2966-x-1` | Ignore a prefix combining "IP Internal Reachability Information" with external metric-type on receipt (Sections 3.1, 3.3) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** This requirement concerns the OLD narrow-metric TLV 128 (IP Internal Reachability Information), whose per-prefix external-metric-type bit could conflict with internal reachability. Ze does not decode TLV 128 or TLV 130 (old narrow IP reachability) at all -- its codec recognizes only the wide-metric TLV 135 / TLV 236 (Extended IP/IPv6 Reachability, RFC 5305/5308), and TLV 135 has no internal/external-metric-type octet (internal/plugins/isis/packet/tlv.go recognized-type set: 1,2,6,8,9,10,22,129,132,135,137,232,236,240). A received TLV 128 is an unrecognized TLV, retained opaquely for re-flood but never interpreted for routing, so the internal-reachability-with-external-metric prefix RFC 2966 warns against is never acted upon in Ze. |
+| `RFC2966-3.2-1` | Apply the six-level route preference order this document defines, from L1 intra-area routes with internal metric down to L2->L1 inter-area external routes with external metric: "Some types of routes must always preferred over others, regardless of the costs that were computed in the Dijkstra calculation" (Section 3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC2966SixPreferenceClasses`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L187). **negative:** `unit/verify` [`TestRFC2966ExternalL1DoesNotOverrideDownInternal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L210) |
+| `RFC2966-x-1` | Ignore a prefix combining "IP Internal Reachability Information" with external metric-type on receipt (Sections 3.1, 3.3) | MUST | x | **positive:** `unit/verify` [`TestRFC2966InvalidInternalExternalMetricExcluded`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L220). **negative:** `unit/verify` [`TestRFC2966InvalidInternalExternalMetricExcluded`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L221) |
 | `RFC2966-3.3-1` | Ignore the up/down bit in L2 LSPs and accept the prefixes regardless of its setting (Section 3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2966-x-2` | Default configuration does not advertise L2 routes into L1; require manual configuration to do so (Sections 3.3, 4) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
-| Requirement | State | Reason |
-|---|---|---|
-| [`RFC2966-3.2-1`](#rfc2966-3.2-1) Apply the six-level route preference order this document defines, from L1 intra-area routes with internal metric down to L2->L1 inter-area external routes with external metric: "Some types of routes must always preferred over others, regardless of the costs that were computed in the Dijkstra calculation" (Section 3.2) | no test | no test carries this requirement id |
-| [`RFC2966-x-1`](#rfc2966-x-1) Ignore a prefix combining "IP Internal Reachability Information" with external metric-type on receipt (Sections 3.1, 3.3) | no test | no test carries this requirement id; annotated {not-applicable}: This requirement concerns the OLD narrow-metric TLV 128 (IP Internal Reachability Information), whose per-prefix external-metric-type bit could conflict with internal reachability. Ze does not decode TLV 128 or TLV 130 (old narrow IP reachability) at all -- its codec recognizes only the wide-metric TLV 135 / TLV 236 (Extended IP/IPv6 Reachability, RFC 5305/5308), and TLV 135 has no internal/external-metric-type octet (internal/plugins/isis/packet/tlv.go recognized-type set: 1,2,6,8,9,10,22,129,132,135,137,232,236,240). A received TLV 128 is an unrecognized TLV, retained opaquely for re-flood but never interpreted for routing, so the internal-reachability-with-external-metric prefix RFC 2966 warns against is never acted upon in Ze. |
+RFC 2966 declares no gap, and every gated MUST it carries has a test bound to it.
 
 ## Proof state
 
@@ -132,7 +118,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC2966-2-1`](#rfc2966-2-1)
 
-Set the up/down bit to one for L2-derived prefixes advertised into L1 LSPs, zero otherwise (Section 2)
+L1L2 routers must set this bit to one for prefixes that are derived from L2 routing and are advertised into L1 LSPs. (Section 2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -169,7 +155,10 @@ Apply the six-level route preference order this document defines, from L1 intra-
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2966-3.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2966ExternalL1DoesNotOverrideDownInternal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L210) | unit/verify | unproven |
+| positive | [`TestRFC2966SixPreferenceClasses`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L187) | unit/verify | unproven |
 
 ### [`RFC2966-x-1`](#rfc2966-x-1)
 
@@ -177,7 +166,10 @@ Ignore a prefix combining "IP Internal Reachability Information" with external m
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2966-x-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2966InvalidInternalExternalMetricExcluded`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L221) | unit/verify | unproven |
+| positive | [`TestRFC2966InvalidInternalExternalMetricExcluded`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L220) | unit/verify | unproven |
 
 ## Extraction sign-off
 

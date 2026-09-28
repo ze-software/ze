@@ -10,7 +10,14 @@ PPPoE uses the same transport-agnostic PPP Driver as L2TP. The PPPoE
 component handles discovery (PADI/PADO/PADR/PADS/PADT) and creates
 kernel PPPoE sessions via AF_PPPOX. The resulting /dev/ppp file
 descriptors feed into the PPP Driver, which runs LCP, authentication,
-and IPCP/IPv6CP identically to L2TP sessions.
+and IPCP/IPv6CP through the shared state machines.
+
+PPPoE applies RFC 2516's transport restrictions to LCP: neither role requests
+ACCM, ACFC or FCS Alternatives, and both reject peer requests for them.
+These restrictions do not change L2TP negotiation. A PADT matching the
+session ID and both MAC addresses ends the PPPoE transport immediately;
+PPP termination packets are not sent afterwards. Local teardown also
+stops PPP before sending PADT.
 
 ```
 Subscriber CPE
@@ -59,10 +66,9 @@ answers no PADI.
 
 `auth-method` is the PPP Auth-Protocol the access concentrator puts in its own
 LCP Configure-Request: `chap-md5` (the default), `pap`, `ms-chap-v2`, or `none`.
-`none` requires `allow-no-auth true` beside it, because an access concentrator
-that asks nobody who they are is a decision and not a default. That combination,
-and an `auth-method` value the PPP driver does not know, are both refused when
-the daemon starts, with `parse pppoe config: ...`.
+`none` requires `allow-no-auth true`. The daemon rejects `none` without that
+opt-in, and rejects an unknown authentication method, with
+`parse pppoe config: ...`.
 
 | Leaf | Default | Values | Description |
 |------|---------|--------|-------------|
@@ -71,6 +77,7 @@ the daemon starts, with `parse pppoe config: ...`.
 
 The default matches the L2TP LNS default, so an operator who configures a
 credential for one transport gets the same treatment on the other.
+Explicit no-auth sessions need no local user entry.
 
 The credential comes from the same auth plugins the L2TP LNS uses. Configure a
 local user, or a RADIUS server:
@@ -107,15 +114,15 @@ therefore authenticates against those users, on PPPoE and on L2TP.
 ## Interoperability
 
 Two Docker lab scenarios run Ze in each PPPoE role.
-`./le deployment docker-pppoe-accel-test` runs both.
+`./le test deployment docker-pppoe-accel-test` runs both.
 
 | Scenario | Ze role | Peer | Proves |
 |----------|---------|------|--------|
 | `01-pppoe-chap-ipv4` | client | accel-ppp | Discovery, LCP, CHAP-MD5, the IPCP address on a kernel `pppN` interface, a ping to the AC gateway through the session, and a clean teardown |
 | `02-ze-ac-pppd-client` | access concentrator | pppd 2.5.1 with the rp-pppoe plugin | Discovery, LCP demanding CHAP-MD5, the credential accepted, an IPCP pool address, ICMP across the session, and a wrong password refused before IPCP |
 
-`./le qemu pppoe-accel-test` runs the client half in QEMU, and
-`./le qemu pppoe-test` runs the access concentrator's `test/pppoe/` suite on
+`./le test qemu pppoe-accel-test` runs the client half in QEMU, and
+`./le test qemu pppoe-test` runs the access concentrator's `test/pppoe/` suite on
 Ze's runtime kernel. The stock Alpine kernel has no `CONFIG_PPPOE`.
 
 ## CLI Commands
@@ -158,7 +165,7 @@ Ze's runtime kernel. The stock Alpine kernel has no `CONFIG_PPPOE`.
 | `service-name-mismatch` | The requested service does not match any configured `service-name` |
 | `service-name-missing` | A PADR carried no Service-Name tag (RFC 2516 Section 5.3) |
 | `cookie-invalid` | A PADR's AC-Cookie was missing, malformed, or expired |
-| `session-id-exhausted` | The interface's session ID space (1 to 65535) is full |
+| `session-id-exhausted` | The interface's usable session ID space (1 to 65534) is full; 0 and 65535 are reserved |
 | `per-mac-cap-reached` | The PADR's source MAC already holds `max-sessions-per-mac` sessions |
 
 - `ze_ppp_ipv6cp_identifier_refusals_total` -- IPv6CP negotiations refused for

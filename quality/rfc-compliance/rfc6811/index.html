@@ -292,15 +292,15 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6811-2-1">RFC6811-2-1</code></td><td colspan="3"><span class="rfc-subject">Validation state of the Route MUST be set to reflect the result of the lookup (Section 2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6811-2-1">RFC6811-2-1</code></td><td colspan="3"><span class="rfc-subject">The validation state of the Route MUST be set to reflect the result of the lookup. (Section 2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2 - Prefix-to-AS Mapping Database</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6811-2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_batch_test.go#L398" title="internal/component/bgp/plugins/adj_rib_in/rib_batch_test.go" target="_blank" rel="noopener"><code>TestBatchValidateTypedMatchesString</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L225" title="internal/component/bgp/plugins/rpki/validate_test.go" target="_blank" rel="noopener"><code>TestRPKIOriginASFromASPathRFC6811</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L216" title="internal/component/bgp/plugins/rpki/validate_test.go" target="_blank" rel="noopener"><code>TestRPKIOriginASFromASPathRFC6811</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L18" title="internal/component/bgp/plugins/rpki/validate_test.go" target="_blank" rel="noopener"><code>TestValidateValid</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L227" title="internal/component/bgp/plugins/rpki/validate_test.go" target="_blank" rel="noopener"><code>TestRPKIOriginASFromASPathRFC6811</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L218" title="internal/component/bgp/plugins/rpki/validate_test.go" target="_blank" rel="noopener"><code>TestRPKIOriginASFromASPathRFC6811</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L33" title="internal/component/bgp/plugins/rpki/validate_test.go" target="_blank" rel="noopener"><code>TestValidateInvalid</code></a></span></div>
 </div></td>
 </tr>
@@ -336,10 +336,10 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>4 - Interaction with Local Cache</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6811-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/origin_tracker_test.go#L42" title="internal/component/bgp/plugins/rpki/origin_tracker_test.go" target="_blank" rel="noopener"><code>TestHandleROAChangeReValidates</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go#L390" title="internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go" target="_blank" rel="noopener"><code>TestReValidationAppliesToInstalledRoutes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/origin_tracker_test.go#L45" title="internal/component/bgp/plugins/rpki/origin_tracker_test.go" target="_blank" rel="noopener"><code>TestHandleROAChangeReValidates</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go#L393" title="internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go" target="_blank" rel="noopener"><code>TestReValidationAppliesToInstalledRoutes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/origin_tracker_test.go#L45" title="internal/component/bgp/plugins/rpki/origin_tracker_test.go" target="_blank" rel="noopener"><code>TestHandleROAChangeReValidates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go#L375" title="internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go" target="_blank" rel="noopener"><code>TestReValidationAppliesToInstalledRoutes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/origin_tracker_test.go#L48" title="internal/component/bgp/plugins/rpki/origin_tracker_test.go" target="_blank" rel="noopener"><code>TestHandleROAChangeReValidates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go#L378" title="internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go" target="_blank" rel="noopener"><code>TestReValidationAppliesToInstalledRoutes</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6811-2-3">RFC6811-2-3</code></td><td colspan="3"><span class="rfc-subject">When receiving an UPDATE, the implementation SHOULD perform a validation lookup for each Route in the message (Section 2)</span></td></tr>
@@ -388,14 +388,14 @@ No tracked gap in current source anchors.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc6811-2-1"><code>RFC6811-2-1</code></a></h3>
-<p>Validation state of the Route MUST be set to reflect the result of the lookup (Section 2)</p>
+<p>The validation state of the Route MUST be set to reflect the result of the lookup. (Section 2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L227" title="internal/component/bgp/plugins/rpki/validate_test.go" target="_blank" rel="noopener"><code>TestRPKIOriginASFromASPathRFC6811</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L218" title="internal/component/bgp/plugins/rpki/validate_test.go" target="_blank" rel="noopener"><code>TestRPKIOriginASFromASPathRFC6811</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -410,7 +410,7 @@ No tracked gap in current source anchors.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L225" title="internal/component/bgp/plugins/rpki/validate_test.go" target="_blank" rel="noopener"><code>TestRPKIOriginASFromASPathRFC6811</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/validate_test.go#L216" title="internal/component/bgp/plugins/rpki/validate_test.go" target="_blank" rel="noopener"><code>TestRPKIOriginASFromASPathRFC6811</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -490,22 +490,22 @@ No tracked gap in current source anchors.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go#L393" title="internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go" target="_blank" rel="noopener"><code>TestReValidationAppliesToInstalledRoutes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go#L378" title="internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go" target="_blank" rel="noopener"><code>TestReValidationAppliesToInstalledRoutes</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/origin_tracker_test.go#L48" title="internal/component/bgp/plugins/rpki/origin_tracker_test.go" target="_blank" rel="noopener"><code>TestHandleROAChangeReValidates</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go#L375" title="internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go" target="_blank" rel="noopener"><code>TestReValidationAppliesToInstalledRoutes</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/origin_tracker_test.go#L45" title="internal/component/bgp/plugins/rpki/origin_tracker_test.go" target="_blank" rel="noopener"><code>TestHandleROAChangeReValidates</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go#L390" title="internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go" target="_blank" rel="noopener"><code>TestReValidationAppliesToInstalledRoutes</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/origin_tracker_test.go#L42" title="internal/component/bgp/plugins/rpki/origin_tracker_test.go" target="_blank" rel="noopener"><code>TestHandleROAChangeReValidates</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -672,7 +672,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

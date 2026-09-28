@@ -1091,7 +1091,7 @@
                 ]
               }
             ],
-            "description": "When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes\nwith arrival metadata. The file also carries the config operations applied while the capture runs.\nReplay the file on a developer machine with 'ze-test replay \u003cfile\u003e', which drives the same state\nmachine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file\nholds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no\nlocal secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is\nredacted. Handle a capture file the way you handle a routing-table dump.",
+            "description": "When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes\nwith arrival metadata. The file also carries the config operations applied while the capture runs.\nReplay the file on a developer machine with 'le test replay \u003cfile\u003e', which drives the same state\nmachine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file\nholds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no\nlocal secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is\nredacted. Handle a capture file the way you handle a routing-table dump.",
             "kind": "container",
             "name": "capture",
             "short-help": "Protocol event capture for this peer.",
@@ -1699,7 +1699,7 @@
                     ]
                   }
                 ],
-                "description": "When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes\nwith arrival metadata. The file also carries the config operations applied while the capture runs.\nReplay the file on a developer machine with 'ze-test replay \u003cfile\u003e', which drives the same state\nmachine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file\nholds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no\nlocal secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is\nredacted. Handle a capture file the way you handle a routing-table dump.",
+                "description": "When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes\nwith arrival metadata. The file also carries the config operations applied while the capture runs.\nReplay the file on a developer machine with 'le test replay \u003cfile\u003e', which drives the same state\nmachine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file\nholds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no\nlocal secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is\nredacted. Handle a capture file the way you handle a routing-table dump.",
                 "kind": "container",
                 "name": "capture",
                 "short-help": "Protocol event capture for this peer.",
@@ -2397,6 +2397,47 @@
                     "short-help": "Accept the BGP Prefix-SID attribute (code 40) with SRv6 TLVs from this EBGP peer.",
                     "source": "config",
                     "type": "boolean"
+                  },
+                  {
+                    "children": [
+                      {
+                        "description": "External ASes inside the AIGP administrative domain. A newly originated attribute cannot accompany a path containing any other external AS.",
+                        "kind": "leaf-list",
+                        "name": "domain-as",
+                        "short-help": "External AS numbers inside the AIGP domain.",
+                        "source": "config",
+                        "type": "asn"
+                      },
+                      {
+                        "description": "Overrides AIGP_SESSION. Without this leaf, internal sessions enable AIGP and external sessions disable it.",
+                        "kind": "leaf",
+                        "name": "enabled",
+                        "short-help": "Accept and send AIGP on this session.",
+                        "source": "config",
+                        "type": "boolean"
+                      },
+                      {
+                        "description": "Distance to this peer when no IGP provides one. Use units comparable to the administrative domain's IGP metrics.",
+                        "kind": "leaf",
+                        "name": "link-metric",
+                        "short-help": "Non-zero metric for a link without an IGP.",
+                        "source": "config",
+                        "type": "uint64"
+                      },
+                      {
+                        "description": "Permit explicitly supplied AIGP metrics only on domain-local routes advertised with this speaker as next hop.",
+                        "kind": "leaf",
+                        "name": "originate",
+                        "short-help": "Permit AIGP attribute origination.",
+                        "source": "config",
+                        "type": "boolean"
+                      }
+                    ],
+                    "description": "RFC 7311 session boundary and origination policy. Enable external sessions only inside one AIGP administrative domain.",
+                    "kind": "container",
+                    "name": "aigp",
+                    "short-help": "Accumulated IGP metric policy for this session.",
+                    "source": "config"
                   },
                   {
                     "description": "Use the leaf in a VPN design, or in a multi-site design, where the same customer ASN appears at more\nthan one site.",
@@ -3666,6 +3707,47 @@
                 "short-help": "Accept the BGP Prefix-SID attribute (code 40) with SRv6 TLVs from this EBGP peer.",
                 "source": "config",
                 "type": "boolean"
+              },
+              {
+                "children": [
+                  {
+                    "description": "External ASes inside the AIGP administrative domain. A newly originated attribute cannot accompany a path containing any other external AS.",
+                    "kind": "leaf-list",
+                    "name": "domain-as",
+                    "short-help": "External AS numbers inside the AIGP domain.",
+                    "source": "config",
+                    "type": "asn"
+                  },
+                  {
+                    "description": "Overrides AIGP_SESSION. Without this leaf, internal sessions enable AIGP and external sessions disable it.",
+                    "kind": "leaf",
+                    "name": "enabled",
+                    "short-help": "Accept and send AIGP on this session.",
+                    "source": "config",
+                    "type": "boolean"
+                  },
+                  {
+                    "description": "Distance to this peer when no IGP provides one. Use units comparable to the administrative domain's IGP metrics.",
+                    "kind": "leaf",
+                    "name": "link-metric",
+                    "short-help": "Non-zero metric for a link without an IGP.",
+                    "source": "config",
+                    "type": "uint64"
+                  },
+                  {
+                    "description": "Permit explicitly supplied AIGP metrics only on domain-local routes advertised with this speaker as next hop.",
+                    "kind": "leaf",
+                    "name": "originate",
+                    "short-help": "Permit AIGP attribute origination.",
+                    "source": "config",
+                    "type": "boolean"
+                  }
+                ],
+                "description": "RFC 7311 session boundary and origination policy. Enable external sessions only inside one AIGP administrative domain.",
+                "kind": "container",
+                "name": "aigp",
+                "short-help": "Accumulated IGP metric policy for this session.",
+                "source": "config"
               },
               {
                 "description": "Use the leaf in a VPN design, or in a multi-site design, where the same customer ASN appears at more\nthan one site.",
@@ -5057,7 +5139,7 @@
                 ]
               }
             ],
-            "description": "When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes\nwith arrival metadata. The file also carries the config operations applied while the capture runs.\nReplay the file on a developer machine with 'ze-test replay \u003cfile\u003e', which drives the same state\nmachine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file\nholds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no\nlocal secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is\nredacted. Handle a capture file the way you handle a routing-table dump.",
+            "description": "When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes\nwith arrival metadata. The file also carries the config operations applied while the capture runs.\nReplay the file on a developer machine with 'le test replay \u003cfile\u003e', which drives the same state\nmachine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file\nholds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no\nlocal secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is\nredacted. Handle a capture file the way you handle a routing-table dump.",
             "kind": "container",
             "name": "capture",
             "short-help": "Protocol event capture for this peer.",
@@ -5755,6 +5837,47 @@
                 "short-help": "Accept the BGP Prefix-SID attribute (code 40) with SRv6 TLVs from this EBGP peer.",
                 "source": "config",
                 "type": "boolean"
+              },
+              {
+                "children": [
+                  {
+                    "description": "External ASes inside the AIGP administrative domain. A newly originated attribute cannot accompany a path containing any other external AS.",
+                    "kind": "leaf-list",
+                    "name": "domain-as",
+                    "short-help": "External AS numbers inside the AIGP domain.",
+                    "source": "config",
+                    "type": "asn"
+                  },
+                  {
+                    "description": "Overrides AIGP_SESSION. Without this leaf, internal sessions enable AIGP and external sessions disable it.",
+                    "kind": "leaf",
+                    "name": "enabled",
+                    "short-help": "Accept and send AIGP on this session.",
+                    "source": "config",
+                    "type": "boolean"
+                  },
+                  {
+                    "description": "Distance to this peer when no IGP provides one. Use units comparable to the administrative domain's IGP metrics.",
+                    "kind": "leaf",
+                    "name": "link-metric",
+                    "short-help": "Non-zero metric for a link without an IGP.",
+                    "source": "config",
+                    "type": "uint64"
+                  },
+                  {
+                    "description": "Permit explicitly supplied AIGP metrics only on domain-local routes advertised with this speaker as next hop.",
+                    "kind": "leaf",
+                    "name": "originate",
+                    "short-help": "Permit AIGP attribute origination.",
+                    "source": "config",
+                    "type": "boolean"
+                  }
+                ],
+                "description": "RFC 7311 session boundary and origination policy. Enable external sessions only inside one AIGP administrative domain.",
+                "kind": "container",
+                "name": "aigp",
+                "short-help": "Accumulated IGP metric policy for this session.",
+                "source": "config"
               },
               {
                 "description": "Use the leaf in a VPN design, or in a multi-site design, where the same customer ASN appears at more\nthan one site.",
@@ -7049,7 +7172,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "The EXTENDED COMMUNITIES attribute is RFC 4360, type 16. The\nvalue takes the form target:ASN:NN or origin:ASN:NN, or it is a hex string.",
+                    "description": "The EXTENDED COMMUNITIES attribute is RFC 4360, type 16. The\nvalue takes the form target:ASN:NN or origin:ASN:NN, or it is a hex string. Ze\nvalidates the value at configure time and compares its eight-octet value, so named\nand hex spellings of the same value select the same routes.",
                     "kind": "leaf-list",
                     "name": "extended-community",
                     "short-help": "Apply only to a route whose EXTENDED COMMUNITIES attribute carries this value.",
@@ -7057,7 +7180,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "The LARGE COMMUNITIES attribute is RFC 8092, type 32. The value\ntakes the form GA:LD1:LD2, for example 65001:100:200.",
+                    "description": "The LARGE COMMUNITIES attribute is RFC 8092, type 32. The value\ntakes the form GA:LD1:LD2, for example 65001:100:200. Ze validates the value at\nconfigure time and compares its canonical decimal form.",
                     "kind": "leaf-list",
                     "name": "large-community",
                     "short-help": "Apply only to a route whose LARGE COMMUNITIES attribute carries this value.",
@@ -7436,7 +7559,7 @@
           {
             "children": [
               {
-                "description": "The default is reject, which excludes the route from the Adj-RIB-In and\nthe decision process.",
+                "description": "The default is reject. The received route remains in Adj-RIB-In but is\nineligible for the decision process until validation or configured policy admits it.",
                 "kind": "leaf",
                 "name": "invalid",
                 "short-help": "Action Ze applies to a route in the Invalid validation state.",
@@ -7491,7 +7614,7 @@
               {
                 "children": [
                   {
-                    "description": "The default is log-only, which keeps the route, marks it with its\nstate, and writes a log line.",
+                    "description": "The default is reject. Ze retains the route in the Adj-RIB-In for\nre-evaluation and excludes it from route selection until the path becomes acceptable.",
                     "kind": "leaf",
                     "name": "invalid",
                     "short-help": "Action Ze applies to a route in the ASPA Invalid path state.",
@@ -7559,15 +7682,15 @@
           {
             "children": [
               {
-                "description": "Ze opens a TCP connection to this port on the cache server. The default\nis 323.",
+                "description": "The cache transport port. When omitted, unprotected TCP uses 323 and TLS uses 324.",
                 "kind": "leaf",
                 "name": "port",
                 "short-help": "TCP port of the RTR cache server.",
                 "source": "config",
-                "type": "uint16"
+                "type": "port"
               },
               {
-                "description": "Ze runs a session to every cache server at the same time and selects none of them, so the value\nchanges no behavior today. show bgp rpki status reports it for each server.",
+                "description": "Lower values are tried first. Each polling round starts with the most preferred cache.",
                 "kind": "leaf",
                 "name": "preference",
                 "short-help": "Preference of this cache server.",
@@ -7581,16 +7704,57 @@
                 "short-help": "Source IP address of an outbound RTR connection.",
                 "source": "config",
                 "type": "ip-address"
+              },
+              {
+                "children": [
+                  {
+                    "description": "Named PKI CA used to authenticate this cache. System roots are not used.",
+                    "kind": "leaf",
+                    "name": "ca-certificate",
+                    "short-help": "PKI CA certificate trusted for the cache.",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Named PKI router certificate with its private key and a subjectAltName iPAddress identity\nmatching the connection's source IP address. The certificate must permit TLS client authentication.",
+                    "kind": "leaf",
+                    "name": "certificate",
+                    "short-help": "PKI certificate and private key identifying this router.",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Cache DNS reference identifier, matched against certificate dNSName identities.\nDefaults to the cache address when that address is a DNS name. Required for IP-address endpoints.\nAn IP address, wildcard reference, or certificate common name cannot supply this identity.",
+                    "kind": "leaf",
+                    "name": "server-name",
+                    "short-help": "Expected DNS name of the TLS cache.",
+                    "source": "config",
+                    "type": "string"
+                  }
+                ],
+                "description": "Native RTR over mutual TLS (RFC 8210 Section 9.2). The router presents the named PKI\ncertificate and its intermediate chain. The cache must request client authentication and present a trusted\nDNS-ID certificate; CN-ID is never used. Authentication failure never falls back to unprotected TCP.",
+                "kind": "container",
+                "name": "tls",
+                "short-help": "Authenticate the RTR cache and router with TLS.",
+                "source": "config"
+              },
+              {
+                "description": "Explicit operator selection of unprotected RTR over TCP. Use only when the router and cache\nare on the same trusted, controlled network (RFC 8210 Section 9). This setting does not prove network trust\nand never permits a TLS-configured cache to fall back to plaintext.",
+                "kind": "leaf",
+                "name": "trusted-network",
+                "short-help": "Permit unprotected RTR only on an explicitly trusted network.",
+                "source": "config",
+                "type": "boolean"
               }
             ],
-            "description": "The list key is the address, which is an IP address or a hostname. Ze opens one RTR session to\nevery entry at the same time, and merges what the entries send into one cache. A second entry gives redundancy.\nEach entry carries the port, the preference and the source address. An empty list leaves validation off.",
+            "description": "The list key is an IP address or a hostname. Ze tries entries in increasing preference order,\npublishes only a completed cache response, and replaces the selected cache's records atomically.\nAn empty list leaves validation off.",
             "kind": "list[address]",
             "name": "cache-server",
             "short-help": "RTR cache servers Ze reads the validated ROA and ASPA records from.",
             "source": "config"
           },
           {
-            "description": "The default is 30 seconds. A longer timeout holds a route in the pending\nstate for longer.",
+            "description": "The default is 30 seconds. A longer timeout holds a route in the pending\nstate for longer. Reloading this leaf refreshes retained routes under the new timeout.",
             "kind": "leaf",
             "name": "validation-timeout",
             "short-help": "Fail-open timeout of a route whose validation is pending.",
@@ -7914,6 +8078,123 @@
     "kind": "container",
     "name": "bgp",
     "short-help": "Border Gateway Protocol routing configuration.",
+    "source": "config"
+  },
+  "bgp-epe": {
+    "children": [
+      {
+        "children": [
+          {
+            "description": "Unique offset into the configured SRGB. The assignment\nremains stable across process restart and session flap.",
+            "kind": "leaf",
+            "name": "sid-index",
+            "short-help": "Persistent PeerNode SID index in the EPE SRGB.",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Relative load-balancing weight advertised in the PeerNode SID attribute.",
+            "kind": "leaf",
+            "name": "weight",
+            "short-help": "PeerNode SID load-balancing weight.",
+            "source": "config",
+            "type": "uint8"
+          }
+        ],
+        "description": "Assign one distinct SRGB index to each established session's\nremote peer. Removing an assignment removes its forwarding\nlabel and withdraws its native BGP-LS state.",
+        "kind": "list[address]",
+        "name": "peer",
+        "short-help": "BGP session whose connected peer is an EPE next hop.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "description": "Inclusive lower label bound; labels below 16 are reserved by MPLS.",
+            "kind": "leaf",
+            "name": "lower-bound",
+            "short-help": "First label in the EPE SRGB.",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Inclusive upper label bound, which must be at least the lower bound.",
+            "kind": "leaf",
+            "name": "upper-bound",
+            "short-help": "Last label in the EPE SRGB.",
+            "source": "config",
+            "type": "uint32"
+          }
+        ],
+        "description": "Local SRGB reserved for EPE PeerNode segments.",
+        "kind": "container",
+        "name": "srgb",
+        "short-help": "Reserve the local label range for EPE PeerNode segments.",
+        "source": "config"
+      }
+    ],
+    "description": "The internal bgp-epe plugin consumes state events from attached\nBGP sessions. Each configured peer gets a persistent PeerNode SID\nindex. While its session is established, the corresponding local\nlabel is popped and forwarded to the peer by the selected MPLS\nFIB writer. State withdrawal removes that label and its BGP-LS\nadvertisement. Configure bgp-ls-export to advertise the native\nstate to collectors. This SRGB must be reserved exclusively for\nthese EPE labels and must not overlap another label producer.",
+    "kind": "container",
+    "name": "bgp-epe",
+    "short-help": "Instantiate BGP Egress Peer Engineering segments.",
+    "source": "config"
+  },
+  "bgp-ls-export": {
+    "children": [
+      {
+        "children": [
+          {
+            "description": "Full-width Instance-ID placed in originated NLRIs for the selected domain.",
+            "kind": "leaf",
+            "name": "instance-id",
+            "short-help": "Eight-octet routing-universe identifier.",
+            "source": "config",
+            "type": "uint64"
+          },
+          {
+            "description": "Native numeric OSPF area or IS-IS level published by the source.",
+            "kind": "leaf",
+            "name": "native-area",
+            "short-help": "Numeric source area or IS-IS level.",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Native instance number published by the selected routing protocol.",
+            "kind": "leaf",
+            "name": "native-instance",
+            "short-help": "Source instance identifier.",
+            "source": "config",
+            "type": "uint64"
+          },
+          {
+            "description": "Protocol identifier of the native snapshot selected by this mapping.",
+            "kind": "leaf",
+            "name": "protocol-id",
+            "short-help": "BGP-LS source Protocol-ID.",
+            "source": "config",
+            "type": "uint8"
+          },
+          {
+            "description": "Registered link-state publisher namespace, such as isis, ospf, or bgp-epe.",
+            "kind": "leaf",
+            "name": "source",
+            "short-help": "Native source namespace.",
+            "source": "config",
+            "type": "string"
+          }
+        ],
+        "description": "Assign a routing-universe Instance-ID to one native domain.\nUnmapped domains retain the source's native identifier.",
+        "kind": "list[name]",
+        "name": "domain",
+        "short-help": "Set the 64-bit BGP-LS Instance-ID of a native domain.",
+        "source": "config"
+      }
+    ],
+    "description": "Export the running native IGP databases to BGP peers that attach\nthis internal plugin with state/refresh receive and update send grants.\nEach database snapshot replaces prior node, link, prefix, and\nSRv6 SID advertisements. Removed identities are withdrawn before\nreplacements. The exporter retains at most 65536 routes and\nrefuses a replacement exceeding that bound without changing the\nlast accepted database. This feature requires the in-process\nengine event bus; it does not originate from a forked plugin.",
+    "kind": "container",
+    "name": "bgp-ls-export",
+    "short-help": "Export native routing state through BGP-LS.",
     "source": "config"
   },
   "class-of-service": {
@@ -9214,7 +9495,7 @@
                 "type": "string"
               }
             ],
-            "description": "The token of each entry grants access to the named principal.\nAuthentication runs on every request, so the name and the scopes of the matching entry\nride that one authenticated request. A change takes effect on the next request.",
+            "description": "The token of each entry grants access to the named principal.\nAuthentication runs on every request, so the name and the scopes of the matching entry\nride that one authenticated request. Changing an identity, its token or its scopes\nrequires a daemon restart.",
             "kind": "list[name]",
             "name": "identity",
             "short-help": "Per-identity bearer entries, for auth-mode=bearer-list.",
@@ -9223,15 +9504,15 @@
           {
             "children": [
               {
-                "description": "Ze rejects a token whose 'aud' claim does not match this URL.\nSet this leaf explicitly. Ze never derives the value from the Host header of the\nrequest.",
+                "description": "Ze compares the token's 'aud' claim with this identifier exactly,\nwithout URL or Unicode normalization. Set this leaf explicitly to the HTTPS URL\nclients use for the MCP endpoint. Ze never derives it from the request Host header.\nChanging this setting on a running listener requires a restart.",
                 "kind": "leaf",
                 "name": "audience",
-                "short-help": "Canonical URL that identifies this MCP endpoint (RFC 8707).",
+                "short-help": "Exact HTTPS identifier of this MCP endpoint.",
                 "source": "config",
                 "type": "string"
               },
               {
-                "description": "The resource server reads the metadata of the authorization\nserver from \u003curl\u003e/.well-known/oauth-authorization-server (RFC 8414), and discovers the\njwks_uri there.",
+                "description": "The resource server inserts /.well-known/oauth-authorization-server\nbefore the issuer URL's path (RFC 8414). The HTTPS metadata response must carry the\nexact configured issuer and an HTTPS jwks_uri. Ze rejects redirects to HTTP.\nChanging this setting on a running listener requires a restart.",
                 "kind": "leaf",
                 "name": "authorization-server",
                 "short-help": "HTTPS URL of the authorization server.",
@@ -9281,7 +9562,7 @@
           {
             "children": [
               {
-                "description": "Ze serves the endpoint over HTTPS only when cert and key are\nboth set, and over HTTP when one of the two is empty. Ze reads\nthe pair at start and accepts TLS 1.2 as its lowest version. A\npair that fails to load stops the MCP server, and Ze prints the\nreason. ze doctor reads the file and reports it missing, or\nnear its expiry date.",
+                "description": "Ze serves the endpoint over HTTPS when cert and key are\nboth set, and over HTTP when both are absent. A partial pair\nis rejected. Ze reads the pair at start and accepts TLS 1.2\nas its lowest version. Changing the pair requires a restart. A\npair that fails to load stops the MCP server, and Ze prints the\nreason. ze doctor reads the file and reports it missing, or\nnear its expiry date.",
                 "kind": "leaf",
                 "name": "cert",
                 "short-help": "Path to PEM-encoded certificate file (or a chain).",
@@ -11014,6 +11295,14 @@
             "type": "ip-address"
           },
           {
+            "description": "Largest UDP payload Ze sends to this collector, in octets. Encoders include padding\nwithin this bound. RFC 7011 Section 10.3.3 recommends packets of at most 512 octets when the\npath MTU is unknown. The default 464 reserves 48 octets for IPv6 and UDP headers.\nSet a larger value only for a known path MTU, after subtracting all IP, UDP and tunnel headers.\nThe ceiling 1400 is the encoding buffer size.",
+            "kind": "leaf",
+            "name": "max-datagram-size",
+            "short-help": "Largest UDP payload sent to this collector, in octets",
+            "source": "config",
+            "type": "uint16"
+          },
+          {
             "description": "IPFIX and NetFlow v9 observation domain ID, default 0. Ze writes it into the message header of\nevery counter message and every flow message of those two protocols. A collector uses it to keep\nthe record streams of one exporter apart. An sflow collector does not read the leaf.",
             "kind": "leaf",
             "name": "observation-domain",
@@ -11084,7 +11373,7 @@
             "type": "uint32"
           }
         ],
-        "description": "A flow export collector endpoint. Ze opens one UDP sender for each entry and encodes for the\nprotocol that entry names. address and protocol are both mandatory, so a commit that leaves either\none out is rejected. Each datagram is 1400 bytes at most, to stay under a common path MTU.",
+        "description": "A flow export collector endpoint. Ze opens one UDP sender for each entry and encodes for the\nprotocol that entry names. address and protocol are both mandatory, so a commit that leaves either\none out is rejected. max-datagram-size bounds each UDP payload, including padding.",
         "kind": "list[name]",
         "name": "collector",
         "short-help": "A flow export collector endpoint",
@@ -17834,10 +18123,10 @@
           {
             "children": [
               {
-                "description": "Ze reads this list for one decision: does the circuit carry\nIPv6. An ipv6-unicast entry adds the IPv6 NLPID to TLV 129 and\nmakes the hello carry TLV 232. TLV 129 carries the IPv4 NLPID\non every circuit. Both families ride one SPF tree, because this\nIS-IS is single-topology.",
+                "description": "An ipv6-unicast entry enables the interface's IPv6 addresses\nand prefixes. On any enabled interface it also adds IPv6 to\nthe node-wide Protocols Supported set in every Hello and LSP.\nIPv4 is always supported. Both families use one SPF tree.",
                 "kind": "list[af]",
                 "name": "address-family",
-                "short-help": "Per-interface address families on this circuit (single-topology;\nboth ride the shared SPF tree).",
+                "short-help": "Enable address families on this interface.",
                 "source": "config"
               },
               {
@@ -19061,6 +19350,14 @@
         "short-help": "Hello message interval",
         "source": "config",
         "type": "uint16"
+      },
+      {
+        "description": "The default is 254 and the range is 1 to 255. RFC 5036 section\n3.4.4.1 makes an LSR check the Hop Count TLV of a received message\nagainst 'its configured maximum allowable value'. A Label Mapping\nwhose hop count exceeds this value is answered with a Loop Detected\nNotification and its label is not used. A change here applies to\nthe sessions that open after it.",
+        "kind": "leaf",
+        "name": "hop-count-max",
+        "short-help": "Maximum hop count a Label Mapping can carry.",
+        "source": "config",
+        "type": "uint8"
       },
       {
         "description": "Ze runs one discovery listener for each interface of this list. An\nempty list runs one listener that the system assigns to an interface\nitself. A reload starts discovery on an interface added to the list and\nstops it on one removed, and it leaves the other interfaces alone. The\nconnected prefixes of these interfaces are the FECs this LSR is egress\nfor.",
@@ -22821,6 +23118,14 @@
             ]
           },
           {
+            "description": "RFC 3101 Appendix D requires configurable Type-7 propagation and\ndefaults the P-bit to clear. Set the P-bit for this source when the router cannot originate\na Type-5 directly. A P-set Type-7 requires a usable forwarding address in its NSSA;\nwithout one the LSA is withdrawn. A locally originated Type-5 always clears the P-bit.",
+            "kind": "leaf",
+            "name": "nssa-propagate",
+            "short-help": "Permit translation of this source's NSSA routes into Type-5 LSAs.",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
             "description": "RFC 2328 Appendix A.4.5 states that the External Route Tag is not\nused by the OSPF protocol itself. It carries information between AS boundary routers, and\na policy on another router CAN match it.",
             "kind": "leaf",
             "name": "tag",
@@ -23854,7 +24159,7 @@
                 ]
               }
             ],
-            "description": "Bypass path hops. The route has to avoid the link or the node this bypass protects, because a\nbackup that crosses the protected resource fails with it. Ze has no IGP and no CSPF, so the\noperator gives the hops. The hops are ordered by the numeric index key.",
+            "description": "Bypass path hops. The route has to avoid the link or the node this bypass protects, because a\nbackup that crosses the protected resource fails with it. RSVP-TE does not run CSPF, so the\noperator supplies the hops. The hops are ordered by the numeric index key.",
             "kind": "list[index]",
             "name": "explicit-route",
             "short-help": "Bypass path hops (must avoid the protected resource)",
@@ -23877,7 +24182,7 @@
             "type": "boolean"
           }
         ],
-        "description": "Facility-backup bypass LSP (RFC 4090 Section 3.2): an LSP from this PLR to a merge point, explicitly\nrouted to avoid the protected resource. A protected transit LSP is redirected onto this bypass on a\nlocal failure. The redirected LSP is one whose next hop (link protection) or next-next hop (node\nprotection) is this bypass's merge point. The route is explicit because Ze has no IGP and no CSPF to\ncompute a backup path.",
+        "description": "Facility-backup bypass LSP (RFC 4090 Section 3.2): an LSP from this PLR to a merge point, explicitly\nrouted to avoid the protected resource. A protected transit LSP is redirected onto this bypass on a\nlocal failure. The redirected LSP is one whose next hop (link protection) or next-next hop (node\nprotection) is this bypass's merge point. RSVP-TE does not consume a traffic-engineering database\nor run CSPF to compute a backup path.",
         "kind": "list[name]",
         "name": "bypass",
         "short-help": "Facility-backup bypass LSP from this PLR to a merge point (RFC 4090 Section 3.2).",
@@ -23931,6 +24236,76 @@
         "short-help": "PATH/RESV refresh interval (RFC 2205 soft-state)",
         "source": "config",
         "type": "uint16"
+      },
+      {
+        "children": [
+          {
+            "description": "Action when no rule matches. The default is permit, so configurations without a\nreservation policy keep their existing authorization behavior.",
+            "kind": "leaf",
+            "name": "default-action",
+            "short-help": "Action when no reservation rule matches",
+            "source": "config",
+            "type": "enumeration",
+            "values": [
+              {
+                "name": "deny",
+                "short-help": "Deny a reservation when no rule matches."
+              },
+              {
+                "name": "permit",
+                "short-help": "Permit a reservation when no rule matches."
+              }
+            ]
+          },
+          {
+            "children": [
+              {
+                "description": "Required authorization decision for a matching reservation. A permit still\nrequires bandwidth admission.",
+                "kind": "leaf",
+                "name": "action",
+                "short-help": "Authorization action for a matching reservation",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "deny",
+                    "short-help": "Deny a reservation that matches this rule."
+                  },
+                  {
+                    "name": "permit",
+                    "short-help": "Permit a reservation that matches this rule."
+                  }
+                ]
+              },
+              {
+                "description": "IPv4 prefix for the SESSION tunnel endpoint. A /32 matches one host and /0\nmatches every IPv4 endpoint. Host bits are masked before matching. Omit this leaf to\nmatch any tunnel endpoint.",
+                "kind": "leaf",
+                "name": "endpoint-prefix",
+                "short-help": "Tunnel endpoint IPv4 prefix",
+                "source": "config",
+                "type": "string"
+              },
+              {
+                "description": "IPv4 prefix for the sender address. A /32 matches one host and /0 matches every\nIPv4 sender. Host bits are masked before matching. Omit this leaf to match any sender.",
+                "kind": "leaf",
+                "name": "sender-prefix",
+                "short-help": "Sender IPv4 prefix",
+                "source": "config",
+                "type": "string"
+              }
+            ],
+            "description": "Rules are evaluated by ascending numeric index. The first matching rule decides.\nBoth configured prefixes must match. An omitted prefix matches every address; a rule with\nneither prefix matches every reservation.",
+            "kind": "list[index]",
+            "name": "rule",
+            "short-help": "Reservation authorization rule",
+            "source": "config"
+          }
+        ],
+        "description": "Local network-address authorization for RSVP reservations. Rules match the IPv4 sender in\nSENDER_TEMPLATE or FILTER_SPEC and the tunnel endpoint in SESSION. Authorization and bandwidth\nadmission must both permit a reservation. This policy does not provide cryptographic user\nauthentication or interpret POLICY_DATA objects.",
+        "kind": "container",
+        "name": "reservation-policy",
+        "short-help": "Local reservation authorization by sender and tunnel endpoint",
+        "source": "config"
       },
       {
         "description": "Router identifier, in IPv4 address format. A commit that gives an IPv6 address is rejected. The\naddress is the PATH sender address, the address the transport socket binds, and the seed of the\nsession key each tunnel and bypass derives. A change after startup is logged and refused, and the\nrunning router-id stays in use until the daemon restarts.",
@@ -23987,7 +24362,7 @@
                 ]
               }
             ],
-            "description": "Explicit route hops. The list becomes the ERO object the PATH carries (RFC 3209 Section 4.3).\nZe has no IGP and no CSPF, so the operator gives every hop. A tunnel with no hop here is signaled\nwith no ERO object. A commit that changes the list starts a make-before-break reroute.",
+            "description": "Explicit route hops. The list becomes the ERO object the PATH carries (RFC 3209 Section 4.3).\nRSVP-TE does not run CSPF, so the operator supplies the hops. A tunnel with no hop here is signaled\nwith no ERO object. A commit that changes the list starts a make-before-break reroute.",
             "kind": "list[index]",
             "name": "explicit-route",
             "short-help": "Explicit route hops",
@@ -24076,7 +24451,7 @@
         "source": "config"
       }
     ],
-    "description": "RSVP-TE traffic engineering configuration. Signaling is IPv4 only. Without a router-id the engine stays\nidle, and no tunnel and no bypass signals. Ze has no IGP and no CSPF, so every path is given as an\nexplicit route.",
+    "description": "RSVP-TE traffic engineering configuration. Signaling is IPv4 only. Without a router-id the engine stays\nidle, and no tunnel and no bypass signals. RSVP-TE does not consume a traffic-engineering database\nor run CSPF, so paths are configured explicitly.",
     "kind": "container",
     "name": "rsvp-te",
     "short-help": "RSVP-TE traffic engineering configuration",
@@ -25533,15 +25908,15 @@
           {
             "children": [
               {
-                "description": "Set it true and Ze sends an accounting record for each\ncommand a user runs. One background worker sends the\nrecords, so a slow server does not delay the command.\nThe queue holds 64 records, and Ze counts each record it\ndrops because the queue is full. That count is what\nshows a server which cannot keep up.",
+                "description": "Set it true to account for every entered command,\nirrespective of its authorization method. A server is\nrequired. One worker sends START and STOP records from\na bounded 64-record queue. A full queue delays command\nadmission rather than losing a record; shutdown drains\naccepted records within the configured server timeout\nbounds. Transport failures are logged and do not deny\ncommand execution.",
                 "kind": "leaf",
                 "name": "accounting",
-                "short-help": "Enable command execution accounting",
+                "short-help": "Enable accounting for every entered command",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "The default false authorizes each command from the local\nprofiles alone and sends the server nothing. Set it true\nand Ze sends an AUTHOR REQUEST for each command, with\nservice=shell, cmd=\u003cverb\u003e and one cmd-arg for each\nargument (RFC 8907 Section 6). PASS_ADD and PASS_REPL\nrun the command, and FAIL refuses it. Ze sends privilege\nlevel 1 on every one of these requests.",
+                "description": "The default false authorizes each command from the local\nprofiles alone and sends the server nothing. Set it true\nand Ze sends an AUTHOR REQUEST for each command, with\nservice=shell, cmd=\u003cverb\u003e and one cmd-arg for each\nargument (RFC 8907 Section 6). PASS_ADD and PASS_REPL\npermit execution only when the effective arguments\ndescribe the original command and every mandatory\npolicy can be enforced. FAIL refuses the command.\nZe sends privilege level 1 on these requests.",
                 "kind": "leaf",
                 "name": "authorization",
                 "short-help": "Enable per-command TACACS+ authorization",
@@ -25551,7 +25926,7 @@
               {
                 "children": [
                   {
-                    "description": "The key is the shared secret RFC 8907 Section 4.5\nbuilds the MD5 pseudo-pad from, and both ends must\nhold the same value. A client with no secret has no\nconformant packet to send. Section 10.5.2 requires\na shared secret and forbids a client to set\nTAC_PLUS_UNENCRYPTED_FLAG. Omitting the key refuses\na commit, through the AAA rebuild rather than\nthrough the schema: a missing mandatory field is\nonly a warning. At BOOT the same failure is logged\nand this backend is DROPPED from the chain. A user\nwho exists locally still logs in, and the local\nprofiles still govern the command. The leaf is\nmarked\nsensitive, so every display path prints a\nplaceholder. A $9$-encoded value written by hand is\ndecoded on read, and the commit path writes back\nwhat you typed.",
+                    "description": "The key is the shared secret RFC 8907 Section 4.5\nbuilds the MD5 pseudo-pad from, and both ends must\nhold the same value. A client with no secret has no\nconformant packet to send. Section 10.5.2 requires\na shared secret and forbids a client to set\nTAC_PLUS_UNENCRYPTED_FLAG. Omitting the key refuses\na commit, through the AAA rebuild rather than\nthrough the schema: a missing mandatory field is\nonly a warning. At BOOT the same failure is logged\nand this backend is DROPPED from the chain. A user\nwho exists locally still logs in, and the local\nprofiles still govern the command. The leaf is\nsensitive, so display paths mask it. Keys of 32\ncharacters or longer are supported. Use at least\n16 characters; doctor warns about shorter keys.\nA $9$-encoded value is decoded on read; this is\nreversible obfuscation, not encryption. Protect\nconfiguration files, exports and backups as secrets.",
                     "kind": "leaf",
                     "name": "key",
                     "short-help": "Shared secret this server obfuscates its packets with",
@@ -25590,7 +25965,7 @@
                 "type": "boolean"
               },
               {
-                "description": "The value bounds two things for each server: the TCP\nconnect, and the read of one exchange. Ze gives it to\nnet.Dialer.Timeout and to the deadline of the\nconnection. With four servers and the default 5, a full\nfailover takes at most 20 seconds before the AAA chain\nreaches the local backend.",
+                "description": "The value independently bounds a TCP connect and one\nrequest/reply exchange for each server. Servers are\ntried in order; a dead reused connection also permits\none fresh connection attempt. Waiting for another\nexchange on a shared connection can add to this time.",
                 "kind": "leaf",
                 "name": "timeout",
                 "short-help": "Per-server connection timeout in seconds",
@@ -25598,7 +25973,7 @@
                 "type": "uint16"
               }
             ],
-            "description": "The TACACS+ backend joins the AAA chain at priority 100, in\nfront of the local backend at priority 200. Ze builds the\nbackend only where the server list holds one entry or more,\nso a container with no server leaves the chain unchanged.\nAuthentication runs as soon as one server exists. The\nauthorization leaf and the accounting leaf each turn on\ntheir own half.",
+            "description": "The TACACS+ backend joins the AAA chain at priority 100, in\nfront of the local backend at priority 200. Ze builds the\nbackend only where the server list holds one entry or more.\nAuthorization or accounting selected without a server is\na configuration error. Authentication runs as soon as one server exists.\nAuthorization and accounting are selected independently.\nRFC 8907 Section 10.5 requires a network providing privacy,\nintegrity and separation from other traffic. TACACS+\nobfuscation and source-address selection do not provide\nthose protections.",
             "kind": "container",
             "name": "tacacs",
             "short-help": "TACACS+ server configuration (RFC 8907)",
@@ -25607,7 +25982,7 @@
           {
             "children": [
               {
-                "description": "A level mapped to no profiles would authenticate the\nuser and grant nothing. Authorization reads an empty\nprofile set as 'no opinion' rather than 'deny'. To\ndeny a privilege level, leave the level out of the\nmapping.",
+                "description": "These local profiles govern the authenticated session.\nA missing, empty or all-reserved profile mapping denies\nlogin. To deny a privilege level, omit its mapping.\nLocal command authorization denies when none of the\nnamed profiles exists in the local policy store.",
                 "kind": "leaf-list",
                 "name": "profile",
                 "short-help": "Ze authorization profiles for this privilege level. At least one is required.",
@@ -27617,7 +27992,7 @@
             "source": "config"
           },
           {
-            "description": "Commit refuses a name no interface on the host carries. The first IPv4 address of\nthe interface fills the local-address of every peer that names none. It is also the\naddress the IKE socket on port 500 and the NAT-T socket on port 4500 bind to. A\nreload whose interface holds no IPv4 address is refused, and the same case at\nstartup runs and writes a warning.",
+            "description": "Commit refuses a name no interface on the host carries. The first IPv4 address of\nthe interface fills the local-address of every peer that names none. The IKE socket\non port 500 binds there. The NAT-T socket on port 4500 also binds there unless\nlive XFRM migration is available, when it listens on the wildcard and selects\neach SA's source address explicitly. A reload whose interface holds no IPv4\naddress is refused, and the same case at startup runs and writes a warning.",
             "kind": "leaf",
             "name": "interface",
             "short-help": "WAN interface for IPsec traffic.",
@@ -28167,6 +28542,24 @@
                     ]
                   },
                   {
+                    "description": "Allow preserves the existing NAT traversal policy. Prohibit rejects\ndetected translation before establishing or migrating a Child SA. It includes\nNO_NATS_ALLOWED in the first IKE_AUTH request and every MOBIKE address\nupdate. NAT detection remains available to detect forbidden translation;\nsupporting UDP 4500 does not override this policy. Changing the policy\nrestarts the peer.",
+                    "kind": "leaf",
+                    "name": "nat-traversal",
+                    "short-help": "Whether this peer permits network address translation.",
+                    "source": "config",
+                    "type": "enumeration",
+                    "values": [
+                      {
+                        "name": "allow",
+                        "short-help": "Allow translated paths and ESP-in-UDP when NAT is detected."
+                      },
+                      {
+                        "name": "prohibit",
+                        "short-help": "Reject translated paths and protect MOBIKE address updates."
+                      }
+                    ]
+                  },
+                  {
                     "description": "Where this peer's Security Policy Database entries sit in the\noperator's ordering of that database. A LOWER value is searched\nFIRST, in Ze and in the Linux kernel.\n\nRFC 4301 Section 4.4.1: 'The ordering requirement arises because\nentries often will overlap due to the presence of (non-trivial)\nranges as values for selectors. Thus, a user or administrator MUST\nbe able to order the entries to express a desired access control\npolicy.' The same section binds this interface: it 'MUST support\n(total) ordering of these entries, as seen via this interface'.\n\nTwo peers whose traffic selectors overlap, 0.0.0.0/0 on both for\nexample, describe the same traffic. Give the one that must win the\nlower value. Peers that share a value are ordered by whichever\nestablished last, which is what every peer did before this leaf\nexisted, so the default 2000 keeps an unordered configuration\ninstalling exactly what it installed before.\n\nThe range starts above 100, which is where the IKE control-plane\nbypass sits. A peer entry at or above that rank captures the IKE\nexchange that builds and rekeys the very SA it protects, and the\ntunnel could then never renegotiate. It ends at 2147483647, the\nlargest rank Ze can carry to a dataplane.",
                     "kind": "leaf",
                     "name": "policy-priority",
@@ -28299,6 +28692,24 @@
             "name": "site-to-site",
             "short-help": "Site-to-site VPN peers.",
             "source": "config"
+          },
+          {
+            "description": "The disposition of the catch-all entry Ze installs last in the\nSecurity Policy Database, in every direction and for both address\nfamilies. RFC 4301 Section 5: 'If no policy is found in the SPD\nthat matches a packet (for either inbound or outbound traffic),\nthe packet MUST be discarded.' The catch-all is that policy, so\na packet no other entry names always meets one.\n\nThe default is bypass, because a router's own control plane\n(BGP, SSH, DNS) crosses the IPsec boundary in the clear, and a\ndefault of discard would stop it the moment vpn ipsec was\nconfigured. Set discard to get the disposition the RFC names,\nand write a bypass entry under policy for every flow that must\nstill cross in the clear. The IKE control plane keeps its own\nbypass at order 100 either way.",
+            "kind": "leaf",
+            "name": "unmatched",
+            "short-help": "Disposition of traffic no SPD entry matches: discard or bypass.",
+            "source": "config",
+            "type": "enumeration",
+            "values": [
+              {
+                "name": "bypass",
+                "short-help": "Pass traffic no SPD entry matches in the clear."
+              },
+              {
+                "name": "discard",
+                "short-help": "Discard traffic no SPD entry matches (RFC 4301 Section 5)."
+              }
+            ]
           }
         ],
         "description": "Ze speaks IKEv2 (RFC 7296) and installs each negotiated Child SA into the Linux XFRM\nstack. A peer references one ESP group and one IKE group, and those two carry the\nalgorithms and the timers of the tunnel.",
@@ -28416,7 +28827,7 @@
         "type": "boolean"
       },
       {
-        "description": "When this leaf is true, Ze does not exec or supervise the VPP process, generate startup.conf, or\nbind DPDK NICs. The external supervisor owns all of that. Ze only connects through GoVPP to\napi-socket. Use this leaf for systemd-managed VPP, for a container sidecar deployment, or for the\n`ze-test vpp` stub harness. The default is false, where Ze owns the VPP lifecycle.",
+        "description": "When this leaf is true, Ze does not exec or supervise the VPP process, generate startup.conf, or\nbind DPDK NICs. The external supervisor owns all of that. Ze only connects through GoVPP to\napi-socket. Use this leaf for systemd-managed VPP, for a container sidecar deployment, or for the\n`le test vpp` stub harness. The default is false, where Ze owns the VPP lifecycle.",
         "kind": "leaf",
         "name": "external",
         "short-help": "Let an external supervisor own the VPP process, false by default.",

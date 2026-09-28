@@ -295,7 +295,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3031-3.8-1">RFC3031-3.8-1</code></td><td colspan="3"><span class="rfc-subject">Label forwarding MUST use the Next Hop Label Forwarding Entry (NHLFE) for lookup (S3.8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.8</td>
+<td>3.8 - Label Retention Mode</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3031-3.8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -313,7 +313,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3031-3.10-1">RFC3031-3.10-1</code></td><td colspan="3"><span class="rfc-subject">If the packet&#39;s &#34;next hop&#34; is the current LSR, then the label stack operation MUST be to &#34;pop the stack&#34; (S3.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.10</td>
+<td>3.10 - The NHLFE</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3031-3.10-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -322,7 +322,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3031-3.24-1">RFC3031-3.24-1</code></td><td colspan="3"><span class="rfc-subject">TTL field MUST be decremented at each LSR (S3.24)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.24</td>
+<td>3.24 - Loop Control</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3031-3.24-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -331,7 +331,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3031-3.24-2">RFC3031-3.24-2</code></td><td colspan="3"><span class="rfc-subject">If TTL reaches 0, packet MUST be discarded (S3.24)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.24</td>
+<td>3.24 - Loop Control</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3031-3.24-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -340,7 +340,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3031-3.10-2">RFC3031-3.10-2</code></td><td colspan="3"><span class="rfc-subject">Top label only determines forwarding; lower labels are opaque to transit LSRs (S3.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.10</td>
+<td>3.10 - The NHLFE</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3031-3.10-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -364,7 +364,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3031-3.16-2">RFC3031-3.16-2</code></td><td colspan="3"><span class="rfc-subject">Initial label distribution protocol negotiations MUST allow each LSR to determine whether its neighboring LSRs are capable of popping the label stack (S3.16)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3031-3.16-2">RFC3031-3.16-2</code></td><td colspan="3"><span class="rfc-subject">Initial label distribution protocol negotiations MUST allow each LSR to determine whether its neighboring LSRS are capable of popping the label stack. (S3.16)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.16</td>
@@ -468,7 +468,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc3031-3.16-2"><code>RFC3031-3.16-2</code></a> Initial label distribution protocol negotiations MUST allow each LSR to determine whether its neighboring LSRs are capable of popping the label stack (S3.16)</td>
+<tr><td><a href="#rfc3031-3.16-2"><code>RFC3031-3.16-2</code></a> Initial label distribution protocol negotiations MUST allow each LSR to determine whether its neighboring LSRS are capable of popping the label stack. (S3.16)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
 </tr>
@@ -523,7 +523,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3031-3.16-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3031-3.16-2"><code>RFC3031-3.16-2</code></a></h3>
-<p>Initial label distribution protocol negotiations MUST allow each LSR to determine whether its neighboring LSRs are capable of popping the label stack (S3.16)</p>
+<p>Initial label distribution protocol negotiations MUST allow each LSR to determine whether its neighboring LSRS are capable of popping the label stack. (S3.16)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3031-3.16-2, so no unit is bound to it.</p>
 <h3><a href="#rfc3031-3.16-3"><code>RFC3031-3.16-3</code></a></h3>
@@ -673,10 +673,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not stated</td>
 </tr>
 <tr><td><code>3.8</code></td>
-<td>not stated</td>
+<td>Label Retention Mode</td>
 <td>0</td>
 <td>walked</td>
-<td>not stated</td>
+<td>Label Retention Mode. Indicative prose with no capitalised keyword site. RFC3031-3.8-1 (label forwarding uses the NHLFE for lookup) was read from the indicative description in section 3.10, &#34;The &#34;Next Hop Label Forwarding Entry&#34; (NHLFE) is used when forwarding a labeled packet&#34;, and section 3.8 states nothing about the NHLFE; the id keeps its section because ids are permanent.</td>
 </tr>
 <tr><td><code>3.9</code></td>
 <td>not stated</td>
@@ -685,10 +685,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not stated</td>
 </tr>
 <tr><td><code>3.10</code></td>
-<td>not stated</td>
+<td>The NHLFE</td>
 <td>1</td>
 <td>walked</td>
-<td>not stated</td>
+<td>The NHLFE. One capitalised MUST site, mapped to RFC3031-3.10-1. RFC3031-3.10-2 (only the top label determines forwarding) was read from the indicative prose of section 3.9, &#34;The processing is always based on the top label, without regard for the possibility that some number of other labels may have been &#34;above it&#34; in the past, or that some number of other labels may be below it at present.&#34;</td>
 </tr>
 <tr><td><code>3.11</code></td>
 <td>not stated</td>
@@ -769,10 +769,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not stated</td>
 </tr>
 <tr><td><code>3.24</code></td>
-<td>not stated</td>
+<td>Loop Control</td>
 <td>1</td>
 <td>walked</td>
-<td>not stated</td>
+<td>Loop Control. Its one site is the lower-case loop-detection sentence, excluded. RFC3031-3.24-1 (TTL decremented at each LSR) and RFC3031-3.24-2 (discard at TTL 0) were read from the indicative prose of section 3.23, &#34;Whenever a packet passes through a router, its TTL gets decremented by 1; if the TTL reaches 0 before the packet has reached its destination, the packet gets discarded.&#34; Section 3.23 states the shim TTL &#34;SHOULD be decremented at each LSR-hop&#34;; this document states no MUST for either row, and section 3.24 does not mention TTL handling.</td>
 </tr>
 <tr><td><code>3.25</code></td>
 <td>not stated</td>
@@ -1603,7 +1603,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

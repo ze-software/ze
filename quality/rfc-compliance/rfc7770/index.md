@@ -104,15 +104,15 @@ Same OSPF experimental status.
 |---|---|---|---|---|
 | `RFC7770-2.4-1` | If the Router Informational Capabilities TLV is included, it must be the first TLV in the first instance (Instance 0) of the OSPF RI LSA (§2.4) -- Ze emits the type-1 TLV first (spec-ospf-ext-3, `buildRIInstances`) | MUST | 2.4 | **positive:** `unit/verify` [`TestRITLVType1First`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L124). **negative:** no negative test. **{single-polarity}:** ze always emits the type-1 Informational Capabilities TLV first in Instance 0 and, being informational-only on receive, never rejects a peer that misorders it, so only the positive direction is meaningful (internal/plugins/ospf/ri.go:153) |
 | `RFC7770-2.4-2` | The Router Informational Capabilities TLV must accurately reflect the OSPF router's capabilities in the scope advertised (§2.4) -- derived from live config (`deriveRICapabilities`) | MUST | 2.4 | **positive:** `unit/verify` [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L63). **positive:** `unit/verify` [`TestRICapabilityTEBitFromConfig`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L79). **negative:** `unit/verify` [`TestRICapabilityBitsFromState`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L57) |
-| `RFC7770-2.6-1` | If the Router Functional Capabilities TLV is included, it must be included in the first instance of the LSA (§2.6) -- Ze carries the empty type-2 TLV in Instance 0 | MUST | 2.6 | **positive:** `unit/verify` [`TestRITLVRegistered`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_registry_test.go#L51). **negative:** no negative test. **{single-polarity}:** ze carries the type-2 Functional Capabilities TLV in Instance 0's lead on every origination and does not police peer placement on receive, so only the positive direction is meaningful (internal/plugins/ospf/ri.go:155) |
+| `RFC7770-2.6-1` | If included, it MUST be the included in the first instance of the LSA. (§2.6) -- Ze carries the empty type-2 TLV in Instance 0 | MUST | 2.6 | **positive:** `unit/verify` [`TestRITLVRegistered`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_registry_test.go#L51). **negative:** no negative test. **{single-polarity}:** ze carries the type-2 Functional Capabilities TLV in Instance 0's lead on every origination and does not police peer placement on receive, so only the positive direction is meaningful (internal/plugins/ospf/ri.go:155) |
 | `RFC7770-2.6-2` | The Router Functional Capabilities TLV must reflect the advertising OSPF router's actual functional capabilities (§2.6) -- carried empty (no functional capability supported) | MUST | 2.6 | **positive:** `unit/verify` [`TestRIFunctionalCapabilitiesEmittedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ri_test.go#L154). **negative:** no negative test. **{single-polarity}:** ze supports no functional capability, so it emits the constant all-zero type-2 value (accurately none-supported), and there is no variable capability to exercise the opposite direction (internal/plugins/ospf/ri.go:155) |
-| `RFC7770-2.3-1` | When a new Router Information LSA TLV is defined, the specification must explicitly state whether the TLV is applicable to OSPFv2 only, OSPFv3 only, or both (§2.3) | MUST | 2.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the author of an IETF specification that defines a new RI TLV; ze implements TLVs but publishes no such specification, so it plays no role this MUST governs |
-| `RFC7770-2.6-3` | The specifications for functional capabilities advertised in the Functional Capabilities TLV must describe protocol behavior and address backwards compatibility (§2.6) | MUST | 2.6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the author of a functional-capability specification; ze advertises no functional capability and authors no such document |
-| `RFC7770-2.7-1` | TLV flooding-scope rules must be specified in the accompanying specifications for future Router Information LSA TLVs (§2.7) | MUST | 2.7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the author of a specification that defines a new RI-TLV; ze selects flooding scope per configuration and does not specify TLV scope rules in a standards document |
-| `RFC7770-5.2-1` | OSPFv3 LSAs with a function code in the Vendor Private Use range 8184-8190 must include the Enterprise Code as the first 4 octets following the 20 octets of LSA header (§5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze originates no OSPFv3 Vendor Private Use LSA (no reference to function codes 8184-8190 in internal/plugins/ospf/), so the requirement's antecedent never holds |
+| `RFC7770-2.3-1` | When a new Router Information LSA TLV is defined, the specification MUST explicitly state whether the TLV is applicable to OSPFv2 only, OSPFv3 only, or both OSPFv2 and OSPFv3. (§2.3) | MUST | 2.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the author of an IETF specification that defines a new RI TLV; ze implements TLVs but publishes no such specification, so it plays no role this MUST governs |
+| `RFC7770-2.6-3` | The specifications for functional capabilities advertised in this TLV MUST describe protocol behavior and address backwards compatibility. (§2.6) | MUST | 2.6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the author of a functional-capability specification; ze advertises no functional capability and authors no such document |
+| `RFC7770-2.7-1` | TLV flooding-scope rules will be specified on a per- TLV basis and MUST be specified in the accompanying specifications for future Router Information LSA TLVs. (§2.7) | MUST | 2.7 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the author of a specification that defines a new RI-TLV; ze selects flooding scope per configuration and does not specify TLV scope rules in a standards document |
+| `RFC7770-5.2-1` | o OSPFv3 LSAs with an LSA Function Code in the Vendor Private Use range 8184-8190 MUST include the Enterprise Code [ENTERPRISE-CODE] as the first 4 octets following the 20 octets of LSA header. (§5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze originates no OSPFv3 Vendor Private Use LSA (no reference to function codes 8184-8190 in internal/plugins/ospf/), so the requirement's antecedent never holds |
 | `RFC7770-2-1` | If a new OSPFv3 LSA Function Code is documented, the documentation must include the valid combinations of the U, S2, and S1 bits for the LSA (§5.2) -- U=1 with S2/S1 = link/area/AS (0x800C/0xA00C/0xC00C), documented in docs/architecture/wire/ospf.md | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the party documenting a new OSPFv3 function code; ze implements the already-defined function code 12 rather than documenting a new one, so the antecedent is false (the U/S2/S1 combinations are recorded at docs/architecture/wire/ospf.md) |
 | `RFC7770-5.3-1` | Before any assignments can be made in the reserved RI TLV range 32778-65535, there must be a Standards Track RFC that specifies IANA Considerations covering the range (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the IANA/IETF assignment process; ze registers no TLV type in the reserved 32778-65535 range and cannot author a Standards Track RFC |
-| `RFC7770-5.2-2` | OSPFv3 LSA function codes in the experimental range 8176-8183 must not be mentioned by RFCs (§5.2) | MUST NOT | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds RFC authors; ze is an implementation, not an RFC, and references no experimental function code 8176-8183 in internal/plugins/ospf/ |
+| `RFC7770-5.2-2` | New values are assigned through RFCs that have been shepherded through the IESG as AD-Sponsored or IETF WG documents [IANA-GUIDE]. o OSPFv3 LSA function codes in the range 8176-8183 are for experimental use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§5.2) | MUST NOT | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds RFC authors; ze is an implementation, not an RFC, and references no experimental function code 8176-8183 in internal/plugins/ospf/ |
 | `RFC7770-2.1-1` | The first Opaque ID / Instance ID (0) should always contain the Router Informational Capabilities TLV and, if advertised, the Router Functional Capabilities TLV (§2.1, §2.2) -- Instance 0 always carries type-1 then type-2 (spec-ospf-ext-3) | SHOULD | 2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7770-2.7-2` | If AS-wide flooding scope is chosen, the originating router should also advertise area-scoped LSA(s) into any attached NSSA area(s) (§2.7) -- Ze originates area-scoped RI into attached NSSAs when AS scope is selected | SHOULD | 2.7 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7770-5.2-3` | If a new OSPFv3 LSA Function Code is documented, it should also describe how the Link State ID is to be assigned (§5.2) | SHOULD | 5.2 | **positive:** no positive test. **negative:** no negative test |
@@ -131,13 +131,13 @@ Same OSPF experimental status.
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC7770-2.3-1`](#rfc7770-2.3-1) When a new Router Information LSA TLV is defined, the specification must explicitly state whether the TLV is applicable to OSPFv2 only, OSPFv3 only, or both (§2.3) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the author of an IETF specification that defines a new RI TLV; ze implements TLVs but publishes no such specification, so it plays no role this MUST governs |
-| [`RFC7770-2.6-3`](#rfc7770-2.6-3) The specifications for functional capabilities advertised in the Functional Capabilities TLV must describe protocol behavior and address backwards compatibility (§2.6) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the author of a functional-capability specification; ze advertises no functional capability and authors no such document |
-| [`RFC7770-2.7-1`](#rfc7770-2.7-1) TLV flooding-scope rules must be specified in the accompanying specifications for future Router Information LSA TLVs (§2.7) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the author of a specification that defines a new RI-TLV; ze selects flooding scope per configuration and does not specify TLV scope rules in a standards document |
-| [`RFC7770-5.2-1`](#rfc7770-5.2-1) OSPFv3 LSAs with a function code in the Vendor Private Use range 8184-8190 must include the Enterprise Code as the first 4 octets following the 20 octets of LSA header (§5.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze originates no OSPFv3 Vendor Private Use LSA (no reference to function codes 8184-8190 in internal/plugins/ospf/), so the requirement's antecedent never holds |
+| [`RFC7770-2.3-1`](#rfc7770-2.3-1) When a new Router Information LSA TLV is defined, the specification MUST explicitly state whether the TLV is applicable to OSPFv2 only, OSPFv3 only, or both OSPFv2 and OSPFv3. (§2.3) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the author of an IETF specification that defines a new RI TLV; ze implements TLVs but publishes no such specification, so it plays no role this MUST governs |
+| [`RFC7770-2.6-3`](#rfc7770-2.6-3) The specifications for functional capabilities advertised in this TLV MUST describe protocol behavior and address backwards compatibility. (§2.6) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the author of a functional-capability specification; ze advertises no functional capability and authors no such document |
+| [`RFC7770-2.7-1`](#rfc7770-2.7-1) TLV flooding-scope rules will be specified on a per- TLV basis and MUST be specified in the accompanying specifications for future Router Information LSA TLVs. (§2.7) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the author of a specification that defines a new RI-TLV; ze selects flooding scope per configuration and does not specify TLV scope rules in a standards document |
+| [`RFC7770-5.2-1`](#rfc7770-5.2-1) o OSPFv3 LSAs with an LSA Function Code in the Vendor Private Use range 8184-8190 MUST include the Enterprise Code [ENTERPRISE-CODE] as the first 4 octets following the 20 octets of LSA header. (§5.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze originates no OSPFv3 Vendor Private Use LSA (no reference to function codes 8184-8190 in internal/plugins/ospf/), so the requirement's antecedent never holds |
 | [`RFC7770-2-1`](#rfc7770-2-1) If a new OSPFv3 LSA Function Code is documented, the documentation must include the valid combinations of the U, S2, and S1 bits for the LSA (§5.2) -- U=1 with S2/S1 = link/area/AS (0x800C/0xA00C/0xC00C), documented in docs/architecture/wire/ospf.md | no test | no test carries this requirement id; annotated {not-applicable}: this binds the party documenting a new OSPFv3 function code; ze implements the already-defined function code 12 rather than documenting a new one, so the antecedent is false (the U/S2/S1 combinations are recorded at docs/architecture/wire/ospf.md) |
 | [`RFC7770-5.3-1`](#rfc7770-5.3-1) Before any assignments can be made in the reserved RI TLV range 32778-65535, there must be a Standards Track RFC that specifies IANA Considerations covering the range (§5.3) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the IANA/IETF assignment process; ze registers no TLV type in the reserved 32778-65535 range and cannot author a Standards Track RFC |
-| [`RFC7770-5.2-2`](#rfc7770-5.2-2) OSPFv3 LSA function codes in the experimental range 8176-8183 must not be mentioned by RFCs (§5.2) | no test | no test carries this requirement id; annotated {not-applicable}: this binds RFC authors; ze is an implementation, not an RFC, and references no experimental function code 8176-8183 in internal/plugins/ospf/ |
+| [`RFC7770-5.2-2`](#rfc7770-5.2-2) New values are assigned through RFCs that have been shepherded through the IESG as AD-Sponsored or IETF WG documents [IANA-GUIDE]. o OSPFv3 LSA function codes in the range 8176-8183 are for experimental use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§5.2) | no test | no test carries this requirement id; annotated {not-applicable}: this binds RFC authors; ze is an implementation, not an RFC, and references no experimental function code 8176-8183 in internal/plugins/ospf/ |
 
 ## Proof state
 
@@ -167,7 +167,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7770-2.6-1`](#rfc7770-2.6-1)
 
-If the Router Functional Capabilities TLV is included, it must be included in the first instance of the LSA (§2.6) -- Ze carries the empty type-2 TLV in Instance 0
+If included, it MUST be the included in the first instance of the LSA. (§2.6) -- Ze carries the empty type-2 TLV in Instance 0
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -187,7 +187,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7770-2.3-1`](#rfc7770-2.3-1)
 
-When a new Router Information LSA TLV is defined, the specification must explicitly state whether the TLV is applicable to OSPFv2 only, OSPFv3 only, or both (§2.3)
+When a new Router Information LSA TLV is defined, the specification MUST explicitly state whether the TLV is applicable to OSPFv2 only, OSPFv3 only, or both OSPFv2 and OSPFv3. (§2.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -195,7 +195,7 @@ No test carries RFC7770-2.3-1, so no unit is bound to it.
 
 ### [`RFC7770-2.6-3`](#rfc7770-2.6-3)
 
-The specifications for functional capabilities advertised in the Functional Capabilities TLV must describe protocol behavior and address backwards compatibility (§2.6)
+The specifications for functional capabilities advertised in this TLV MUST describe protocol behavior and address backwards compatibility. (§2.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -203,7 +203,7 @@ No test carries RFC7770-2.6-3, so no unit is bound to it.
 
 ### [`RFC7770-2.7-1`](#rfc7770-2.7-1)
 
-TLV flooding-scope rules must be specified in the accompanying specifications for future Router Information LSA TLVs (§2.7)
+TLV flooding-scope rules will be specified on a per- TLV basis and MUST be specified in the accompanying specifications for future Router Information LSA TLVs. (§2.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -211,7 +211,7 @@ No test carries RFC7770-2.7-1, so no unit is bound to it.
 
 ### [`RFC7770-5.2-1`](#rfc7770-5.2-1)
 
-OSPFv3 LSAs with a function code in the Vendor Private Use range 8184-8190 must include the Enterprise Code as the first 4 octets following the 20 octets of LSA header (§5.2)
+o OSPFv3 LSAs with an LSA Function Code in the Vendor Private Use range 8184-8190 MUST include the Enterprise Code [ENTERPRISE-CODE] as the first 4 octets following the 20 octets of LSA header. (§5.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -235,7 +235,7 @@ No test carries RFC7770-5.3-1, so no unit is bound to it.
 
 ### [`RFC7770-5.2-2`](#rfc7770-5.2-2)
 
-OSPFv3 LSA function codes in the experimental range 8176-8183 must not be mentioned by RFCs (§5.2)
+New values are assigned through RFCs that have been shepherded through the IESG as AD-Sponsored or IETF WG documents [IANA-GUIDE]. o OSPFv3 LSA function codes in the range 8176-8183 are for experimental use; these will not be registered with IANA and MUST NOT be mentioned by RFCs. (§5.2)
 
 Audit verdict: not audited: no reader has judged these tests
 

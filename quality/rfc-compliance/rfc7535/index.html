@@ -291,7 +291,7 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7535-6-1">RFC7535-6-1</code></td><td colspan="3"><span class="rfc-subject">DNAME support on the AS112 node itself is never required under this proposal (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7535-6-1">RFC7535-6-1</code></td><td colspan="3"><span class="rfc-subject">DNAME support on AS112 nodes themselves is never required under this proposal. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6 - DNAME Deployment Considerations</td>
@@ -363,7 +363,7 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc7535-6-1"><code>RFC7535-6-1</code></a> DNAME support on the AS112 node itself is never required under this proposal (§6)</td>
+<tr><td><a href="#rfc7535-6-1"><code>RFC7535-6-1</code></a> DNAME support on AS112 nodes themselves is never required under this proposal. (§6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: RFC 7535 places the DNAME records in the redirecting zones, not on the AS112 node -- the node only answers authoritatively for EMPTY.AS112.ARPA. ze&#39;s AS112 node does exactly that (internal/plugins/as112/server.go announces the DNAME-redirection anycast addresses and internal/plugins/as112/integration_linux_test.go resolves foo.empty.as112.arpa) and implements no DNAME record processing, so this &#34;DNAME is never required on the node&#34; statement imposes no gated obligation on ze</td>
 </tr>
@@ -374,7 +374,7 @@ No tracked gap in current source anchors.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7535-6-1"><code>RFC7535-6-1</code></a></h3>
-<p>DNAME support on the AS112 node itself is never required under this proposal (§6)</p>
+<p>DNAME support on AS112 nodes themselves is never required under this proposal. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7535-6-1, so no unit is bound to it.</p>
 </section>
@@ -616,7 +616,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

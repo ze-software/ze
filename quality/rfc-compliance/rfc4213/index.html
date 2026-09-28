@@ -296,7 +296,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is a routing daemon, not a host stub-resolver library that applications call for dual-stack connection establishment; its resolve component exposes distinct operator-facing A and AAAA query verbs (ResolveA/ResolveAAAA, internal/component/resolve/dns/resolver.go:224), not a merged getaddrinfo that returns both families unfiltered, so this resolver-library obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-2.2-2">RFC4213-2.2-2</code></td><td colspan="3"><span class="rfc-subject">If the application has requested both address families, the resolver library MUST NOT filter out any records (§2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-2.2-2">RFC4213-2.2-2</code></td><td colspan="3"><span class="rfc-subject">If there is not an application choice, or if the application has requested both, the resolver library MUST NOT filter out any records. (§2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.2</td>
@@ -332,7 +332,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit module derives and owns the static tunnel MTU; ze selects no tunnel MTU value and runs no per-packet encapsulation code path, so this static-MTU-range obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2.1-2">RFC4213-3.2.1-2</code></td><td colspan="3"><span class="rfc-subject">If the default static MTU is not 1280 bytes, the implementation MUST have a configuration knob to change it (§3.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2.1-2">RFC4213-3.2.1-2</code></td><td colspan="3"><span class="rfc-subject">If the default is not 1280 bytes, the implementation MUST have a configuration knob that can be used to change the MTU value. (§3.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2.1</td>
@@ -341,7 +341,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> the antecedent never fires in ze -- ze selects no static tunnel MTU default; it programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220), and the kernel sit module owns the tunnel MTU derivation. VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only), so this static-MTU-knob obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2.1-3">RFC4213-3.2.1-3</code></td><td colspan="3"><span class="rfc-subject">IPv4 reassembly and IPv6 MRU requirements MUST be supported by all decapsulators (§3.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2.1-3">RFC4213-3.2.1-3</code></td><td colspan="3"><span class="rfc-subject">This memo also includes requirements (see Section 3.6) for the amount of IPv4 reassembly and IPv6 MRU that MUST be supported by all the decapsulators. (§3.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2.1</td>
@@ -350,7 +350,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit module owns IPv4 reassembly and the IPv6 MRU on the tunnel; ze runs no per-packet decapsulation code path, so this reassembly/MRU obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2.1-4">RFC4213-3.2.1-4</code></td><td colspan="3"><span class="rfc-subject">When using static tunnel MTU, the Don&#39;t Fragment bit MUST NOT be set in the encapsulating IPv4 header (§3.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.2.1-4">RFC4213-3.2.1-4</code></td><td colspan="3"><span class="rfc-subject">When using the static tunnel MTU, the Don&#39;t Fragment bit MUST NOT be set in the encapsulating IPv4 header. (§3.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2.1</td>
@@ -368,7 +368,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit module owns the 6in4 datapath and ze runs no per-packet encapsulation/decapsulation code path (proof-of-absence: no 6in4 encap/decap producer outside the netlink config across internal/*.go), so this tunnel-MTU determination obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-1">RFC4213-3.6-1</code></td><td colspan="3"><span class="rfc-subject">The decapsulator MUST verify that the tunnel source address matches the configured remote endpoint (anti-spoofing) (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-1">RFC4213-3.6-1</code></td><td colspan="3"><span class="rfc-subject">The decapsulator MUST verify that the tunnel source address is correct before further processing packets, to mitigate the problems with address spoofing (see Section 4). (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.6</td>
@@ -386,7 +386,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, setting the configured Remote endpoint); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath discards packets whose outer IPv4 source does not match; ze runs no per-packet decapsulation code path, so this discard obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-3">RFC4213-3.6-3</code></td><td colspan="3"><span class="rfc-subject">The decapsulator MUST be capable of having an IPv6 MRU of at least max(1500 bytes, largest IPv6 interface MTU) on tunnel interfaces (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-3">RFC4213-3.6-3</code></td><td colspan="3"><span class="rfc-subject">The decapsulator MUST be capable of having, on the tunnel interfaces, an IPv6 MRU of at least the maximum of 1500 bytes and the largest (IPv6) interface MTU on the decapsulator. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.6</td>
@@ -395,7 +395,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath owns the IPv6 MRU on the tunnel; ze runs no per-packet decapsulation code path, so this MRU obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-4">RFC4213-3.6-4</code></td><td colspan="3"><span class="rfc-subject">The decapsulator MUST be capable of reassembling an IPv4 packet up to max(1500 bytes, largest IPv4 interface MTU) (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-4">RFC4213-3.6-4</code></td><td colspan="3"><span class="rfc-subject">The decapsulator MUST be capable of reassembling an IPv4 packet that is (after the reassembly) the maximum of 1500 bytes and the largest (IPv4) interface MTU on the decapsulator. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.6</td>
@@ -422,7 +422,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath reconstructs the inner IPv6 packet; ze runs no per-packet decapsulation code path, so this length-reconstruction obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-7">RFC4213-3.6-7</code></td><td colspan="3"><span class="rfc-subject">After decapsulation, the node MUST silently discard packets with invalid IPv6 source addresses (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.6-7">RFC4213-3.6-7</code></td><td colspan="3"><span class="rfc-subject">After the decapsulation, the node MUST silently discard a packet with an invalid IPv6 source address. (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.6</td>
@@ -431,7 +431,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath silently discards inner packets with invalid IPv6 source addresses; ze runs no per-packet decapsulation code path, so this source-filtering obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.7-1">RFC4213-3.7-1</code></td><td colspan="3"><span class="rfc-subject">Configured tunnels MUST have link-local addresses (§3.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.7-1">RFC4213-3.7-1</code></td><td colspan="3"><span class="rfc-subject">The configured tunnels are IPv6 interfaces (over the IPv4 &#34;link layer&#34;) and thus MUST have link-local addresses. (§3.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.7</td>
@@ -440,7 +440,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel assigns the IPv6 link-local address to the sit netdev when it comes up; ze writes no link-local address on the tunnel, so this link-local obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.8-1">RFC4213-3.8-1</code></td><td colspan="3"><span class="rfc-subject">Configured tunnel implementations MUST at least accept and respond to NUD probe packets (§3.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.8-1">RFC4213-3.8-1</code></td><td colspan="3"><span class="rfc-subject">Configured tunnel implementations MUST at least accept and respond to the probe packets used by Neighbor Unreachability Detection (NUD) [RFC2461]. (§3.8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.8</td>
@@ -449,7 +449,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel neighbor-discovery datapath accepts and responds to NUD probes on the tunnel; ze runs no per-packet ND code path on tunnels, so this NUD obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.8-2">RFC4213-3.8-2</code></td><td colspan="3"><span class="rfc-subject">The receiver MUST silently ignore the content of any Source/Target Link Layer Address options received on the tunnel link (§3.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-3.8-2">RFC4213-3.8-2</code></td><td colspan="3"><span class="rfc-subject">- the receiver MUST, while otherwise processing the Neighbor Discovery packet, silently ignore the content of any Source Link Layer Address options or Target Link Layer Address options received on the tunnel link. (§3.8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.8</td>
@@ -467,7 +467,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, setting the configured Remote endpoint); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath enforces the outer IPv4 source against the configured endpoint per packet; ze runs no per-packet decapsulation code path, so this source-verification obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-5-2">RFC4213-5-2</code></td><td colspan="3"><span class="rfc-subject">IPv6 packets with obviously invalid source addresses received from the tunnel MUST be discarded (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4213-5-2">RFC4213-5-2</code></td><td colspan="3"><span class="rfc-subject">- IPv6 packets with several, obviously invalid IPv6 source addresses received from the tunnel MUST be discarded (see Section 3.6 for details); and (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -723,7 +723,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is a routing daemon, not a host stub-resolver library that applications call for dual-stack connection establishment; its resolve component exposes distinct operator-facing A and AAAA query verbs (ResolveA/ResolveAAAA, internal/component/resolve/dns/resolver.go:224), not a merged getaddrinfo that returns both families unfiltered, so this resolver-library obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-2.2-2"><code>RFC4213-2.2-2</code></a> If the application has requested both address families, the resolver library MUST NOT filter out any records (§2.2)</td>
+<tr><td><a href="#rfc4213-2.2-2"><code>RFC4213-2.2-2</code></a> If there is not an application choice, or if the application has requested both, the resolver library MUST NOT filter out any records. (§2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is a routing daemon, not a host stub-resolver library that applications call for dual-stack connection establishment; its resolve component exposes distinct operator-facing A and AAAA query verbs (ResolveA/ResolveAAAA, internal/component/resolve/dns/resolver.go:224), not a merged getaddrinfo that returns both families unfiltered, so this resolver-library obligation has no ze code path</td>
 </tr>
@@ -739,15 +739,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit module derives and owns the static tunnel MTU; ze selects no tunnel MTU value and runs no per-packet encapsulation code path, so this static-MTU-range obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-3.2.1-2"><code>RFC4213-3.2.1-2</code></a> If the default static MTU is not 1280 bytes, the implementation MUST have a configuration knob to change it (§3.2.1)</td>
+<tr><td><a href="#rfc4213-3.2.1-2"><code>RFC4213-3.2.1-2</code></a> If the default is not 1280 bytes, the implementation MUST have a configuration knob that can be used to change the MTU value. (§3.2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the antecedent never fires in ze -- ze selects no static tunnel MTU default; it programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220), and the kernel sit module owns the tunnel MTU derivation. VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only), so this static-MTU-knob obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-3.2.1-3"><code>RFC4213-3.2.1-3</code></a> IPv4 reassembly and IPv6 MRU requirements MUST be supported by all decapsulators (§3.2.1)</td>
+<tr><td><a href="#rfc4213-3.2.1-3"><code>RFC4213-3.2.1-3</code></a> This memo also includes requirements (see Section 3.6) for the amount of IPv4 reassembly and IPv6 MRU that MUST be supported by all the decapsulators. (§3.2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit module owns IPv4 reassembly and the IPv6 MRU on the tunnel; ze runs no per-packet decapsulation code path, so this reassembly/MRU obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-3.2.1-4"><code>RFC4213-3.2.1-4</code></a> When using static tunnel MTU, the Don&#39;t Fragment bit MUST NOT be set in the encapsulating IPv4 header (§3.2.1)</td>
+<tr><td><a href="#rfc4213-3.2.1-4"><code>RFC4213-3.2.1-4</code></a> When using the static tunnel MTU, the Don&#39;t Fragment bit MUST NOT be set in the encapsulating IPv4 header. (§3.2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41; the PMtuDisc flag is set at tunnel_linux.go:234-238 but the DF bit on the wire is written by the kernel sit datapath). VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). ze runs no per-packet encapsulation code path, so this outer-header DF obligation has no ze code path</td>
 </tr>
@@ -755,7 +755,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit module owns the 6in4 datapath and ze runs no per-packet encapsulation/decapsulation code path (proof-of-absence: no 6in4 encap/decap producer outside the netlink config across internal/*.go), so this tunnel-MTU determination obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-3.6-1"><code>RFC4213-3.6-1</code></a> The decapsulator MUST verify that the tunnel source address matches the configured remote endpoint (anti-spoofing) (§3.6)</td>
+<tr><td><a href="#rfc4213-3.6-1"><code>RFC4213-3.6-1</code></a> The decapsulator MUST verify that the tunnel source address is correct before further processing packets, to mitigate the problems with address spoofing (see Section 4). (§3.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, setting the configured Remote endpoint); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath performs the per-packet outer-source verification against that configured remote; ze runs no per-packet decapsulation code path, so this decapsulation source-verification obligation has no ze code path</td>
 </tr>
@@ -763,11 +763,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, setting the configured Remote endpoint); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath discards packets whose outer IPv4 source does not match; ze runs no per-packet decapsulation code path, so this discard obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-3.6-3"><code>RFC4213-3.6-3</code></a> The decapsulator MUST be capable of having an IPv6 MRU of at least max(1500 bytes, largest IPv6 interface MTU) on tunnel interfaces (§3.6)</td>
+<tr><td><a href="#rfc4213-3.6-3"><code>RFC4213-3.6-3</code></a> The decapsulator MUST be capable of having, on the tunnel interfaces, an IPv6 MRU of at least the maximum of 1500 bytes and the largest (IPv6) interface MTU on the decapsulator. (§3.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath owns the IPv6 MRU on the tunnel; ze runs no per-packet decapsulation code path, so this MRU obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-3.6-4"><code>RFC4213-3.6-4</code></a> The decapsulator MUST be capable of reassembling an IPv4 packet up to max(1500 bytes, largest IPv4 interface MTU) (§3.6)</td>
+<tr><td><a href="#rfc4213-3.6-4"><code>RFC4213-3.6-4</code></a> The decapsulator MUST be capable of reassembling an IPv4 packet that is (after the reassembly) the maximum of 1500 bytes and the largest (IPv4) interface MTU on the decapsulator. (§3.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath owns IPv4 reassembly on the tunnel; ze runs no per-packet decapsulation code path, so this reassembly obligation has no ze code path</td>
 </tr>
@@ -779,19 +779,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath reconstructs the inner IPv6 packet; ze runs no per-packet decapsulation code path, so this length-reconstruction obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-3.6-7"><code>RFC4213-3.6-7</code></a> After decapsulation, the node MUST silently discard packets with invalid IPv6 source addresses (§3.6)</td>
+<tr><td><a href="#rfc4213-3.6-7"><code>RFC4213-3.6-7</code></a> After the decapsulation, the node MUST silently discard a packet with an invalid IPv6 source address. (§3.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath silently discards inner packets with invalid IPv6 source addresses; ze runs no per-packet decapsulation code path, so this source-filtering obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-3.7-1"><code>RFC4213-3.7-1</code></a> Configured tunnels MUST have link-local addresses (§3.7)</td>
+<tr><td><a href="#rfc4213-3.7-1"><code>RFC4213-3.7-1</code></a> The configured tunnels are IPv6 interfaces (over the IPv4 &#34;link layer&#34;) and thus MUST have link-local addresses. (§3.7)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel assigns the IPv6 link-local address to the sit netdev when it comes up; ze writes no link-local address on the tunnel, so this link-local obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-3.8-1"><code>RFC4213-3.8-1</code></a> Configured tunnel implementations MUST at least accept and respond to NUD probe packets (§3.8)</td>
+<tr><td><a href="#rfc4213-3.8-1"><code>RFC4213-3.8-1</code></a> Configured tunnel implementations MUST at least accept and respond to the probe packets used by Neighbor Unreachability Detection (NUD) [RFC2461]. (§3.8)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel neighbor-discovery datapath accepts and responds to NUD probes on the tunnel; ze runs no per-packet ND code path on tunnels, so this NUD obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-3.8-2"><code>RFC4213-3.8-2</code></a> The receiver MUST silently ignore the content of any Source/Target Link Layer Address options received on the tunnel link (§3.8)</td>
+<tr><td><a href="#rfc4213-3.8-2"><code>RFC4213-3.8-2</code></a> - the receiver MUST, while otherwise processing the Neighbor Discovery packet, silently ignore the content of any Source Link Layer Address options or Target Link Layer Address options received on the tunnel link. (§3.8)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel neighbor-discovery datapath processes (and ignores) SLLA/TLLA options on the tunnel link; ze runs no per-packet ND code path on tunnels, so this option-handling obligation has no ze code path</td>
 </tr>
@@ -799,7 +799,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, setting the configured Remote endpoint); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath enforces the outer IPv4 source against the configured endpoint per packet; ze runs no per-packet decapsulation code path, so this source-verification obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc4213-5-2"><code>RFC4213-5-2</code></a> IPv6 packets with obviously invalid source addresses received from the tunnel MUST be discarded (§5)</td>
+<tr><td><a href="#rfc4213-5-2"><code>RFC4213-5-2</code></a> - IPv6 packets with several, obviously invalid IPv6 source addresses received from the tunnel MUST be discarded (see Section 3.6 for details); and (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze programs only the sit tunnel netdev via netlink buildSittun (internal/plugins/iface/netlink/tunnel_linux.go:220, Proto = IPPROTO_IPV6 / protocol 41); VPP carries no sit backend (internal/plugins/iface/vpp/tunnel.go:7, netlink-only). The kernel sit datapath discards inner IPv6 packets with invalid source addresses; ze runs no per-packet decapsulation code path, so this source-filtering obligation has no ze code path</td>
 </tr>
@@ -822,7 +822,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-2.2-2"><code>RFC4213-2.2-2</code></a></h3>
-<p>If the application has requested both address families, the resolver library MUST NOT filter out any records (§2.2)</p>
+<p>If there is not an application choice, or if the application has requested both, the resolver library MUST NOT filter out any records. (§2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-2.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.2-1"><code>RFC4213-3.2-1</code></a></h3>
@@ -838,15 +838,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.2.1-2"><code>RFC4213-3.2.1-2</code></a></h3>
-<p>If the default static MTU is not 1280 bytes, the implementation MUST have a configuration knob to change it (§3.2.1)</p>
+<p>If the default is not 1280 bytes, the implementation MUST have a configuration knob that can be used to change the MTU value. (§3.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.2.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.2.1-3"><code>RFC4213-3.2.1-3</code></a></h3>
-<p>IPv4 reassembly and IPv6 MRU requirements MUST be supported by all decapsulators (§3.2.1)</p>
+<p>This memo also includes requirements (see Section 3.6) for the amount of IPv4 reassembly and IPv6 MRU that MUST be supported by all the decapsulators. (§3.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.2.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.2.1-4"><code>RFC4213-3.2.1-4</code></a></h3>
-<p>When using static tunnel MTU, the Don&#39;t Fragment bit MUST NOT be set in the encapsulating IPv4 header (§3.2.1)</p>
+<p>When using the static tunnel MTU, the Don&#39;t Fragment bit MUST NOT be set in the encapsulating IPv4 header. (§3.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.2.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.2-3"><code>RFC4213-3.2-3</code></a></h3>
@@ -854,7 +854,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.6-1"><code>RFC4213-3.6-1</code></a></h3>
-<p>The decapsulator MUST verify that the tunnel source address matches the configured remote endpoint (anti-spoofing) (§3.6)</p>
+<p>The decapsulator MUST verify that the tunnel source address is correct before further processing packets, to mitigate the problems with address spoofing (see Section 4). (§3.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.6-2"><code>RFC4213-3.6-2</code></a></h3>
@@ -862,11 +862,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.6-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.6-3"><code>RFC4213-3.6-3</code></a></h3>
-<p>The decapsulator MUST be capable of having an IPv6 MRU of at least max(1500 bytes, largest IPv6 interface MTU) on tunnel interfaces (§3.6)</p>
+<p>The decapsulator MUST be capable of having, on the tunnel interfaces, an IPv6 MRU of at least the maximum of 1500 bytes and the largest (IPv6) interface MTU on the decapsulator. (§3.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.6-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.6-4"><code>RFC4213-3.6-4</code></a></h3>
-<p>The decapsulator MUST be capable of reassembling an IPv4 packet up to max(1500 bytes, largest IPv4 interface MTU) (§3.6)</p>
+<p>The decapsulator MUST be capable of reassembling an IPv4 packet that is (after the reassembly) the maximum of 1500 bytes and the largest (IPv4) interface MTU on the decapsulator. (§3.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.6-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.6-5"><code>RFC4213-3.6-5</code></a></h3>
@@ -878,19 +878,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.6-6, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.6-7"><code>RFC4213-3.6-7</code></a></h3>
-<p>After decapsulation, the node MUST silently discard packets with invalid IPv6 source addresses (§3.6)</p>
+<p>After the decapsulation, the node MUST silently discard a packet with an invalid IPv6 source address. (§3.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.6-7, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.7-1"><code>RFC4213-3.7-1</code></a></h3>
-<p>Configured tunnels MUST have link-local addresses (§3.7)</p>
+<p>The configured tunnels are IPv6 interfaces (over the IPv4 &#34;link layer&#34;) and thus MUST have link-local addresses. (§3.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.7-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.8-1"><code>RFC4213-3.8-1</code></a></h3>
-<p>Configured tunnel implementations MUST at least accept and respond to NUD probe packets (§3.8)</p>
+<p>Configured tunnel implementations MUST at least accept and respond to the probe packets used by Neighbor Unreachability Detection (NUD) [RFC2461]. (§3.8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.8-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-3.8-2"><code>RFC4213-3.8-2</code></a></h3>
-<p>The receiver MUST silently ignore the content of any Source/Target Link Layer Address options received on the tunnel link (§3.8)</p>
+<p>- the receiver MUST, while otherwise processing the Neighbor Discovery packet, silently ignore the content of any Source Link Layer Address options or Target Link Layer Address options received on the tunnel link. (§3.8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-3.8-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-5-1"><code>RFC4213-5-1</code></a></h3>
@@ -898,7 +898,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-5-2"><code>RFC4213-5-2</code></a></h3>
-<p>IPv6 packets with obviously invalid source addresses received from the tunnel MUST be discarded (§5)</p>
+<p>- IPv6 packets with several, obviously invalid IPv6 source addresses received from the tunnel MUST be discarded (see Section 3.6 for details); and (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4213-5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4213-5-3"><code>RFC4213-5-3</code></a></h3>
@@ -1151,7 +1151,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

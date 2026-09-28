@@ -24,41 +24,41 @@ checks needed for the current diff and is included in `./le verify current mode 
 
 | Native action | What it validates |
 |---------------|-------------------|
-| `./le docvalid doc-drift` | Published counts and lists agree with live registries and the tree |
-| `./le docvalid command-contract` | Every YANG `ze:command` has a registered handler |
-| `./le docvalid usage-contract` | The model states every command's argument grammar, and no description spells one in prose |
-| `./le docvalid help-shape` | Every command node, every RPC, every offline local command and every config node declares a one-line summary a row renders whole, with a long text beside it, and the report states how much of each corpus is written |
-| `./le docs-to-code check` | Documentation source paths and claimed symbols resolve |
+| `./le doc yang-contract doc-drift` | Published counts and lists agree with live registries and the tree |
+| `./le doc yang-contract command-contract` | Every YANG `ze:command` has a registered handler |
+| `./le doc yang-contract usage-contract` | The model states every command's argument grammar, and no description spells one in prose |
+| `./le doc yang-contract help-shape` | Every command node, every RPC, every offline local command and every config node declares a one-line summary a row renders whole, with a long text beside it, and the report states how much of each corpus is written |
+| `./le doc index check` | Documentation source paths and claimed symbols resolve |
 | `./le doc check links` | Tracked path citations resolve |
-| `./le digest` | Every `file:line` anchor in `ai/digests/*.md` resolves |
-| `./le consistency` | Design references, cross-references, JSON tags, and package citations agree |
+| `./le ai digest` | Every `file:line` anchor in `ai/digests/*.md` resolves |
+| `./le doc consistency` | Design references, cross-references, JSON tags, and package citations agree |
 | `./le doc wiring` | Changed files trigger their documentation and inventory checks |
-| `./le ste check` | No ASD-STE100 habit grew against `HEAD` |
+| `./le doc ste check` | No ASD-STE100 habit grew against `HEAD` |
 
 `./le doc check verify` combines documentation drift, command validation, the two
 command help gates, and source-anchor validation. `./le doc wiring` is the changed-file-aware
 pre-commit gate.
 
-<!-- source: internal/le/docvalid/actions.go -- Answer -->
-<!-- source: internal/le/docvalid/actions.go -- Answer -->
-<!-- source: internal/le/docstocode/actions.go -- Answer -->
+<!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
+<!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
+<!-- source: internal/le/doc/index/actions.go -- Answer -->
 <!-- source: internal/le/doc/check/actions.go -- Answer -->
-<!-- source: internal/le/consistency/consistency.go -- Answer -->
+<!-- source: internal/le/doc/consistency/consistency.go -- Answer -->
 <!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
-<!-- source: internal/le/ste/actions.go -- Answer -->
+<!-- source: internal/le/doc/ste/actions.go -- Answer -->
 
 ## When to run
 
 | Situation | Recommended target |
 |-----------|--------------------|
-| After you write any prose, in any file | `./le ste review-changed` |
+| After you write any prose, in any file | `./le doc ste review-changed` |
 | After editing any file under `docs/` | `./le doc check verify` |
 | After adding or removing a plugin | `./le doc check verify` |
 | After writing a path reference in ANY tracked file | `./le doc check links` (`./le doc check verify` does not cover it) |
-| After adding or renaming a YANG `ze:command` | `./le docvalid command-contract` |
-| After writing the `description` or the `ze:help` of a command node, an RPC or a config node | `./le docvalid help-shape` |
-| After writing the `ShortHelp` or the `Description` of a `registry.Meta` | `./le docvalid help-shape` |
-| While an agent writes a `ze:help` in any `.yang` file | `./le hook-check pretool-writeedit` answers on the proposed text, before the file lands |
+| After adding or renaming a YANG `ze:command` | `./le doc yang-contract command-contract` |
+| After writing the `description` or the `ze:help` of a command node, an RPC or a config node | `./le doc yang-contract help-shape` |
+| After writing the `ShortHelp` or the `Description` of a `registry.Meta` | `./le doc yang-contract help-shape` |
+| While an agent writes a `ze:help` in any `.yang` file | `./le ai hooks pretool-writeedit` answers on the proposed text, before the file lands |
 | After adding a doc validator, inventory source, command source, or exported Go API | `./le doc wiring` |
 | Before opening a documentation PR | `./le doc check verify` |
 
@@ -71,7 +71,7 @@ command, inventory, and wiring checks for changed files.
 
 ## How to interpret output
 
-### `./le docvalid doc-drift`
+### `./le doc yang-contract doc-drift`
 
 ```
   Documentation drift detected (N issues)
@@ -85,7 +85,7 @@ Each issue points at a file, a line number (0 = file-level), and a
 description. Most fixes are mechanical: update a count, add a missing
 table row, remove a stale entry.
 
-### `./le docvalid command-contract`
+### `./le doc yang-contract command-contract`
 
 ```
 # Command Validation
@@ -105,7 +105,7 @@ Two-direction check. Both directions are contract bugs:
 - YANG declares a command but no Go code registered an RPC or local handler -> dead command
 - RPC handler registered but YANG doesn't declare it -> command unreachable from CLI
 
-### `./le docvalid help-shape`
+### `./le doc yang-contract help-shape`
 
 ```
 # Command Help Shape
@@ -163,7 +163,7 @@ summary of a config node is written over as many lines as its author needed,
 and `entryShortHelp` collapses the whitespace before it renders, so a newline
 in one is the normal spelling rather than a defect.
 
-<!-- source: internal/le/docvalid/helpshape_schema.go -- collectSchema -->
+<!-- source: internal/le/doc/yangcontract/helpshape_schema.go -- collectSchema -->
 
 #### What the config corpus IS
 
@@ -207,7 +207,7 @@ written, so the rule holds over the whole tree and the `HEAD` baseline that
 scoped it is gone. There is no file to append a path to, and no scope line in
 the report: a summary with no long text beside it is refused wherever it sits.
 
-<!-- source: internal/le/docvalid/helpshape.go -- judgePair -->
+<!-- source: internal/le/doc/yangcontract/helpshape.go -- judgePair -->
 
 The third corpus is read two ways, because Go forbids importing a main package.
 The registrations this binary links are read from the registry. The four
@@ -235,10 +235,10 @@ one-line surface reads.
 
 ### The write hook, an edit before the gate
 
-`./le hook-check pretool-writeedit` reads the PROPOSED text of any `.yang` file
+`./le ai hooks pretool-writeedit` reads the PROPOSED text of any `.yang` file
 an agent writes or edits, and warns with exit 1. It loads no YANG model. It
 reads the file it was handed, which is not on disk yet. It never speaks for the
-tree: `./le docvalid help-shape` is the gate.
+tree: `./le doc yang-contract help-shape` is the gate.
 
 <!-- source: internal/le/hookruntime/writeedit.go -- writeYangDescription, scanYangText -->
 
@@ -293,7 +293,7 @@ that stopped early must not read as a file that broke no rule.
 | Family list missing entries in DESIGN.md | Add the missing entries; the script lists which |
 | `.ci` test count claim wrong | Update the count or phrase it as an approximate dated claim |
 | Feature inventory row has no status | Add one of: Supported, Partial, Experimental, Stub-backed, Rejected, Future |
-| Functional test release-gate list wrong | Update `docs/functional-tests.md` to match `internal/le/functional/catalog.go` |
+| Functional test release-gate list wrong | Update `docs/functional-tests.md` to match `internal/le/test/functional/catalog.go` |
 | Stale text parser allocation claim | Update `docs/architecture/api/text-parser.md` to describe `textparse.NewScanner` and source-linked result allocations |
 | Stale source anchor path | Fix or remove the `<!-- source: ... -->` path, then rerun `./le doc check verify` |
 | `CLAIM: ... names 'Sym', which is not declared there` | Read the anchored file. When the symbol moved, point the anchor at the file that DECLARES it; when the name changed, write the new one; when the symbol is gone, the sentence above the anchor is wrong too, so fix the sentence. Never reword a real symbol into prose to silence the finding: the check already ignores a token the anchored file names anywhere, so a finding means the token is absent from that file, which no call, field, parameter or env key of that file can be |
@@ -304,29 +304,29 @@ that stopped early must not read as a file that broke no rule.
 | Handler with no YANG `ze:command` | Add a YANG declaration in the appropriate `*-cmd.yang` schema |
 ## How the tools find drift
 
-`internal/le/docvalid.Answer` imports `internal/component/plugin/all` so all
+`internal/le/doc/yangcontract.Answer` imports `internal/component/plugin/all` so all
 plugins register themselves, then queries `registry.All()` and
 `registry.FamilyMap()`. It walks the `.ci` files and reads the native functional
-suite catalog from `internal/le/functional`. It compares those facts with
+suite catalog from `internal/le/test/functional`. It compares those facts with
 claims in `docs/DESIGN.md`, `docs/comparison.md`, `README.md`,
 `docs/features.md`, and `docs/functional-tests.md`.
 
-`internal/le/docvalid.Answer` imports the same set plus the BGP cmd plugin
+`internal/le/doc/yangcontract.Answer` imports the same set plus the BGP cmd plugin
 schema/handler packages, loads the YANG modules, and walks the schema tree
 looking for `ze:command` extensions. For each extension it checks
 `registry.CollectRPCHandlers()` for a matching method name.
 
-`./le docs-to-code check` scans every Markdown source anchor under `docs/` and
-refuses a missing source path or symbol. `./le docs-to-code update` regenerates
+`./le doc index check` scans every Markdown source anchor under `docs/` and
+refuses a missing source path or symbol. `./le doc index write` regenerates
 the two documentation indexes.
 
 One walk of `docs/` feeds the path and symbol checks. An anchor is
-`<!-- source: <path> -- Sym1, Sym2 -->`. `internal/le/docstocode.CheckCodeIndex`
+`<!-- source: <path> -- Sym1, Sym2 -->`. `internal/le/doc/index.CheckCodeIndex`
 keeps an identifier or dotted method chain from the claim and compares it with
 the declarations in the anchored Go file. The scan is independent of build
 tags, so a Linux declaration remains visible on a macOS host.
 
-The same walk answers the opposite question. `internal/le/docstocode.ClaimsByPath`
+The same walk answers the opposite question. `internal/le/doc/index.ClaimsByPath`
 maps a code path to the claims written about it, each with the symbols its
 anchor names, and the `doc-drift` check in `internal/le/doc/wiring` refuses a
 commit that changed one of those symbols and left its page alone.
@@ -366,7 +366,7 @@ The three roots outside the tracked citation scan are `vendor/`,
 `third_party/`, and `plan/handover/`: the first two hold another repository's
 files, while the last records an earlier tree.
 
-`internal/le/consistency` parses `// Design:`, `// Detail:`, `// Overview:`, and
+`internal/le/doc/consistency` parses `// Design:`, `// Detail:`, `// Overview:`, and
 `// Related:` comments, checks their symmetry, and reports references to
 packages that no longer exist.
 
@@ -376,13 +376,13 @@ packages that no longer exist.
 2. Add one action to that package's table and register its area through
    `leroot.Register`. A related check joins an existing area rather than opening
    another root name.
-3. Register the action with `internal/le/leroot` and expose it as
+3. Register the action with `internal/le/le/root` and expose it as
    `./le <area> <action>`.
 4. Add the callable action to `internal/le/doc/wiring` when changed files should
    trigger it during pre-commit verification.
 5. Add its producer and exact command to this page and `ai/INDEX.md`.
 6. If agent rules need the command, edit the canonical rule point and render the
-   rule corpus through `./le rules render-update`.
+   rule corpus through `./le ai rules render-update`.
 
 Repository tooling is compiled Go under `internal/le`; package-owned fixtures
 belong in that package's `testdata/` directory.

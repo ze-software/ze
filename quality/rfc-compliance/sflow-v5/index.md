@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 2.9% | 1 of 34 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 41.2% | 14 of 34 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 32.4% | 11 of 34 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 34 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 13 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 41.0% | 16 of 39 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,10 +22,10 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Gated MUSTs | 34 | of 42 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 34 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Out of scope | 2 | of 34 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 2.9% | 1 of 34 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 34 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 34 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Met below Ze | 2.9% | 1 of 34 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 2.9% | 1 of 34 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,7 +33,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 61.8% | 21 of 34 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 17.6% | 6 of 34 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 7 shares marked as a part above are the whole of the 34 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -62,20 +62,20 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 42 |
 | Gated MUST-level | 34 |
 | Not applicable, so out of scope | 1 |
-| Declared gaps | 3 |
-| Gated with no test | 18 |
+| Declared gaps | 6 |
+| Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 13 |
-| Tagged units | 13 |
+| Test tags | 39 |
+| Tagged units | 39 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 16 |
 | Summary | `rfc/short/sflow-v5.md` |
 | Requirement shard | `rfc/requirements/sflow-v5.md` |
 | RFC text | `rfc/full/sflow-v5.txt` |
 
 ## Enrolment
 
-Enrolled: sFlow Version 5 export: exporter/agent role. 1 MET (counter poll at configured interval) + 11 single-polarity positive (version=5, agent addr, sub-agent seq space, MTU bound, no >1s hold, XDR big-endian, count-prefixed arrays, actual rate, sample_pool, cumulative counters) + 3 gap (split datagram seq, no expanded types, no unavailable sentinel) + 1 not-applicable (collector skip) + 18 added by the 2026-09-21 extraction walk from sentences this summary did not carry, none of them tested (SFLOW-V5-x-25 through x-42: the no-batching send rule, the outstanding-counter datagram, the compact/expanded encoding choice, the three sequence-number reset rules, the data-source-to-sub-agent binding, counter availability within a session, the header-information and stripping rules, extended_switch reporting, and the sampling-algorithm obligations on randomness, once-per-packet consideration, sampler independence, convergence and rate persistence)
+Enrolled: sFlow Version 5 exporter/agent. The checklist includes transport, sample encoding, counter availability and sampling obligations from the 2026-09-21 extraction walk. Tests cover parts of these obligations; the checklist retains the remaining gaps and uncovered requirements.
 
 ## What the public ledger says
 
@@ -83,9 +83,8 @@ Enrolled: sFlow Version 5 export: exporter/agent role. 1 MET (counter poll at co
 
 **What the ledger says is covered**
 
-- Flow export protocol alongside NetFlow v9 and IPFIX. Three MUST gaps in [`rfc/short/sflow-v5.md`](https://github.com/ze-software/ze/blob/main/rfc/short/sflow-v5.md): datagram-level sequence numbers split across two independent counters per sub-agent (SFLOW-V5-x-9)
-- no expanded sample types, so ifIndex > 2^24-1 is truncated by the 24-bit source_id mask (SFLOW-V5-x-12)
-- unavailable if_counters fields are exported as 0 instead of the max-value unavailable sentinel (SFLOW-V5-x-16). Eighteen further MUST rows (SFLOW-V5-x-25 through x-42) were added by the 2026-09-21 extraction walk and none of them is tested.
+- Flow export alongside NetFlow v9 and IPFIX. Unavailable counters carry the maximum-value sentinel. Counter and flow encoders share a datagram sequence
+- all sources use expanded sample formats with full-width interface indexes. Counter generation changes restart source sample sequences. Other uncovered obligations remain in the checklist. Statistical sampling requirements SFLOW-V5-x-37 through x-41 remain unverified. Linux filter installation/readback tests cover configuration and lifecycle, not RNG range, packet-selection probability, one consideration per packet, independent sampling draws or long-term convergence. Current exporter and privileged kernel scenarios must be run before publishing verified coverage.
 
 
 **What the ledger says remains:**
@@ -96,19 +95,17 @@ Enrolled: sFlow Version 5 export: exporter/agent role. 1 MET (counter poll at co
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 1 | one part of the gated population |
-| Annotated instead of tested | 15 | one part of the gated population |
+| Positive and negative tests | 14 | one part of the gated population |
+| Annotated instead of tested | 20 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 18 | one part of the gated population |
+| No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **34** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (1):** [`SFLOW-V5-x-14`](#sflow-v5-x-14)
+**Positive and negative tests (14):** [`SFLOW-V5-x-9`](#sflow-v5-x-9), [`SFLOW-V5-x-12`](#sflow-v5-x-12), [`SFLOW-V5-x-14`](#sflow-v5-x-14), [`SFLOW-V5-x-16`](#sflow-v5-x-16), [`SFLOW-V5-x-25`](#sflow-v5-x-25), [`SFLOW-V5-x-26`](#sflow-v5-x-26), [`SFLOW-V5-x-27`](#sflow-v5-x-27), [`SFLOW-V5-x-28`](#sflow-v5-x-28), [`SFLOW-V5-x-29`](#sflow-v5-x-29), [`SFLOW-V5-x-30`](#sflow-v5-x-30), [`SFLOW-V5-x-31`](#sflow-v5-x-31), [`SFLOW-V5-x-32`](#sflow-v5-x-32), [`SFLOW-V5-x-33`](#sflow-v5-x-33), [`SFLOW-V5-x-34`](#sflow-v5-x-34)
 
-**Annotated instead of tested (15):** [`SFLOW-V5-x-1`](#sflow-v5-x-1), [`SFLOW-V5-x-2`](#sflow-v5-x-2), [`SFLOW-V5-x-3`](#sflow-v5-x-3), [`SFLOW-V5-x-4`](#sflow-v5-x-4), [`SFLOW-V5-x-5`](#sflow-v5-x-5), [`SFLOW-V5-x-6`](#sflow-v5-x-6), [`SFLOW-V5-x-7`](#sflow-v5-x-7), [`SFLOW-V5-x-8`](#sflow-v5-x-8), [`SFLOW-V5-x-9`](#sflow-v5-x-9), [`SFLOW-V5-x-10`](#sflow-v5-x-10), [`SFLOW-V5-x-11`](#sflow-v5-x-11), [`SFLOW-V5-x-12`](#sflow-v5-x-12), [`SFLOW-V5-x-13`](#sflow-v5-x-13), [`SFLOW-V5-x-15`](#sflow-v5-x-15), [`SFLOW-V5-x-16`](#sflow-v5-x-16)
-
-**No test and no annotation (18):** [`SFLOW-V5-x-25`](#sflow-v5-x-25), [`SFLOW-V5-x-26`](#sflow-v5-x-26), [`SFLOW-V5-x-27`](#sflow-v5-x-27), [`SFLOW-V5-x-28`](#sflow-v5-x-28), [`SFLOW-V5-x-29`](#sflow-v5-x-29), [`SFLOW-V5-x-30`](#sflow-v5-x-30), [`SFLOW-V5-x-31`](#sflow-v5-x-31), [`SFLOW-V5-x-32`](#sflow-v5-x-32), [`SFLOW-V5-x-33`](#sflow-v5-x-33), [`SFLOW-V5-x-34`](#sflow-v5-x-34), [`SFLOW-V5-x-35`](#sflow-v5-x-35), [`SFLOW-V5-x-36`](#sflow-v5-x-36), [`SFLOW-V5-x-37`](#sflow-v5-x-37), [`SFLOW-V5-x-38`](#sflow-v5-x-38), [`SFLOW-V5-x-39`](#sflow-v5-x-39), [`SFLOW-V5-x-40`](#sflow-v5-x-40), [`SFLOW-V5-x-41`](#sflow-v5-x-41), [`SFLOW-V5-x-42`](#sflow-v5-x-42)
+**Annotated instead of tested (20):** [`SFLOW-V5-x-1`](#sflow-v5-x-1), [`SFLOW-V5-x-2`](#sflow-v5-x-2), [`SFLOW-V5-x-3`](#sflow-v5-x-3), [`SFLOW-V5-x-4`](#sflow-v5-x-4), [`SFLOW-V5-x-5`](#sflow-v5-x-5), [`SFLOW-V5-x-6`](#sflow-v5-x-6), [`SFLOW-V5-x-7`](#sflow-v5-x-7), [`SFLOW-V5-x-8`](#sflow-v5-x-8), [`SFLOW-V5-x-10`](#sflow-v5-x-10), [`SFLOW-V5-x-11`](#sflow-v5-x-11), [`SFLOW-V5-x-13`](#sflow-v5-x-13), [`SFLOW-V5-x-15`](#sflow-v5-x-15), [`SFLOW-V5-x-35`](#sflow-v5-x-35), [`SFLOW-V5-x-36`](#sflow-v5-x-36), [`SFLOW-V5-x-37`](#sflow-v5-x-37), [`SFLOW-V5-x-38`](#sflow-v5-x-38), [`SFLOW-V5-x-39`](#sflow-v5-x-39), [`SFLOW-V5-x-40`](#sflow-v5-x-40), [`SFLOW-V5-x-41`](#sflow-v5-x-41), [`SFLOW-V5-x-42`](#sflow-v5-x-42)
 
 ## Requirements
 
@@ -117,37 +114,37 @@ Enrolled: sFlow Version 5 export: exporter/agent role. 1 MET (counter poll at co
 | `SFLOW-V5-x-1` | Datagram version field MUST be set to 5 (Datagram Format) | MUST | x | **positive:** `unit/verify` [`TestSFlowDatagramHeaderIPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L11). **negative:** no negative test. **{single-polarity}:** WriteDatagramHeader unconditionally writes the compile-time constant Version=5 into every datagram, so there is no other-version code path to reject (internal/plugins/flowexport/sflow/encoder.go:40, :14) |
 | `SFLOW-V5-x-2` | Agent address MUST be a stable IP (e.g., loopback) that uniquely identifies the device across reboots (Agent Architecture) | MUST | x | **positive:** `unit/verify` [`TestSFlowDatagramHeaderIPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L12). **negative:** no negative test. **{single-polarity}:** the operator-configured agent address is written verbatim into every datagram header and validated as a well-formed IP; stability/uniqueness is a config-value property with no exporter reject path (internal/plugins/flowexport/sflow/encoder.go:43-57, internal/plugins/flowexport/config.go:379-383) |
 | `SFLOW-V5-x-3` | Agent address + sub_agent_id MUST uniquely identify a sampling entity (Agent Architecture) | MUST | x | **positive:** `unit/verify` [`TestSFlowDatagramHeaderIPv6`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L53). **negative:** no negative test. **{single-polarity}:** both agent_address and sub_agent_id are emitted in every datagram header by construction, and tuple uniqueness is an operator-config obligation (internal/plugins/flowexport/sflow/encoder.go:59, :43-57) |
-| `SFLOW-V5-x-4` | Each sub-agent MUST maintain its own sequence number space (Agent Architecture) | MUST | x | **positive:** `unit/verify` [`TestSFlowMultiInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L93). **negative:** no negative test. **{single-polarity}:** each encoder instance is bound to one collector/sub_agent_id and owns private datagramSeq and per-source seqNums fields, so distinct sub-agents never share sequence state (internal/plugins/flowexport/sflow/adapter.go:18-19, flow_adapter.go:32-33) |
-| `SFLOW-V5-x-5` | Datagram size MUST NOT exceed path MTU (Transport) | MUST | x | **positive:** `unit/verify` [`TestSFlowMultiInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L94). **negative:** no negative test. **{single-polarity}:** every datagram is bounded to MaxDatagramSize=1400 by construction (counter batching flushes before overflow, the flow encoder truncates the captured header to fit), so no code path emits an oversized datagram (internal/plugins/flowexport/sender.go:14, internal/plugins/flowexport/sflow/encoder.go:120, flow_adapter.go:67-71) |
-| `SFLOW-V5-x-6` | Samples MUST NOT be held more than 1 second before sending (Transport) | MUST | x | **positive:** `unit/verify` [`TestExportFlowSampleDispatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L148). **negative:** no negative test. **{single-polarity}:** counter and flow samples are encoded and sent synchronously with no buffering queue, so a sample is never held beyond a sub-millisecond encode and there is no holding timer to test negatively (internal/plugins/flowexport/exporter.go:204, internal/plugins/flowexport/sflow/adapter.go:47-51) |
+| `SFLOW-V5-x-4` | Each sub-agent MUST maintain its own sequence number space (Agent Architecture) | MUST | x | **positive:** `unit/verify` [`TestSFlowMultiInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L93). **negative:** no negative test. **{single-polarity}:** each collector owns its UDP Sender sequence shared by counter and flow encoders, while per-source sample sequences belong to its encoders (internal/plugins/flowexport/sender.go Sender.Sequence, internal/plugins/flowexport/sflow/adapter.go CounterEncoder, internal/plugins/flowexport/sflow/flow_adapter.go FlowEncoder) |
+| `SFLOW-V5-x-5` | Datagram size MUST NOT exceed path MTU (Transport) | MUST | x | **positive:** `unit/verify` [`TestSFlowMultiInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L94). **negative:** no negative test. **{single-polarity}:** encoders bound the payload, including padding, to the collector's max-datagram-size and Sender.Send refuses larger payloads; the operator must configure the bound for the path MTU (internal/plugins/flowexport/sender.go Sender.Send, internal/plugins/flowexport/sflow/encoder.go writeCounterDatagrams, internal/plugins/flowexport/sflow/flow_adapter.go EncodeFlowSample) |
+| `SFLOW-V5-x-6` | Samples MUST NOT be held more than 1 second before sending (Transport) | MUST | x | **positive:** `unit/verify` [`TestExportFlowSampleDispatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L99). **negative:** no negative test. **{single-polarity}:** counter and flow samples are encoded and sent synchronously with no buffering queue, so a sample is never held beyond a sub-millisecond encode and there is no holding timer to test negatively (internal/plugins/flowexport/exporter.go:204, internal/plugins/flowexport/sflow/adapter.go:47-51) |
 | `SFLOW-V5-x-7` | All structures MUST use XDR encoding: 4-byte alignment, big-endian (Datagram Format) | MUST | x | **positive:** `unit/verify` [`TestSFlowIfCounters`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counter_test.go#L35). **negative:** no negative test. **{single-polarity}:** every field is written via binary.BigEndian with 4-byte-aligned opaque padding, exporter-only with no decode path to reject a wrong endianness (internal/plugins/flowexport/sflow/counter.go:36, flow.go:123-128) |
-| `SFLOW-V5-x-8` | Variable-length arrays and opaque data MUST be prefixed by a 4-byte count and padded to 4-byte boundary (XDR Encoding) | MUST | x | **positive:** `unit/verify` [`TestSFlowSampledHeader`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_test.go#L70). **negative:** no negative test. **{single-polarity}:** the sampled_header opaque and the extended_gateway arrays are all written with a 4-byte count prefix and zero-padded to a 4-byte boundary by construction (internal/plugins/flowexport/sflow/flow.go:116-128, :187-208) |
-| `SFLOW-V5-x-9` | Sequence numbers MUST be per-agent (datagram-level) and per-source (sample-level), unsigned 32-bit, wrapping (Transport) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{gap}:** per-source sample-level sequences are correct, but for one sub-agent the counter-datagram and flow-datagram streams keep two independent datagramSeq counters, so a collector sees two overlapping datagram-level sequence spaces instead of one (internal/plugins/flowexport/sflow/adapter.go:18, flow_adapter.go:32) |
+| `SFLOW-V5-x-8` | Variable-length arrays and opaque data MUST be prefixed by a 4-byte count and padded to 4-byte boundary (XDR Encoding) | MUST | x | **positive:** `unit/verify` [`TestSFlowSampledHeader`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_test.go#L129). **negative:** no negative test. **{single-polarity}:** the sampled_header opaque and the extended_gateway arrays are all written with a 4-byte count prefix and zero-padded to a 4-byte boundary by construction (internal/plugins/flowexport/sflow/flow.go:116-128, :187-208) |
+| `SFLOW-V5-x-9` | Sequence numbers MUST be per-agent (datagram-level) and per-source (sample-level), unsigned 32-bit, wrapping (Transport) | MUST | x | **positive:** `unit/verify` [`TestSFlowMixedDatagramSequenceWraps`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counters_sflow_v5_test.go#L203). **negative:** `unit/verify` [`TestSFlowCounterResetDoesNotResetDatagrams`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counters_sflow_v5_test.go#L240) |
 | `SFLOW-V5-x-10` | flow_sample MUST include the actual sampling_rate used by the agent (Flow Sample) | MUST | x | **positive:** `unit/verify` [`TestSFlowFlowSample`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_test.go#L9). **negative:** no negative test. **{single-polarity}:** EncodeFlowSample writes the kernel-reported actual rate into every flow_sample, emitted unconditionally with no reject path (internal/plugins/flowexport/sflow/flow_adapter.go:78-79, flow.go:52) |
-| `SFLOW-V5-x-11` | sample_pool MUST track total packets seen by the data source (Flow Sample) | MUST | x | **positive:** `unit/verify` [`TestSFlowFlowSamplePoolTracksTotal`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_adapter_test.go#L52). **negative:** no negative test. **{single-polarity}:** EncodeFlowSample computes sample_pool as the saturated product of cumulative samples and rate and writes it into every flow_sample, exporter-only with no negative form (internal/plugins/flowexport/sflow/flow_adapter.go:73-79, flow.go:56) |
-| `SFLOW-V5-x-12` | Expanded sample types MUST be used when ifIndex exceeds 2^24-1 or 2^30-1 (Expanded Flow/Counter Sample) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no flow_sample_expanded (format 3) or counters_sample_expanded (format 4); a large ifIndex is silently truncated by a 24-bit mask on source_id rather than switching to the expanded encoding (internal/plugins/flowexport/sflow/counter.go:49, flow.go:48) |
+| `SFLOW-V5-x-11` | sample_pool MUST track total packets seen by the data source (Flow Sample) | MUST | x | **positive:** `unit/verify` [`TestSFlowFlowSamplePoolTracksTotal`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_adapter_test.go#L51). **negative:** no negative test. **{single-polarity}:** EncodeFlowSample computes sample_pool as the saturated product of cumulative samples and rate and writes it into every flow_sample, exporter-only with no negative form (internal/plugins/flowexport/sflow/flow_adapter.go:73-79, flow.go:56) |
+| `SFLOW-V5-x-12` | Expanded sample types MUST be used when ifIndex exceeds 2^24-1 or 2^30-1 (Expanded Flow/Counter Sample) | MUST | x | **positive:** `unit/verify` [`TestSFlowV5ExpandedEncodingForEveryInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L242). **negative:** `unit/verify` [`TestSFlowCounterSampleSourceIDOverflow`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counter_test.go#L216) |
 | `SFLOW-V5-x-13` | Unknown record formats MUST be skipped using the opaque length prefix (Record Wrappers) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** skipping unknown formats on receive is a collector behavior; ze is an sFlow exporter only with no sFlow decode path, though it does emit the length prefixes that let a collector skip (internal/plugins/flowexport/sflow/counter.go:60-61, flow.go:131-132) |
-| `SFLOW-V5-x-14` | Counter samples MUST be produced at the configured polling interval for each data source (Counter Polling) | MUST | x | **positive:** `unit/verify` [`TestSFlowCounterPollAtInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L276). **negative:** `unit/verify` [`TestSFlowCounterPollBeforeInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L295) |
+| `SFLOW-V5-x-14` | Counter samples MUST be produced at the configured polling interval for each data source (Counter Polling) | MUST | x | **positive:** `unit/verify` [`TestSFlowCounterPollAtInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L227). **negative:** `unit/verify` [`TestSFlowCounterPollBeforeInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L246) |
 | `SFLOW-V5-x-15` | All counters MUST be cumulative since boot (Counter Polling) | MUST | x | **positive:** `unit/verify` [`TestInterfaceCountersFromCumulative`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/register_test.go#L128). **negative:** no negative test. **{single-polarity}:** interfaceCountersFrom copies the raw cumulative kernel counters straight through with no differencing, so exported if_counters are cumulative by construction (internal/plugins/flowexport/register.go:343-358, snapshot.go:10-13) |
-| `SFLOW-V5-x-16` | Unavailable counter fields MUST be set to max value for the type (0xFFFFFFFF for u32, 0xFFFFFFFFFFFFFFFF for u64) (Implementation Guidance) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{gap}:** interfaceCountersFrom leaves fields the kernel does not expose (ifInUnknownProtos, ifInBroadcastPkts, ifOutMulticastPkts, ifOutBroadcastPkts) at zero rather than the required max-value unavailable sentinel, so a collector cannot distinguish true-zero from unavailable (internal/plugins/flowexport/register.go:343-361) |
-| `SFLOW-V5-x-25` | "the sFlow Agent must not wait for a buffer to fill with samples before sending the sFlow Datagram" (Transport) | MUST | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-26` | "If counters must be sent in order to satisfy the maximum sampling interval then a datagram must be sent containing the outstanding counters." (Counter Polling) | MUST | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-27` | "An agent must not mix compact/expanded encodings." An agent that will never use ifIndex numbers >= 2^24 "must use compact encodings for all interfaces", otherwise "the expanded formats must be used for all interfaces" (Expanded Flow/Counter Sample) | MUST NOT | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-28` | "If the agent resets the sample_pool then it must also reset the sequence_number" of the flow sample (Flow Sample) | MUST | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-29` | "If the agent resets any of the counters then it must also reset the sequence_number" of the counter sample (Counter Sample) | MUST | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-30` | "In the case of ifIndex-based source_id's the sequence number must be reset each time ifCounterDiscontinuityTime changes." (Counter Sample) | MUST | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-31` | "Each sFlowDataSource must be associated with only one sub-agent", and "The association between sFlowDataSource and sub-agent must remain constant for the entire duration of an sFlow session." (Agent Architecture) | MUST | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-32` | "Within any given sFlow session a particular counter must be always available, or always unavailable." (Counter Polling) | MUST | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-33` | "A flow_sample must contain packet header information." (Flow Sample) | MUST | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-34` | "Any octets added to the frame_length to compensate for encapsulations removed by the underlying hardware must also be added to the stripped count." (Raw Packet Header) | MUST | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-35` | "Trailing encapsulation data for the outermost protocol layer included in the sampled header must be stripped", as must trailing data "corresponding to any leading encapsulations that were stripped" and "Outer encapsulations that are ambiguous, or not one of the standard header_protocol" (Raw Packet Header) | MUST | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-36` | "extended_switch data must always be reported to describe the ingress/egress VLAN information for the packet." (Extended Switch) | MUST | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-37` | "The random number generator must ensure that all numbers in the range between its maximum and minimum values of the distribution are possible" (Packet Sampling) | MUST | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-38` | Packet Flow Sampling "must ensure that any packet observed at a Data Source has an equal chance of being sampled, irrespective of the Packet Flow(s) to which it belongs" (Packet Sampling) | MUST | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-39` | "Each packet must only be considered once for sampling, irrespective of the number of ports it will be forwarded to." (Packet Sampling) | MUST | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-40` | "Each sFlow sampler instance must operate independently of all other instances", and "Setting an attribute of one sampler must not alter the the behavior and settings of other sampler instances." (Agent Architecture) | MUST | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-41` | "The sampling algorithm must converge so that over time the number of packets sampled approaches 1/Nth of the total number of packets in the monitored flows." (Packet Sampling) | MUST | x | **positive:** no positive test. **negative:** no negative test |
-| `SFLOW-V5-x-42` | After an agent adjusts a configured sampling rate, "The sampling rate must stay at its new value and never automatically return to the originally configured value." (Packet Sampling) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-16` | Unavailable counter fields MUST be set to max value for the type (0xFFFFFFFF for u32, 0xFFFFFFFFFFFFFFFF for u64) (Implementation Guidance) | MUST | x | **positive:** `unit/verify` [`TestSFlowV5UnavailableCountersCarrySentinelEveryPoll`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/counters_sflow_v5_test.go#L49). **negative:** `unit/verify` [`TestSFlowV5AvailableCountersNeverTurnUnavailable`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/counters_sflow_v5_test.go#L66) |
+| `SFLOW-V5-x-25` | "the sFlow Agent must not wait for a buffer to fill with samples before sending the sFlow Datagram" (Transport) | MUST | x | **positive:** `unit/verify` [`TestSFlowV5SampleSentWithoutWaitingForBuffer`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L147). **negative:** `unit/verify` [`TestSFlowV5NoDatagramHeldForMoreSamples`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L170) |
+| `SFLOW-V5-x-26` | "If counters must be sent in order to satisfy the maximum sampling interval then a datagram must be sent containing the outstanding counters." (Counter Polling) | MUST | x | **positive:** `unit/verify` [`TestSFlowV5OutstandingCountersAllSent`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L192). **negative:** `unit/verify` [`TestSFlowV5TailDatagramNotWithheld`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L215) |
+| `SFLOW-V5-x-27` | "An agent must not mix compact/expanded encodings." An agent that will never use ifIndex numbers >= 2^24 "must use compact encodings for all interfaces", otherwise "the expanded formats must be used for all interfaces" (Expanded Flow/Counter Sample) | MUST NOT | x | **positive:** `unit/verify` [`TestSFlowV5ExpandedEncodingForEveryInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L241). **negative:** `unit/verify` [`TestSFlowV5CompactFormatsNeverMixedIn`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L278) |
+| `SFLOW-V5-x-28` | "If the agent resets the sample_pool then it must also reset the sequence_number" of the flow sample (Flow Sample) | MUST | x | **positive:** `unit/verify` [`TestSFlowV5PoolAndSequenceResetTogether`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L309). **negative:** `unit/verify` [`TestSFlowV5PoolNeverResetsWithoutSequence`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L326) |
+| `SFLOW-V5-x-29` | "If the agent resets any of the counters then it must also reset the sequence_number" of the counter sample (Counter Sample) | MUST | x | **positive:** `unit/verify` [`TestSFlowV5SequenceResetWithCounters`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counters_sflow_v5_test.go#L38). **negative:** `unit/verify` [`TestSFlowV5SequenceNeverResetWithoutDiscontinuity`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counters_sflow_v5_test.go#L57) |
+| `SFLOW-V5-x-30` | "In the case of ifIndex-based source_id's the sequence number must be reset each time ifCounterDiscontinuityTime changes." (Counter Sample) | MUST | x | **positive:** `unit/verify` [`TestSFlowV5SequenceResetOnDiscontinuityTime`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/discontinuity_sflow_v5_test.go#L15). **negative:** `unit/verify` [`TestSFlowV5SequenceKeptWhileDiscontinuityTimeSteady`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/discontinuity_sflow_v5_test.go#L34) |
+| `SFLOW-V5-x-31` | "Each sFlowDataSource must be associated with only one sub-agent", and "The association between sFlowDataSource and sub-agent must remain constant for the entire duration of an sFlow session." (Agent Architecture) | MUST | x | **positive:** `unit/verify` [`TestSFlowV5DataSourcesCarryTheirSubAgent`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L351). **negative:** `unit/verify` [`TestSFlowV5SubAgentBindingConstantForSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L369) |
+| `SFLOW-V5-x-32` | "Within any given sFlow session a particular counter must be always available, or always unavailable." (Counter Polling) | MUST | x | **positive:** `unit/verify` [`TestSFlowV5UnavailableCountersCarrySentinelEveryPoll`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/counters_sflow_v5_test.go#L50). **negative:** `unit/verify` [`TestSFlowV5AvailableCountersNeverTurnUnavailable`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/counters_sflow_v5_test.go#L67) |
+| `SFLOW-V5-x-33` | "A flow_sample must contain packet header information." (Flow Sample) | MUST | x | **positive:** `unit/verify` [`TestSFlowV5FlowSampleCarriesPacketHeader`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L388). **negative:** `unit/verify` [`TestSFlowV5FlowSampleNeverWithoutHeader`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L408) |
+| `SFLOW-V5-x-34` | "Any octets added to the frame_length to compensate for encapsulations removed by the underlying hardware must also be added to the stripped count." (Raw Packet Header) | MUST | x | **positive:** `unit/verify` [`TestSFlowV5FrameLengthAndStrippedIncludeFCS`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counters_sflow_v5_test.go#L89). **negative:** `unit/verify` [`TestSFlowV5FrameCompensationNeverUnstripped`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counters_sflow_v5_test.go#L105) |
+| `SFLOW-V5-x-35` | "Trailing encapsulation data for the outermost protocol layer included in the sampled header must be stripped", as must trailing data "corresponding to any leading encapsulations that were stripped" and "Outer encapsulations that are ambiguous, or not one of the standard header_protocol" (Raw Packet Header) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux NIC driver and psample; internal/plugins/flowexport/sampling/tc_linux.go::buildSampleFilter installs act_sample on the ingress hook, the NIC removes the Ethernet FCS, the only trailer of the outermost layer, before the kernel builds the skb that act_sample copies, and internal/plugins/flowexport/sflow/flow_adapter.go::EncodeFlowSample copies that header verbatim and strips no leading encapsulation, so no trailing encapsulation octets reach the sampled header |
+| `SFLOW-V5-x-36` | "extended_switch data must always be reported to describe the ingress/egress VLAN information for the packet." (Extended Switch) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{gap}:** the agent emits no extended_switch record; internal/plugins/flowexport/sflow/flow_adapter.go::EncodeFlowSample writes one flow record per sample, the sampled_header, so ingress and egress VLAN information is never reported |
+| `SFLOW-V5-x-37` | "The random number generator must ensure that all numbers in the range between its maximum and minimum values of the distribution are possible" (Packet Sampling) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{gap}:** Linux act_sample owns the random draw; the current source and kernel filter lifecycle test do not prove its output range |
+| `SFLOW-V5-x-38` | Packet Flow Sampling "must ensure that any packet observed at a Data Source has an equal chance of being sampled, irrespective of the Packet Flow(s) to which it belongs" (Packet Sampling) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{gap}:** MatchAll filter configuration is not behavioral proof of equal packet-selection probability |
+| `SFLOW-V5-x-39` | "Each packet must only be considered once for sampling, irrespective of the number of ports it will be forwarded to." (Packet Sampling) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{gap}:** ingress filter readback does not observe how often forwarded or replicated packets are considered by the sampler |
+| `SFLOW-V5-x-40` | "Each sFlow sampler instance must operate independently of all other instances", and "Setting an attribute of one sampler must not alter the the behavior and settings of other sampler instances." (Agent Architecture) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{gap}:** the kernel lifecycle test checks configuration isolation; independent sampling behavior remains unproven |
+| `SFLOW-V5-x-41` | "The sampling algorithm must converge so that over time the number of packets sampled approaches 1/Nth of the total number of packets in the monitored flows." (Packet Sampling) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{gap}:** configuring an act_sample rate does not measure long-term convergence |
+| `SFLOW-V5-x-42` | After an agent adjusts a configured sampling rate, "The sampling rate must stay at its new value and never automatically return to the originally configured value." (Packet Sampling) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{feature-declined}:** "The Agent may implement an automated one-way backoff of the Sampling Rate that triggers whenever an excessive number of samples per second is generated."; ze implements no automatic backoff, so the rate never changes by itself. internal/plugins/flowexport/sampling/tc_linux.go::SetupSampling installs the configured rate into act_sample and nothing else writes it |
 | `SFLOW-V5-x-17` | Default datagram max size SHOULD be 1400 bytes (Transport) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
 | `SFLOW-V5-x-18` | Default max header size SHOULD be 128 bytes for sampled_header (Raw Packet Header) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
 | `SFLOW-V5-x-19` | Counter polls SHOULD be staggered across sources with randomized initial offset (Counter Polling) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
@@ -161,28 +158,15 @@ Enrolled: sFlow Version 5 export: exporter/agent role. 1 MET (counter poll at co
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`SFLOW-V5-x-9`](#sflow-v5-x-9) Sequence numbers MUST be per-agent (datagram-level) and per-source (sample-level), unsigned 32-bit, wrapping (Transport) | {gap}, no test | per-source sample-level sequences are correct, but for one sub-agent the counter-datagram and flow-datagram streams keep two independent datagramSeq counters, so a collector sees two overlapping datagram-level sequence spaces instead of one (internal/plugins/flowexport/sflow/adapter.go:18, flow_adapter.go:32) |
-| [`SFLOW-V5-x-12`](#sflow-v5-x-12) Expanded sample types MUST be used when ifIndex exceeds 2^24-1 or 2^30-1 (Expanded Flow/Counter Sample) | {gap}, no test | ze implements no flow_sample_expanded (format 3) or counters_sample_expanded (format 4); a large ifIndex is silently truncated by a 24-bit mask on source_id rather than switching to the expanded encoding (internal/plugins/flowexport/sflow/counter.go:49, flow.go:48) |
 | [`SFLOW-V5-x-13`](#sflow-v5-x-13) Unknown record formats MUST be skipped using the opaque length prefix (Record Wrappers) | no test | no test carries this requirement id; annotated {not-applicable}: skipping unknown formats on receive is a collector behavior; ze is an sFlow exporter only with no sFlow decode path, though it does emit the length prefixes that let a collector skip (internal/plugins/flowexport/sflow/counter.go:60-61, flow.go:131-132) |
-| [`SFLOW-V5-x-16`](#sflow-v5-x-16) Unavailable counter fields MUST be set to max value for the type (0xFFFFFFFF for u32, 0xFFFFFFFFFFFFFFFF for u64) (Implementation Guidance) | {gap}, no test | interfaceCountersFrom leaves fields the kernel does not expose (ifInUnknownProtos, ifInBroadcastPkts, ifOutMulticastPkts, ifOutBroadcastPkts) at zero rather than the required max-value unavailable sentinel, so a collector cannot distinguish true-zero from unavailable (internal/plugins/flowexport/register.go:343-361) |
-| [`SFLOW-V5-x-25`](#sflow-v5-x-25) "the sFlow Agent must not wait for a buffer to fill with samples before sending the sFlow Datagram" (Transport) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-26`](#sflow-v5-x-26) "If counters must be sent in order to satisfy the maximum sampling interval then a datagram must be sent containing the outstanding counters." (Counter Polling) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-27`](#sflow-v5-x-27) "An agent must not mix compact/expanded encodings." An agent that will never use ifIndex numbers >= 2^24 "must use compact encodings for all interfaces", otherwise "the expanded formats must be used for all interfaces" (Expanded Flow/Counter Sample) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-28`](#sflow-v5-x-28) "If the agent resets the sample_pool then it must also reset the sequence_number" of the flow sample (Flow Sample) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-29`](#sflow-v5-x-29) "If the agent resets any of the counters then it must also reset the sequence_number" of the counter sample (Counter Sample) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-30`](#sflow-v5-x-30) "In the case of ifIndex-based source_id's the sequence number must be reset each time ifCounterDiscontinuityTime changes." (Counter Sample) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-31`](#sflow-v5-x-31) "Each sFlowDataSource must be associated with only one sub-agent", and "The association between sFlowDataSource and sub-agent must remain constant for the entire duration of an sFlow session." (Agent Architecture) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-32`](#sflow-v5-x-32) "Within any given sFlow session a particular counter must be always available, or always unavailable." (Counter Polling) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-33`](#sflow-v5-x-33) "A flow_sample must contain packet header information." (Flow Sample) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-34`](#sflow-v5-x-34) "Any octets added to the frame_length to compensate for encapsulations removed by the underlying hardware must also be added to the stripped count." (Raw Packet Header) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-35`](#sflow-v5-x-35) "Trailing encapsulation data for the outermost protocol layer included in the sampled header must be stripped", as must trailing data "corresponding to any leading encapsulations that were stripped" and "Outer encapsulations that are ambiguous, or not one of the standard header_protocol" (Raw Packet Header) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-36`](#sflow-v5-x-36) "extended_switch data must always be reported to describe the ingress/egress VLAN information for the packet." (Extended Switch) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-37`](#sflow-v5-x-37) "The random number generator must ensure that all numbers in the range between its maximum and minimum values of the distribution are possible" (Packet Sampling) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-38`](#sflow-v5-x-38) Packet Flow Sampling "must ensure that any packet observed at a Data Source has an equal chance of being sampled, irrespective of the Packet Flow(s) to which it belongs" (Packet Sampling) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-39`](#sflow-v5-x-39) "Each packet must only be considered once for sampling, irrespective of the number of ports it will be forwarded to." (Packet Sampling) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-40`](#sflow-v5-x-40) "Each sFlow sampler instance must operate independently of all other instances", and "Setting an attribute of one sampler must not alter the the behavior and settings of other sampler instances." (Agent Architecture) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-41`](#sflow-v5-x-41) "The sampling algorithm must converge so that over time the number of packets sampled approaches 1/Nth of the total number of packets in the monitored flows." (Packet Sampling) | no test | no test carries this requirement id |
-| [`SFLOW-V5-x-42`](#sflow-v5-x-42) After an agent adjusts a configured sampling rate, "The sampling rate must stay at its new value and never automatically return to the originally configured value." (Packet Sampling) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-35`](#sflow-v5-x-35) "Trailing encapsulation data for the outermost protocol layer included in the sampled header must be stripped", as must trailing data "corresponding to any leading encapsulations that were stripped" and "Outer encapsulations that are ambiguous, or not one of the standard header_protocol" (Raw Packet Header) | no test | no test carries this requirement id; annotated {lower-layer}: Linux NIC driver and psample; internal/plugins/flowexport/sampling/tc_linux.go::buildSampleFilter installs act_sample on the ingress hook, the NIC removes the Ethernet FCS, the only trailer of the outermost layer, before the kernel builds the skb that act_sample copies, and internal/plugins/flowexport/sflow/flow_adapter.go::EncodeFlowSample copies that header verbatim and strips no leading encapsulation, so no trailing encapsulation octets reach the sampled header |
+| [`SFLOW-V5-x-36`](#sflow-v5-x-36) "extended_switch data must always be reported to describe the ingress/egress VLAN information for the packet." (Extended Switch) | {gap}, no test | the agent emits no extended_switch record; internal/plugins/flowexport/sflow/flow_adapter.go::EncodeFlowSample writes one flow record per sample, the sampled_header, so ingress and egress VLAN information is never reported |
+| [`SFLOW-V5-x-37`](#sflow-v5-x-37) "The random number generator must ensure that all numbers in the range between its maximum and minimum values of the distribution are possible" (Packet Sampling) | {gap}, no test | Linux act_sample owns the random draw; the current source and kernel filter lifecycle test do not prove its output range |
+| [`SFLOW-V5-x-38`](#sflow-v5-x-38) Packet Flow Sampling "must ensure that any packet observed at a Data Source has an equal chance of being sampled, irrespective of the Packet Flow(s) to which it belongs" (Packet Sampling) | {gap}, no test | MatchAll filter configuration is not behavioral proof of equal packet-selection probability |
+| [`SFLOW-V5-x-39`](#sflow-v5-x-39) "Each packet must only be considered once for sampling, irrespective of the number of ports it will be forwarded to." (Packet Sampling) | {gap}, no test | ingress filter readback does not observe how often forwarded or replicated packets are considered by the sampler |
+| [`SFLOW-V5-x-40`](#sflow-v5-x-40) "Each sFlow sampler instance must operate independently of all other instances", and "Setting an attribute of one sampler must not alter the the behavior and settings of other sampler instances." (Agent Architecture) | {gap}, no test | the kernel lifecycle test checks configuration isolation; independent sampling behavior remains unproven |
+| [`SFLOW-V5-x-41`](#sflow-v5-x-41) "The sampling algorithm must converge so that over time the number of packets sampled approaches 1/Nth of the total number of packets in the monitored flows." (Packet Sampling) | {gap}, no test | configuring an act_sample rate does not measure long-term convergence |
+| [`SFLOW-V5-x-42`](#sflow-v5-x-42) After an agent adjusts a configured sampling rate, "The sampling rate must stay at its new value and never automatically return to the originally configured value." (Packet Sampling) | no test | no test carries this requirement id; annotated {feature-declined}: "The Agent may implement an automated one-way backoff of the Sampling Rate that triggers whenever an excessive number of samples per second is generated."; ze implements no automatic backoff, so the rate never changes by itself. internal/plugins/flowexport/sampling/tc_linux.go::SetupSampling installs the configured rate into act_sample and nothing else writes it |
 
 ## Proof state
 
@@ -246,7 +230,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestExportFlowSampleDispatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L148) | unit/verify | unproven |
+| positive | [`TestExportFlowSampleDispatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L99) | unit/verify | unproven |
 
 ### [`SFLOW-V5-x-7`](#sflow-v5-x-7)
 
@@ -266,7 +250,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestSFlowSampledHeader`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_test.go#L70) | unit/verify | unproven |
+| positive | [`TestSFlowSampledHeader`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_test.go#L129) | unit/verify | unproven |
 
 ### [`SFLOW-V5-x-9`](#sflow-v5-x-9)
 
@@ -274,7 +258,10 @@ Sequence numbers MUST be per-agent (datagram-level) and per-source (sample-level
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries SFLOW-V5-x-9, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSFlowCounterResetDoesNotResetDatagrams`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counters_sflow_v5_test.go#L240) | unit/verify | unproven |
+| positive | [`TestSFlowMixedDatagramSequenceWraps`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counters_sflow_v5_test.go#L203) | unit/verify | unproven |
 
 ### [`SFLOW-V5-x-10`](#sflow-v5-x-10)
 
@@ -284,7 +271,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestSFlowFlowSample`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_test.go#L9) | unit/verify | unproven |
+| positive | [`TestSFlowFlowSample`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_test.go#L9) | unit/verify | revert, verified |
 
 ### [`SFLOW-V5-x-11`](#sflow-v5-x-11)
 
@@ -294,7 +281,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestSFlowFlowSamplePoolTracksTotal`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_adapter_test.go#L52) | unit/verify | unproven |
+| positive | [`TestSFlowFlowSamplePoolTracksTotal`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_adapter_test.go#L51) | unit/verify | unproven |
 
 ### [`SFLOW-V5-x-12`](#sflow-v5-x-12)
 
@@ -302,7 +289,10 @@ Expanded sample types MUST be used when ifIndex exceeds 2^24-1 or 2^30-1 (Expand
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries SFLOW-V5-x-12, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSFlowCounterSampleSourceIDOverflow`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counter_test.go#L216) | unit/verify | unproven |
+| positive | [`TestSFlowV5ExpandedEncodingForEveryInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L242) | unit/verify | revert, verified |
 
 ### [`SFLOW-V5-x-13`](#sflow-v5-x-13)
 
@@ -320,8 +310,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestSFlowCounterPollBeforeInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L295) | unit/verify | unproven |
-| positive | [`TestSFlowCounterPollAtInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L276) | unit/verify | unproven |
+| negative | [`TestSFlowCounterPollBeforeInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L246) | unit/verify | unproven |
+| positive | [`TestSFlowCounterPollAtInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L227) | unit/verify | unproven |
 
 ### [`SFLOW-V5-x-15`](#sflow-v5-x-15)
 
@@ -339,7 +329,10 @@ Unavailable counter fields MUST be set to max value for the type (0xFFFFFFFF for
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries SFLOW-V5-x-16, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSFlowV5AvailableCountersNeverTurnUnavailable`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/counters_sflow_v5_test.go#L66) | unit/verify | unproven |
+| positive | [`TestSFlowV5UnavailableCountersCarrySentinelEveryPoll`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/counters_sflow_v5_test.go#L49) | unit/verify | unproven |
 
 ### [`SFLOW-V5-x-25`](#sflow-v5-x-25)
 
@@ -347,7 +340,10 @@ No test carries SFLOW-V5-x-16, so no unit is bound to it.
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries SFLOW-V5-x-25, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSFlowV5NoDatagramHeldForMoreSamples`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L170) | unit/verify | revert, verified |
+| positive | [`TestSFlowV5SampleSentWithoutWaitingForBuffer`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L147) | unit/verify | revert, verified |
 
 ### [`SFLOW-V5-x-26`](#sflow-v5-x-26)
 
@@ -355,7 +351,10 @@ No test carries SFLOW-V5-x-25, so no unit is bound to it.
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries SFLOW-V5-x-26, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSFlowV5TailDatagramNotWithheld`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L215) | unit/verify | revert, verified |
+| positive | [`TestSFlowV5OutstandingCountersAllSent`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L192) | unit/verify | revert, verified |
 
 ### [`SFLOW-V5-x-27`](#sflow-v5-x-27)
 
@@ -363,7 +362,10 @@ No test carries SFLOW-V5-x-26, so no unit is bound to it.
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries SFLOW-V5-x-27, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSFlowV5CompactFormatsNeverMixedIn`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L278) | unit/verify | revert, verified |
+| positive | [`TestSFlowV5ExpandedEncodingForEveryInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L241) | unit/verify | revert, verified |
 
 ### [`SFLOW-V5-x-28`](#sflow-v5-x-28)
 
@@ -371,7 +373,10 @@ No test carries SFLOW-V5-x-27, so no unit is bound to it.
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries SFLOW-V5-x-28, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSFlowV5PoolNeverResetsWithoutSequence`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L326) | unit/verify | revert, verified |
+| positive | [`TestSFlowV5PoolAndSequenceResetTogether`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L309) | unit/verify | revert, verified |
 
 ### [`SFLOW-V5-x-29`](#sflow-v5-x-29)
 
@@ -379,7 +384,10 @@ No test carries SFLOW-V5-x-28, so no unit is bound to it.
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries SFLOW-V5-x-29, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSFlowV5SequenceNeverResetWithoutDiscontinuity`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counters_sflow_v5_test.go#L57) | unit/verify | unproven |
+| positive | [`TestSFlowV5SequenceResetWithCounters`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counters_sflow_v5_test.go#L38) | unit/verify | unproven |
 
 ### [`SFLOW-V5-x-30`](#sflow-v5-x-30)
 
@@ -387,7 +395,10 @@ No test carries SFLOW-V5-x-29, so no unit is bound to it.
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries SFLOW-V5-x-30, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSFlowV5SequenceKeptWhileDiscontinuityTimeSteady`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/discontinuity_sflow_v5_test.go#L34) | unit/verify | revert, verified |
+| positive | [`TestSFlowV5SequenceResetOnDiscontinuityTime`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/discontinuity_sflow_v5_test.go#L15) | unit/verify | revert, verified |
 
 ### [`SFLOW-V5-x-31`](#sflow-v5-x-31)
 
@@ -395,7 +406,10 @@ No test carries SFLOW-V5-x-30, so no unit is bound to it.
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries SFLOW-V5-x-31, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSFlowV5SubAgentBindingConstantForSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L369) | unit/verify | revert, verified |
+| positive | [`TestSFlowV5DataSourcesCarryTheirSubAgent`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L351) | unit/verify | revert, verified |
 
 ### [`SFLOW-V5-x-32`](#sflow-v5-x-32)
 
@@ -403,7 +417,10 @@ No test carries SFLOW-V5-x-31, so no unit is bound to it.
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries SFLOW-V5-x-32, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSFlowV5AvailableCountersNeverTurnUnavailable`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/counters_sflow_v5_test.go#L67) | unit/verify | unproven |
+| positive | [`TestSFlowV5UnavailableCountersCarrySentinelEveryPoll`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/counters_sflow_v5_test.go#L50) | unit/verify | unproven |
 
 ### [`SFLOW-V5-x-33`](#sflow-v5-x-33)
 
@@ -411,7 +428,10 @@ No test carries SFLOW-V5-x-32, so no unit is bound to it.
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries SFLOW-V5-x-33, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSFlowV5FlowSampleNeverWithoutHeader`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L408) | unit/verify | revert, verified |
+| positive | [`TestSFlowV5FlowSampleCarriesPacketHeader`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L388) | unit/verify | revert, verified |
 
 ### [`SFLOW-V5-x-34`](#sflow-v5-x-34)
 
@@ -419,7 +439,10 @@ No test carries SFLOW-V5-x-33, so no unit is bound to it.
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries SFLOW-V5-x-34, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSFlowV5FrameCompensationNeverUnstripped`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counters_sflow_v5_test.go#L105) | unit/verify | unproven |
+| positive | [`TestSFlowV5FrameLengthAndStrippedIncludeFCS`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counters_sflow_v5_test.go#L89) | unit/verify | unproven |
 
 ### [`SFLOW-V5-x-35`](#sflow-v5-x-35)
 

@@ -40,9 +40,6 @@
     <loc>https://ze-software.net/blog/how-ze-manages-memory/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/blog/one-bgp-update-many-peers/</loc>
-  </url>
-  <url>
     <loc>https://ze-software.net/blog/reference-from-the-system/</loc>
   </url>
   <url>
@@ -1420,6 +1417,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/request-bgp-adj-rib-in-batch-validate/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-adj-rib-in-disable-validation/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-bgp-adj-rib-in-enable-validation/</loc>
   </url>
   <url>
@@ -1481,6 +1481,12 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-config-archive/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-data-backup/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-data-restore/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-halt/</loc>
@@ -2659,6 +2665,9 @@
     <loc>https://ze-software.net/reference/plugins/bgp-capa/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/plugins/bgp-epe/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/plugins/bgp-filter-aspath-length/</loc>
   </url>
   <url>
@@ -2699,6 +2708,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/bgp-llnh/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/plugins/bgp-ls-export/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/bgp-nlri-evpn/</loc>

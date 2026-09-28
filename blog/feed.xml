@@ -7,12 +7,12 @@
         <language>en</language>
         <lastBuildDate>Sat, 22 Aug 2026 00:00:00 +0000</lastBuildDate>
         <item>
-            <title>Reference stays attached to code</title>
+            <title>Keeping documentation in step with the code</title>
             <link>https://ze-software.net/blog/reference-from-the-system/</link>
             <guid isPermaLink="true">https://ze-software.net/blog/reference-from-the-system/</guid>
             <pubDate>Sat, 22 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>Ze's command and configuration declarations also feed its reference pages. That leaves the writing for the reasons behind the design, with a route back to the code when either needs to change.</description>
+            <description>Ze generates command, configuration and support reference data from the code and its records, so the website does not depend on a second list being updated by hand.</description>
         </item>
         <item>
             <title>AI coding has not had its Rails moment</title>
@@ -20,7 +20,7 @@
             <guid isPermaLink="true">https://ze-software.net/blog/ai-coding-has-not-had-its-rails-moment/</guid>
             <pubDate>Mon, 10 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>Teaching Claude where to keep designs and how to find them changed the code it produced. Ze's repository became a meta-system for programming according to the project's own decisions.</description>
+            <description>AI coding needs conventions that connect documentation and design decisions to the code they govern. Each project still has to build that structure for itself.</description>
         </item>
         <item>
             <title>The repository is half the AI harness</title>
@@ -28,7 +28,7 @@
             <guid isPermaLink="true">https://ze-software.net/blog/the-repository-is-the-ai-harness/</guid>
             <pubDate>Sun, 09 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>Ze's repository teaches an arriving agent how to use earlier project decisions. Its guidance and checks help with the next change, provided somebody also looks after the rules.</description>
+            <description>Ze's rules give AI agents explicit objectives and ways to check their work against the project's requirements, so they can recognise incomplete or incorrect implementations.</description>
         </item>
         <item>
             <title>The proof is the expensive part</title>
@@ -36,7 +36,7 @@
             <guid isPermaLink="true">https://ze-software.net/blog/the-proof-is-the-expensive-part/</guid>
             <pubDate>Thu, 06 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>Claude can produce a routing feature quickly. My network change-control instincts make me spend much longer establishing what it must do, and whether anything has demonstrated that it does it.</description>
+            <description>Passing unit tests and CI does not establish that Ze behaves as the protocol requires. Our RFC testing framework connects each requirement to the behaviour its tests observe.</description>
         </item>
         <item>
             <title>How Ze reuses memory for BGP UPDATEs</title>
@@ -44,15 +44,7 @@
             <guid isPermaLink="true">https://ze-software.net/blog/how-ze-manages-memory/</guid>
             <pubDate>Tue, 04 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>Moving ExaBGP's ideas to Go would still leave plenty of unnecessary copying. How I chose the representations and lifetimes for BGP data in Ze.</description>
-        </item>
-        <item>
-            <title>One BGP UPDATE, many peers</title>
-            <link>https://ze-software.net/blog/one-bgp-update-many-peers/</link>
-            <guid isPermaLink="true">https://ze-software.net/blog/one-bgp-update-many-peers/</guid>
-            <pubDate>Tue, 04 Aug 2026 00:00:00 +0000</pubDate>
-            <dc:creator>Thomas Mangin</dc:creator>
-            <description>Ze's new forwarding path could rebuild the same UPDATE a hundred times. Why I chose to compare completed peer decisions, reuse the rebuild and keep the final copy.</description>
+            <description>Go's garbage collector reclaims unused memory, but creating and copying data still has a cost. Ze's BGP UPDATE processing shows how we design to avoid that work.</description>
         </item>
         <item>
             <title>AI slop is the wrong test</title>

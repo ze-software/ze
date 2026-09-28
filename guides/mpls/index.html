@@ -129,6 +129,9 @@ reservation -- see <a href="../rsvp-te/">RSVP-TE</a>.</li>
 (repeat the leaf for each interface).</li>
 <li><code>hello-interval</code> / <code>hello-hold-time</code> / <code>keepalive-time</code> -- optional soft-state
 timers (defaults 5s / 15s / 60s).</li>
+<li><code>hop-count-max</code> -- the largest Hop Count TLV value a Label Mapping can carry
+(default 254). A mapping above it is answered with a Loop Detected
+Notification and not used (RFC 5036 section 3.4.4.1).</li>
 </ul>
 <p><code>keepalive-time</code> is the KeepAlive Time ze proposes in the Initialization message
 of each new session (RFC 5036 section 3.5.3). The two LSRs keep the lower of the
@@ -195,7 +198,7 @@ neighbor.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

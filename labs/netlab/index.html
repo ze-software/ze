@@ -104,10 +104,10 @@ definition and the templates into the netlab package:</p>
 cp -R contrib/netlab/ze   &lt;netlab&gt;/netsim/daemons/ze
 </code></pre>
 <p>Or leave the netlab install alone and let a topology carry them, which is what
-<code>./le netlab render-check</code> does. netlab reads a <code>topology-defaults.yml</code> beside the
+<code>./le test netlab render-check</code> does. netlab reads a <code>topology-defaults.yml</code> beside the
 topology and a <code>templates/ze/</code> directory beside it.</p>
 <!-- source: contrib/netlab/README.md -- Installing it into a netlab checkout -->
-<!-- source: internal/le/netlab/actions.go -- Answer -->
+<!-- source: internal/le/test/netlab/actions.go -- Answer -->
 <h2 id="step-3-run-the-reference-topology">Step 3: run the reference topology</h2>
 <pre><code class="language-bash">netlab up -t contrib/netlab/topology.yml
 </code></pre>
@@ -167,7 +167,7 @@ not validated against netlab's own integration tests.</p>
 <tbody>
 <tr>
 <td>netlab accepts the daemon definition and finds a template for each module</td>
-<td><code>netlab create</code> exits 0 on the reference topology, in <code>./le netlab render-check</code></td>
+<td><code>netlab create</code> exits 0 on the reference topology, in <code>./le test netlab render-check</code></td>
 </tr>
 <tr>
 <td>The render is valid ze configuration</td>
@@ -187,21 +187,21 @@ not validated against netlab's own integration tests.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/le/netlab/actions.go -- Answer -->
+<!-- source: internal/le/test/netlab/actions.go -- Answer -->
 <!-- source: test/plugin/netlab-lab-profile.ci -- daemon start, SSH login, json compact -->
 <p>Ze also sends and receives no LLDP frame, so a netlab validation that reads LLDP data
 cannot pass. containerlab does not need LLDP, because the topology names the veth
 links.</p>
 <h2 id="keeping-the-templates-from-drifting">Keeping the templates from drifting</h2>
-<pre><code class="language-bash">./le netlab render-check
+<pre><code class="language-bash">./le test netlab render-check
 </code></pre>
 <p>It renders the templates with a real netlab, compares the result with
 <code>contrib/netlab/golden/</code>, and runs <code>ze config validate</code> on each golden file. A
 missing netlab is an error exit, never a skip. Use
-<code>./le netlab render-update</code> to rewrite the golden files.
+<code>./le test netlab render-update</code> to rewrite the golden files.
 <code>test/plugin/netlab-lab-profile.ci</code> is the other half and needs no netlab: it
 starts a daemon from a golden file and parses the show command output.</p>
-<!-- source: internal/le/netlab/actions.go -- Actions -->
+<!-- source: internal/le/test/netlab/actions.go -- Actions -->
 
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
@@ -232,7 +232,7 @@ starts a daemon from a golden file and parses the show command output.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

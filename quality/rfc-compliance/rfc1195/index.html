@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 1195 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 1195: Use of OSI IS-IS for Routing in TCP/IP and Dual Environments. 38 gated MUST-level requirements, 0 declared gaps, 28 with no test." />
+        <meta name="description" content="RFC 1195: Use of OSI IS-IS for Routing in TCP/IP and Dual Environments. 38 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 1195 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 1195: Use of OSI IS-IS for Routing in TCP/IP and Dual Environments. 38 gated MUST-level requirements, 0 declared gaps, 28 with no test." />
+        <meta property="og:description" content="RFC 1195: Use of OSI IS-IS for Routing in TCP/IP and Dual Environments. 38 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 1195 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 1195: Use of OSI IS-IS for Routing in TCP/IP and Dual Environments. 38 gated MUST-level requirements, 0 declared gaps, 28 with no test." />
+        <meta name="twitter:description" content="RFC 1195: Use of OSI IS-IS for Routing in TCP/IP and Dual Environments. 38 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,24 +116,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>2.6%</strong><b>1 of 38 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>13.2%</strong><b>5 of 38 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>73.7%</strong><b>28 of 38 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10.5%</strong><b>4 of 38 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 38 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 8 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 38 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>25.0%</strong><b>17 of 68 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>38</strong><b>of 39 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>4</strong><b>of 38 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>10.5%</strong><b>4 of 38 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>6</strong><b>of 38 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>15.8%</strong><b>6 of 38 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 38 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 38 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>73.7%</strong><b>28 of 38 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 38 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -163,7 +159,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -209,28 +205,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>38</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>4</td>
+<td>6</td>
 </tr>
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>28</td>
+<td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>8</td>
+<td>68</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>8</td>
+<td>68</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>17</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc1195.md</code></td>
@@ -246,14 +242,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Use of OSI IS-IS for Routing in TCP/IP and Dual Environments (Integrated IS-IS). The 2026-09-21 extraction walk read all 108 normative sites and the checklist now holds 39 rows: 38 MUST or MUST NOT and 1 MAY. Ten were enrolled first and the walk added 28 more, none of them yet bound to a test: the topology rules of Sections 1.2 and 1.4, the summary-address and discard rules of Sections 3.2, 3.10 and 3.10.2, the addressing rules of Section 3.3, the subnetwork rules of Sections 4.1, 4.2, 4.4 and 4.5, the Sequence Number PDU ordering and password rules of Section 7, and the Inter-Domain Routing Protocol Information rules of Section 8. Of the original ten, six are met in internal/plugins/isis: 5.2-1 (advertise the Protocols Supported TLV 129 with NLPID 0xCC for IPv4), 5.2-2 (include the IP Interface Address TLV 132), 5.2-3 (advertise the same IP interface addresses at Level 1 and Level 2), and 5.2-4 (every IP reachability entry carries a metric) are {single-polarity: positive}; 3.9-1 (discard a PDU that fails authentication) carries positive+negative tags; 3.1-1 (flood LSPs with unrecognized TLVs preserved verbatim) is {single-polarity: positive}. Four are {not-applicable}: 5.3.4-1 (the I/E bit in the narrow TLV 128), 5.3.4-2 (narrow TLVs 128/130/131 in a pseudonode LSP), and 3.2-1 (cap the narrow 6-bit metric at 63) -- ze is wide-metric-only and encodes only the RFC 5305 extended TLV 135, never the narrow TLVs; and 1.4-1 (the dual OSI/IP topology constraint) -- ze runs pure-IP Integrated IS-IS and routes no OSI/CLNP.</p>
+<p>Enrolled: Integrated IS-IS for IP routing. The checklist records the requirements extracted from RFC 1195; the current native gate and discrimination records, not a fixed historical count, determine verified coverage. The started implementation includes narrow IPv4 reachability, ISO 9542 point-to-point discovery and scoped password authentication.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Experimental</p>
-<p><strong>What the ledger says is covered:</strong></p>
-Native IS-IS over Layer 2, L1/L2, broadcast and point-to-point circuits, TLV 132.
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>Native IS-IS over Layer 2, L1/L2 broadcast and point-to-point circuits, IPv4 interface advertisement, node-wide protocol capability, narrow IPv4 SPF and leaking, and terminal forwarding rejection for unsupported protocol families. <code>circuit/ish.go</code> sends and receives ISO 9542 discovery</li>
+<li><code>ish_auth.go</code> applies configured cleartext link passwords before discovery changes state. IS-IS Hello, area and domain authentication use their scoped key chains. This describes source coverage, not a completed validation run.</li>
+</ul>
+</details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Feature remains Experimental pending production hardening and deployment evidence. The 28 rows the 2026-09-21 extraction walk added carry no bound test. Two of them name behavior the code does not hold: [<a href="#rfc1195-4.4-2"><code>RFC1195-4.4-2</code></a>], the ISO 9542 ISH exchange on point-to-point links, and [<a href="#rfc1195-7-7"><code>RFC1195-7-7</code></a>] together with [<a href="#rfc1195-7-8"><code>RFC1195-7-8</code></a>], the per-link, per-area and per-domain password configuration with a Transmit Password and a set of Receive Passwords. TOS/QOS metrics and partition repair stay out of scope: RFC 1195 Section 3.5 states &#34;The support for TOS/QOS is optional.&#34; and ze advertises the default metric only.
+Experimental pending current integration, discrimination and deployment evidence. Native IDRPI origination, manually configured summaries, extended-fragment operation and TE path computation remain outside the selected boundary. ISH discovery does not replace authenticated IIH adjacency establishment. TOS/QOS metrics and partition repair remain outside scope; Section 3.5 makes TOS/QOS optional.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -262,11 +262,11 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>1</strong></td>
+<td><strong>28</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>9</strong></td>
+<td><strong>10</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -274,7 +274,7 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>28</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -289,9 +289,8 @@ Feature remains Experimental pending production hardening and deployment evidenc
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#rfc1195-3.9-1"><code>RFC1195-3.9-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (9):</strong> <a href="#rfc1195-5.2-1"><code>RFC1195-5.2-1</code></a>, <a href="#rfc1195-5.2-2"><code>RFC1195-5.2-2</code></a>, <a href="#rfc1195-5.2-3"><code>RFC1195-5.2-3</code></a>, <a href="#rfc1195-5.3.4-1"><code>RFC1195-5.3.4-1</code></a>, <a href="#rfc1195-5.3.4-2"><code>RFC1195-5.3.4-2</code></a>, <a href="#rfc1195-5.2-4"><code>RFC1195-5.2-4</code></a>, <a href="#rfc1195-3.2-1"><code>RFC1195-3.2-1</code></a>, <a href="#rfc1195-3.1-1"><code>RFC1195-3.1-1</code></a>, <a href="#rfc1195-1.4-1"><code>RFC1195-1.4-1</code></a></p>
-<p class="rfc-id-list"><strong>No test and no annotation (28):</strong> <a href="#rfc1195-1.2-1"><code>RFC1195-1.2-1</code></a>, <a href="#rfc1195-1.4-2"><code>RFC1195-1.4-2</code></a>, <a href="#rfc1195-3.2-2"><code>RFC1195-3.2-2</code></a>, <a href="#rfc1195-3.2-3"><code>RFC1195-3.2-3</code></a>, <a href="#rfc1195-3.3-1"><code>RFC1195-3.3-1</code></a>, <a href="#rfc1195-3.3-2"><code>RFC1195-3.3-2</code></a>, <a href="#rfc1195-3.4-1"><code>RFC1195-3.4-1</code></a>, <a href="#rfc1195-3.10-1"><code>RFC1195-3.10-1</code></a>, <a href="#rfc1195-3.10-2"><code>RFC1195-3.10-2</code></a>, <a href="#rfc1195-3.10-3"><code>RFC1195-3.10-3</code></a>, <a href="#rfc1195-3.10.2-1"><code>RFC1195-3.10.2-1</code></a>, <a href="#rfc1195-4.1-1"><code>RFC1195-4.1-1</code></a>, <a href="#rfc1195-4.2-1"><code>RFC1195-4.2-1</code></a>, <a href="#rfc1195-4.4-1"><code>RFC1195-4.4-1</code></a>, <a href="#rfc1195-4.4-2"><code>RFC1195-4.4-2</code></a>, <a href="#rfc1195-4.4-3"><code>RFC1195-4.4-3</code></a>, <a href="#rfc1195-4.5-1"><code>RFC1195-4.5-1</code></a>, <a href="#rfc1195-5.3.4-3"><code>RFC1195-5.3.4-3</code></a>, <a href="#rfc1195-7-1"><code>RFC1195-7-1</code></a>, <a href="#rfc1195-7-2"><code>RFC1195-7-2</code></a>, <a href="#rfc1195-7-3"><code>RFC1195-7-3</code></a>, <a href="#rfc1195-7-4"><code>RFC1195-7-4</code></a>, <a href="#rfc1195-7-5"><code>RFC1195-7-5</code></a>, <a href="#rfc1195-7-6"><code>RFC1195-7-6</code></a>, <a href="#rfc1195-7-7"><code>RFC1195-7-7</code></a>, <a href="#rfc1195-7-8"><code>RFC1195-7-8</code></a>, <a href="#rfc1195-8-1"><code>RFC1195-8-1</code></a>, <a href="#rfc1195-8-2"><code>RFC1195-8-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (28):</strong> <a href="#rfc1195-5.3.4-1"><code>RFC1195-5.3.4-1</code></a>, <a href="#rfc1195-5.3.4-2"><code>RFC1195-5.3.4-2</code></a>, <a href="#rfc1195-5.2-4"><code>RFC1195-5.2-4</code></a>, <a href="#rfc1195-3.2-1"><code>RFC1195-3.2-1</code></a>, <a href="#rfc1195-3.9-1"><code>RFC1195-3.9-1</code></a>, <a href="#rfc1195-1.4-2"><code>RFC1195-1.4-2</code></a>, <a href="#rfc1195-3.2-2"><code>RFC1195-3.2-2</code></a>, <a href="#rfc1195-3.3-1"><code>RFC1195-3.3-1</code></a>, <a href="#rfc1195-3.3-2"><code>RFC1195-3.3-2</code></a>, <a href="#rfc1195-3.4-1"><code>RFC1195-3.4-1</code></a>, <a href="#rfc1195-3.10-1"><code>RFC1195-3.10-1</code></a>, <a href="#rfc1195-3.10-2"><code>RFC1195-3.10-2</code></a>, <a href="#rfc1195-3.10-3"><code>RFC1195-3.10-3</code></a>, <a href="#rfc1195-4.1-1"><code>RFC1195-4.1-1</code></a>, <a href="#rfc1195-4.2-1"><code>RFC1195-4.2-1</code></a>, <a href="#rfc1195-4.4-1"><code>RFC1195-4.4-1</code></a>, <a href="#rfc1195-4.4-2"><code>RFC1195-4.4-2</code></a>, <a href="#rfc1195-4.4-3"><code>RFC1195-4.4-3</code></a>, <a href="#rfc1195-4.5-1"><code>RFC1195-4.5-1</code></a>, <a href="#rfc1195-5.3.4-3"><code>RFC1195-5.3.4-3</code></a>, <a href="#rfc1195-7-1"><code>RFC1195-7-1</code></a>, <a href="#rfc1195-7-2"><code>RFC1195-7-2</code></a>, <a href="#rfc1195-7-3"><code>RFC1195-7-3</code></a>, <a href="#rfc1195-7-4"><code>RFC1195-7-4</code></a>, <a href="#rfc1195-7-5"><code>RFC1195-7-5</code></a>, <a href="#rfc1195-7-6"><code>RFC1195-7-6</code></a>, <a href="#rfc1195-7-7"><code>RFC1195-7-7</code></a>, <a href="#rfc1195-7-8"><code>RFC1195-7-8</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (10):</strong> <a href="#rfc1195-5.2-1"><code>RFC1195-5.2-1</code></a>, <a href="#rfc1195-5.2-2"><code>RFC1195-5.2-2</code></a>, <a href="#rfc1195-5.2-3"><code>RFC1195-5.2-3</code></a>, <a href="#rfc1195-3.1-1"><code>RFC1195-3.1-1</code></a>, <a href="#rfc1195-1.4-1"><code>RFC1195-1.4-1</code></a>, <a href="#rfc1195-1.2-1"><code>RFC1195-1.2-1</code></a>, <a href="#rfc1195-3.2-3"><code>RFC1195-3.2-3</code></a>, <a href="#rfc1195-3.10.2-1"><code>RFC1195-3.10.2-1</code></a>, <a href="#rfc1195-8-1"><code>RFC1195-8-1</code></a>, <a href="#rfc1195-8-2"><code>RFC1195-8-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -322,7 +321,7 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <td>MUST</td>
 <td>5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-5.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L81" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineOriginateOnAdjacencyUp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L85" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineOriginateOnAdjacencyUp</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze collects interface addresses level-independently (internal/plugins/isis/lsdb_wiring.go:436-448) so the same set is advertised at both levels by construction; there is no per-level divergence code path to drive a negative</p></td>
 </tr>
@@ -331,18 +330,18 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <td>MUST</td>
 <td>5.3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-5.3.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is wide-metric-only and its IS-IS codec never encodes the narrow IP Reachability TLV 128 (internal/plugins/isis/packet/tlv.go recognizes no type 128; internal/plugins/isis/types/metric.go uses 24-bit and 32-bit metrics, not the 6-bit narrow field). It advertises IP reachability via the RFC 5305 extended TLV 135 (already enrolled), which has no I/E bit, so there is no narrow-TLV I/E-bit code path</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L311" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195NarrowLeakedMetricClamps</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L411" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195InternalOriginatorClearsExternalMetric</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-5.3.4-2">RFC1195-5.3.4-2</code></td><td colspan="3"><span class="rfc-subject">Place codes 128, 130, 131 in pseudonode LSPs (Section 5.3.4, Section 5.3.5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-5.3.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze never emits the narrow IP reachability TLVs 128/130/131 (wide-metric-only), and its pseudonode LSP builder emits only TLV 22 (internal/plugins/isis/lsdb/pseudonode.go:186-193), so the literal-code prohibition has no applicable code path</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L447" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195PseudonodeCannotInheritRouterPrefixes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L448" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195PseudonodeCannotInheritRouterPrefixes</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-5.2-4">RFC1195-5.2-4</code></td><td colspan="3"><span class="rfc-subject">Carry a default metric in every reachability entry (Section 5.2)</span></td></tr>
 <tr><td></td>
@@ -350,17 +349,17 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <td>5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-5.2-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_test.go#L66" title="internal/plugins/isis/packet/tlv_ipv4_test.go" target="_blank" rel="noopener"><code>TestISISTLVIPv4RoundTrip</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> TLV 135 WriteTo unconditionally writes the 4-octet prefix metric for every entry (internal/plugins/isis/packet/tlv_ipv4.go ExtendedIPReachTLV.WriteTo) and the metric is a mandatory struct field (internal/plugins/isis/types/metric.go PrefixMetric), so a metric-less entry is unrepresentable and there is no negative form to reject</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L245" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195MissingDefaultMetricCannotRoute</code></a></span></div>
+</div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.2-1">RFC1195-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Cap a Level 2 metric sum at 63 (Section 3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.2-1">RFC1195-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Note: If this sum results in a metric value greater than 63 (the maximum value that can be reported in level 2 LSPs), then the value 63 must be used. (Section 3.2; wide metrics use RFC 5305&#39;s separate bound)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-3.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze uses RFC 5305 wide metrics (24-bit IS reachability and 32-bit IP reachability, internal/plugins/isis/types/metric.go) and has no 6-bit narrow metric field to cap at 63</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L310" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195NarrowLeakedMetricClamps</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L319" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195NarrowLeakedMetricBelowCeiling</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.9-1">RFC1195-3.9-1</code></td><td colspan="3"><span class="rfc-subject">Discard a packet with invalid authentication information (Section 3.9)</span></td></tr>
 <tr><td></td>
@@ -380,7 +379,7 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the codec retains every TLV type it does not recognize as an opaque span and re-encodes it byte-for-byte (internal/plugins/isis/packet/tlv.go:66-89 iterator plus DecodeTLVs / writeTLVs) so the LSDB re-floods unknown TLVs verbatim (internal/plugins/isis/lsdb/flooding.go:342-360); preserving unrecognized codes IS the requirement and there is no reject path for an unknown TLV, so no negative form exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-1.4-1">RFC1195-1.4-1</code></td><td colspan="3"><span class="rfc-subject">Use only dual routers in a dual area, and dual Level 2 routers when routing both IP and OSI between areas (Section 1.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-1.4-1">RFC1195-1.4-1</code></td><td colspan="3"><span class="rfc-subject">Within a dual domain, if both IP and OSI traffic are to be routed between areas then all level 2 routers must be dual. (Section 1.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>1.4</td>
@@ -396,42 +395,42 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-1.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> RFC 2966 Section 2.2, which updates this rule, &#34;loosens the restrictions in RFC 1195, and allows for the inclusion of the &#34;IP External Reachability Information&#34; TLV in L1 LSPs&#34;; ze advertises redistributed routes at every origination level (internal/plugins/isis/redistribute/consumer.go::InjectRoute), which the updated rule permits, and configures no circuit to another routing domain</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-1.4-2">RFC1195-1.4-2</code></td><td colspan="3"><span class="rfc-subject">In a pure IP routing domain, all routers must be IP-capable (Section 1.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>1.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-1.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L185" title="internal/plugins/isis/protocol_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195PureIPAdvertisesIPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L198" title="internal/plugins/isis/protocol_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195IPv6SelectionDoesNotRemoveIPv4</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.2-2">RFC1195-3.2-2</code></td><td colspan="3"><span class="rfc-subject">Where a manually configured summary address covers derived level 1 entries, only one such entry shall be included in the level 2 LSP (Section 3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.2-2">RFC1195-3.2-2</code></td><td colspan="3"><span class="rfc-subject">If multiple L1 routers advertise the same [IP address, subnet mask] pair and it is not superseded by a manually configured entry, include one such entry in the L2 LSP with the minimum metric (Section 3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-3.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L436" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195SpecificLeakCollapsesDuplicatePrefix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L437" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195SpecificLeakCollapsesDuplicatePrefix</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.2-3">RFC1195-3.2-3</code></td><td colspan="3"><span class="rfc-subject">A level 2 router that receives an IP packet matching a manually configured address it advertises in its level 2 LSP, but which is not reachable via level 1 routing in the area, must discard the packet (Section 3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.2-3">RFC1195-3.2-3</code></td><td colspan="3"><span class="rfc-subject">If a level 2 router receives an IP packet whose IP address matches a manually configured address which it is including in its level 2 LSP, but which is not reachable via level 1 routing in the area, then the packet must be discarded. (Section 3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-3.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Owner decision 2026-09-21: &#34;Keep specific prefixes&#34;. Section 3.2 makes manual summary configuration optional (&#34;Each level 2 router may be configured with one or more [IP address, subnet mask, metric] entries&#34;). internal/plugins/isis/yang/ze-isis-conf.yang has no manual-summary configuration; spf.LeakPrefixes and lsdb.Originator.fragmentTLVs originate specific prefixes, so no locally configured summary exists to match this conditional discard rule.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.3-1">RFC1195-3.3-1</code></td><td colspan="3"><span class="rfc-subject">The reserved field of the ISO-style address must contain &#34;00 00&#34;, as specified in GOSIP version 2.0 (Section 3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.3-1">RFC1195-3.3-1</code></td><td colspan="3"><span class="rfc-subject">The reserved field must contain &#34;00 00&#34;, as specified in GOSIP version 2.0. (Section 3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-3.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/ish_test.go#L15" title="internal/plugins/isis/packet/ish_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHGOSIPReservedZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/ish_test.go#L39" title="internal/plugins/isis/packet/ish_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHGOSIPReservedRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.3-2">RFC1195-3.3-2</code></td><td colspan="3"><span class="rfc-subject">IEEE 802 addresses, if used, must appear in IEEE canonical format (Section 3.3)</span></td></tr>
@@ -439,8 +438,8 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <td>MUST</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-3.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/ish_test.go#L60" title="internal/plugins/isis/packet/ish_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHCanonicalIEEEIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/ish_test.go#L84" title="internal/plugins/isis/packet/ish_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHDoesNotReverseIdentifierBits</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.4-1">RFC1195-3.4-1</code></td><td colspan="3"><span class="rfc-subject">When an external route using external metrics must be used, the lowest value of the external metric is preferred regardless of the internal cost to reach the appropriate exit point (Section 3.4)</span></td></tr>
@@ -448,8 +447,8 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <td>MUST</td>
 <td>3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-3.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L148" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195ExternalMetricBeforeExitCost</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L159" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195ExternalMetricWithdrawalRecomputesWinner</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.10-1">RFC1195-3.10-1</code></td><td colspan="3"><span class="rfc-subject">The Dijkstra calculation must calculate routes to each distinct IP reachability entry (Section 3.10)</span></td></tr>
@@ -457,80 +456,83 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <td>MUST</td>
 <td>3.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-3.10-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L29" title="internal/plugins/isis/spf/route_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195RouteForEachReachabilityEntry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L64" title="internal/plugins/isis/spf/route_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195NoRouteForUnreachedReachabilityEntry</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.10-2">RFC1195-3.10-2</code></td><td colspan="3"><span class="rfc-subject">Where level 2 routes must be used, routes within the routing domain (internal metrics) are preferred to routes outside it (external metrics) (Section 3.10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.10-2">RFC1195-3.10-2</code></td><td colspan="3"><span class="rfc-subject">If level 2 routes must be used, then routes within the routing domain (specifically, those routes using internal metrics) are prefered to routes outside of the routing domain (using external metrics). (Section 3.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-3.10-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L169" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195InternalMetricOutranksExternal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L178" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195ExternalReachabilityWithInternalMetric</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.10-3">RFC1195-3.10-3</code></td><td colspan="3"><span class="rfc-subject">The default metric must always be available (Section 3.10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.10-3">RFC1195-3.10-3</code></td><td colspan="3"><span class="rfc-subject">However, the default metric must always be available. (Section 3.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-3.10-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L32" title="internal/plugins/isis/spf/route_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195RouteForEachReachabilityEntry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L244" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195MissingDefaultMetricCannotRoute</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.10.2-1">RFC1195-3.10.2-1</code></td><td colspan="3"><span class="rfc-subject">Where the destination is not reachable via level 1 routing and this router&#39;s manually configured summary address is the most desirable route, the destination is unreachable and the packet must be discarded (Section 3.10.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-3.10.2-1">RFC1195-3.10.2-1</code></td><td colspan="3"><span class="rfc-subject">3) If the specified destination is not reachable via level 1 routing, and the manually configured summary address advertised by this router (the router which has received the packet and is trying to forward it) represents the most desireable route, then the destination is unreachable and the packet must be discarded. (Section 3.10.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.10.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-3.10.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Owner decision 2026-09-21: &#34;Keep specific prefixes&#34;. The optional manual summaries described by section 3.2 (&#34;Each level 2 router may be configured&#34;) have no configuration or origination path in internal/plugins/isis/yang/ze-isis-conf.yang, spf.LeakPrefixes, or lsdb.Originator.fragmentTLVs. There is no local manual-summary candidate to become the most desirable route; specific-prefix forwarding remains subject to normal reachability and protocol-suite rejection.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-4.1-1">RFC1195-4.1-1</code></td><td colspan="3"><span class="rfc-subject">All IS-IS routers, including IP-only routers, must be able to receive IS-IS packets using the normal encapsulation for OSI packets (Section 4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-4.1-1">RFC1195-4.1-1</code></td><td colspan="3"><span class="rfc-subject">This implies that all IS-IS routers, including IP-only routers, must be able to receive IS-IS packets using the normal encapsulation for OSI packets. (Section 4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/transport/frame_rfc1195_test.go#L33" title="internal/plugins/isis/transport/frame_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195ParseFrameOSIEncapsulation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/transport/frame_rfc1195_test.go#L50" title="internal/plugins/isis/transport/frame_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195ParseFrameRefusesNonOSIEncapsulation</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-4.2-1">RFC1195-4.2-1</code></td><td colspan="3"><span class="rfc-subject">IP-capable routers must be able to interact correctly with other routers which assign multiple IP addresses per physical interface, up to the maximum of 63 addresses per interface (Section 4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-4.2-1">RFC1195-4.2-1</code></td><td colspan="3"><span class="rfc-subject">However, IP-capable routers must be able to interact correctly with other routers which assign multiple IP addresses per physical interface (up to the maximum of 63 addresses per interface). (Section 4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go#L31" title="internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195InterfaceAddrTLV63Addresses</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go#L54" title="internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195InterfaceAddrTLVTruncatedAddressRefused</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-4.4-1">RFC1195-4.4-1</code></td><td colspan="3"><span class="rfc-subject">IP-capable IS-IS routers must be able to forward IP packets over existing adjacencies to routers with which they share physical connectivity, even when the adjacent interface is on a different logical IP subnet (Section 4.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-4.4-1">RFC1195-4.4-1</code></td><td colspan="3"><span class="rfc-subject">IP-capable IS-IS routers therefore must be able to forward IP packets over existing adjacencies to routers with which they share physical connectivity, even when the IP address of the adjacent interface of the neighboring router is on a different logical IP subnet. (Section 4.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-4.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/onlink_integration_linux_test.go#L36" title="internal/plugins/fib/kernel/onlink_integration_linux_test.go" target="_blank" rel="noopener"><code>TestFIBOnLinkAdjacencyAndUnsupportedPrefix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/onlink_integration_linux_test.go#L37" title="internal/plugins/fib/kernel/onlink_integration_linux_test.go" target="_blank" rel="noopener"><code>TestFIBOnLinkAdjacencyAndUnsupportedPrefix</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-4.4-2">RFC1195-4.4-2</code></td><td colspan="3"><span class="rfc-subject">All IS-IS routers are required to transmit and receive ISO 9542 ISH packets on point-to-point links (Section 4.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-4.4-2">RFC1195-4.4-2</code></td><td colspan="3"><span class="rfc-subject">All IS-IS routers are therefore required to transmit and receive ISO 9542 ISH packets on point-to-point links. (Section 4.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-4.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/ish_auth_rfc1195_test.go#L22" title="internal/plugins/isis/ish_auth_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHConfiguredPassword</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L233" title="internal/plugins/isis/protocol_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHTransmitReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/transport/ish_integration_linux_test.go#L19" title="internal/plugins/isis/transport/ish_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHVethTransport</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L314" title="internal/plugins/isis/protocol_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHRejectsCorruptionAndWrongCircuit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/ish_auth_rfc1195_test.go#L64" title="internal/plugins/isis/ish_auth_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHWrongPassword</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-4.4-3">RFC1195-4.4-3</code></td><td colspan="3"><span class="rfc-subject">The value of the &#34;protocols supported&#34; field must be identical on every link: all Hellos and LSPs transmitted by one router must contain the same values (Section 4.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-4.4-3">RFC1195-4.4-3</code></td><td colspan="3"><span class="rfc-subject">Thus, the value of the &#34;protocols supported&#34; field must be identical on every link (i.e., for any one router running IS-IS, all of the Hellos and LSPs transmitted by it must contain the same &#34;protocols supported&#34; values). (Section 4.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-4.4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L135" title="internal/plugins/isis/protocol_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195NodeProtocolsAcrossInterfaces</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L165" title="internal/plugins/isis/protocol_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195NodeProtocolsReload</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-4.5-1">RFC1195-4.5-1</code></td><td colspan="3"><span class="rfc-subject">A packet that has to be forwarded to a router which does not support its protocol suite must be discarded (Section 4.5)</span></td></tr>
@@ -538,35 +540,39 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <td>MUST</td>
 <td>4.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-4.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/onlink_integration_linux_test.go#L38" title="internal/plugins/fib/kernel/onlink_integration_linux_test.go" target="_blank" rel="noopener"><code>TestFIBOnLinkAdjacencyAndUnsupportedPrefix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L494" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195CapabilityChangesInstalledRouteDisposition</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency_protocol_rfc1195_test.go#L39" title="internal/plugins/isis/adjacency_protocol_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195OSINeighborIsTerminalIPv4NextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/onlink_integration_linux_test.go#L39" title="internal/plugins/fib/kernel/onlink_integration_linux_test.go" target="_blank" rel="noopener"><code>TestFIBOnLinkAdjacencyAndUnsupportedPrefix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L495" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195CapabilityChangesInstalledRouteDisposition</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency_protocol_rfc1195_test.go#L56" title="internal/plugins/isis/adjacency_protocol_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195NeighborProtocolTransitions</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-5.3.4-3">RFC1195-5.3.4-3</code></td><td colspan="3"><span class="rfc-subject">The reserved bits of the metric octets must be set to zero on transmission and ignored on reception (Section 5.3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-5.3.4-3">RFC1195-5.3.4-3</code></td><td colspan="3"><span class="rfc-subject">Bit 8 of this field is reserved, and must be set to zero on tranmission and ignored on reception. (Section 5.3.4), with default-metric bit 8 reassigned to up/down by RFC 2966 section 2</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-5.3.4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_narrow_ipv4_test.go#L14" title="internal/plugins/isis/packet/tlv_narrow_ipv4_test.go" target="_blank" rel="noopener"><code>TestRFC1195NarrowMetricReservedTransmit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_narrow_ipv4_test.go#L32" title="internal/plugins/isis/packet/tlv_narrow_ipv4_test.go" target="_blank" rel="noopener"><code>TestRFC1195NarrowMetricReservedReceive</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-7-1">RFC1195-7-1</code></td><td colspan="3"><span class="rfc-subject">Sequence Number PDU entries shall be sorted into ascending LSPID order, the LSP number octet being the least significant octet (Section 7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-7-1">RFC1195-7-1</code></td><td colspan="3"><span class="rfc-subject">The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet). (Section 7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/snp_rfc1195_test.go#L31" title="internal/plugins/isis/lsdb/snp_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195CSNPEntriesAscending</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/snp_rfc1195_test.go#L59" title="internal/plugins/isis/lsdb/snp_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195PSNPEntriesAscendingAcrossLists</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-7-2">RFC1195-7-2</code></td><td colspan="3"><span class="rfc-subject">A full update must be done periodically to ensure recovery from data corruption (Section 7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-7-2">RFC1195-7-2</code></td><td colspan="3"><span class="rfc-subject">However, a full update must be done periodically to ensure recovery from data corruption, and studies suggest that with a very small number of link changes (perhaps 2) the expected computation complexity of the incremental update exceeds the complete recalculation. (Section 7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-7-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L331" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195PeriodicSPFRecoversMissedUpdate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L332" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195PeriodicSPFRecoversMissedUpdate</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-7-3">RFC1195-7-3</code></td><td colspan="3"><span class="rfc-subject">The 8 octet system identifiers which specify IP reachability entries must always be distinguishable from other system identifiers (Section 7)</span></td></tr>
@@ -574,8 +580,8 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-7-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L93" title="internal/plugins/isis/spf/route_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L142" title="internal/plugins/isis/spf/route_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195PrefixCannotBridgeDisconnectedRouters</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-7-4">RFC1195-7-4</code></td><td colspan="3"><span class="rfc-subject">IP-capable level 2 routers must keep level 2 internal IP routes separate from level 2 external IP routes (Section 7)</span></td></tr>
@@ -583,8 +589,8 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-7-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L170" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195InternalMetricOutranksExternal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L179" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195ExternalReachabilityWithInternalMetric</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-7-5">RFC1195-7-5</code></td><td colspan="3"><span class="rfc-subject">Each entry made to TENT must be marked as being either an End System or a router (Section 7)</span></td></tr>
@@ -592,17 +598,17 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-7-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L97" title="internal/plugins/isis/spf/route_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L143" title="internal/plugins/isis/spf/route_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195PrefixCannotBridgeDisconnectedRouters</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-7-6">RFC1195-7-6</code></td><td colspan="3"><span class="rfc-subject">The password shall be configured on a per-link, per-area, and per-domain basis (Section 7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-7-6">RFC1195-7-6</code></td><td colspan="3"><span class="rfc-subject">The password shall be configured on a per-link, per-area, and per- domain basis. (Section 7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-7-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L49" title="internal/plugins/isis/auth_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195PasswordScopesResolved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L71" title="internal/plugins/isis/auth_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195PasswordScopesDoNotLeak</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-7-7">RFC1195-7-7</code></td><td colspan="3"><span class="rfc-subject">IS-IS Hello and 9542 IS Hello packets shall carry the per-link password, Level 1 LSPs and Sequence Number Packets the per-area password, and Level 2 LSPs and Sequence Number Packets the per-domain password (Section 7)</span></td></tr>
@@ -610,17 +616,17 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-7-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L95" title="internal/plugins/isis/auth_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195PDUClassSignedWithItsScope</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L132" title="internal/plugins/isis/auth_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195PDUClassRefusedUnderOtherScopes</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-7-8">RFC1195-7-8</code></td><td colspan="3"><span class="rfc-subject">Each of the three passwords shall be configured with a single Transmit Password and a set of Receive Passwords (Section 7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-7-8">RFC1195-7-8</code></td><td colspan="3"><span class="rfc-subject">Also, each of these three passwords shall be configured with: (i) &#34;Transmit Password&#34;, whose value is a single password, and (ii) &#34;Receive Passwords&#34;, whose value is a set of passwords. (Section 7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-7-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L204" title="internal/plugins/isis/auth_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195OneTransmitPasswordManyReceivePasswords</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L230" title="internal/plugins/isis/auth_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195KeyOutsideReceiveSetRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-8-1">RFC1195-8-1</code></td><td colspan="3"><span class="rfc-subject">An Inter-Domain Routing Protocol Information entry of the AS-number type must contain precisely one 2 octet AS number, which tags all subsequent External IP Reachability entries (Section 8)</span></td></tr>
@@ -630,16 +636,16 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Owner decision 2026-09-21: &#34;Do not originate IDRPI&#34;. Section 5.2 says the IDRPI field &#34;may be present&#34; and &#34;is not used by the IS-IS&#34;. internal/plugins/isis/lsdb/origination.go emits no TLV 131 and spf/graph.go has no IDRPI consumer; packet.DecodeTLVs retains unknown TLV 131 only for unchanged flooding. No AS-number association role is selected.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-8-2">RFC1195-8-2</code></td><td colspan="3"><span class="rfc-subject">Inter-Domain Information Type 0 is reserved: it must not be sent, and must be ignored on receipt (Section 8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-8-2">RFC1195-8-2</code></td><td colspan="3"><span class="rfc-subject">Type = 0 is reserved (must not be sent, and must be ignored on receipt). (Section 8)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1195-8-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Owner decision 2026-09-21: &#34;Do not originate IDRPI&#34;. Section 5.2 makes the IDRPI field optional (&#34;may be present&#34;). internal/plugins/isis/lsdb/origination.go has no TLV 131 producer; spf/graph.go consumes no IDRPI types, and packet.DecodeTLVs only retains the opaque field for unchanged flooding. Ze therefore neither originates type 0 nor interprets a received type 0.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1195-5.3.5-1">RFC1195-5.3.5-1</code></td><td colspan="3"><span class="rfc-subject">Set the I/E bit to 0 or 1 in IP External Reachability (130) entries (Section 5.3.5)</span></td></tr>
 <tr><td></td>
@@ -659,133 +665,29 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc1195-5.3.4-1"><code>RFC1195-5.3.4-1</code></a> Set the I/E bit to 0 in IP Internal Reachability (128) entries (Section 5.3.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze is wide-metric-only and its IS-IS codec never encodes the narrow IP Reachability TLV 128 (internal/plugins/isis/packet/tlv.go recognizes no type 128; internal/plugins/isis/types/metric.go uses 24-bit and 32-bit metrics, not the 6-bit narrow field). It advertises IP reachability via the RFC 5305 extended TLV 135 (already enrolled), which has no I/E bit, so there is no narrow-TLV I/E-bit code path</td>
-</tr>
-<tr><td><a href="#rfc1195-5.3.4-2"><code>RFC1195-5.3.4-2</code></a> Place codes 128, 130, 131 in pseudonode LSPs (Section 5.3.4, Section 5.3.5)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze never emits the narrow IP reachability TLVs 128/130/131 (wide-metric-only), and its pseudonode LSP builder emits only TLV 22 (internal/plugins/isis/lsdb/pseudonode.go:186-193), so the literal-code prohibition has no applicable code path</td>
-</tr>
-<tr><td><a href="#rfc1195-3.2-1"><code>RFC1195-3.2-1</code></a> Cap a Level 2 metric sum at 63 (Section 3.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze uses RFC 5305 wide metrics (24-bit IS reachability and 32-bit IP reachability, internal/plugins/isis/types/metric.go) and has no 6-bit narrow metric field to cap at 63</td>
-</tr>
-<tr><td><a href="#rfc1195-1.4-1"><code>RFC1195-1.4-1</code></a> Use only dual routers in a dual area, and dual Level 2 routers when routing both IP and OSI between areas (Section 1.4)</td>
+<tr><td><a href="#rfc1195-1.4-1"><code>RFC1195-1.4-1</code></a> Within a dual domain, if both IP and OSI traffic are to be routed between areas then all level 2 routers must be dual. (Section 1.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs pure-IP Integrated IS-IS and routes no OSI/CLNP traffic (no CLNP forwarding code path), so the dual-domain topology constraint does not apply</td>
 </tr>
 <tr><td><a href="#rfc1195-1.2-1"><code>RFC1195-1.2-1</code></a> External links (to other routing domains) must be from level 2 routers (Section 1.2)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {not-applicable}: RFC 2966 Section 2.2, which updates this rule, &#34;loosens the restrictions in RFC 1195, and allows for the inclusion of the &#34;IP External Reachability Information&#34; TLV in L1 LSPs&#34;; ze advertises redistributed routes at every origination level (internal/plugins/isis/redistribute/consumer.go::InjectRoute), which the updated rule permits, and configures no circuit to another routing domain</td>
 </tr>
-<tr><td><a href="#rfc1195-1.4-2"><code>RFC1195-1.4-2</code></a> In a pure IP routing domain, all routers must be IP-capable (Section 1.4)</td>
+<tr><td><a href="#rfc1195-3.2-3"><code>RFC1195-3.2-3</code></a> If a level 2 router receives an IP packet whose IP address matches a manually configured address which it is including in its level 2 LSP, but which is not reachable via level 1 routing in the area, then the packet must be discarded. (Section 3.2)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: &#34;Keep specific prefixes&#34;. Section 3.2 makes manual summary configuration optional (&#34;Each level 2 router may be configured with one or more [IP address, subnet mask, metric] entries&#34;). internal/plugins/isis/yang/ze-isis-conf.yang has no manual-summary configuration; spf.LeakPrefixes and lsdb.Originator.fragmentTLVs originate specific prefixes, so no locally configured summary exists to match this conditional discard rule.</td>
 </tr>
-<tr><td><a href="#rfc1195-3.2-2"><code>RFC1195-3.2-2</code></a> Where a manually configured summary address covers derived level 1 entries, only one such entry shall be included in the level 2 LSP (Section 3.2)</td>
+<tr><td><a href="#rfc1195-3.10.2-1"><code>RFC1195-3.10.2-1</code></a> 3) If the specified destination is not reachable via level 1 routing, and the manually configured summary address advertised by this router (the router which has received the packet and is trying to forward it) represents the most desireable route, then the destination is unreachable and the packet must be discarded. (Section 3.10.2)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-3.2-3"><code>RFC1195-3.2-3</code></a> A level 2 router that receives an IP packet matching a manually configured address it advertises in its level 2 LSP, but which is not reachable via level 1 routing in the area, must discard the packet (Section 3.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-3.3-1"><code>RFC1195-3.3-1</code></a> The reserved field of the ISO-style address must contain &#34;00 00&#34;, as specified in GOSIP version 2.0 (Section 3.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-3.3-2"><code>RFC1195-3.3-2</code></a> IEEE 802 addresses, if used, must appear in IEEE canonical format (Section 3.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-3.4-1"><code>RFC1195-3.4-1</code></a> When an external route using external metrics must be used, the lowest value of the external metric is preferred regardless of the internal cost to reach the appropriate exit point (Section 3.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-3.10-1"><code>RFC1195-3.10-1</code></a> The Dijkstra calculation must calculate routes to each distinct IP reachability entry (Section 3.10)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-3.10-2"><code>RFC1195-3.10-2</code></a> Where level 2 routes must be used, routes within the routing domain (internal metrics) are preferred to routes outside it (external metrics) (Section 3.10)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-3.10-3"><code>RFC1195-3.10-3</code></a> The default metric must always be available (Section 3.10)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-3.10.2-1"><code>RFC1195-3.10.2-1</code></a> Where the destination is not reachable via level 1 routing and this router&#39;s manually configured summary address is the most desirable route, the destination is unreachable and the packet must be discarded (Section 3.10.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-4.1-1"><code>RFC1195-4.1-1</code></a> All IS-IS routers, including IP-only routers, must be able to receive IS-IS packets using the normal encapsulation for OSI packets (Section 4.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-4.2-1"><code>RFC1195-4.2-1</code></a> IP-capable routers must be able to interact correctly with other routers which assign multiple IP addresses per physical interface, up to the maximum of 63 addresses per interface (Section 4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-4.4-1"><code>RFC1195-4.4-1</code></a> IP-capable IS-IS routers must be able to forward IP packets over existing adjacencies to routers with which they share physical connectivity, even when the adjacent interface is on a different logical IP subnet (Section 4.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-4.4-2"><code>RFC1195-4.4-2</code></a> All IS-IS routers are required to transmit and receive ISO 9542 ISH packets on point-to-point links (Section 4.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-4.4-3"><code>RFC1195-4.4-3</code></a> The value of the &#34;protocols supported&#34; field must be identical on every link: all Hellos and LSPs transmitted by one router must contain the same values (Section 4.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-4.5-1"><code>RFC1195-4.5-1</code></a> A packet that has to be forwarded to a router which does not support its protocol suite must be discarded (Section 4.5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-5.3.4-3"><code>RFC1195-5.3.4-3</code></a> The reserved bits of the metric octets must be set to zero on transmission and ignored on reception (Section 5.3.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-7-1"><code>RFC1195-7-1</code></a> Sequence Number PDU entries shall be sorted into ascending LSPID order, the LSP number octet being the least significant octet (Section 7)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-7-2"><code>RFC1195-7-2</code></a> A full update must be done periodically to ensure recovery from data corruption (Section 7)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-7-3"><code>RFC1195-7-3</code></a> The 8 octet system identifiers which specify IP reachability entries must always be distinguishable from other system identifiers (Section 7)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-7-4"><code>RFC1195-7-4</code></a> IP-capable level 2 routers must keep level 2 internal IP routes separate from level 2 external IP routes (Section 7)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-7-5"><code>RFC1195-7-5</code></a> Each entry made to TENT must be marked as being either an End System or a router (Section 7)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-7-6"><code>RFC1195-7-6</code></a> The password shall be configured on a per-link, per-area, and per-domain basis (Section 7)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-7-7"><code>RFC1195-7-7</code></a> IS-IS Hello and 9542 IS Hello packets shall carry the per-link password, Level 1 LSPs and Sequence Number Packets the per-area password, and Level 2 LSPs and Sequence Number Packets the per-domain password (Section 7)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc1195-7-8"><code>RFC1195-7-8</code></a> Each of the three passwords shall be configured with a single Transmit Password and a set of Receive Passwords (Section 7)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: &#34;Keep specific prefixes&#34;. The optional manual summaries described by section 3.2 (&#34;Each level 2 router may be configured&#34;) have no configuration or origination path in internal/plugins/isis/yang/ze-isis-conf.yang, spf.LeakPrefixes, or lsdb.Originator.fragmentTLVs. There is no local manual-summary candidate to become the most desirable route; specific-prefix forwarding remains subject to normal reachability and protocol-suite rejection.</td>
 </tr>
 <tr><td><a href="#rfc1195-8-1"><code>RFC1195-8-1</code></a> An Inter-Domain Routing Protocol Information entry of the AS-number type must contain precisely one 2 octet AS number, which tags all subsequent External IP Reachability entries (Section 8)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: &#34;Do not originate IDRPI&#34;. Section 5.2 says the IDRPI field &#34;may be present&#34; and &#34;is not used by the IS-IS&#34;. internal/plugins/isis/lsdb/origination.go emits no TLV 131 and spf/graph.go has no IDRPI consumer; packet.DecodeTLVs retains unknown TLV 131 only for unchanged flooding. No AS-number association role is selected.</td>
 </tr>
-<tr><td><a href="#rfc1195-8-2"><code>RFC1195-8-2</code></a> Inter-Domain Information Type 0 is reserved: it must not be sent, and must be ignored on receipt (Section 8)</td>
+<tr><td><a href="#rfc1195-8-2"><code>RFC1195-8-2</code></a> Type = 0 is reserved (must not be sent, and must be ignored on receipt). (Section 8)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: &#34;Do not originate IDRPI&#34;. Section 5.2 makes the IDRPI field optional (&#34;may be present&#34;). internal/plugins/isis/lsdb/origination.go has no TLV 131 producer; spf/graph.go consumes no IDRPI types, and packet.DecodeTLVs only retains the opaque field for unchanged flooding. Ze therefore neither originates type 0 nor interprets a received type 0.</td>
 </tr>
 </tbody>
 </table>
@@ -836,7 +738,7 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L81" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineOriginateOnAdjacencyUp</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L85" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineOriginateOnAdjacencyUp</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -846,11 +748,43 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <h3><a href="#rfc1195-5.3.4-1"><code>RFC1195-5.3.4-1</code></a></h3>
 <p>Set the I/E bit to 0 in IP Internal Reachability (128) entries (Section 5.3.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-5.3.4-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L411" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195InternalOriginatorClearsExternalMetric</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L311" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195NarrowLeakedMetricClamps</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-5.3.4-2"><code>RFC1195-5.3.4-2</code></a></h3>
 <p>Place codes 128, 130, 131 in pseudonode LSPs (Section 5.3.4, Section 5.3.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-5.3.4-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L448" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195PseudonodeCannotInheritRouterPrefixes</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L447" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195PseudonodeCannotInheritRouterPrefixes</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-5.2-4"><code>RFC1195-5.2-4</code></a></h3>
 <p>Carry a default metric in every reachability entry (Section 5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -858,6 +792,11 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L245" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195MissingDefaultMetricCannotRoute</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_test.go#L66" title="internal/plugins/isis/packet/tlv_ipv4_test.go" target="_blank" rel="noopener"><code>TestISISTLVIPv4RoundTrip</code></a></td>
 <td>unit/verify</td>
@@ -867,9 +806,25 @@ Feature remains Experimental pending production hardening and deployment evidenc
 </table>
 </div>
 <h3><a href="#rfc1195-3.2-1"><code>RFC1195-3.2-1</code></a></h3>
-<p>Cap a Level 2 metric sum at 63 (Section 3.2)</p>
+<p>Note: If this sum results in a metric value greater than 63 (the maximum value that can be reported in level 2 LSPs), then the value 63 must be used. (Section 3.2; wide metrics use RFC 5305&#39;s separate bound)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-3.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L319" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195NarrowLeakedMetricBelowCeiling</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L310" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195NarrowLeakedMetricClamps</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-3.9-1"><code>RFC1195-3.9-1</code></a></h3>
 <p>Discard a packet with invalid authentication information (Section 3.9)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -906,7 +861,7 @@ Feature remains Experimental pending production hardening and deployment evidenc
 </table>
 </div>
 <h3><a href="#rfc1195-1.4-1"><code>RFC1195-1.4-1</code></a></h3>
-<p>Use only dual routers in a dual area, and dual Level 2 routers when routing both IP and OSI between areas (Section 1.4)</p>
+<p>Within a dual domain, if both IP and OSI traffic are to be routed between areas then all level 2 routers must be dual. (Section 1.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC1195-1.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc1195-1.2-1"><code>RFC1195-1.2-1</code></a></h3>
@@ -916,109 +871,512 @@ Feature remains Experimental pending production hardening and deployment evidenc
 <h3><a href="#rfc1195-1.4-2"><code>RFC1195-1.4-2</code></a></h3>
 <p>In a pure IP routing domain, all routers must be IP-capable (Section 1.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-1.4-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L198" title="internal/plugins/isis/protocol_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195IPv6SelectionDoesNotRemoveIPv4</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L185" title="internal/plugins/isis/protocol_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195PureIPAdvertisesIPv4</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-3.2-2"><code>RFC1195-3.2-2</code></a></h3>
-<p>Where a manually configured summary address covers derived level 1 entries, only one such entry shall be included in the level 2 LSP (Section 3.2)</p>
+<p>If multiple L1 routers advertise the same [IP address, subnet mask] pair and it is not superseded by a manually configured entry, include one such entry in the L2 LSP with the minimum metric (Section 3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-3.2-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L437" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195SpecificLeakCollapsesDuplicatePrefix</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L436" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195SpecificLeakCollapsesDuplicatePrefix</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-3.2-3"><code>RFC1195-3.2-3</code></a></h3>
-<p>A level 2 router that receives an IP packet matching a manually configured address it advertises in its level 2 LSP, but which is not reachable via level 1 routing in the area, must discard the packet (Section 3.2)</p>
+<p>If a level 2 router receives an IP packet whose IP address matches a manually configured address which it is including in its level 2 LSP, but which is not reachable via level 1 routing in the area, then the packet must be discarded. (Section 3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC1195-3.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc1195-3.3-1"><code>RFC1195-3.3-1</code></a></h3>
-<p>The reserved field of the ISO-style address must contain &#34;00 00&#34;, as specified in GOSIP version 2.0 (Section 3.3)</p>
+<p>The reserved field must contain &#34;00 00&#34;, as specified in GOSIP version 2.0. (Section 3.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-3.3-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/ish_test.go#L39" title="internal/plugins/isis/packet/ish_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHGOSIPReservedRefused</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/ish_test.go#L15" title="internal/plugins/isis/packet/ish_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHGOSIPReservedZero</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-3.3-2"><code>RFC1195-3.3-2</code></a></h3>
 <p>IEEE 802 addresses, if used, must appear in IEEE canonical format (Section 3.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-3.3-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/ish_test.go#L84" title="internal/plugins/isis/packet/ish_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHDoesNotReverseIdentifierBits</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/ish_test.go#L60" title="internal/plugins/isis/packet/ish_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHCanonicalIEEEIdentifier</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-3.4-1"><code>RFC1195-3.4-1</code></a></h3>
 <p>When an external route using external metrics must be used, the lowest value of the external metric is preferred regardless of the internal cost to reach the appropriate exit point (Section 3.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-3.4-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L159" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195ExternalMetricWithdrawalRecomputesWinner</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L148" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195ExternalMetricBeforeExitCost</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-3.10-1"><code>RFC1195-3.10-1</code></a></h3>
 <p>The Dijkstra calculation must calculate routes to each distinct IP reachability entry (Section 3.10)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-3.10-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L64" title="internal/plugins/isis/spf/route_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195NoRouteForUnreachedReachabilityEntry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L29" title="internal/plugins/isis/spf/route_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195RouteForEachReachabilityEntry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-3.10-2"><code>RFC1195-3.10-2</code></a></h3>
-<p>Where level 2 routes must be used, routes within the routing domain (internal metrics) are preferred to routes outside it (external metrics) (Section 3.10)</p>
+<p>If level 2 routes must be used, then routes within the routing domain (specifically, those routes using internal metrics) are prefered to routes outside of the routing domain (using external metrics). (Section 3.10)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-3.10-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L178" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195ExternalReachabilityWithInternalMetric</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L169" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195InternalMetricOutranksExternal</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-3.10-3"><code>RFC1195-3.10-3</code></a></h3>
-<p>The default metric must always be available (Section 3.10)</p>
+<p>However, the default metric must always be available. (Section 3.10)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-3.10-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L244" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195MissingDefaultMetricCannotRoute</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L32" title="internal/plugins/isis/spf/route_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195RouteForEachReachabilityEntry</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-3.10.2-1"><code>RFC1195-3.10.2-1</code></a></h3>
-<p>Where the destination is not reachable via level 1 routing and this router&#39;s manually configured summary address is the most desirable route, the destination is unreachable and the packet must be discarded (Section 3.10.2)</p>
+<p>3) If the specified destination is not reachable via level 1 routing, and the manually configured summary address advertised by this router (the router which has received the packet and is trying to forward it) represents the most desireable route, then the destination is unreachable and the packet must be discarded. (Section 3.10.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC1195-3.10.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc1195-4.1-1"><code>RFC1195-4.1-1</code></a></h3>
-<p>All IS-IS routers, including IP-only routers, must be able to receive IS-IS packets using the normal encapsulation for OSI packets (Section 4.1)</p>
+<p>This implies that all IS-IS routers, including IP-only routers, must be able to receive IS-IS packets using the normal encapsulation for OSI packets. (Section 4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-4.1-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/transport/frame_rfc1195_test.go#L50" title="internal/plugins/isis/transport/frame_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195ParseFrameRefusesNonOSIEncapsulation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/transport/frame_rfc1195_test.go#L33" title="internal/plugins/isis/transport/frame_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195ParseFrameOSIEncapsulation</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-4.2-1"><code>RFC1195-4.2-1</code></a></h3>
-<p>IP-capable routers must be able to interact correctly with other routers which assign multiple IP addresses per physical interface, up to the maximum of 63 addresses per interface (Section 4.2)</p>
+<p>However, IP-capable routers must be able to interact correctly with other routers which assign multiple IP addresses per physical interface (up to the maximum of 63 addresses per interface). (Section 4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-4.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go#L54" title="internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195InterfaceAddrTLVTruncatedAddressRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go#L31" title="internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195InterfaceAddrTLV63Addresses</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-4.4-1"><code>RFC1195-4.4-1</code></a></h3>
-<p>IP-capable IS-IS routers must be able to forward IP packets over existing adjacencies to routers with which they share physical connectivity, even when the adjacent interface is on a different logical IP subnet (Section 4.4)</p>
+<p>IP-capable IS-IS routers therefore must be able to forward IP packets over existing adjacencies to routers with which they share physical connectivity, even when the IP address of the adjacent interface of the neighboring router is on a different logical IP subnet. (Section 4.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-4.4-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/onlink_integration_linux_test.go#L37" title="internal/plugins/fib/kernel/onlink_integration_linux_test.go" target="_blank" rel="noopener"><code>TestFIBOnLinkAdjacencyAndUnsupportedPrefix</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/onlink_integration_linux_test.go#L36" title="internal/plugins/fib/kernel/onlink_integration_linux_test.go" target="_blank" rel="noopener"><code>TestFIBOnLinkAdjacencyAndUnsupportedPrefix</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-4.4-2"><code>RFC1195-4.4-2</code></a></h3>
-<p>All IS-IS routers are required to transmit and receive ISO 9542 ISH packets on point-to-point links (Section 4.4)</p>
+<p>All IS-IS routers are therefore required to transmit and receive ISO 9542 ISH packets on point-to-point links. (Section 4.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-4.4-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/ish_auth_rfc1195_test.go#L64" title="internal/plugins/isis/ish_auth_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHWrongPassword</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L314" title="internal/plugins/isis/protocol_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHRejectsCorruptionAndWrongCircuit</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/ish_auth_rfc1195_test.go#L22" title="internal/plugins/isis/ish_auth_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHConfiguredPassword</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L233" title="internal/plugins/isis/protocol_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHTransmitReceive</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/transport/ish_integration_linux_test.go#L19" title="internal/plugins/isis/transport/ish_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC1195ISHVethTransport</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-4.4-3"><code>RFC1195-4.4-3</code></a></h3>
-<p>The value of the &#34;protocols supported&#34; field must be identical on every link: all Hellos and LSPs transmitted by one router must contain the same values (Section 4.4)</p>
+<p>Thus, the value of the &#34;protocols supported&#34; field must be identical on every link (i.e., for any one router running IS-IS, all of the Hellos and LSPs transmitted by it must contain the same &#34;protocols supported&#34; values). (Section 4.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-4.4-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L165" title="internal/plugins/isis/protocol_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195NodeProtocolsReload</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L135" title="internal/plugins/isis/protocol_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195NodeProtocolsAcrossInterfaces</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-4.5-1"><code>RFC1195-4.5-1</code></a></h3>
 <p>A packet that has to be forwarded to a router which does not support its protocol suite must be discarded (Section 4.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-4.5-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/onlink_integration_linux_test.go#L39" title="internal/plugins/fib/kernel/onlink_integration_linux_test.go" target="_blank" rel="noopener"><code>TestFIBOnLinkAdjacencyAndUnsupportedPrefix</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency_protocol_rfc1195_test.go#L56" title="internal/plugins/isis/adjacency_protocol_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195NeighborProtocolTransitions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L495" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195CapabilityChangesInstalledRouteDisposition</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/onlink_integration_linux_test.go#L38" title="internal/plugins/fib/kernel/onlink_integration_linux_test.go" target="_blank" rel="noopener"><code>TestFIBOnLinkAdjacencyAndUnsupportedPrefix</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/adjacency_protocol_rfc1195_test.go#L39" title="internal/plugins/isis/adjacency_protocol_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195OSINeighborIsTerminalIPv4NextHop</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L494" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195CapabilityChangesInstalledRouteDisposition</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-5.3.4-3"><code>RFC1195-5.3.4-3</code></a></h3>
-<p>The reserved bits of the metric octets must be set to zero on transmission and ignored on reception (Section 5.3.4)</p>
+<p>Bit 8 of this field is reserved, and must be set to zero on tranmission and ignored on reception. (Section 5.3.4), with default-metric bit 8 reassigned to up/down by RFC 2966 section 2</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-5.3.4-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_narrow_ipv4_test.go#L32" title="internal/plugins/isis/packet/tlv_narrow_ipv4_test.go" target="_blank" rel="noopener"><code>TestRFC1195NarrowMetricReservedReceive</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_narrow_ipv4_test.go#L14" title="internal/plugins/isis/packet/tlv_narrow_ipv4_test.go" target="_blank" rel="noopener"><code>TestRFC1195NarrowMetricReservedTransmit</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-7-1"><code>RFC1195-7-1</code></a></h3>
-<p>Sequence Number PDU entries shall be sorted into ascending LSPID order, the LSP number octet being the least significant octet (Section 7)</p>
+<p>The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet). (Section 7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-7-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/snp_rfc1195_test.go#L59" title="internal/plugins/isis/lsdb/snp_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195PSNPEntriesAscendingAcrossLists</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/snp_rfc1195_test.go#L31" title="internal/plugins/isis/lsdb/snp_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195CSNPEntriesAscending</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-7-2"><code>RFC1195-7-2</code></a></h3>
-<p>A full update must be done periodically to ensure recovery from data corruption (Section 7)</p>
+<p>However, a full update must be done periodically to ensure recovery from data corruption, and studies suggest that with a very small number of link changes (perhaps 2) the expected computation complexity of the incremental update exceeds the complete recalculation. (Section 7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-7-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L332" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195PeriodicSPFRecoversMissedUpdate</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L331" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195PeriodicSPFRecoversMissedUpdate</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-7-3"><code>RFC1195-7-3</code></a></h3>
 <p>The 8 octet system identifiers which specify IP reachability entries must always be distinguishable from other system identifiers (Section 7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-7-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L142" title="internal/plugins/isis/spf/route_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195PrefixCannotBridgeDisconnectedRouters</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L93" title="internal/plugins/isis/spf/route_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-7-4"><code>RFC1195-7-4</code></a></h3>
 <p>IP-capable level 2 routers must keep level 2 internal IP routes separate from level 2 external IP routes (Section 7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-7-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L179" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195ExternalReachabilityWithInternalMetric</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L170" title="internal/plugins/isis/rfc1195_spf_test.go" target="_blank" rel="noopener"><code>TestRFC1195InternalMetricOutranksExternal</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-7-5"><code>RFC1195-7-5</code></a></h3>
 <p>Each entry made to TENT must be marked as being either an End System or a router (Section 7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-7-5, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L143" title="internal/plugins/isis/spf/route_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195PrefixCannotBridgeDisconnectedRouters</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/route_rfc1195_test.go#L97" title="internal/plugins/isis/spf/route_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-7-6"><code>RFC1195-7-6</code></a></h3>
-<p>The password shall be configured on a per-link, per-area, and per-domain basis (Section 7)</p>
+<p>The password shall be configured on a per-link, per-area, and per- domain basis. (Section 7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-7-6, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L71" title="internal/plugins/isis/auth_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195PasswordScopesDoNotLeak</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L49" title="internal/plugins/isis/auth_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195PasswordScopesResolved</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-7-7"><code>RFC1195-7-7</code></a></h3>
 <p>IS-IS Hello and 9542 IS Hello packets shall carry the per-link password, Level 1 LSPs and Sequence Number Packets the per-area password, and Level 2 LSPs and Sequence Number Packets the per-domain password (Section 7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-7-7, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L132" title="internal/plugins/isis/auth_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195PDUClassRefusedUnderOtherScopes</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L95" title="internal/plugins/isis/auth_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195PDUClassSignedWithItsScope</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-7-8"><code>RFC1195-7-8</code></a></h3>
-<p>Each of the three passwords shall be configured with a single Transmit Password and a set of Receive Passwords (Section 7)</p>
+<p>Also, each of these three passwords shall be configured with: (i) &#34;Transmit Password&#34;, whose value is a single password, and (ii) &#34;Receive Passwords&#34;, whose value is a set of passwords. (Section 7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1195-7-8, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L230" title="internal/plugins/isis/auth_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195KeyOutsideReceiveSetRefused</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_rfc1195_test.go#L204" title="internal/plugins/isis/auth_rfc1195_test.go" target="_blank" rel="noopener"><code>TestRFC1195OneTransmitPasswordManyReceivePasswords</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1195-8-1"><code>RFC1195-8-1</code></a></h3>
 <p>An Inter-Domain Routing Protocol Information entry of the AS-number type must contain precisely one 2 octet AS number, which tags all subsequent External IP Reachability entries (Section 8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC1195-8-1, so no unit is bound to it.</p>
 <h3><a href="#rfc1195-8-2"><code>RFC1195-8-2</code></a></h3>
-<p>Inter-Domain Information Type 0 is reserved: it must not be sent, and must be ignored on receipt (Section 8)</p>
+<p>Type = 0 is reserved (must not be sent, and must be ignored on receipt). (Section 8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC1195-8-2, so no unit is bound to it.</p>
 </section>
@@ -1708,7 +2066,7 @@ Feature remains Experimental pending production hardening and deployment evidenc
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

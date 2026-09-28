@@ -314,7 +314,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze never exchanges the Multiple Labels Capability, so every session is in the single-label mode of §2, yet the operator-facing encoder accepts an unbounded stack: parseLabeledNLRI appends one label per `label` token (internal/component/bgp/plugins/cmd/update/update_text_nlri.go:325) and BuildLabeledUnicastNLRIBytes encodes len(p.Labels) entries with no capability check (internal/component/bgp/message/update_build_labeled.go:257)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2-2">RFC8277-2-2</code></td><td colspan="3"><span class="rfc-subject">Without Multiple Labels Capability exchanged, use the encoding of Section 2.2 (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2-2">RFC8277-2-2</code></td><td colspan="3"><span class="rfc-subject">Further, when advertising the binding of a single label to a prefix, the BGP speaker MUST use the encoding specified in Section 2.2. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -323,7 +323,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> LabeledUnicast.WriteTo emits the §2.2 layout unconditionally -- Length octet = 24 + prefix bits, one 3-octet label entry, prefix (internal/component/bgp/plugins/nlri/labeled/types.go:125) -- so there is no non-conformant transmission input to reject</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-1">RFC8277-2.1-1</code></td><td colspan="3"><span class="rfc-subject">When Multiple Labels Capability exchanged for an AFI/SAFI, use the encoding of Section 2.3 (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-1">RFC8277-2.1-1</code></td><td colspan="3"><span class="rfc-subject">If (a) a BGP speaker has sent the Multiple Labels Capability in its BGP OPEN message for a particular BGP session, (b) it has received the Multiple Labels Capability in its peer&#39;s BGP OPEN message for that session, and (c) both Capabilities specify AFI/SAFI x/y, then when using an UPDATE of AFI x and SAFI y to advertise the binding of a label or sequence of labels to a given prefix, the BGP speaker MUST use the encoding of Section 2.3. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
@@ -350,7 +350,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> with no capability code 8 producer (internal/core/bgp/capability/capability.go:68-78) the precondition is never met, and yet WriteLabelStack emits every label it is given, S clear on all but the last (internal/core/bgp/nlri/helpers.go:61), reached from BuildLabeledUnicastNLRIBytes (internal/component/bgp/message/update_build_labeled.go:257)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-3">RFC8277-2.1-3</code></td><td colspan="3"><span class="rfc-subject">Support at least two labels in NLRI when sending Multiple Labels Capability (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-3">RFC8277-2.1-3</code></td><td colspan="3"><span class="rfc-subject">Any implementation that sends a Multiple Labels Capability MUST be able to support at least two labels in the NLRI. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
@@ -386,7 +386,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> no triple parser exists -- capability code 8 has no decoder (internal/core/bgp/capability/capability.go:68-78), so a received capability is handled by the RFC 5492 unknown-capability path rather than by a Count reader</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-7">RFC8277-2.1-7</code></td><td colspan="3"><span class="rfc-subject">Ignore all but the first triple for a given AFI/SAFI in the capability (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-7">RFC8277-2.1-7</code></td><td colspan="3"><span class="rfc-subject">If the Capability contains more than one triple with a given AFI/ SAFI, all but the first MUST be ignored. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
@@ -395,7 +395,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> no Multiple Labels Capability decoder exists to hold per-AFI/SAFI triples (internal/core/bgp/capability/capability.go:68-78)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-8">RFC8277-2.1-8</code></td><td colspan="3"><span class="rfc-subject">Ignore subsequent copies if multiple copies of Multiple Labels Capability in OPEN (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-8">RFC8277-2.1-8</code></td><td colspan="3"><span class="rfc-subject">If a BGP OPEN message contains multiple copies of the Multiple Labels Capability, only the first copy is significant; subsequent copies MUST be ignored. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
@@ -404,7 +404,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze stores no Multiple Labels Capability state, so no first-copy-wins rule has a producer (internal/core/bgp/capability/capability.go:68-78)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-9">RFC8277-2.1-9</code></td><td colspan="3"><span class="rfc-subject">Apply treat-as-withdraw per RFC 7606 when UPDATE binds more labels than receiver&#39;s announced Count (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-9">RFC8277-2.1-9</code></td><td colspan="3"><span class="rfc-subject">If a BGP speaker receives an UPDATE that binds more labels to a given prefix than the number of labels the BGP speaker is prepared to receive (as announced in its Multiple Labels Capability), the BGP speaker MUST apply the &#34;treat-as-withdraw&#34; strategy of [RFC7606] to that UPDATE. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
@@ -431,7 +431,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> capability code 8 is never negotiated (internal/core/bgp/capability/capability.go:68-78), so &#34;capability lost on restart&#34; is not a state ze can enter</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-12">RFC8277-2.1-12</code></td><td colspan="3"><span class="rfc-subject">Explicitly withdraw prefixes advertised with more labels than valid when maximum label count reduced (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-12">RFC8277-2.1-12</code></td><td colspan="3"><span class="rfc-subject">Similarly, if the maximum label count (specified in the Capability for a given AFI/SAFI) is reduced, any prefixes advertised with more labels than are valid for the current session MUST be explicitly withdrawn. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
@@ -440,7 +440,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze tracks no per-peer maximum label Count, since no capability code 8 decoder exists to supply one (internal/core/bgp/capability/capability.go:68-78)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-13">RFC8277-2.1-13</code></td><td colspan="3"><span class="rfc-subject">Exchange complete set of routes for given AFI/SAFI when capability or count changes (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-13">RFC8277-2.1-13</code></td><td colspan="3"><span class="rfc-subject">If either of these conditions hold, the complete set of routes for the given AFI/SAFI MUST be exchanged. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
@@ -485,7 +485,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/rfc8277_test.go#L22" title="internal/core/bgp/nlri/nlrisplit/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledRsrvIgnoredOnReceive</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.3-1">RFC8277-2.3-1</code></td><td colspan="3"><span class="rfc-subject">In multiple-label encoding, S bit must be 0 in all labels except the last (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.3-1">RFC8277-2.3-1</code></td><td colspan="3"><span class="rfc-subject">In all labels except the last (i.e., in all labels except the one immediately preceding the prefix), the S bit MUST be 0. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3</td>
@@ -494,7 +494,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> WriteLabelStack sets the S bit only when i == len(labels)-1, leaving every earlier entry at S=0 by construction, so there is no transmission input that could carry a mid-stack S bit to reject (internal/core/bgp/nlri/helpers.go:67)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.3-2">RFC8277-2.3-2</code></td><td colspan="3"><span class="rfc-subject">In multiple-label encoding, S bit must be 1 in the last label (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.3-2">RFC8277-2.3-2</code></td><td colspan="3"><span class="rfc-subject">In the last label, the S bit MUST be 1. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3</td>
@@ -503,7 +503,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the same encoder always terminates the stack with S=1 and offers no way to emit a stack without a bottom-of-stack entry (internal/core/bgp/nlri/helpers.go:67)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.4-1">RFC8277-2.4-1</code></td><td colspan="3"><span class="rfc-subject">Compatibility field in withdrawal must be ignored on reception (§2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.4-1">RFC8277-2.4-1</code></td><td colspan="3"><span class="rfc-subject">Upon reception, the value of the Compatibility field MUST be ignored. (§2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.4</td>
@@ -512,7 +512,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> a §2.4 withdrawal is [Length][Compatibility(3)][Prefix], but ze reads those three octets as a label stack entry and stops on the S bit -- ExtractLabels (internal/core/bgp/nlri/nlrisplit/labeled.go:112) and SplitLabeled (internal/core/bgp/nlri/nlrisplit/labeled.go:63) -- so the RECOMMENDED value 0x800000, whose S bit is clear, makes the reader run past the NLRI and the withdrawal is dropped by removeLabeled&#39;s error return (internal/component/bgp/plugins/rib/rib_structured.go:565)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-15">RFC8277-2.1-15</code></td><td colspan="3"><span class="rfc-subject">If both speakers sent Multiple Labels Capability but a given AFI/SAFI was not specified in both, UPDATEs for that AFI/SAFI MUST use the encoding of Section 2.2 (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-15">RFC8277-2.1-15</code></td><td colspan="3"><span class="rfc-subject">If both BGP speakers of a given BGP session have sent the Multiple Labels Capability, but AFI/SAFI x/y has not been specified in both Capabilities, then UPDATEs of AFI/SAFI x/y on that session MUST use the encoding of Section 2.2, and such UPDATEs can only bind one label to a prefix. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
@@ -548,7 +548,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> route entries are keyed on (path-id, prefix) but the MPLS label side-data is keyed on the prefix alone -- SetLabelsIfRouteExists discards the path-id returned by parseNLRIKey (internal/component/bgp/plugins/rib/storage/peerrib.go:320) and FamilyRIB.SetLabels stores one handle per prefix (internal/component/bgp/plugins/rib/storage/familyrib.go:569) -- so U2 for a second Path Identifier overwrites U1&#39;s label binding, and RemoveLabels for either path deletes the shared entry (internal/component/bgp/plugins/rib/storage/peerrib.go:341)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-3.1-1">RFC8277-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Routes with different labels for the same prefix must be considered comparable for best-path selection (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-3.1-1">RFC8277-3.1-1</code></td><td colspan="3"><span class="rfc-subject">These two routes MUST be considered to be comparable, even if they specify different labels. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -557,7 +557,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L227" title="internal/component/bgp/plugins/rib/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledRoutesWithDifferentLabelsAreComparable</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-3.2.1-1">RFC8277-3.2.1-1</code></td><td colspan="3"><span class="rfc-subject">When propagating with unchanged Next Hop, Label field(s) must also be left unchanged (§3.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-3.2.1-1">RFC8277-3.2.1-1</code></td><td colspan="3"><span class="rfc-subject">When a SAFI-4 or SAFI-128 route is propagated, if the Network Address of Next Hop field is left unchanged, the Label field(s) MUST also be left unchanged. (§3.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2.1</td>
@@ -566,7 +566,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> an unchanged next hop produces no next-hop modification op (applyNextHopMod, internal/component/bgp/reactor/reactor_api_forward.go:815) and mpReachNextHopHandler copies the source attribute verbatim when no Set op reaches it (internal/component/bgp/reactor/filter_delta_handlers.go:252), so the labels are preserved by construction and there is no non-conformant propagation input to reject</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-3.2.1-2">RFC8277-3.2.1-2</code></td><td colspan="3"><span class="rfc-subject">Propagate route to peer if NLRI has multiple labels but Multiple Labels Capability not negotiated with that peer (§3.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-3.2.1-2">RFC8277-3.2.1-2</code></td><td colspan="3"><span class="rfc-subject">Note that a given route MUST NOT be propagated to a given peer if the route&#39;s NLRI has multiple labels, but the Multiple Labels Capability was not negotiated with the peer. (§3.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2.1</td>
@@ -593,7 +593,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the trigger never fires only because ze fails RFC8277-3.2.1-2 -- no propagation is ever blocked on label count, since the egress path applies no label-count limit at all (internal/component/bgp/message/update_build_labeled.go:257, internal/component/bgp/reactor/filter_delta_handlers.go:241). Vacuity produced by ze&#39;s own violation is not a reason the obligation does not apply: implementing the §3.2.1 block requires this withdrawal alongside it, and no withdrawal producer keyed on label count exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-3.2.2-1">RFC8277-3.2.2-1</code></td><td colspan="3"><span class="rfc-subject">When propagating with changed Next Hop, Label field(s) must contain labels bound to prefix at the new next hop (§3.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-3.2.2-1">RFC8277-3.2.2-1</code></td><td colspan="3"><span class="rfc-subject">If the Network Address of Next Hop field is changed before a SAFI-4 or SAFI-128 route is propagated, the Label field(s) of the propagated route MUST contain the label(s) that is (are) bound to the prefix at the new next hop. (§3.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2.2</td>
@@ -687,7 +687,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>ze never exchanges the Multiple Labels Capability, so every session is in the single-label mode of §2, yet the operator-facing encoder accepts an unbounded stack: parseLabeledNLRI appends one label per `label` token (internal/component/bgp/plugins/cmd/update/update_text_nlri.go:325) and BuildLabeledUnicastNLRIBytes encodes len(p.Labels) entries with no capability check (internal/component/bgp/message/update_build_labeled.go:257)</td>
 </tr>
-<tr><td><a href="#rfc8277-2.1-1"><code>RFC8277-2.1-1</code></a> When Multiple Labels Capability exchanged for an AFI/SAFI, use the encoding of Section 2.3 (§2.1)</td>
+<tr><td><a href="#rfc8277-2.1-1"><code>RFC8277-2.1-1</code></a> If (a) a BGP speaker has sent the Multiple Labels Capability in its BGP OPEN message for a particular BGP session, (b) it has received the Multiple Labels Capability in its peer&#39;s BGP OPEN message for that session, and (c) both Capabilities specify AFI/SAFI x/y, then when using an UPDATE of AFI x and SAFI y to advertise the binding of a label or sequence of labels to a given prefix, the BGP speaker MUST use the encoding of Section 2.3. (§2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze has no Multiple Labels Capability (code 8) producer -- the registered capability codes are 1, 2, 5, 6, 9, 64, 65, 69, 70, 73, 76 (internal/core/bgp/capability/capability.go:68-78) and `grep -rni &#34;multiple.label\|CodeMultipleLabels&#34; internal/ pkg/` matches no capability code, so no session ever reaches the Section 2.3 branch</td>
 </tr>
@@ -699,7 +699,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>with no capability code 8 producer (internal/core/bgp/capability/capability.go:68-78) the precondition is never met, and yet WriteLabelStack emits every label it is given, S clear on all but the last (internal/core/bgp/nlri/helpers.go:61), reached from BuildLabeledUnicastNLRIBytes (internal/component/bgp/message/update_build_labeled.go:257)</td>
 </tr>
-<tr><td><a href="#rfc8277-2.1-3"><code>RFC8277-2.1-3</code></a> Support at least two labels in NLRI when sending Multiple Labels Capability (§2.1)</td>
+<tr><td><a href="#rfc8277-2.1-3"><code>RFC8277-2.1-3</code></a> Any implementation that sends a Multiple Labels Capability MUST be able to support at least two labels in the NLRI. (§2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze sends no Multiple Labels Capability -- the OPEN capability encoder writes only the codes listed at internal/core/bgp/capability/capability.go:68-78, which exclude code 8, so the obligation attached to sending it has no producer</td>
 </tr>
@@ -715,15 +715,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: no triple parser exists -- capability code 8 has no decoder (internal/core/bgp/capability/capability.go:68-78), so a received capability is handled by the RFC 5492 unknown-capability path rather than by a Count reader</td>
 </tr>
-<tr><td><a href="#rfc8277-2.1-7"><code>RFC8277-2.1-7</code></a> Ignore all but the first triple for a given AFI/SAFI in the capability (§2.1)</td>
+<tr><td><a href="#rfc8277-2.1-7"><code>RFC8277-2.1-7</code></a> If the Capability contains more than one triple with a given AFI/ SAFI, all but the first MUST be ignored. (§2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: no Multiple Labels Capability decoder exists to hold per-AFI/SAFI triples (internal/core/bgp/capability/capability.go:68-78)</td>
 </tr>
-<tr><td><a href="#rfc8277-2.1-8"><code>RFC8277-2.1-8</code></a> Ignore subsequent copies if multiple copies of Multiple Labels Capability in OPEN (§2.1)</td>
+<tr><td><a href="#rfc8277-2.1-8"><code>RFC8277-2.1-8</code></a> If a BGP OPEN message contains multiple copies of the Multiple Labels Capability, only the first copy is significant; subsequent copies MUST be ignored. (§2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze stores no Multiple Labels Capability state, so no first-copy-wins rule has a producer (internal/core/bgp/capability/capability.go:68-78)</td>
 </tr>
-<tr><td><a href="#rfc8277-2.1-9"><code>RFC8277-2.1-9</code></a> Apply treat-as-withdraw per RFC 7606 when UPDATE binds more labels than receiver&#39;s announced Count (§2.1)</td>
+<tr><td><a href="#rfc8277-2.1-9"><code>RFC8277-2.1-9</code></a> If a BGP speaker receives an UPDATE that binds more labels to a given prefix than the number of labels the BGP speaker is prepared to receive (as announced in its Multiple Labels Capability), the BGP speaker MUST apply the &#34;treat-as-withdraw&#34; strategy of [RFC7606] to that UPDATE. (§2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze announces no Count because it announces no capability code 8 (internal/core/bgp/capability/capability.go:68-78), so the &#34;more labels than announced Count&#34; condition has no producer to evaluate it</td>
 </tr>
@@ -735,11 +735,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: capability code 8 is never negotiated (internal/core/bgp/capability/capability.go:68-78), so &#34;capability lost on restart&#34; is not a state ze can enter</td>
 </tr>
-<tr><td><a href="#rfc8277-2.1-12"><code>RFC8277-2.1-12</code></a> Explicitly withdraw prefixes advertised with more labels than valid when maximum label count reduced (§2.1)</td>
+<tr><td><a href="#rfc8277-2.1-12"><code>RFC8277-2.1-12</code></a> Similarly, if the maximum label count (specified in the Capability for a given AFI/SAFI) is reduced, any prefixes advertised with more labels than are valid for the current session MUST be explicitly withdrawn. (§2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze tracks no per-peer maximum label Count, since no capability code 8 decoder exists to supply one (internal/core/bgp/capability/capability.go:68-78)</td>
 </tr>
-<tr><td><a href="#rfc8277-2.1-13"><code>RFC8277-2.1-13</code></a> Exchange complete set of routes for given AFI/SAFI when capability or count changes (§2.1)</td>
+<tr><td><a href="#rfc8277-2.1-13"><code>RFC8277-2.1-13</code></a> If either of these conditions hold, the complete set of routes for the given AFI/SAFI MUST be exchanged. (§2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: neither the capability nor the Count exists in ze&#39;s session state (internal/core/bgp/capability/capability.go:68-78), so no change event can trigger the full re-exchange</td>
 </tr>
@@ -751,11 +751,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>the receive path is S-driven rather than Length-driven -- ExtractLabels keeps consuming 3-octet entries until it sees S=1 (internal/core/bgp/nlri/nlrisplit/labeled.go:112) and SplitLabeled frames the NLRI the same way (internal/core/bgp/nlri/nlrisplit/labeled.go:63) -- so a conformant single-label NLRI whose S bit is clear is read past its prefix and rejected as a truncated label stack</td>
 </tr>
-<tr><td><a href="#rfc8277-2.4-1"><code>RFC8277-2.4-1</code></a> Compatibility field in withdrawal must be ignored on reception (§2.4)</td>
+<tr><td><a href="#rfc8277-2.4-1"><code>RFC8277-2.4-1</code></a> Upon reception, the value of the Compatibility field MUST be ignored. (§2.4)</td>
 <td>{gap}, no test</td>
 <td>a §2.4 withdrawal is [Length][Compatibility(3)][Prefix], but ze reads those three octets as a label stack entry and stops on the S bit -- ExtractLabels (internal/core/bgp/nlri/nlrisplit/labeled.go:112) and SplitLabeled (internal/core/bgp/nlri/nlrisplit/labeled.go:63) -- so the RECOMMENDED value 0x800000, whose S bit is clear, makes the reader run past the NLRI and the withdrawal is dropped by removeLabeled&#39;s error return (internal/component/bgp/plugins/rib/rib_structured.go:565)</td>
 </tr>
-<tr><td><a href="#rfc8277-2.1-15"><code>RFC8277-2.1-15</code></a> If both speakers sent Multiple Labels Capability but a given AFI/SAFI was not specified in both, UPDATEs for that AFI/SAFI MUST use the encoding of Section 2.2 (§2.1)</td>
+<tr><td><a href="#rfc8277-2.1-15"><code>RFC8277-2.1-15</code></a> If both BGP speakers of a given BGP session have sent the Multiple Labels Capability, but AFI/SAFI x/y has not been specified in both Capabilities, then UPDATEs of AFI/SAFI x/y on that session MUST use the encoding of Section 2.2, and such UPDATEs can only bind one label to a prefix. (§2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the premise is that both speakers sent capability code 8, which ze never sends or parses (internal/core/bgp/capability/capability.go:68-78)</td>
 </tr>
@@ -763,7 +763,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>route entries are keyed on (path-id, prefix) but the MPLS label side-data is keyed on the prefix alone -- SetLabelsIfRouteExists discards the path-id returned by parseNLRIKey (internal/component/bgp/plugins/rib/storage/peerrib.go:320) and FamilyRIB.SetLabels stores one handle per prefix (internal/component/bgp/plugins/rib/storage/familyrib.go:569) -- so U2 for a second Path Identifier overwrites U1&#39;s label binding, and RemoveLabels for either path deletes the shared entry (internal/component/bgp/plugins/rib/storage/peerrib.go:341)</td>
 </tr>
-<tr><td><a href="#rfc8277-3.2.1-2"><code>RFC8277-3.2.1-2</code></a> Propagate route to peer if NLRI has multiple labels but Multiple Labels Capability not negotiated with that peer (§3.2.1)</td>
+<tr><td><a href="#rfc8277-3.2.1-2"><code>RFC8277-3.2.1-2</code></a> Note that a given route MUST NOT be propagated to a given peer if the route&#39;s NLRI has multiple labels, but the Multiple Labels Capability was not negotiated with the peer. (§3.2.1)</td>
 <td>{gap}, no test</td>
 <td>the condition is that the capability is NOT negotiated, and ze negotiates it with nobody -- code 8 is absent from the Code constants (internal/core/bgp/capability/capability.go:68-78) -- so the prohibition binds on every peer, and ze propagates anyway: WriteLabelStack emits every label it is handed, S clear on all but the last (internal/core/bgp/nlri/helpers.go:61,:67) from BuildLabeledUnicastNLRIBytes (internal/component/bgp/message/update_build_labeled.go:257), and mpReachNextHopHandler copies a received multi-label NLRI verbatim while patching only the next hop (internal/component/bgp/reactor/filter_delta_handlers.go:241)</td>
 </tr>
@@ -775,7 +775,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>the trigger never fires only because ze fails RFC8277-3.2.1-2 -- no propagation is ever blocked on label count, since the egress path applies no label-count limit at all (internal/component/bgp/message/update_build_labeled.go:257, internal/component/bgp/reactor/filter_delta_handlers.go:241). Vacuity produced by ze&#39;s own violation is not a reason the obligation does not apply: implementing the §3.2.1 block requires this withdrawal alongside it, and no withdrawal producer keyed on label count exists</td>
 </tr>
-<tr><td><a href="#rfc8277-3.2.2-1"><code>RFC8277-3.2.2-1</code></a> When propagating with changed Next Hop, Label field(s) must contain labels bound to prefix at the new next hop (§3.2.2)</td>
+<tr><td><a href="#rfc8277-3.2.2-1"><code>RFC8277-3.2.2-1</code></a> If the Network Address of Next Hop field is changed before a SAFI-4 or SAFI-128 route is propagated, the Label field(s) of the propagated route MUST contain the label(s) that is (are) bound to the prefix at the new next hop. (§3.2.2)</td>
 <td>{gap}, no test</td>
 <td>ze binds no local MPLS label for labeled unicast, and a next-hop change rewrites only the next-hop field -- mpReachNextHopHandler patches the next hop in place and copies the AFI/SAFI header, reserved octet and NLRI unchanged (internal/component/bgp/reactor/filter_delta_handlers.go:241) -- so the upstream label is re-advertised alongside a next hop that never bound it</td>
 </tr>
@@ -794,7 +794,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-2-2"><code>RFC8277-2-2</code></a></h3>
-<p>Without Multiple Labels Capability exchanged, use the encoding of Section 2.2 (§2)</p>
+<p>Further, when advertising the binding of a single label to a prefix, the BGP speaker MUST use the encoding specified in Section 2.2. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -809,7 +809,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8277-2.1-1"><code>RFC8277-2.1-1</code></a></h3>
-<p>When Multiple Labels Capability exchanged for an AFI/SAFI, use the encoding of Section 2.3 (§2.1)</p>
+<p>If (a) a BGP speaker has sent the Multiple Labels Capability in its BGP OPEN message for a particular BGP session, (b) it has received the Multiple Labels Capability in its peer&#39;s BGP OPEN message for that session, and (c) both Capabilities specify AFI/SAFI x/y, then when using an UPDATE of AFI x and SAFI y to advertise the binding of a label or sequence of labels to a given prefix, the BGP speaker MUST use the encoding of Section 2.3. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-2.1-2"><code>RFC8277-2.1-2</code></a></h3>
@@ -821,7 +821,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-2.1-3"><code>RFC8277-2.1-3</code></a></h3>
-<p>Support at least two labels in NLRI when sending Multiple Labels Capability (§2.1)</p>
+<p>Any implementation that sends a Multiple Labels Capability MUST be able to support at least two labels in the NLRI. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-2.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-2.1-4"><code>RFC8277-2.1-4</code></a></h3>
@@ -837,15 +837,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-2.1-6, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-2.1-7"><code>RFC8277-2.1-7</code></a></h3>
-<p>Ignore all but the first triple for a given AFI/SAFI in the capability (§2.1)</p>
+<p>If the Capability contains more than one triple with a given AFI/ SAFI, all but the first MUST be ignored. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-2.1-7, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-2.1-8"><code>RFC8277-2.1-8</code></a></h3>
-<p>Ignore subsequent copies if multiple copies of Multiple Labels Capability in OPEN (§2.1)</p>
+<p>If a BGP OPEN message contains multiple copies of the Multiple Labels Capability, only the first copy is significant; subsequent copies MUST be ignored. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-2.1-8, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-2.1-9"><code>RFC8277-2.1-9</code></a></h3>
-<p>Apply treat-as-withdraw per RFC 7606 when UPDATE binds more labels than receiver&#39;s announced Count (§2.1)</p>
+<p>If a BGP speaker receives an UPDATE that binds more labels to a given prefix than the number of labels the BGP speaker is prepared to receive (as announced in its Multiple Labels Capability), the BGP speaker MUST apply the &#34;treat-as-withdraw&#34; strategy of [RFC7606] to that UPDATE. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-2.1-9, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-2.1-10"><code>RFC8277-2.1-10</code></a></h3>
@@ -857,11 +857,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-2.1-11, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-2.1-12"><code>RFC8277-2.1-12</code></a></h3>
-<p>Explicitly withdraw prefixes advertised with more labels than valid when maximum label count reduced (§2.1)</p>
+<p>Similarly, if the maximum label count (specified in the Capability for a given AFI/SAFI) is reduced, any prefixes advertised with more labels than are valid for the current session MUST be explicitly withdrawn. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-2.1-12, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-2.1-13"><code>RFC8277-2.1-13</code></a></h3>
-<p>Exchange complete set of routes for given AFI/SAFI when capability or count changes (§2.1)</p>
+<p>If either of these conditions hold, the complete set of routes for the given AFI/SAFI MUST be exchanged. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-2.1-13, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-2.1-14"><code>RFC8277-2.1-14</code></a></h3>
@@ -908,7 +908,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8277-2.3-1"><code>RFC8277-2.3-1</code></a></h3>
-<p>In multiple-label encoding, S bit must be 0 in all labels except the last (§2.3)</p>
+<p>In all labels except the last (i.e., in all labels except the one immediately preceding the prefix), the S bit MUST be 0. (§2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -923,7 +923,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8277-2.3-2"><code>RFC8277-2.3-2</code></a></h3>
-<p>In multiple-label encoding, S bit must be 1 in the last label (§2.3)</p>
+<p>In the last label, the S bit MUST be 1. (§2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -938,11 +938,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8277-2.4-1"><code>RFC8277-2.4-1</code></a></h3>
-<p>Compatibility field in withdrawal must be ignored on reception (§2.4)</p>
+<p>Upon reception, the value of the Compatibility field MUST be ignored. (§2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-2.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-2.1-15"><code>RFC8277-2.1-15</code></a></h3>
-<p>If both speakers sent Multiple Labels Capability but a given AFI/SAFI was not specified in both, UPDATEs for that AFI/SAFI MUST use the encoding of Section 2.2 (§2.1)</p>
+<p>If both BGP speakers of a given BGP session have sent the Multiple Labels Capability, but AFI/SAFI x/y has not been specified in both Capabilities, then UPDATEs of AFI/SAFI x/y on that session MUST use the encoding of Section 2.2, and such UPDATEs can only bind one label to a prefix. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-2.1-15, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-2.5-1"><code>RFC8277-2.5-1</code></a></h3>
@@ -990,7 +990,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-2.5-3, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-3.1-1"><code>RFC8277-3.1-1</code></a></h3>
-<p>Routes with different labels for the same prefix must be considered comparable for best-path selection (§3.1)</p>
+<p>These two routes MUST be considered to be comparable, even if they specify different labels. (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1010,7 +1010,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8277-3.2.1-1"><code>RFC8277-3.2.1-1</code></a></h3>
-<p>When propagating with unchanged Next Hop, Label field(s) must also be left unchanged (§3.2.1)</p>
+<p>When a SAFI-4 or SAFI-128 route is propagated, if the Network Address of Next Hop field is left unchanged, the Label field(s) MUST also be left unchanged. (§3.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1025,7 +1025,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8277-3.2.1-2"><code>RFC8277-3.2.1-2</code></a></h3>
-<p>Propagate route to peer if NLRI has multiple labels but Multiple Labels Capability not negotiated with that peer (§3.2.1)</p>
+<p>Note that a given route MUST NOT be propagated to a given peer if the route&#39;s NLRI has multiple labels, but the Multiple Labels Capability was not negotiated with the peer. (§3.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-3.2.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-3.2.1-3"><code>RFC8277-3.2.1-3</code></a></h3>
@@ -1037,7 +1037,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-3.2.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-3.2.2-1"><code>RFC8277-3.2.2-1</code></a></h3>
-<p>When propagating with changed Next Hop, Label field(s) must contain labels bound to prefix at the new next hop (§3.2.2)</p>
+<p>If the Network Address of Next Hop field is changed before a SAFI-4 or SAFI-128 route is propagated, the Label field(s) of the propagated route MUST contain the label(s) that is (are) bound to the prefix at the new next hop. (§3.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8277-3.2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8277-3.2.2-2"><code>RFC8277-3.2.2-2</code></a></h3>
@@ -1272,7 +1272,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

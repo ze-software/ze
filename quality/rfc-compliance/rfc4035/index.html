@@ -319,7 +319,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze creates no DNSKEY, RRSIG, NSEC, or DS record for this rule to constrain -- ze signs no zone: grep -rnE &#39;TypeRRSIG|TypeDNSKEY|TypeNSEC|TypeDS&#39; --include=*.go internal/ pkg/ cmd/ matches only the RFC 4035 conformance tests, and answerQuestions synthesizes A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-2.1-5">RFC4035-2.1-5</code></td><td colspan="3"><span class="rfc-subject">For a signed zone usable other than as an island of security, the zone apex MUST contain at least one DNSKEY RR to act as a secure entry point (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-2.1-5">RFC4035-2.1-5</code></td><td colspan="3"><span class="rfc-subject">If the zone administrator intends a signed zone to be usable other than as an island of security, the zone apex MUST contain at least one DNSKEY RR to act as a secure entry point into the zone. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
@@ -382,7 +382,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze creates no DNSKEY, RRSIG, NSEC, or DS record for this rule to constrain -- ze signs no zone: grep -rnE &#39;TypeRRSIG|TypeDNSKEY|TypeNSEC|TypeDS&#39; --include=*.go internal/ pkg/ cmd/ matches only the RFC 4035 conformance tests, and answerQuestions synthesizes A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-2.2-8">RFC4035-2.2-8</code></td><td colspan="3"><span class="rfc-subject">The apex DNSKEY RRset MUST be signed by each algorithm appearing in the DS RRset at the delegating parent, if any (§2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-2.2-8">RFC4035-2.2-8</code></td><td colspan="3"><span class="rfc-subject">The apex DNSKEY RRset itself MUST be signed by each algorithm appearing in the DS RRset located at the delegating parent (if any). (§2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.2</td>
@@ -400,7 +400,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze creates no DNSKEY, RRSIG, NSEC, or DS record for this rule to constrain -- ze signs no zone: grep -rnE &#39;TypeRRSIG|TypeDNSKEY|TypeNSEC|TypeDS&#39; --include=*.go internal/ pkg/ cmd/ matches only the RFC 4035 conformance tests, and answerQuestions synthesizes A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-2.3-3">RFC4035-2.3-3</code></td><td colspan="3"><span class="rfc-subject">An NSEC record and its associated RRSIG RRset MUST NOT be the only RRset at any particular owner name (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-2.3-3">RFC4035-2.3-3</code></td><td colspan="3"><span class="rfc-subject">An NSEC record (and its associated RRSIG RRset) MUST NOT be the only RRset at any particular owner name. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.3</td>
@@ -409,7 +409,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze creates no DNSKEY, RRSIG, NSEC, or DS record for this rule to constrain -- ze signs no zone: grep -rnE &#39;TypeRRSIG|TypeDNSKEY|TypeNSEC|TypeDS&#39; --include=*.go internal/ pkg/ cmd/ matches only the RFC 4035 conformance tests, and answerQuestions synthesizes A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-2.3-4">RFC4035-2.3-4</code></td><td colspan="3"><span class="rfc-subject">The signing process MUST NOT create NSEC or RRSIG RRs for owner name nodes that were not the owner name of any RRset before the zone was signed (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-2.3-4">RFC4035-2.3-4</code></td><td colspan="3"><span class="rfc-subject">That is, the signing process MUST NOT create NSEC or RRSIG RRs for owner name nodes that were not the owner name of any RRset before the zone was signed. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.3</td>
@@ -418,7 +418,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze creates no DNSKEY, RRSIG, NSEC, or DS record for this rule to constrain -- ze signs no zone: grep -rnE &#39;TypeRRSIG|TypeDNSKEY|TypeNSEC|TypeDS&#39; --include=*.go internal/ pkg/ cmd/ matches only the RFC 4035 conformance tests, and answerQuestions synthesizes A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-2.3-5">RFC4035-2.3-5</code></td><td colspan="3"><span class="rfc-subject">The type bitmap of every NSEC RR MUST indicate the presence of both the NSEC record itself and its corresponding RRSIG record (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-2.3-5">RFC4035-2.3-5</code></td><td colspan="3"><span class="rfc-subject">The type bitmap of every NSEC resource record in a signed zone MUST indicate the presence of both the NSEC record itself and its corresponding RRSIG record. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3</td>
@@ -481,7 +481,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze creates no DNSKEY, RRSIG, NSEC, or DS record for this rule to constrain -- ze signs no zone: grep -rnE &#39;TypeRRSIG|TypeDNSKEY|TypeNSEC|TypeDS&#39; --include=*.go internal/ pkg/ cmd/ matches only the RFC 4035 conformance tests, and answerQuestions synthesizes A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-2.6-1">RFC4035-2.6-1</code></td><td colspan="3"><span class="rfc-subject">At the parental side of a zone cut, NSEC RRs are REQUIRED at the owner name (§2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-2.6-1">RFC4035-2.6-1</code></td><td colspan="3"><span class="rfc-subject">At the parental side of a zone cut (that is, at a delegation point), NSEC RRs are REQUIRED at the owner name. (§2.6)</span></td></tr>
 <tr><td></td>
 <td>REQUIRED</td>
 <td>2.6</td>
@@ -526,7 +526,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze performs no DNSSEC additional processing for any query -- answerQuestions builds A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168) and never consults the DO bit, so no processing path exists to drive negatively</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3-8">RFC4035-3-8</code></td><td colspan="3"><span class="rfc-subject">A security-aware name server MUST copy the CD bit from a query into the corresponding response (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3-8">RFC4035-3-8</code></td><td colspan="3"><span class="rfc-subject">The CD bit is controlled by resolvers; a security-aware name server MUST copy the CD bit from a query into the corresponding response. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -535,7 +535,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc4035_test.go#L56" title="internal/core/dnsserver/rfc4035_test.go" target="_blank" rel="noopener"><code>TestRFC4035_CDCopiedADIgnored</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3-9">RFC4035-3-9</code></td><td colspan="3"><span class="rfc-subject">A security-aware name server MUST ignore the setting of the AD bit in queries (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3-9">RFC4035-3-9</code></td><td colspan="3"><span class="rfc-subject">The AD bit is controlled by name servers; a security-aware name server MUST ignore the setting of the AD bit in queries. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -580,7 +580,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s authoritative servers hold no RRSIG, NSEC, DS, or DNSKEY record to place in any section: answerQuestions builds A/AAAA/SRV/SOA/NS answers from local host-sets (internal/plugins/geodns/server.go:168) and as112 answers only negatively (internal/plugins/as112/server.go:86)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.1-4">RFC4035-3.1.1-4</code></td><td colspan="3"><span class="rfc-subject">If space does not permit inclusion of the RRSIG RRs that must accompany a signed RRset, or of a mandatory NSEC or DS RRset and its RRSIGs, the name server MUST set the TC bit (§3.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.1-4">RFC4035-3.1.1-4</code></td><td colspan="3"><span class="rfc-subject">If space does not permit inclusion of these RRSIG RRs, the name server MUST set the TC bit. (§3.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1.1</td>
@@ -607,7 +607,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s authoritative servers hold no RRSIG, NSEC, DS, or DNSKEY record to place in any section: answerQuestions builds A/AAAA/SRV/SOA/NS answers from local host-sets (internal/plugins/geodns/server.go:168) and as112 answers only negatively (internal/plugins/as112/server.go:86)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.1-8">RFC4035-3.1.1-8</code></td><td colspan="3"><span class="rfc-subject">The name server MUST NOT set the TC bit solely because RRSIG RRs did not fit in the Additional section (§3.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.1-8">RFC4035-3.1.1-8</code></td><td colspan="3"><span class="rfc-subject">If this happens, the name server MUST NOT set the TC bit solely because these RRSIG RRs didn&#39;t fit. (§3.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.1.1</td>
@@ -643,7 +643,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s authoritative servers hold no RRSIG, NSEC, DS, or DNSKEY record to place in any section: answerQuestions builds A/AAAA/SRV/SOA/NS answers from local host-sets (internal/plugins/geodns/server.go:168) and as112 answers only negatively (internal/plugins/as112/server.go:86)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.3.1-1">RFC4035-3.1.3.1-1</code></td><td colspan="3"><span class="rfc-subject">For a No Data response, the name server MUST include the NSEC RR for the queried name and its RRSIGs in the Authority section (§3.1.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.3.1-1">RFC4035-3.1.3.1-1</code></td><td colspan="3"><span class="rfc-subject">If the zone contains RRsets matching &lt;SNAME, SCLASS&gt; but contains no RRset matching &lt;SNAME, SCLASS, STYPE&gt;, then the name server MUST include the NSEC RR for &lt;SNAME, SCLASS&gt; along with its associated RRSIG RR(s) in the Authority section of the response (see Section 3.1.1). (§3.1.3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1.3.1</td>
@@ -688,7 +688,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s authoritative servers hold no RRSIG, NSEC, DS, or DNSKEY record to place in any section: answerQuestions builds A/AAAA/SRV/SOA/NS answers from local host-sets (internal/plugins/geodns/server.go:168) and as112 answers only negatively (internal/plugins/as112/server.go:86)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.4-1">RFC4035-3.1.4-1</code></td><td colspan="3"><span class="rfc-subject">If a DS RRset is present at the delegation point, the name server MUST return the DS RRset and its RRSIGs in the Authority section with the NS RRset (§3.1.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.4-1">RFC4035-3.1.4-1</code></td><td colspan="3"><span class="rfc-subject">If a DS RRset is present at the delegation point, the name server MUST return both the DS RRset and its associated RRSIG RR(s) in the Authority section along with the NS RRset. (§3.1.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1.4</td>
@@ -706,7 +706,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s authoritative servers hold no RRSIG, NSEC, DS, or DNSKEY record to place in any section: answerQuestions builds A/AAAA/SRV/SOA/NS answers from local host-sets (internal/plugins/geodns/server.go:168) and as112 answers only negatively (internal/plugins/as112/server.go:86)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.4-3">RFC4035-3.1.4-3</code></td><td colspan="3"><span class="rfc-subject">The name server MUST place the NS RRset before the NSEC RRset and its RRSIGs (§3.1.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.4-3">RFC4035-3.1.4-3</code></td><td colspan="3"><span class="rfc-subject">The name server MUST place the NS RRset before the NSEC RRset and its associated RRSIG RR(s). (§3.1.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1.4</td>
@@ -715,7 +715,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s authoritative servers hold no RRSIG, NSEC, DS, or DNSKEY record to place in any section: answerQuestions builds A/AAAA/SRV/SOA/NS answers from local host-sets (internal/plugins/geodns/server.go:168) and as112 answers only negatively (internal/plugins/as112/server.go:86)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.4.1-1">RFC4035-3.1.4.1-1</code></td><td colspan="3"><span class="rfc-subject">When authoritative for the child zone but not the parent and not offering recursion, on a DS query at the zone cut the name server MUST return an authoritative no-data response (§3.1.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.4.1-1">RFC4035-3.1.4.1-1</code></td><td colspan="3"><span class="rfc-subject">In this case, the name server MUST return an authoritative &#34;no data&#34; response showing that the DS RRset does not exist in the child zone&#39;s apex. (§3.1.4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1.4.1</td>
@@ -724,7 +724,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc4035_server_test.go#L112" title="internal/plugins/geodns/rfc4035_server_test.go" target="_blank" rel="noopener"><code>TestRFC4035_DSQueryIsAuthoritativeNoData</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.5-2">RFC4035-3.1.5-2</code></td><td colspan="3"><span class="rfc-subject">A name server performing its own zone validation MUST NOT selectively reject some RRs and accept others (§3.1.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.5-2">RFC4035-3.1.5-2</code></td><td colspan="3"><span class="rfc-subject">An authoritative name server that chooses to perform its own zone validation MUST NOT selectively reject some RRs and accept others. (§3.1.5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.1.5</td>
@@ -733,7 +733,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze serves no zone transfer: grep -rniE &#39;axfr|ixfr&#39; --include=*.go internal/ finds no producer, and no ze DNS server holds DNSSEC records to transfer</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.5-3">RFC4035-3.1.5-3</code></td><td colspan="3"><span class="rfc-subject">The DS RRset MUST be included in zone transfers of the parent zone in which it is authoritative data (§3.1.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.5-3">RFC4035-3.1.5-3</code></td><td colspan="3"><span class="rfc-subject">As with any other authoritative RRset, the DS RRset MUST be included in zone transfers of the zone in which the RRset is authoritative data. (§3.1.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1.5</td>
@@ -778,7 +778,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze serves no zone transfer: grep -rniE &#39;axfr|ixfr&#39; --include=*.go internal/ finds no producer, and no ze DNS server holds DNSSEC records to transfer</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.6-2">RFC4035-3.1.6-2</code></td><td colspan="3"><span class="rfc-subject">A security-aware name server MUST NOT set the AD bit in a response unless it considers all RRsets in the Answer and Authority sections to be authentic (§3.1.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.6-2">RFC4035-3.1.6-2</code></td><td colspan="3"><span class="rfc-subject">A security-aware name server MUST NOT set the AD bit in a response unless the name server considers all RRsets in the Answer and Authority sections of the response to be authentic. (§3.1.6)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.1.6</td>
@@ -805,7 +805,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze has no configuration leaf that marks local zone data authentic, so the AD bit stays clear whatever the operator configures (the geodns YANG carries no such leaf and no server path writes AuthenticatedData, internal/plugins/geodns/server.go:168)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.6-6">RFC4035-3.1.6-6</code></td><td colspan="3"><span class="rfc-subject">A security-aware name server that supports recursion MUST follow the recursive-server CD and AD bit rules for data obtained via recursion (§3.1.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.1.6-6">RFC4035-3.1.6-6</code></td><td colspan="3"><span class="rfc-subject">A security-aware name server that supports recursion MUST follow the rules for the CD and AD bits given in Section 3.2 when generating a response that involves data obtained via recursion. (§3.1.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1.6</td>
@@ -841,7 +841,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DNS servers never recurse and have no resolver side: shapeAuthoritative clears RecursionAvailable on every reply (internal/core/dnsserver/handler.go:74) and each AnswerFunc answers from local state alone, forwarding nothing upstream (internal/plugins/geodns/server.go:221, internal/plugins/as112/server.go:86)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.2.2-1">RFC4035-3.2.2-1</code></td><td colspan="3"><span class="rfc-subject">The name server side MUST pass the state of the CD bit to the resolver side along with the initiating query (§3.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.2.2-1">RFC4035-3.2.2-1</code></td><td colspan="3"><span class="rfc-subject">The name server side of a security-aware recursive name server MUST pass the state of the CD bit to the resolver side along with the rest of an initiating query, so that the resolver side will know whether it is required to verify the response data it returns to the name server side. (§3.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2.2</td>
@@ -859,7 +859,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DNS servers never recurse and have no resolver side: shapeAuthoritative clears RecursionAvailable on every reply (internal/core/dnsserver/handler.go:74) and each AnswerFunc answers from local state alone, forwarding nothing upstream (internal/plugins/geodns/server.go:221, internal/plugins/as112/server.go:86)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.2.3-2">RFC4035-3.2.3-2</code></td><td colspan="3"><span class="rfc-subject">The resolver side MUST determine whether the RRs are authentic by following the RFC&#39;s authentication procedure (§3.2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3.2.3-2">RFC4035-3.2.3-2</code></td><td colspan="3"><span class="rfc-subject">The resolver side MUST follow the procedure described in Section 5 to determine whether the RRs in question are authentic. (§3.2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2.3</td>
@@ -868,7 +868,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DNS servers never recurse and have no resolver side: shapeAuthoritative clears RecursionAvailable on every reply (internal/core/dnsserver/handler.go:74) and each AnswerFunc answers from local state alone, forwarding nothing upstream (internal/plugins/geodns/server.go:221, internal/plugins/as112/server.go:86)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.1-1">RFC4035-4.1-1</code></td><td colspan="3"><span class="rfc-subject">A security-aware resolver MUST include an EDNS OPT pseudo-RR with the DO bit set when sending queries (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.1-1">RFC4035-4.1-1</code></td><td colspan="3"><span class="rfc-subject">A security-aware resolver MUST include an EDNS ([RFC2671]) OPT pseudo-RR with the DO ([RFC3225]) bit set when sending queries. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -895,7 +895,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the sender&#39;s UDP payload size field is emitted, not parsed -- SetEdns0 writes 4096 on every query (internal/component/resolve/dns/resolver.go:261) -- so no malformed input exists to reject</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.1-5">RFC4035-4.1-5</code></td><td colspan="3"><span class="rfc-subject">A security-aware resolver&#39;s IP layer MUST handle fragmented UDP packets correctly whether received via IPv4 or IPv6 (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.1-5">RFC4035-4.1-5</code></td><td colspan="3"><span class="rfc-subject">A security-aware resolver&#39;s IP layer MUST handle fragmented UDP packets correctly regardless of whether any such fragmented packets were received via IPv4 or IPv6. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -913,7 +913,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.2-3">RFC4035-4.2-3</code></td><td colspan="3"><span class="rfc-subject">A resolver&#39;s signature verification support MUST include verification of wildcard owner names (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.2-3">RFC4035-4.2-3</code></td><td colspan="3"><span class="rfc-subject">A security-aware resolver&#39;s support for signature verification MUST include support for verification of wildcard owner names. (§4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2</td>
@@ -922,7 +922,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.2-5">RFC4035-4.2-5</code></td><td colspan="3"><span class="rfc-subject">When retrieving missing NSEC RRs on the parental side of a zone cut, an iterative-mode resolver MUST query the parent zone name servers, not the child (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.2-5">RFC4035-4.2-5</code></td><td colspan="3"><span class="rfc-subject">When attempting to retrieve missing NSEC RRs that reside on the parental side at a zone cut, a security-aware iterative-mode resolver MUST query the name servers for the parent zone, not the child zone. (§4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2</td>
@@ -931,7 +931,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.2-6">RFC4035-4.2-6</code></td><td colspan="3"><span class="rfc-subject">When retrieving a missing DS, an iterative-mode resolver MUST query the parent zone name servers, not the child (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.2-6">RFC4035-4.2-6</code></td><td colspan="3"><span class="rfc-subject">When attempting to retrieve a missing DS, a security-aware iterative-mode resolver MUST query the name servers for the parent zone, not the child zone. (§4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2</td>
@@ -940,7 +940,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.3-1">RFC4035-4.3-1</code></td><td colspan="3"><span class="rfc-subject">A security-aware resolver MUST be able to determine whether it should expect a particular RRset to be signed, distinguishing Secure, Insecure, Bogus, and Indeterminate (§4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.3-1">RFC4035-4.3-1</code></td><td colspan="3"><span class="rfc-subject">A security-aware resolver MUST be able to determine whether it should expect a particular RRset to be signed. (§4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3</td>
@@ -967,7 +967,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the AD bit of an outgoing query is emitted, not parsed -- the query is composed by new(mdns.Msg) plus SetQuestion (internal/component/resolve/dns/resolver.go:255) and no ze code sets AuthenticatedData on a query -- so no negative input exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.6-3">RFC4035-4.6-3</code></td><td colspan="3"><span class="rfc-subject">A resolver MUST disregard the meaning of the CD and AD bits in a response unless it was obtained over a secure channel or the resolver was configured to trust them (§4.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.6-3">RFC4035-4.6-3</code></td><td colspan="3"><span class="rfc-subject">A resolver MUST disregard the meaning of the CD and AD bits in a response unless the response was obtained by using a secure channel or the resolver was specifically configured to regard the message header bits without using a secure channel. (§4.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.6</td>
@@ -994,7 +994,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze keeps no BAD cache: Resolve caches only a non-empty successful answer (internal/component/resolve/dns/resolver.go:192) and a SERVFAIL yields an uncached empty result (internal/component/resolve/dns/resolver.go:285)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.7-7">RFC4035-4.7-7</code></td><td colspan="3"><span class="rfc-subject">A resolver MUST NOT return RRsets from the BAD cache unless it is not required to validate their signatures (§4.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.7-7">RFC4035-4.7-7</code></td><td colspan="3"><span class="rfc-subject">Resolvers MUST NOT return RRsets from the BAD cache unless the resolver is not required to validate the signatures of the RRsets in question under the rules given in Section 4.2 of this document. (§4.7)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.7</td>
@@ -1003,7 +1003,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze keeps no BAD cache: Resolve caches only a non-empty successful answer (internal/component/resolve/dns/resolver.go:192) and a SERVFAIL yields an uncached empty result (internal/component/resolve/dns/resolver.go:285)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.8-1">RFC4035-4.8-1</code></td><td colspan="3"><span class="rfc-subject">A validating resolver MUST treat the signature of a valid signed DNAME RR as also covering unsigned CNAME RRs synthesizable from it, at least by not rejecting the message solely for containing them (§4.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.8-1">RFC4035-4.8-1</code></td><td colspan="3"><span class="rfc-subject">A validating security-aware resolver MUST treat the signature of a valid signed DNAME RR as also covering unsigned CNAME RRs that could have been synthesized from the DNAME RR, as described in [RFC2672], at least to the extent of not rejecting a response message solely because it contains such CNAME RRs. (§4.8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.8</td>
@@ -1012,7 +1012,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.9-1">RFC4035-4.9-1</code></td><td colspan="3"><span class="rfc-subject">A security-aware stub resolver MUST support the DNSSEC RR types, at least by not mishandling responses that contain them (§4.9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.9-1">RFC4035-4.9-1</code></td><td colspan="3"><span class="rfc-subject">A security-aware stub resolver MUST support the DNSSEC RR types, at least to the extent of not mishandling responses just because they contain DNSSEC RRs. (§4.9)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.9</td>
@@ -1030,7 +1030,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s stub sets the DO bit under permissive and strict (internal/component/resolve/dns/resolver.go:261) and leaves the signature check to the upstream; the bit is emitted, not parsed, so there is no non-conformant input to reject</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.9.3-2">RFC4035-4.9.3-2</code></td><td colspan="3"><span class="rfc-subject">A security-aware stub resolver MUST NOT place any reliance on signature validation performed on its behalf except when it obtained the data from a trusted recursive name server over a secure channel (§4.9.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.9.3-2">RFC4035-4.9.3-2</code></td><td colspan="3"><span class="rfc-subject">In any case, a security-aware stub resolver MUST NOT place any reliance on signature validation allegedly performed on its behalf, except when the security-aware stub resolver obtained the data in question from a trusted security-aware recursive name server via a secure channel. (§4.9.3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.9.3</td>
@@ -1066,7 +1066,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.2-1">RFC4035-5.2-1</code></td><td colspan="3"><span class="rfc-subject">A security-aware resolver MUST query the parent zone name servers for the DS RRset if a referral includes neither a DS RRset nor an NSEC RRset proving the DS RRset does not exist (§5.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.2-1">RFC4035-5.2-1</code></td><td colspan="3"><span class="rfc-subject">A security-aware resolver MUST query the name servers for the parent zone for the DS RRset if the referral includes neither a DS RRset nor a NSEC RRset proving that the DS RRset does not exist (see Section 4). (§5.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2</td>
@@ -1120,7 +1120,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.3.1-5">RFC4035-5.3.1-5</code></td><td colspan="3"><span class="rfc-subject">The validator&#39;s notion of the current time MUST be less than or equal to the RRSIG RR&#39;s Expiration field (§5.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.3.1-5">RFC4035-5.3.1-5</code></td><td colspan="3"><span class="rfc-subject">o The validator&#39;s notion of the current time MUST be less than or equal to the time listed in the RRSIG RR&#39;s Expiration field. (§5.3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.3.1</td>
@@ -1129,7 +1129,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.3.1-6">RFC4035-5.3.1-6</code></td><td colspan="3"><span class="rfc-subject">The validator&#39;s notion of the current time MUST be greater than or equal to the RRSIG RR&#39;s Inception field (§5.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.3.1-6">RFC4035-5.3.1-6</code></td><td colspan="3"><span class="rfc-subject">o The validator&#39;s notion of the current time MUST be greater than or equal to the time listed in the RRSIG RR&#39;s Inception field. (§5.3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.3.1</td>
@@ -1138,7 +1138,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.3.1-7">RFC4035-5.3.1-7</code></td><td colspan="3"><span class="rfc-subject">The RRSIG RR&#39;s Signer&#39;s Name, Algorithm, and Key Tag fields MUST match the owner name, algorithm, and key tag of some DNSKEY RR in the zone&#39;s apex DNSKEY RRset (§5.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.3.1-7">RFC4035-5.3.1-7</code></td><td colspan="3"><span class="rfc-subject">o The RRSIG RR&#39;s Signer&#39;s Name, Algorithm, and Key Tag fields MUST match the owner name, algorithm, and key tag for some DNSKEY RR in the zone&#39;s apex DNSKEY RRset. (§5.3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.3.1</td>
@@ -1174,7 +1174,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.3.2-1">RFC4035-5.3.2-1</code></td><td colspan="3"><span class="rfc-subject">If the RRSIG Labels field is greater than the RRset&#39;s label count, the RRSIG did not pass validation and MUST NOT be used to authenticate the RRset (§5.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.3.2-1">RFC4035-5.3.2-1</code></td><td colspan="3"><span class="rfc-subject">if rrsig_labels &gt; fqdn_labels the RRSIG RR did not pass the necessary validation checks and MUST NOT be used to authenticate this RRset. (§5.3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.3.2</td>
@@ -1183,7 +1183,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.3.2-2">RFC4035-5.3.2-2</code></td><td colspan="3"><span class="rfc-subject">When reconstructing the parent-zone NSEC RRset at a delegation, its NSEC RRs MUST NOT be combined with NSEC RRs from the child zone (§5.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.3.2-2">RFC4035-5.3.2-2</code></td><td colspan="3"><span class="rfc-subject">When reconstructing the original NSEC RRset for the delegation from the parent zone, the NSEC RRs MUST NOT be combined with NSEC RRs from the child zone. (§5.3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.3.2</td>
@@ -1192,7 +1192,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.3.2-3">RFC4035-5.3.2-3</code></td><td colspan="3"><span class="rfc-subject">When reconstructing the child-apex NSEC RRset, its NSEC RRs MUST NOT be combined with NSEC RRs from the parent zone (§5.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.3.2-3">RFC4035-5.3.2-3</code></td><td colspan="3"><span class="rfc-subject">When reconstructing the original NSEC RRset for the apex of the child zone, the NSEC RRs MUST NOT be combined with NSEC RRs from the parent zone. (§5.3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.3.2</td>
@@ -1219,7 +1219,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.4-1">RFC4035-5.4-1</code></td><td colspan="3"><span class="rfc-subject">A security-aware resolver MUST authenticate the NSEC RRsets that comprise a denial-of-existence proof (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.4-1">RFC4035-5.4-1</code></td><td colspan="3"><span class="rfc-subject">In addition, security-aware resolvers MUST authenticate the NSEC RRsets that comprise the non-existence proof as described in Section 5.3. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4</td>
@@ -1228,7 +1228,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.4-2">RFC4035-5.4-2</code></td><td colspan="3"><span class="rfc-subject">If the complete set of necessary NSEC RRsets is not present in a response, the resolver MUST resend the query to obtain them (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.4-2">RFC4035-5.4-2</code></td><td colspan="3"><span class="rfc-subject">If the complete set of necessary NSEC RRsets is not present in a response (perhaps due to message truncation), then a security-aware resolver MUST resend the query in order to attempt to obtain the full collection of NSEC RRs necessary to verify the non-existence of the requested RRset. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4</td>
@@ -1237,7 +1237,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.4-3">RFC4035-5.4-3</code></td><td colspan="3"><span class="rfc-subject">The resolver MUST bound the work it puts into answering any particular query (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.4-3">RFC4035-5.4-3</code></td><td colspan="3"><span class="rfc-subject">As with all DNS operations, however, the resolver MUST bound the work it puts into answering any particular query. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4</td>
@@ -1246,7 +1246,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.4-4">RFC4035-5.4-4</code></td><td colspan="3"><span class="rfc-subject">A validator MUST ignore the settings of the NSEC and RRSIG bits in an NSEC RR (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.4-4">RFC4035-5.4-4</code></td><td colspan="3"><span class="rfc-subject">Since a validated NSEC RR proves the existence of both itself and its corresponding RRSIG RR, a validator MUST ignore the settings of the NSEC and RRSIG bits in an NSEC RR. (§5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4</td>
@@ -1255,7 +1255,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.5-2">RFC4035-5.5-2</code></td><td colspan="3"><span class="rfc-subject">When validation was done to service a recursive query, the name server MUST return RCODE 2 to the originating client (§5.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.5-2">RFC4035-5.5-2</code></td><td colspan="3"><span class="rfc-subject">If the validation was being done to service a recursive query, the name server MUST return RCODE 2 to the originating client. (§5.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.5</td>
@@ -1264,7 +1264,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DNS servers never recurse and have no resolver side: shapeAuthoritative clears RecursionAvailable on every reply (internal/core/dnsserver/handler.go:74) and each AnswerFunc answers from local state alone, forwarding nothing upstream (internal/plugins/geodns/server.go:221, internal/plugins/as112/server.go:86)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.5-3">RFC4035-5.5-3</code></td><td colspan="3"><span class="rfc-subject">The name server MUST return the full response if and only if the original query had the CD bit set (§5.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-5.5-3">RFC4035-5.5-3</code></td><td colspan="3"><span class="rfc-subject">However, it MUST return the full response if and only if the original query had the CD bit set. (§5.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.5</td>
@@ -1740,7 +1740,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze creates no DNSKEY, RRSIG, NSEC, or DS record for this rule to constrain -- ze signs no zone: grep -rnE &#39;TypeRRSIG|TypeDNSKEY|TypeNSEC|TypeDS&#39; --include=*.go internal/ pkg/ cmd/ matches only the RFC 4035 conformance tests, and answerQuestions synthesizes A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168)</td>
 </tr>
-<tr><td><a href="#rfc4035-2.1-5"><code>RFC4035-2.1-5</code></a> For a signed zone usable other than as an island of security, the zone apex MUST contain at least one DNSKEY RR to act as a secure entry point (§2.1)</td>
+<tr><td><a href="#rfc4035-2.1-5"><code>RFC4035-2.1-5</code></a> If the zone administrator intends a signed zone to be usable other than as an island of security, the zone apex MUST contain at least one DNSKEY RR to act as a secure entry point into the zone. (§2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze creates no DNSKEY, RRSIG, NSEC, or DS record for this rule to constrain -- ze signs no zone: grep -rnE &#39;TypeRRSIG|TypeDNSKEY|TypeNSEC|TypeDS&#39; --include=*.go internal/ pkg/ cmd/ matches only the RFC 4035 conformance tests, and answerQuestions synthesizes A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168)</td>
 </tr>
@@ -1768,7 +1768,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze creates no DNSKEY, RRSIG, NSEC, or DS record for this rule to constrain -- ze signs no zone: grep -rnE &#39;TypeRRSIG|TypeDNSKEY|TypeNSEC|TypeDS&#39; --include=*.go internal/ pkg/ cmd/ matches only the RFC 4035 conformance tests, and answerQuestions synthesizes A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168)</td>
 </tr>
-<tr><td><a href="#rfc4035-2.2-8"><code>RFC4035-2.2-8</code></a> The apex DNSKEY RRset MUST be signed by each algorithm appearing in the DS RRset at the delegating parent, if any (§2.2)</td>
+<tr><td><a href="#rfc4035-2.2-8"><code>RFC4035-2.2-8</code></a> The apex DNSKEY RRset itself MUST be signed by each algorithm appearing in the DS RRset located at the delegating parent (if any). (§2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze creates no DNSKEY, RRSIG, NSEC, or DS record for this rule to constrain -- ze signs no zone: grep -rnE &#39;TypeRRSIG|TypeDNSKEY|TypeNSEC|TypeDS&#39; --include=*.go internal/ pkg/ cmd/ matches only the RFC 4035 conformance tests, and answerQuestions synthesizes A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168)</td>
 </tr>
@@ -1776,15 +1776,15 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze creates no DNSKEY, RRSIG, NSEC, or DS record for this rule to constrain -- ze signs no zone: grep -rnE &#39;TypeRRSIG|TypeDNSKEY|TypeNSEC|TypeDS&#39; --include=*.go internal/ pkg/ cmd/ matches only the RFC 4035 conformance tests, and answerQuestions synthesizes A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168)</td>
 </tr>
-<tr><td><a href="#rfc4035-2.3-3"><code>RFC4035-2.3-3</code></a> An NSEC record and its associated RRSIG RRset MUST NOT be the only RRset at any particular owner name (§2.3)</td>
+<tr><td><a href="#rfc4035-2.3-3"><code>RFC4035-2.3-3</code></a> An NSEC record (and its associated RRSIG RRset) MUST NOT be the only RRset at any particular owner name. (§2.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze creates no DNSKEY, RRSIG, NSEC, or DS record for this rule to constrain -- ze signs no zone: grep -rnE &#39;TypeRRSIG|TypeDNSKEY|TypeNSEC|TypeDS&#39; --include=*.go internal/ pkg/ cmd/ matches only the RFC 4035 conformance tests, and answerQuestions synthesizes A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168)</td>
 </tr>
-<tr><td><a href="#rfc4035-2.3-4"><code>RFC4035-2.3-4</code></a> The signing process MUST NOT create NSEC or RRSIG RRs for owner name nodes that were not the owner name of any RRset before the zone was signed (§2.3)</td>
+<tr><td><a href="#rfc4035-2.3-4"><code>RFC4035-2.3-4</code></a> That is, the signing process MUST NOT create NSEC or RRSIG RRs for owner name nodes that were not the owner name of any RRset before the zone was signed. (§2.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze creates no DNSKEY, RRSIG, NSEC, or DS record for this rule to constrain -- ze signs no zone: grep -rnE &#39;TypeRRSIG|TypeDNSKEY|TypeNSEC|TypeDS&#39; --include=*.go internal/ pkg/ cmd/ matches only the RFC 4035 conformance tests, and answerQuestions synthesizes A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168)</td>
 </tr>
-<tr><td><a href="#rfc4035-2.3-5"><code>RFC4035-2.3-5</code></a> The type bitmap of every NSEC RR MUST indicate the presence of both the NSEC record itself and its corresponding RRSIG record (§2.3)</td>
+<tr><td><a href="#rfc4035-2.3-5"><code>RFC4035-2.3-5</code></a> The type bitmap of every NSEC resource record in a signed zone MUST indicate the presence of both the NSEC record itself and its corresponding RRSIG record. (§2.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze creates no DNSKEY, RRSIG, NSEC, or DS record for this rule to constrain -- ze signs no zone: grep -rnE &#39;TypeRRSIG|TypeDNSKEY|TypeNSEC|TypeDS&#39; --include=*.go internal/ pkg/ cmd/ matches only the RFC 4035 conformance tests, and answerQuestions synthesizes A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168)</td>
 </tr>
@@ -1812,7 +1812,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze creates no DNSKEY, RRSIG, NSEC, or DS record for this rule to constrain -- ze signs no zone: grep -rnE &#39;TypeRRSIG|TypeDNSKEY|TypeNSEC|TypeDS&#39; --include=*.go internal/ pkg/ cmd/ matches only the RFC 4035 conformance tests, and answerQuestions synthesizes A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168)</td>
 </tr>
-<tr><td><a href="#rfc4035-2.6-1"><code>RFC4035-2.6-1</code></a> At the parental side of a zone cut, NSEC RRs are REQUIRED at the owner name (§2.6)</td>
+<tr><td><a href="#rfc4035-2.6-1"><code>RFC4035-2.6-1</code></a> At the parental side of a zone cut (that is, at a delegation point), NSEC RRs are REQUIRED at the owner name. (§2.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze creates no DNSKEY, RRSIG, NSEC, or DS record for this rule to constrain -- ze signs no zone: grep -rnE &#39;TypeRRSIG|TypeDNSKEY|TypeNSEC|TypeDS&#39; --include=*.go internal/ pkg/ cmd/ matches only the RFC 4035 conformance tests, and answerQuestions synthesizes A/AAAA/SRV/SOA/NS records only (internal/plugins/geodns/server.go:168)</td>
 </tr>
@@ -1844,7 +1844,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s authoritative servers hold no RRSIG, NSEC, DS, or DNSKEY record to place in any section: answerQuestions builds A/AAAA/SRV/SOA/NS answers from local host-sets (internal/plugins/geodns/server.go:168) and as112 answers only negatively (internal/plugins/as112/server.go:86)</td>
 </tr>
-<tr><td><a href="#rfc4035-3.1.1-4"><code>RFC4035-3.1.1-4</code></a> If space does not permit inclusion of the RRSIG RRs that must accompany a signed RRset, or of a mandatory NSEC or DS RRset and its RRSIGs, the name server MUST set the TC bit (§3.1.1)</td>
+<tr><td><a href="#rfc4035-3.1.1-4"><code>RFC4035-3.1.1-4</code></a> If space does not permit inclusion of these RRSIG RRs, the name server MUST set the TC bit. (§3.1.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s authoritative servers hold no RRSIG, NSEC, DS, or DNSKEY record to place in any section: answerQuestions builds A/AAAA/SRV/SOA/NS answers from local host-sets (internal/plugins/geodns/server.go:168) and as112 answers only negatively (internal/plugins/as112/server.go:86)</td>
 </tr>
@@ -1856,7 +1856,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s authoritative servers hold no RRSIG, NSEC, DS, or DNSKEY record to place in any section: answerQuestions builds A/AAAA/SRV/SOA/NS answers from local host-sets (internal/plugins/geodns/server.go:168) and as112 answers only negatively (internal/plugins/as112/server.go:86)</td>
 </tr>
-<tr><td><a href="#rfc4035-3.1.1-8"><code>RFC4035-3.1.1-8</code></a> The name server MUST NOT set the TC bit solely because RRSIG RRs did not fit in the Additional section (§3.1.1)</td>
+<tr><td><a href="#rfc4035-3.1.1-8"><code>RFC4035-3.1.1-8</code></a> If this happens, the name server MUST NOT set the TC bit solely because these RRSIG RRs didn&#39;t fit. (§3.1.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s authoritative servers hold no RRSIG, NSEC, DS, or DNSKEY record to place in any section: answerQuestions builds A/AAAA/SRV/SOA/NS answers from local host-sets (internal/plugins/geodns/server.go:168) and as112 answers only negatively (internal/plugins/as112/server.go:86)</td>
 </tr>
@@ -1872,7 +1872,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s authoritative servers hold no RRSIG, NSEC, DS, or DNSKEY record to place in any section: answerQuestions builds A/AAAA/SRV/SOA/NS answers from local host-sets (internal/plugins/geodns/server.go:168) and as112 answers only negatively (internal/plugins/as112/server.go:86)</td>
 </tr>
-<tr><td><a href="#rfc4035-3.1.3.1-1"><code>RFC4035-3.1.3.1-1</code></a> For a No Data response, the name server MUST include the NSEC RR for the queried name and its RRSIGs in the Authority section (§3.1.3.1)</td>
+<tr><td><a href="#rfc4035-3.1.3.1-1"><code>RFC4035-3.1.3.1-1</code></a> If the zone contains RRsets matching &lt;SNAME, SCLASS&gt; but contains no RRset matching &lt;SNAME, SCLASS, STYPE&gt;, then the name server MUST include the NSEC RR for &lt;SNAME, SCLASS&gt; along with its associated RRSIG RR(s) in the Authority section of the response (see Section 3.1.1). (§3.1.3.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s authoritative servers hold no RRSIG, NSEC, DS, or DNSKEY record to place in any section: answerQuestions builds A/AAAA/SRV/SOA/NS answers from local host-sets (internal/plugins/geodns/server.go:168) and as112 answers only negatively (internal/plugins/as112/server.go:86)</td>
 </tr>
@@ -1892,7 +1892,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s authoritative servers hold no RRSIG, NSEC, DS, or DNSKEY record to place in any section: answerQuestions builds A/AAAA/SRV/SOA/NS answers from local host-sets (internal/plugins/geodns/server.go:168) and as112 answers only negatively (internal/plugins/as112/server.go:86)</td>
 </tr>
-<tr><td><a href="#rfc4035-3.1.4-1"><code>RFC4035-3.1.4-1</code></a> If a DS RRset is present at the delegation point, the name server MUST return the DS RRset and its RRSIGs in the Authority section with the NS RRset (§3.1.4)</td>
+<tr><td><a href="#rfc4035-3.1.4-1"><code>RFC4035-3.1.4-1</code></a> If a DS RRset is present at the delegation point, the name server MUST return both the DS RRset and its associated RRSIG RR(s) in the Authority section along with the NS RRset. (§3.1.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s authoritative servers hold no RRSIG, NSEC, DS, or DNSKEY record to place in any section: answerQuestions builds A/AAAA/SRV/SOA/NS answers from local host-sets (internal/plugins/geodns/server.go:168) and as112 answers only negatively (internal/plugins/as112/server.go:86)</td>
 </tr>
@@ -1900,15 +1900,15 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s authoritative servers hold no RRSIG, NSEC, DS, or DNSKEY record to place in any section: answerQuestions builds A/AAAA/SRV/SOA/NS answers from local host-sets (internal/plugins/geodns/server.go:168) and as112 answers only negatively (internal/plugins/as112/server.go:86)</td>
 </tr>
-<tr><td><a href="#rfc4035-3.1.4-3"><code>RFC4035-3.1.4-3</code></a> The name server MUST place the NS RRset before the NSEC RRset and its RRSIGs (§3.1.4)</td>
+<tr><td><a href="#rfc4035-3.1.4-3"><code>RFC4035-3.1.4-3</code></a> The name server MUST place the NS RRset before the NSEC RRset and its associated RRSIG RR(s). (§3.1.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s authoritative servers hold no RRSIG, NSEC, DS, or DNSKEY record to place in any section: answerQuestions builds A/AAAA/SRV/SOA/NS answers from local host-sets (internal/plugins/geodns/server.go:168) and as112 answers only negatively (internal/plugins/as112/server.go:86)</td>
 </tr>
-<tr><td><a href="#rfc4035-3.1.5-2"><code>RFC4035-3.1.5-2</code></a> A name server performing its own zone validation MUST NOT selectively reject some RRs and accept others (§3.1.5)</td>
+<tr><td><a href="#rfc4035-3.1.5-2"><code>RFC4035-3.1.5-2</code></a> An authoritative name server that chooses to perform its own zone validation MUST NOT selectively reject some RRs and accept others. (§3.1.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze serves no zone transfer: grep -rniE &#39;axfr|ixfr&#39; --include=*.go internal/ finds no producer, and no ze DNS server holds DNSSEC records to transfer</td>
 </tr>
-<tr><td><a href="#rfc4035-3.1.5-3"><code>RFC4035-3.1.5-3</code></a> The DS RRset MUST be included in zone transfers of the parent zone in which it is authoritative data (§3.1.5)</td>
+<tr><td><a href="#rfc4035-3.1.5-3"><code>RFC4035-3.1.5-3</code></a> As with any other authoritative RRset, the DS RRset MUST be included in zone transfers of the zone in which the RRset is authoritative data. (§3.1.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze serves no zone transfer: grep -rniE &#39;axfr|ixfr&#39; --include=*.go internal/ finds no producer, and no ze DNS server holds DNSSEC records to transfer</td>
 </tr>
@@ -1928,7 +1928,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze serves no zone transfer: grep -rniE &#39;axfr|ixfr&#39; --include=*.go internal/ finds no producer, and no ze DNS server holds DNSSEC records to transfer</td>
 </tr>
-<tr><td><a href="#rfc4035-3.1.6-6"><code>RFC4035-3.1.6-6</code></a> A security-aware name server that supports recursion MUST follow the recursive-server CD and AD bit rules for data obtained via recursion (§3.1.6)</td>
+<tr><td><a href="#rfc4035-3.1.6-6"><code>RFC4035-3.1.6-6</code></a> A security-aware name server that supports recursion MUST follow the rules for the CD and AD bits given in Section 3.2 when generating a response that involves data obtained via recursion. (§3.1.6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DNS servers never recurse and have no resolver side: shapeAuthoritative clears RecursionAvailable on every reply (internal/core/dnsserver/handler.go:74) and each AnswerFunc answers from local state alone, forwarding nothing upstream (internal/plugins/geodns/server.go:221, internal/plugins/as112/server.go:86)</td>
 </tr>
@@ -1944,7 +1944,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DNS servers never recurse and have no resolver side: shapeAuthoritative clears RecursionAvailable on every reply (internal/core/dnsserver/handler.go:74) and each AnswerFunc answers from local state alone, forwarding nothing upstream (internal/plugins/geodns/server.go:221, internal/plugins/as112/server.go:86)</td>
 </tr>
-<tr><td><a href="#rfc4035-3.2.2-1"><code>RFC4035-3.2.2-1</code></a> The name server side MUST pass the state of the CD bit to the resolver side along with the initiating query (§3.2.2)</td>
+<tr><td><a href="#rfc4035-3.2.2-1"><code>RFC4035-3.2.2-1</code></a> The name server side of a security-aware recursive name server MUST pass the state of the CD bit to the resolver side along with the rest of an initiating query, so that the resolver side will know whether it is required to verify the response data it returns to the name server side. (§3.2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DNS servers never recurse and have no resolver side: shapeAuthoritative clears RecursionAvailable on every reply (internal/core/dnsserver/handler.go:74) and each AnswerFunc answers from local state alone, forwarding nothing upstream (internal/plugins/geodns/server.go:221, internal/plugins/as112/server.go:86)</td>
 </tr>
@@ -1952,11 +1952,11 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DNS servers never recurse and have no resolver side: shapeAuthoritative clears RecursionAvailable on every reply (internal/core/dnsserver/handler.go:74) and each AnswerFunc answers from local state alone, forwarding nothing upstream (internal/plugins/geodns/server.go:221, internal/plugins/as112/server.go:86)</td>
 </tr>
-<tr><td><a href="#rfc4035-3.2.3-2"><code>RFC4035-3.2.3-2</code></a> The resolver side MUST determine whether the RRs are authentic by following the RFC&#39;s authentication procedure (§3.2.3)</td>
+<tr><td><a href="#rfc4035-3.2.3-2"><code>RFC4035-3.2.3-2</code></a> The resolver side MUST follow the procedure described in Section 5 to determine whether the RRs in question are authentic. (§3.2.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DNS servers never recurse and have no resolver side: shapeAuthoritative clears RecursionAvailable on every reply (internal/core/dnsserver/handler.go:74) and each AnswerFunc answers from local state alone, forwarding nothing upstream (internal/plugins/geodns/server.go:221, internal/plugins/as112/server.go:86)</td>
 </tr>
-<tr><td><a href="#rfc4035-4.1-5"><code>RFC4035-4.1-5</code></a> A security-aware resolver&#39;s IP layer MUST handle fragmented UDP packets correctly whether received via IPv4 or IPv6 (§4.1)</td>
+<tr><td><a href="#rfc4035-4.1-5"><code>RFC4035-4.1-5</code></a> A security-aware resolver&#39;s IP layer MUST handle fragmented UDP packets correctly regardless of whether any such fragmented packets were received via IPv4 or IPv6. (§4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: UDP fragment reassembly belongs to the host IP stack, which ze neither implements nor bypasses -- the resolver exchanges datagrams through the ordinary miekg client socket (internal/component/resolve/dns/resolver.go:263) and grep -rniE &#39;fragment|reassembl&#39; --include=*.go internal/component/resolve internal/core/dnsserver finds no producer</td>
 </tr>
@@ -1964,19 +1964,19 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-4.2-3"><code>RFC4035-4.2-3</code></a> A resolver&#39;s signature verification support MUST include verification of wildcard owner names (§4.2)</td>
+<tr><td><a href="#rfc4035-4.2-3"><code>RFC4035-4.2-3</code></a> A security-aware resolver&#39;s support for signature verification MUST include support for verification of wildcard owner names. (§4.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-4.2-5"><code>RFC4035-4.2-5</code></a> When retrieving missing NSEC RRs on the parental side of a zone cut, an iterative-mode resolver MUST query the parent zone name servers, not the child (§4.2)</td>
+<tr><td><a href="#rfc4035-4.2-5"><code>RFC4035-4.2-5</code></a> When attempting to retrieve missing NSEC RRs that reside on the parental side at a zone cut, a security-aware iterative-mode resolver MUST query the name servers for the parent zone, not the child zone. (§4.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-4.2-6"><code>RFC4035-4.2-6</code></a> When retrieving a missing DS, an iterative-mode resolver MUST query the parent zone name servers, not the child (§4.2)</td>
+<tr><td><a href="#rfc4035-4.2-6"><code>RFC4035-4.2-6</code></a> When attempting to retrieve a missing DS, a security-aware iterative-mode resolver MUST query the name servers for the parent zone, not the child zone. (§4.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-4.3-1"><code>RFC4035-4.3-1</code></a> A security-aware resolver MUST be able to determine whether it should expect a particular RRset to be signed, distinguishing Secure, Insecure, Bogus, and Indeterminate (§4.3)</td>
+<tr><td><a href="#rfc4035-4.3-1"><code>RFC4035-4.3-1</code></a> A security-aware resolver MUST be able to determine whether it should expect a particular RRset to be signed. (§4.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
@@ -1992,15 +1992,15 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze keeps no BAD cache: Resolve caches only a non-empty successful answer (internal/component/resolve/dns/resolver.go:192) and a SERVFAIL yields an uncached empty result (internal/component/resolve/dns/resolver.go:285)</td>
 </tr>
-<tr><td><a href="#rfc4035-4.7-7"><code>RFC4035-4.7-7</code></a> A resolver MUST NOT return RRsets from the BAD cache unless it is not required to validate their signatures (§4.7)</td>
+<tr><td><a href="#rfc4035-4.7-7"><code>RFC4035-4.7-7</code></a> Resolvers MUST NOT return RRsets from the BAD cache unless the resolver is not required to validate the signatures of the RRsets in question under the rules given in Section 4.2 of this document. (§4.7)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze keeps no BAD cache: Resolve caches only a non-empty successful answer (internal/component/resolve/dns/resolver.go:192) and a SERVFAIL yields an uncached empty result (internal/component/resolve/dns/resolver.go:285)</td>
 </tr>
-<tr><td><a href="#rfc4035-4.8-1"><code>RFC4035-4.8-1</code></a> A validating resolver MUST treat the signature of a valid signed DNAME RR as also covering unsigned CNAME RRs synthesizable from it, at least by not rejecting the message solely for containing them (§4.8)</td>
+<tr><td><a href="#rfc4035-4.8-1"><code>RFC4035-4.8-1</code></a> A validating security-aware resolver MUST treat the signature of a valid signed DNAME RR as also covering unsigned CNAME RRs that could have been synthesized from the DNAME RR, as described in [RFC2672], at least to the extent of not rejecting a response message solely because it contains such CNAME RRs. (§4.8)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-4.9.3-2"><code>RFC4035-4.9.3-2</code></a> A security-aware stub resolver MUST NOT place any reliance on signature validation performed on its behalf except when it obtained the data from a trusted recursive name server over a secure channel (§4.9.3)</td>
+<tr><td><a href="#rfc4035-4.9.3-2"><code>RFC4035-4.9.3-2</code></a> In any case, a security-aware stub resolver MUST NOT place any reliance on signature validation allegedly performed on its behalf, except when the security-aware stub resolver obtained the data in question from a trusted security-aware recursive name server via a secure channel. (§4.9.3)</td>
 <td>{gap}, no test</td>
 <td>ze&#39;s stub rests a security decision on validation performed for it over an unauthenticated channel -- strict mode rejects an answer solely because the configured upstream returned SERVFAIL (internal/component/resolve/dns/resolver.go:103-106) while the client speaks plain UDP with no TLS, TSIG, or other authentication of that server (internal/component/resolve/dns/resolver.go:81)</td>
 </tr>
@@ -2016,7 +2016,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-5.2-1"><code>RFC4035-5.2-1</code></a> A security-aware resolver MUST query the parent zone name servers for the DS RRset if a referral includes neither a DS RRset nor an NSEC RRset proving the DS RRset does not exist (§5.2)</td>
+<tr><td><a href="#rfc4035-5.2-1"><code>RFC4035-5.2-1</code></a> A security-aware resolver MUST query the name servers for the parent zone for the DS RRset if the referral includes neither a DS RRset nor a NSEC RRset proving that the DS RRset does not exist (see Section 4). (§5.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
@@ -2040,15 +2040,15 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-5.3.1-5"><code>RFC4035-5.3.1-5</code></a> The validator&#39;s notion of the current time MUST be less than or equal to the RRSIG RR&#39;s Expiration field (§5.3.1)</td>
+<tr><td><a href="#rfc4035-5.3.1-5"><code>RFC4035-5.3.1-5</code></a> o The validator&#39;s notion of the current time MUST be less than or equal to the time listed in the RRSIG RR&#39;s Expiration field. (§5.3.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-5.3.1-6"><code>RFC4035-5.3.1-6</code></a> The validator&#39;s notion of the current time MUST be greater than or equal to the RRSIG RR&#39;s Inception field (§5.3.1)</td>
+<tr><td><a href="#rfc4035-5.3.1-6"><code>RFC4035-5.3.1-6</code></a> o The validator&#39;s notion of the current time MUST be greater than or equal to the time listed in the RRSIG RR&#39;s Inception field. (§5.3.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-5.3.1-7"><code>RFC4035-5.3.1-7</code></a> The RRSIG RR&#39;s Signer&#39;s Name, Algorithm, and Key Tag fields MUST match the owner name, algorithm, and key tag of some DNSKEY RR in the zone&#39;s apex DNSKEY RRset (§5.3.1)</td>
+<tr><td><a href="#rfc4035-5.3.1-7"><code>RFC4035-5.3.1-7</code></a> o The RRSIG RR&#39;s Signer&#39;s Name, Algorithm, and Key Tag fields MUST match the owner name, algorithm, and key tag for some DNSKEY RR in the zone&#39;s apex DNSKEY RRset. (§5.3.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
@@ -2064,15 +2064,15 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-5.3.2-1"><code>RFC4035-5.3.2-1</code></a> If the RRSIG Labels field is greater than the RRset&#39;s label count, the RRSIG did not pass validation and MUST NOT be used to authenticate the RRset (§5.3.2)</td>
+<tr><td><a href="#rfc4035-5.3.2-1"><code>RFC4035-5.3.2-1</code></a> if rrsig_labels &gt; fqdn_labels the RRSIG RR did not pass the necessary validation checks and MUST NOT be used to authenticate this RRset. (§5.3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-5.3.2-2"><code>RFC4035-5.3.2-2</code></a> When reconstructing the parent-zone NSEC RRset at a delegation, its NSEC RRs MUST NOT be combined with NSEC RRs from the child zone (§5.3.2)</td>
+<tr><td><a href="#rfc4035-5.3.2-2"><code>RFC4035-5.3.2-2</code></a> When reconstructing the original NSEC RRset for the delegation from the parent zone, the NSEC RRs MUST NOT be combined with NSEC RRs from the child zone. (§5.3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-5.3.2-3"><code>RFC4035-5.3.2-3</code></a> When reconstructing the child-apex NSEC RRset, its NSEC RRs MUST NOT be combined with NSEC RRs from the parent zone (§5.3.2)</td>
+<tr><td><a href="#rfc4035-5.3.2-3"><code>RFC4035-5.3.2-3</code></a> When reconstructing the original NSEC RRset for the apex of the child zone, the NSEC RRs MUST NOT be combined with NSEC RRs from the parent zone. (§5.3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
@@ -2084,27 +2084,27 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-5.4-1"><code>RFC4035-5.4-1</code></a> A security-aware resolver MUST authenticate the NSEC RRsets that comprise a denial-of-existence proof (§5.4)</td>
+<tr><td><a href="#rfc4035-5.4-1"><code>RFC4035-5.4-1</code></a> In addition, security-aware resolvers MUST authenticate the NSEC RRsets that comprise the non-existence proof as described in Section 5.3. (§5.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-5.4-2"><code>RFC4035-5.4-2</code></a> If the complete set of necessary NSEC RRsets is not present in a response, the resolver MUST resend the query to obtain them (§5.4)</td>
+<tr><td><a href="#rfc4035-5.4-2"><code>RFC4035-5.4-2</code></a> If the complete set of necessary NSEC RRsets is not present in a response (perhaps due to message truncation), then a security-aware resolver MUST resend the query in order to attempt to obtain the full collection of NSEC RRs necessary to verify the non-existence of the requested RRset. (§5.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-5.4-3"><code>RFC4035-5.4-3</code></a> The resolver MUST bound the work it puts into answering any particular query (§5.4)</td>
+<tr><td><a href="#rfc4035-5.4-3"><code>RFC4035-5.4-3</code></a> As with all DNS operations, however, the resolver MUST bound the work it puts into answering any particular query. (§5.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-5.4-4"><code>RFC4035-5.4-4</code></a> A validator MUST ignore the settings of the NSEC and RRSIG bits in an NSEC RR (§5.4)</td>
+<tr><td><a href="#rfc4035-5.4-4"><code>RFC4035-5.4-4</code></a> Since a validated NSEC RR proves the existence of both itself and its corresponding RRSIG RR, a validator MUST ignore the settings of the NSEC and RRSIG bits in an NSEC RR. (§5.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no local validator: the resolver&#39;s whole DNSSEC surface is dnssecDecision (internal/component/resolve/dns/resolver.go:99), which inspects the rcode alone -- no signature verification, trust-anchor store, DS chain, or NSEC proof exists in ze</td>
 </tr>
-<tr><td><a href="#rfc4035-5.5-2"><code>RFC4035-5.5-2</code></a> When validation was done to service a recursive query, the name server MUST return RCODE 2 to the originating client (§5.5)</td>
+<tr><td><a href="#rfc4035-5.5-2"><code>RFC4035-5.5-2</code></a> If the validation was being done to service a recursive query, the name server MUST return RCODE 2 to the originating client. (§5.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DNS servers never recurse and have no resolver side: shapeAuthoritative clears RecursionAvailable on every reply (internal/core/dnsserver/handler.go:74) and each AnswerFunc answers from local state alone, forwarding nothing upstream (internal/plugins/geodns/server.go:221, internal/plugins/as112/server.go:86)</td>
 </tr>
-<tr><td><a href="#rfc4035-5.5-3"><code>RFC4035-5.5-3</code></a> The name server MUST return the full response if and only if the original query had the CD bit set (§5.5)</td>
+<tr><td><a href="#rfc4035-5.5-3"><code>RFC4035-5.5-3</code></a> However, it MUST return the full response if and only if the original query had the CD bit set. (§5.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DNS servers never recurse and have no resolver side: shapeAuthoritative clears RecursionAvailable on every reply (internal/core/dnsserver/handler.go:74) and each AnswerFunc answers from local state alone, forwarding nothing upstream (internal/plugins/geodns/server.go:221, internal/plugins/as112/server.go:86)</td>
 </tr>
@@ -2123,7 +2123,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-2.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-2.1-5"><code>RFC4035-2.1-5</code></a></h3>
-<p>For a signed zone usable other than as an island of security, the zone apex MUST contain at least one DNSKEY RR to act as a secure entry point (§2.1)</p>
+<p>If the zone administrator intends a signed zone to be usable other than as an island of security, the zone apex MUST contain at least one DNSKEY RR to act as a secure entry point into the zone. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-2.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-2.2-1"><code>RFC4035-2.2-1</code></a></h3>
@@ -2151,7 +2151,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-2.2-7, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-2.2-8"><code>RFC4035-2.2-8</code></a></h3>
-<p>The apex DNSKEY RRset MUST be signed by each algorithm appearing in the DS RRset at the delegating parent, if any (§2.2)</p>
+<p>The apex DNSKEY RRset itself MUST be signed by each algorithm appearing in the DS RRset located at the delegating parent (if any). (§2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-2.2-8, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-2.3-1"><code>RFC4035-2.3-1</code></a></h3>
@@ -2159,15 +2159,15 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-2.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-2.3-3"><code>RFC4035-2.3-3</code></a></h3>
-<p>An NSEC record and its associated RRSIG RRset MUST NOT be the only RRset at any particular owner name (§2.3)</p>
+<p>An NSEC record (and its associated RRSIG RRset) MUST NOT be the only RRset at any particular owner name. (§2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-2.3-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-2.3-4"><code>RFC4035-2.3-4</code></a></h3>
-<p>The signing process MUST NOT create NSEC or RRSIG RRs for owner name nodes that were not the owner name of any RRset before the zone was signed (§2.3)</p>
+<p>That is, the signing process MUST NOT create NSEC or RRSIG RRs for owner name nodes that were not the owner name of any RRset before the zone was signed. (§2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-2.3-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-2.3-5"><code>RFC4035-2.3-5</code></a></h3>
-<p>The type bitmap of every NSEC RR MUST indicate the presence of both the NSEC record itself and its corresponding RRSIG record (§2.3)</p>
+<p>The type bitmap of every NSEC resource record in a signed zone MUST indicate the presence of both the NSEC record itself and its corresponding RRSIG record. (§2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-2.3-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-2.3-6"><code>RFC4035-2.3-6</code></a></h3>
@@ -2195,7 +2195,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-2.5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-2.6-1"><code>RFC4035-2.6-1</code></a></h3>
-<p>At the parental side of a zone cut, NSEC RRs are REQUIRED at the owner name (§2.6)</p>
+<p>At the parental side of a zone cut (that is, at a delegation point), NSEC RRs are REQUIRED at the owner name. (§2.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-2.6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3-1"><code>RFC4035-3-1</code></a></h3>
@@ -2226,7 +2226,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 </table>
 </div>
 <h3><a href="#rfc4035-3-8"><code>RFC4035-3-8</code></a></h3>
-<p>A security-aware name server MUST copy the CD bit from a query into the corresponding response (§3)</p>
+<p>The CD bit is controlled by resolvers; a security-aware name server MUST copy the CD bit from a query into the corresponding response. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2246,7 +2246,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 </table>
 </div>
 <h3><a href="#rfc4035-3-9"><code>RFC4035-3-9</code></a></h3>
-<p>A security-aware name server MUST ignore the setting of the AD bit in queries (§3)</p>
+<p>The AD bit is controlled by name servers; a security-aware name server MUST ignore the setting of the AD bit in queries. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2282,7 +2282,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.1.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.1.1-4"><code>RFC4035-3.1.1-4</code></a></h3>
-<p>If space does not permit inclusion of the RRSIG RRs that must accompany a signed RRset, or of a mandatory NSEC or DS RRset and its RRSIGs, the name server MUST set the TC bit (§3.1.1)</p>
+<p>If space does not permit inclusion of these RRSIG RRs, the name server MUST set the TC bit. (§3.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.1.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.1.1-5"><code>RFC4035-3.1.1-5</code></a></h3>
@@ -2294,7 +2294,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.1.1-6, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.1.1-8"><code>RFC4035-3.1.1-8</code></a></h3>
-<p>The name server MUST NOT set the TC bit solely because RRSIG RRs did not fit in the Additional section (§3.1.1)</p>
+<p>If this happens, the name server MUST NOT set the TC bit solely because these RRSIG RRs didn&#39;t fit. (§3.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.1.1-8, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.1.2-3"><code>RFC4035-3.1.2-3</code></a></h3>
@@ -2310,7 +2310,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.1.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.1.3.1-1"><code>RFC4035-3.1.3.1-1</code></a></h3>
-<p>For a No Data response, the name server MUST include the NSEC RR for the queried name and its RRSIGs in the Authority section (§3.1.3.1)</p>
+<p>If the zone contains RRsets matching &lt;SNAME, SCLASS&gt; but contains no RRset matching &lt;SNAME, SCLASS, STYPE&gt;, then the name server MUST include the NSEC RR for &lt;SNAME, SCLASS&gt; along with its associated RRSIG RR(s) in the Authority section of the response (see Section 3.1.1). (§3.1.3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.1.3.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.1.3.2-1"><code>RFC4035-3.1.3.2-1</code></a></h3>
@@ -2330,7 +2330,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.1.3.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.1.4-1"><code>RFC4035-3.1.4-1</code></a></h3>
-<p>If a DS RRset is present at the delegation point, the name server MUST return the DS RRset and its RRSIGs in the Authority section with the NS RRset (§3.1.4)</p>
+<p>If a DS RRset is present at the delegation point, the name server MUST return both the DS RRset and its associated RRSIG RR(s) in the Authority section along with the NS RRset. (§3.1.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.1.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.1.4-2"><code>RFC4035-3.1.4-2</code></a></h3>
@@ -2338,11 +2338,11 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.1.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.1.4-3"><code>RFC4035-3.1.4-3</code></a></h3>
-<p>The name server MUST place the NS RRset before the NSEC RRset and its RRSIGs (§3.1.4)</p>
+<p>The name server MUST place the NS RRset before the NSEC RRset and its associated RRSIG RR(s). (§3.1.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.1.4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.1.4.1-1"><code>RFC4035-3.1.4.1-1</code></a></h3>
-<p>When authoritative for the child zone but not the parent and not offering recursion, on a DS query at the zone cut the name server MUST return an authoritative no-data response (§3.1.4.1)</p>
+<p>In this case, the name server MUST return an authoritative &#34;no data&#34; response showing that the DS RRset does not exist in the child zone&#39;s apex. (§3.1.4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2362,11 +2362,11 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 </table>
 </div>
 <h3><a href="#rfc4035-3.1.5-2"><code>RFC4035-3.1.5-2</code></a></h3>
-<p>A name server performing its own zone validation MUST NOT selectively reject some RRs and accept others (§3.1.5)</p>
+<p>An authoritative name server that chooses to perform its own zone validation MUST NOT selectively reject some RRs and accept others. (§3.1.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.1.5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.1.5-3"><code>RFC4035-3.1.5-3</code></a></h3>
-<p>The DS RRset MUST be included in zone transfers of the parent zone in which it is authoritative data (§3.1.5)</p>
+<p>As with any other authoritative RRset, the DS RRset MUST be included in zone transfers of the zone in which the RRset is authoritative data. (§3.1.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.1.5-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.1.5-4"><code>RFC4035-3.1.5-4</code></a></h3>
@@ -2386,7 +2386,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.1.5-7, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.1.6-2"><code>RFC4035-3.1.6-2</code></a></h3>
-<p>A security-aware name server MUST NOT set the AD bit in a response unless it considers all RRsets in the Answer and Authority sections to be authentic (§3.1.6)</p>
+<p>A security-aware name server MUST NOT set the AD bit in a response unless the name server considers all RRsets in the Answer and Authority sections of the response to be authentic. (§3.1.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2431,7 +2431,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 </table>
 </div>
 <h3><a href="#rfc4035-3.1.6-6"><code>RFC4035-3.1.6-6</code></a></h3>
-<p>A security-aware name server that supports recursion MUST follow the recursive-server CD and AD bit rules for data obtained via recursion (§3.1.6)</p>
+<p>A security-aware name server that supports recursion MUST follow the rules for the CD and AD bits given in Section 3.2 when generating a response that involves data obtained via recursion. (§3.1.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.1.6-6, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.2.1-1"><code>RFC4035-3.2.1-1</code></a></h3>
@@ -2447,7 +2447,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.2.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.2.2-1"><code>RFC4035-3.2.2-1</code></a></h3>
-<p>The name server side MUST pass the state of the CD bit to the resolver side along with the initiating query (§3.2.2)</p>
+<p>The name server side of a security-aware recursive name server MUST pass the state of the CD bit to the resolver side along with the rest of an initiating query, so that the resolver side will know whether it is required to verify the response data it returns to the name server side. (§3.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.2.2-4"><code>RFC4035-3.2.2-4</code></a></h3>
@@ -2455,11 +2455,11 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.2.2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-3.2.3-2"><code>RFC4035-3.2.3-2</code></a></h3>
-<p>The resolver side MUST determine whether the RRs are authentic by following the RFC&#39;s authentication procedure (§3.2.3)</p>
+<p>The resolver side MUST follow the procedure described in Section 5 to determine whether the RRs in question are authentic. (§3.2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-3.2.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-4.1-1"><code>RFC4035-4.1-1</code></a></h3>
-<p>A security-aware resolver MUST include an EDNS OPT pseudo-RR with the DO bit set when sending queries (§4.1)</p>
+<p>A security-aware resolver MUST include an EDNS ([RFC2671]) OPT pseudo-RR with the DO ([RFC3225]) bit set when sending queries. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2504,7 +2504,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 </table>
 </div>
 <h3><a href="#rfc4035-4.1-5"><code>RFC4035-4.1-5</code></a></h3>
-<p>A security-aware resolver&#39;s IP layer MUST handle fragmented UDP packets correctly whether received via IPv4 or IPv6 (§4.1)</p>
+<p>A security-aware resolver&#39;s IP layer MUST handle fragmented UDP packets correctly regardless of whether any such fragmented packets were received via IPv4 or IPv6. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-4.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-4.2-1"><code>RFC4035-4.2-1</code></a></h3>
@@ -2512,19 +2512,19 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-4.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-4.2-3"><code>RFC4035-4.2-3</code></a></h3>
-<p>A resolver&#39;s signature verification support MUST include verification of wildcard owner names (§4.2)</p>
+<p>A security-aware resolver&#39;s support for signature verification MUST include support for verification of wildcard owner names. (§4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-4.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-4.2-5"><code>RFC4035-4.2-5</code></a></h3>
-<p>When retrieving missing NSEC RRs on the parental side of a zone cut, an iterative-mode resolver MUST query the parent zone name servers, not the child (§4.2)</p>
+<p>When attempting to retrieve missing NSEC RRs that reside on the parental side at a zone cut, a security-aware iterative-mode resolver MUST query the name servers for the parent zone, not the child zone. (§4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-4.2-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-4.2-6"><code>RFC4035-4.2-6</code></a></h3>
-<p>When retrieving a missing DS, an iterative-mode resolver MUST query the parent zone name servers, not the child (§4.2)</p>
+<p>When attempting to retrieve a missing DS, a security-aware iterative-mode resolver MUST query the name servers for the parent zone, not the child zone. (§4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-4.2-6, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-4.3-1"><code>RFC4035-4.3-1</code></a></h3>
-<p>A security-aware resolver MUST be able to determine whether it should expect a particular RRset to be signed, distinguishing Secure, Insecure, Bogus, and Indeterminate (§4.3)</p>
+<p>A security-aware resolver MUST be able to determine whether it should expect a particular RRset to be signed. (§4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-4.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-4.4-1"><code>RFC4035-4.4-1</code></a></h3>
@@ -2547,7 +2547,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 </table>
 </div>
 <h3><a href="#rfc4035-4.6-3"><code>RFC4035-4.6-3</code></a></h3>
-<p>A resolver MUST disregard the meaning of the CD and AD bits in a response unless it was obtained over a secure channel or the resolver was configured to trust them (§4.6)</p>
+<p>A resolver MUST disregard the meaning of the CD and AD bits in a response unless the response was obtained by using a secure channel or the resolver was specifically configured to regard the message header bits without using a secure channel. (§4.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2575,15 +2575,15 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-4.7-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-4.7-7"><code>RFC4035-4.7-7</code></a></h3>
-<p>A resolver MUST NOT return RRsets from the BAD cache unless it is not required to validate their signatures (§4.7)</p>
+<p>Resolvers MUST NOT return RRsets from the BAD cache unless the resolver is not required to validate the signatures of the RRsets in question under the rules given in Section 4.2 of this document. (§4.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-4.7-7, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-4.8-1"><code>RFC4035-4.8-1</code></a></h3>
-<p>A validating resolver MUST treat the signature of a valid signed DNAME RR as also covering unsigned CNAME RRs synthesizable from it, at least by not rejecting the message solely for containing them (§4.8)</p>
+<p>A validating security-aware resolver MUST treat the signature of a valid signed DNAME RR as also covering unsigned CNAME RRs that could have been synthesized from the DNAME RR, as described in [RFC2672], at least to the extent of not rejecting a response message solely because it contains such CNAME RRs. (§4.8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-4.8-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-4.9-1"><code>RFC4035-4.9-1</code></a></h3>
-<p>A security-aware stub resolver MUST support the DNSSEC RR types, at least by not mishandling responses that contain them (§4.9)</p>
+<p>A security-aware stub resolver MUST support the DNSSEC RR types, at least to the extent of not mishandling responses just because they contain DNSSEC RRs. (§4.9)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2618,7 +2618,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 </table>
 </div>
 <h3><a href="#rfc4035-4.9.3-2"><code>RFC4035-4.9.3-2</code></a></h3>
-<p>A security-aware stub resolver MUST NOT place any reliance on signature validation performed on its behalf except when it obtained the data from a trusted recursive name server over a secure channel (§4.9.3)</p>
+<p>In any case, a security-aware stub resolver MUST NOT place any reliance on signature validation allegedly performed on its behalf, except when the security-aware stub resolver obtained the data in question from a trusted security-aware recursive name server via a secure channel. (§4.9.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-4.9.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5-1"><code>RFC4035-5-1</code></a></h3>
@@ -2634,7 +2634,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5.2-1"><code>RFC4035-5.2-1</code></a></h3>
-<p>A security-aware resolver MUST query the parent zone name servers for the DS RRset if a referral includes neither a DS RRset nor an NSEC RRset proving the DS RRset does not exist (§5.2)</p>
+<p>A security-aware resolver MUST query the name servers for the parent zone for the DS RRset if the referral includes neither a DS RRset nor a NSEC RRset proving that the DS RRset does not exist (see Section 4). (§5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5.2-3"><code>RFC4035-5.2-3</code></a></h3>
@@ -2658,15 +2658,15 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5.3.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5.3.1-5"><code>RFC4035-5.3.1-5</code></a></h3>
-<p>The validator&#39;s notion of the current time MUST be less than or equal to the RRSIG RR&#39;s Expiration field (§5.3.1)</p>
+<p>o The validator&#39;s notion of the current time MUST be less than or equal to the time listed in the RRSIG RR&#39;s Expiration field. (§5.3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5.3.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5.3.1-6"><code>RFC4035-5.3.1-6</code></a></h3>
-<p>The validator&#39;s notion of the current time MUST be greater than or equal to the RRSIG RR&#39;s Inception field (§5.3.1)</p>
+<p>o The validator&#39;s notion of the current time MUST be greater than or equal to the time listed in the RRSIG RR&#39;s Inception field. (§5.3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5.3.1-6, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5.3.1-7"><code>RFC4035-5.3.1-7</code></a></h3>
-<p>The RRSIG RR&#39;s Signer&#39;s Name, Algorithm, and Key Tag fields MUST match the owner name, algorithm, and key tag of some DNSKEY RR in the zone&#39;s apex DNSKEY RRset (§5.3.1)</p>
+<p>o The RRSIG RR&#39;s Signer&#39;s Name, Algorithm, and Key Tag fields MUST match the owner name, algorithm, and key tag for some DNSKEY RR in the zone&#39;s apex DNSKEY RRset. (§5.3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5.3.1-7, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5.3.1-8"><code>RFC4035-5.3.1-8</code></a></h3>
@@ -2682,15 +2682,15 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5.3.1-10, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5.3.2-1"><code>RFC4035-5.3.2-1</code></a></h3>
-<p>If the RRSIG Labels field is greater than the RRset&#39;s label count, the RRSIG did not pass validation and MUST NOT be used to authenticate the RRset (§5.3.2)</p>
+<p>if rrsig_labels &gt; fqdn_labels the RRSIG RR did not pass the necessary validation checks and MUST NOT be used to authenticate this RRset. (§5.3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5.3.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5.3.2-2"><code>RFC4035-5.3.2-2</code></a></h3>
-<p>When reconstructing the parent-zone NSEC RRset at a delegation, its NSEC RRs MUST NOT be combined with NSEC RRs from the child zone (§5.3.2)</p>
+<p>When reconstructing the original NSEC RRset for the delegation from the parent zone, the NSEC RRs MUST NOT be combined with NSEC RRs from the child zone. (§5.3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5.3.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5.3.2-3"><code>RFC4035-5.3.2-3</code></a></h3>
-<p>When reconstructing the child-apex NSEC RRset, its NSEC RRs MUST NOT be combined with NSEC RRs from the parent zone (§5.3.2)</p>
+<p>When reconstructing the original NSEC RRset for the apex of the child zone, the NSEC RRs MUST NOT be combined with NSEC RRs from the parent zone. (§5.3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5.3.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5.3.3-1"><code>RFC4035-5.3.3-1</code></a></h3>
@@ -2702,27 +2702,27 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5.3.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5.4-1"><code>RFC4035-5.4-1</code></a></h3>
-<p>A security-aware resolver MUST authenticate the NSEC RRsets that comprise a denial-of-existence proof (§5.4)</p>
+<p>In addition, security-aware resolvers MUST authenticate the NSEC RRsets that comprise the non-existence proof as described in Section 5.3. (§5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5.4-2"><code>RFC4035-5.4-2</code></a></h3>
-<p>If the complete set of necessary NSEC RRsets is not present in a response, the resolver MUST resend the query to obtain them (§5.4)</p>
+<p>If the complete set of necessary NSEC RRsets is not present in a response (perhaps due to message truncation), then a security-aware resolver MUST resend the query in order to attempt to obtain the full collection of NSEC RRs necessary to verify the non-existence of the requested RRset. (§5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5.4-3"><code>RFC4035-5.4-3</code></a></h3>
-<p>The resolver MUST bound the work it puts into answering any particular query (§5.4)</p>
+<p>As with all DNS operations, however, the resolver MUST bound the work it puts into answering any particular query. (§5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5.4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5.4-4"><code>RFC4035-5.4-4</code></a></h3>
-<p>A validator MUST ignore the settings of the NSEC and RRSIG bits in an NSEC RR (§5.4)</p>
+<p>Since a validated NSEC RR proves the existence of both itself and its corresponding RRSIG RR, a validator MUST ignore the settings of the NSEC and RRSIG bits in an NSEC RR. (§5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5.4-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5.5-2"><code>RFC4035-5.5-2</code></a></h3>
-<p>When validation was done to service a recursive query, the name server MUST return RCODE 2 to the originating client (§5.5)</p>
+<p>If the validation was being done to service a recursive query, the name server MUST return RCODE 2 to the originating client. (§5.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5.5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-5.5-3"><code>RFC4035-5.5-3</code></a></h3>
-<p>The name server MUST return the full response if and only if the original query had the CD bit set (§5.5)</p>
+<p>However, it MUST return the full response if and only if the original query had the CD bit set. (§5.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4035-5.5-3, so no unit is bound to it.</p>
 </section>
@@ -3374,7 +3374,7 @@ Three MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/bl
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

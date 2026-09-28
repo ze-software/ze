@@ -10,10 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 21.9% | 7 of 32 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 81.2% | 26 of 32 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 18.8% | 6 of 32 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 32 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 6.5% | 2 of 31 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| No test at all | 0.0% | 0 of 32 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 31.5% | 23 of 73 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -27,14 +28,6 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 32 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 32 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| No test at all | 59.4% | 19 of 32 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-
 The 7 shares marked as a part above are the whole of the 32 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -46,7 +39,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -63,19 +56,19 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 32 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
-| Gated with no test | 19 |
+| Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 31 |
-| Tagged units | 31 |
+| Test tags | 73 |
+| Tagged units | 73 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 2 |
+| Discrimination records | 23 |
 | Summary | `rfc/short/rfc7854.md` |
 | Requirement shard | `rfc/requirements/rfc7854.md` |
 | RFC text | `rfc/full/rfc7854.txt` |
 
 ## Enrolment
 
-Enrolled: BGP Monitoring Protocol (BMP) base. Twelve x-numbered requirements carry tags in internal/component/bgp/plugins/bmp. Five carry positive+negative tags: x-1 (the common-header version is 3, other versions rejected), x-2 (the common header is 6 octets), x-3 (the per-peer header is present for the peer-scoped message types), x-5 (an IPv4 peer address is IPv4-mapped in the 16-octet field), and x-8 (a Peer Up carries the sent and received OPENs). Seven are {single-polarity: positive}: x-4 (the Peer AS is 4 octets), x-6 (Initiation is sent first), x-7 (Initiation carries the sysName TLV), x-9 (Route Monitoring wraps a BGP UPDATE PDU), x-10 (Peer Down carries a Reason), x-11 (Termination is sent on shutdown, which the RFC states as a MAY), and x-12 (monitoring is unidirectional: the BMP receiver writes nothing back over a valid session, proven by a net.Pipe test). The 2026-09-21 extraction walk read the document and added the section-cited obligations sections 3.2 through 8.2 state; none of those rows carries a test, so they are gaps the gate reports.
+Enrolled: Ze implements the BMP sender and receiver under internal/component/bgp/plugins/bmp. Wire-message and session carriers cover the common and per-peer headers, OPEN exchange, current per-peer replay and completion, identity, ordered information, termination and statistics. Requirement coverage and discrimination remain subject to the current gate result.
 
 ## What the public ledger says
 
@@ -83,101 +76,80 @@ Enrolled: BGP Monitoring Protocol (BMP) base. Twelve x-numbered requirements car
 
 **What the ledger says is covered**
 
-- BMP receiver and sender, peer lifecycle, route monitoring messages, CLI and config. Each collector connection is a complete BMP session: Initiation first, then a Peer Up for every BGP peer that is already established, and a Termination before the session is closed (sent by the teardown path that closes the socket, so a collector actually receives it). Messages reach the socket through a per-session byte-bounded transmit queue drained by that session's own goroutine, so a collector that stops reading never blocks BGP
-- when the bound is reached the session is reset with a bare TCP close and no Termination.
+- BMP receiver and sender, peer lifecycle, current per-NLRI replay with per-family End-of-RIB, received and sent route monitoring, CLI and configuration. Initiation carries the administrative system identity
+- receiver information strings retain order and duplicates. Sender shutdown carries Reason 0 and closes
+- bounded transmit queues reset stalled sessions.
 
 
-**What the ledger says remains**
+**What the ledger says remains:**
 
-Loc-RIB route monitoring is provided under RFC 9069. The 2026-09-21 extraction walk added the obligations the document's own sections state, and none of them carries a test: connection backoff and the session establishment rate limit (3.2), the per-peer End-of-RIB that ends an initial table dump (3.3), ignoring unrecognized message types and stat types (4.1, 4.8), the reserved per-peer flag bits (4.2), the sysDescr and sysName values and the ordering of multiple strings (4.4), the Termination close sequence and its Reason TLV (4.5), the Route Mirroring TLV order (4.7), the L flag, timestamp and withdraw rules of route monitoring (5), and the zero ports on a Loc-RIB Peer Up (8.2).
+Focused execution, producer discrimination and third-party pmacct acceptance of the current changes remain unrun. Loc-RIB monitoring is defined under RFC 9069 and Adj-RIB-Out under RFC 8671.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 7 | one part of the gated population |
+| Positive and negative tests | 26 | one part of the gated population |
 | Annotated instead of tested | 6 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 19 | one part of the gated population |
+| No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **32** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (7):** [`RFC7854-x-1`](#rfc7854-x-1), [`RFC7854-x-2`](#rfc7854-x-2), [`RFC7854-x-3`](#rfc7854-x-3), [`RFC7854-x-5`](#rfc7854-x-5), [`RFC7854-x-8`](#rfc7854-x-8), [`RFC7854-4.9-1`](#rfc7854-4.9-1), [`RFC7854-4.5-2`](#rfc7854-4.5-2)
+**Positive and negative tests (26):** [`RFC7854-x-1`](#rfc7854-x-1), [`RFC7854-x-2`](#rfc7854-x-2), [`RFC7854-x-3`](#rfc7854-x-3), [`RFC7854-x-5`](#rfc7854-x-5), [`RFC7854-x-8`](#rfc7854-x-8), [`RFC7854-4.9-1`](#rfc7854-4.9-1), [`RFC7854-4.5-2`](#rfc7854-4.5-2), [`RFC7854-x-18`](#rfc7854-x-18), [`RFC7854-3.2-1`](#rfc7854-3.2-1), [`RFC7854-3.2-2`](#rfc7854-3.2-2), [`RFC7854-3.3-1`](#rfc7854-3.3-1), [`RFC7854-4.1-1`](#rfc7854-4.1-1), [`RFC7854-4.2-1`](#rfc7854-4.2-1), [`RFC7854-4.4-1`](#rfc7854-4.4-1), [`RFC7854-4.4-2`](#rfc7854-4.4-2), [`RFC7854-4.4-3`](#rfc7854-4.4-3), [`RFC7854-4.5-1`](#rfc7854-4.5-1), [`RFC7854-4.5-3`](#rfc7854-4.5-3), [`RFC7854-4.7-1`](#rfc7854-4.7-1), [`RFC7854-4.7-2`](#rfc7854-4.7-2), [`RFC7854-4.8-1`](#rfc7854-4.8-1), [`RFC7854-4.8-2`](#rfc7854-4.8-2), [`RFC7854-5-1`](#rfc7854-5-1), [`RFC7854-5-2`](#rfc7854-5-2), [`RFC7854-5-3`](#rfc7854-5-3), [`RFC7854-8.2-1`](#rfc7854-8.2-1)
 
 **Annotated instead of tested (6):** [`RFC7854-x-4`](#rfc7854-x-4), [`RFC7854-x-6`](#rfc7854-x-6), [`RFC7854-x-7`](#rfc7854-x-7), [`RFC7854-x-9`](#rfc7854-x-9), [`RFC7854-x-10`](#rfc7854-x-10), [`RFC7854-x-12`](#rfc7854-x-12)
-
-**No test and no annotation (19):** [`RFC7854-x-18`](#rfc7854-x-18), [`RFC7854-3.2-1`](#rfc7854-3.2-1), [`RFC7854-3.2-2`](#rfc7854-3.2-2), [`RFC7854-3.3-1`](#rfc7854-3.3-1), [`RFC7854-4.1-1`](#rfc7854-4.1-1), [`RFC7854-4.2-1`](#rfc7854-4.2-1), [`RFC7854-4.4-1`](#rfc7854-4.4-1), [`RFC7854-4.4-2`](#rfc7854-4.4-2), [`RFC7854-4.4-3`](#rfc7854-4.4-3), [`RFC7854-4.5-1`](#rfc7854-4.5-1), [`RFC7854-4.5-3`](#rfc7854-4.5-3), [`RFC7854-4.7-1`](#rfc7854-4.7-1), [`RFC7854-4.7-2`](#rfc7854-4.7-2), [`RFC7854-4.8-1`](#rfc7854-4.8-1), [`RFC7854-4.8-2`](#rfc7854-4.8-2), [`RFC7854-5-1`](#rfc7854-5-1), [`RFC7854-5-2`](#rfc7854-5-2), [`RFC7854-5-3`](#rfc7854-5-3), [`RFC7854-8.2-1`](#rfc7854-8.2-1)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7854-x-1` | Common Header Version field must be 3 (Wire Format) | MUST | x | **positive:** `unit/verify` [`TestBMPCommonHeaderDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L18). **negative:** `unit/verify` [`TestBMPCommonHeaderDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L37). **negative:** `unit/verify` [`TestBMPMalformedHeaderDrops`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L74) |
+| `RFC7854-x-1` | Common Header Version field must be 3 (Wire Format) | MUST | x | **positive:** `unit/verify` [`TestBMPCommonHeaderDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L18). **negative:** `unit/verify` [`TestBMPCommonHeaderDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L37). **negative:** `unit/verify` [`TestBMPMalformedHeaderDrops`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L77) |
 | `RFC7854-x-2` | Common Header must be 6 bytes: Version (1) + Message Length (4) + Message Type (1) (Wire Format) | MUST | x | **positive:** `unit/verify` [`TestBMPCommonHeaderEncode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L83). **negative:** `unit/verify` [`TestBMPCommonHeaderDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L30) |
-| `RFC7854-x-3` | Per-Peer Header must be present for message types 0-3 and 6 (Wire Format) | MUST | x | **positive:** `unit/verify` [`TestHasPeerHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L312). **negative:** `unit/verify` [`TestHasPeerHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L314) |
+| `RFC7854-x-3` | Per-Peer Header must be present for message types 0-3 and 6 (Wire Format) | MUST | x | **positive:** `unit/verify` [`TestHasPeerHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L285). **negative:** `unit/verify` [`TestHasPeerHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L287) |
 | `RFC7854-x-4` | Peer AS field must always be encoded as 4-byte AS number (Wire Format) | MUST | x | **positive:** `unit/verify` [`TestBMPPeerHeaderDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L116). **positive:** `unit/verify` [`TestBMPPeerHeaderEncode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L173). **negative:** no negative test. **{single-polarity}:** the Peer AS is unconditionally a 4-octet field on every encode and decode, so there is no shorter-AS variant to reject and no negative case to construct |
-| `RFC7854-x-5` | IPv4 Peer Address must be encoded as IPv4-mapped IPv6 (::ffff:x.x.x.x) in 16-byte field (Wire Format) | MUST | x | **positive:** `unit/verify` [`TestParseIPIntoIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L426). **negative:** `unit/verify` [`TestParseIPIntoIPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L441) |
+| `RFC7854-x-5` | IPv4 Peer Address occupies the least significant 4 bytes of the 16-byte field, "with the 12 most significant bytes zero-filled" (§4.2, Per-Peer Header) | MUST | 4.2 | **positive:** `unit/verify` [`TestParseIPIntoIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L379). **negative:** `unit/verify` [`TestParseIPIntoIPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L393) |
 | `RFC7854-x-6` | Initiation message must be sent immediately after TCP connection establishment (Session Lifecycle) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderConnects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L19). **negative:** no negative test. **{single-polarity}:** the sender always emits Initiation as the first message on a fresh connection, so there is no valid session in which another message precedes it to reject |
 | `RFC7854-x-7` | Initiation message must include sysName TLV (type 2) (Session Lifecycle) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderInitiation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L84). **negative:** no negative test. **{single-polarity}:** the Initiation the sender builds always includes the sysName TLV, so there is no valid Initiation omitting it to assert against |
-| `RFC7854-x-8` | Peer Up message must include both sent and received OPEN messages (Message Types) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderPeerUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L207). **positive:** `unit/verify` [`TestHandleSenderStatePeerUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L136). **negative:** `unit/verify` [`TestBMPPeerUpSkippedOnCacheMiss`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L269). **negative:** `unit/verify` [`TestPeerUpOnCacheMissNeverReachesTheCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerup_openless_test.go#L47) |
-| `RFC7854-x-9` | Route Monitoring messages must contain a BGP UPDATE message (Message Types) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderRouteMonitoring`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L275). **negative:** no negative test. **{single-polarity}:** Route Monitoring is only ever constructed around a complete BGP UPDATE PDU, so there is no valid Route Monitoring lacking one to reject |
-| `RFC7854-x-10` | Peer Down must include the reason code (1 byte) (Message Types) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderPeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L244). **positive:** `unit/verify` [`TestHandleSenderStatePeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L298). **negative:** no negative test. **{single-polarity}:** Peer Down is always written with a reason byte, so there is no valid Peer Down without one to assert against |
-| `RFC7854-x-11` | Termination message may be sent before the BMP session is closed: "The router MAY send a Termination message prior to closing the session." (Session Lifecycle) | MAY | x | **positive:** `unit/verify` [`TestBMPSenderTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L359). **positive:** `unit/verify` [`TestSenderStopSendsTerminationToCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_queue_test.go#L561). **negative:** no negative test. **{single-polarity}:** Termination is produced unconditionally when the session is torn down, so there is no valid shutdown that omits it to reject |
-| `RFC7854-x-12` | BMP is unidirectional: router to collector only (Session Lifecycle) | MUST | x | **positive:** `unit/verify` [`TestBMPReceiverUnidirectional`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L132). **negative:** no negative test. **{single-polarity}:** the receiver loop (internal/component/bgp/plugins/bmp/bmp.go:441-492) issues only reads and the sender hold-loop (sender.go:207-237) reads only to detect close, so neither role writes toward the monitored router on a valid session and there is no reject case to construct |
+| `RFC7854-x-8` | Peer Up message must include both sent and received OPEN messages (Message Types) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderPeerUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L211). **positive:** `unit/verify` [`TestHandleSenderStatePeerUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L136). **negative:** `unit/verify` [`TestPeerUpOnCacheMissNeverReachesTheCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerup_openless_test.go#L40) |
+| `RFC7854-x-9` | Route Monitoring messages must contain a BGP UPDATE message (Message Types) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderRouteMonitoring`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L279). **negative:** no negative test. **{single-polarity}:** Route Monitoring is only ever constructed around a complete BGP UPDATE PDU, so there is no valid Route Monitoring lacking one to reject |
+| `RFC7854-x-10` | Peer Down must include the reason code (1 byte) (Message Types) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderPeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L248). **positive:** `unit/verify` [`TestHandleSenderStatePeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L269). **negative:** no negative test. **{single-polarity}:** Peer Down is always written with a reason byte, so there is no valid Peer Down without one to assert against |
+| `RFC7854-x-11` | Termination message may be sent before the BMP session is closed: "The router MAY send a Termination message prior to closing the session." (Session Lifecycle) | MAY | x | **positive:** `unit/verify` [`TestBMPSenderTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L363). **positive:** `unit/verify` [`TestSenderStopSendsTerminationToCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_queue_test.go#L561). **negative:** no negative test. **{single-polarity}:** Termination is produced unconditionally when the session is torn down, so there is no valid shutdown that omits it to reject |
+| `RFC7854-x-12` | BMP is unidirectional: router to collector only (Session Lifecycle) | MUST | x | **positive:** `unit/verify` [`TestBMPReceiverUnidirectional`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L135). **negative:** no negative test. **{single-polarity}:** the receiver loop (internal/component/bgp/plugins/bmp/bmp.go:441-492) issues only reads and the sender hold-loop (sender.go:207-237) reads only to detect close, so neither role writes toward the monitored router on a valid session and there is no reject case to construct |
 | `RFC7854-4.9-1` | Peer Down must carry the Data field when the Reason is 1, 2 or 3: the BGP NOTIFICATION PDU for reason 1 and reason 3, and the 2-byte FSM event code for reason 2 (§4.9, Peer Down Notification) | MUST | 4.9 | **positive:** `unit/verify` [`TestRFC7854PeerDownCarriesTheDataItsReasonRequires`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L88). **negative:** `unit/verify` [`TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L148) |
-| `RFC7854-4.5-2` | The monitoring station must close the TCP session after receiving a termination message (§4.5, Termination Message) | MUST | 4.5 | **positive:** `unit/verify` [`TestBMPReceiverClosesAfterTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/termination_close_test.go#L9). **negative:** `unit/verify` [`TestBMPReceiverKeepsSessionWithoutTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/termination_absent_test.go#L9) |
+| `RFC7854-4.5-2` | Likewise, the monitoring station MUST close the TCP session after receiving a termination message. (§4.5, Termination Message) | MUST | 4.5 | **positive:** `unit/verify` [`TestBMPReceiverClosesAfterTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/termination_close_test.go#L9). **negative:** `unit/verify` [`TestBMPReceiverKeepsSessionWithoutTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/termination_absent_test.go#L9) |
 | `RFC7854-x-13` | Minimum 30 seconds between reconnection attempts (Reconnection) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
 | `RFC7854-x-14` | Maximum 720 seconds between reconnection attempts with exponential backoff (Reconnection) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-x-15` | Statistics Reports may be sent periodically: "It MAY periodically send Stats Reports or even new Initiation messages, according to configuration." The Stats Reports text imposes no timing either: "This specification does not impose any timing restrictions on when and on what event these reports have to be transmitted." (Session Lifecycle) | MAY | x | **positive:** `unit/verify` [`TestRFC7854StatisticsTimeoutSendsPeriodicReports`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L411). **negative:** `unit/verify` [`TestRFC7854StatisticsTimeoutZeroSendsNoReport`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L464) |
-| `RFC7854-x-16` | Peer Up message should be sent for each established peer (Session Lifecycle) | SHOULD | x | **positive:** `unit/verify` [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L462). **negative:** no negative test |
-| `RFC7854-x-17` | Initial RIB dump via Route Monitoring should follow Peer Up (Session Lifecycle) | SHOULD | x | **positive:** `unit/verify` [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L465). **negative:** no negative test |
-| `RFC7854-x-18` | Initiation message must include the sysDescr TLV (type 1): "The sysDescr and sysName Information TLVs MUST be sent, any others are optional." (Message Types) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-x-15` | Statistics Reports may be sent periodically: "It MAY periodically send Stats Reports or even new Initiation messages, according to configuration." The Stats Reports text imposes no timing either: "This specification does not impose any timing restrictions on when and on what event these reports have to be transmitted." (Session Lifecycle) | MAY | x | **positive:** `unit/verify` [`TestRFC7854StatisticsTimeoutSendsPeriodicReports`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L422). **negative:** `unit/verify` [`TestRFC7854StatisticsTimeoutZeroSendsNoReport`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L475) |
+| `RFC7854-x-16` | Peer Up message should be sent for each established peer (Session Lifecycle) | SHOULD | x | **positive:** `unit/verify` [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L463). **negative:** no negative test |
+| `RFC7854-x-17` | Initial RIB dump via Route Monitoring should follow Peer Up (Session Lifecycle) | SHOULD | x | **positive:** `unit/verify` [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L466). **negative:** no negative test |
+| `RFC7854-x-18` | Initiation message must include the sysDescr TLV (type 1): "The sysDescr and sysName Information TLVs MUST be sent, any others are optional." (Message Types) | MUST | x | **positive:** `unit/verify` [`TestRFC7854InitiationCarriesSysDescr`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L29). **positive:** `unit/verify` [`TestRFC7854InitiationEmptyIdentityValuesAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L39). **negative:** `unit/verify` [`TestRFC7854InitiationMissingSysDescrEndsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L15) |
 | `RFC7854-x-19` | Peer Up message may include optional TLVs (Message Types) | MAY | x | **positive:** no positive test. **negative:** no negative test |
 | `RFC7854-x-20` | Route Mirroring messages may be used to mirror BGP messages verbatim (Message Types) | MAY | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-3.2-1` | Retries of a failed connection must be subject to some variety of backoff: "Retries MUST be subject to some variety of backoff." (§3.2, Connection Establishment and Termination) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-3.2-2` | The router must restrict the rate at which BMP sessions may be established: "The router MUST also restrict the rate at which sessions may be established." (§3.2, Connection Establishment and Termination) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-3.3-1` | Once all the routes for a given peer have been sent, an End-of-RIB message must be sent for that peer: "Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer" (§3.3, Lifecycle of a BMP Session, and restated in the Route Monitoring section) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-4.1-1` | Unrecognized message types must be ignored on receipt: "A BMP implementation MUST ignore unrecognized message types upon receipt." (§4.1, Common Header) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-4.2-1` | The reserved per-peer flag bits must be transmitted as 0 and their values ignored on receipt: "They MUST be transmitted as 0 and their values MUST be ignored on receipt." (§4.2, Per-Peer Header) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-3.2-1` | Retries of a failed connection must be subject to some variety of backoff: "Retries MUST be subject to some variety of backoff." (§3.2, Connection Establishment and Termination) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC7854RetryBackoffDoubles`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L64). **negative:** `unit/verify` [`TestRFC7854RetryNotBeforeBackoff`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L114) |
+| `RFC7854-3.2-2` | The router must restrict the rate at which BMP sessions may be established: "The router MUST also restrict the rate at which sessions may be established." (§3.2, Connection Establishment and Termination) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC7854SessionEstablishmentRateLimited`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L173). **negative:** `unit/verify` [`TestRFC7854SessionEstablishmentRateLimited`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L174) |
+| `RFC7854-3.3-1` | Once all the routes for a given peer have been sent, an End-of-RIB message must be sent for that peer: "Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer" (§3.3, Lifecycle of a BMP Session, and restated in the Route Monitoring section) | MUST | 3.3 | **positive:** `unit/verify` [`TestRFC7854AdjReplayEndsEachFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L67). **negative:** `unit/verify` [`TestRFC7854AdjReplayCompletionIsSessionScoped`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L95). **negative:** `unit/verify` [`TestRFC7854IncompleteAdjReplayCannotClaimCompletion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L198) |
+| `RFC7854-4.1-1` | Unrecognized message types must be ignored on receipt: "A BMP implementation MUST ignore unrecognized message types upon receipt." (§4.1, Common Header) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC7854UnrecognizedMessageTypeIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L252). **negative:** `unit/verify` [`TestRFC7854MalformedKnownTypeStillEndsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L261) |
+| `RFC7854-4.2-1` | The reserved per-peer flag bits must be transmitted as 0 and their values ignored on receipt: "They MUST be transmitted as 0 and their values MUST be ignored on receipt." (§4.2, Per-Peer Header) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC7854ReservedFlagsTransmittedAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L337). **negative:** `unit/verify` [`TestRFC7854ReservedFlagsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L357) |
 | `RFC7854-4.3-1` | The string TLV may be included multiple times in an Initiation message: "The string TLV MAY be included multiple times." (§4.3, Initiation Message) | MAY | 4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-4.4-1` | When multiple strings are included in a string TLV, their ordering must be preserved when they are reported: "If multiple strings are included, their ordering MUST be preserved when they are reported." (§4.4, Information TLV) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-4.4-2` | The sysDescr TLV Information field must equal the MIB-II sysDescr object: "The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysDescr MIB-II [RFC1213] object." (§4.4, Information TLV) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-4.4-3` | The sysName TLV Information field must equal the MIB-II sysName object: "The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysName MIB-II [RFC1213] object." (§4.4, Information TLV) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-4.5-1` | After sending a termination message the router must close the TCP session and send no further messages: "Once the router has sent a termination message, it MUST close the TCP session without sending any further messages." (§4.5, Termination Message) | MUST | 4.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-4.5-3` | A Termination message must carry the Reason TLV (type 1): "Inclusion of this TLV is REQUIRED." (§4.5, Termination Message) | MUST | 4.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-4.7-1` | A BGP Message TLV in a Route Mirroring message must occur last in the list of TLVs: "If the BGP Message TLV occurs in the Route Mirroring message, it MUST occur last in the list of TLVs." (§4.7, Route Mirroring) | MUST | 4.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-4.7-2` | A Route Mirroring message carrying Information code 0 (Errored PDU) must also carry a BGP Message TLV: "A BGP Message TLV MUST also occur in the TLV list." (§4.7, Route Mirroring) | MUST | 4.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-4.8-1` | Unrecognized stat types and unexpected Stat Data must be ignored on receipt: "A BMP implementation MUST ignore unrecognized stat types on receipt, and likewise MUST ignore unexpected data in the Stat Data field." (§4.8, Stats Reports) | MUST | 4.8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-4.8-2` | A transmitted Stats Report must carry at least one statistic: "However, if an SR message is transmitted, at least one statistic MUST be carried in it." (§4.8, Stats Reports) | MUST | 4.8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-5-1` | Pre-policy routes must have the L flag clear and post-policy routes must have it set: "Pre-policy routes MUST have their L flag clear in the BMP header (see Section 4), post-policy routes MUST have their L flag set." (§5, Route Monitoring) | MUST | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-5-2` | Where the time a route was installed is not available, the BMP Timestamp field must be set to 0: "Otherwise, the BMP Timestamp field MUST be set to 0, indicating that time is not available." (§5, Route Monitoring) | MUST | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-5-3` | A withdraw must carry the L flag of the announcement it withdraws, and must be sent twice where the route was announced both pre-policy and post-policy: "The withdraw MUST have its L flag set to correspond to that of any previous announcement; if the route in question was previously announced with L flag both clear and set, the withdraw MUST similarly be sent twice, with L flag clear and set." (§5, Route Monitoring) | MUST | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-8.2-1` | Where no transport session exists, the Local Port and Remote Port fields of a Peer Up message must be set to 0: "Since in this case no transport session actually exists, the Local and Remote Port fields of the Peer Up message MUST be set to 0." (§8.2, Peer Up Notification) | MUST | 8.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-4.4-1` | When multiple strings are included in a string TLV, their ordering must be preserved when they are reported: "If multiple strings are included, their ordering MUST be preserved when they are reported." (§4.4, Information TLV) | MUST | 4.4 | **positive:** `unit/verify` [`TestRFC7854InitiationStringsReportedInOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L21). **positive:** `unit/verify` [`TestRFC7854PeerUpStringsReportedInOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L44). **negative:** `unit/verify` [`TestRFC7854InitiationStringsKeepDuplicates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L32). **negative:** `unit/verify` [`TestRFC7854PeerUpStringsKeepDuplicates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L55) |
+| `RFC7854-4.4-2` | The sysDescr TLV Information field must equal the MIB-II sysDescr object: "The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysDescr MIB-II [RFC1213] object." (§4.4, Information TLV) | MUST | 4.4 | **positive:** `unit/verify` [`TestRFC7854InitiationDescribesRunningSystem`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L205). **negative:** `unit/verify` [`TestRFC7854InitiationDescriptionChangesWithBuild`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L227) |
+| `RFC7854-4.4-3` | The sysName TLV Information field must equal the MIB-II sysName object: "The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysName MIB-II [RFC1213] object." (§4.4, Information TLV) | MUST | 4.4 | **positive:** `unit/verify` [`TestRFC7854InitiationUsesConfiguredSystemName`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L168). **negative:** `unit/verify` [`TestRFC7854InitiationSystemNameChanges`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L188) |
+| `RFC7854-4.5-1` | After sending a termination message the router must close the TCP session and send no further messages: "Once the router has sent a termination message, it MUST close the TCP session without sending any further messages." (§4.5, Termination Message) | MUST | 4.5 | **positive:** `unit/verify` [`TestRFC7854TerminationThenCloseAndSilence`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L384). **negative:** `unit/verify` [`TestRFC7854TerminationThenCloseAndSilence`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L385) |
+| `RFC7854-4.5-3` | A Termination message must carry the Reason TLV (type 1): "Inclusion of this TLV is REQUIRED." (§4.5, Termination Message) | MUST | 4.5 | **positive:** `unit/verify` [`TestRFC7854SenderTerminationCarriesReason`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L53). **negative:** `unit/verify` [`TestRFC7854TerminationRequiresTwoByteReason`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L85) |
+| `RFC7854-4.7-1` | A BGP Message TLV in a Route Mirroring message must occur last in the list of TLVs: "If the BGP Message TLV occurs in the Route Mirroring message, it MUST occur last in the list of TLVs." (§4.7, Route Mirroring) | MUST | 4.7 | **positive:** `unit/verify` [`TestRFC7854ErroredMirrorWithPDUAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L119). **positive:** `unit/verify` [`TestRFC7854RouteMirroringBGPMessageTLVLast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L421). **negative:** `unit/verify` [`TestRFC7854MirrorBGPMessageNotLastEndsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L133) |
+| `RFC7854-4.7-2` | A Route Mirroring message carrying Information code 0 (Errored PDU) must also carry a BGP Message TLV: "A BGP Message TLV MUST also occur in the TLV list." (§4.7, Route Mirroring) | MUST | 4.7 | **positive:** `unit/verify` [`TestRFC7854ErroredMirrorWithPDUAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L120). **negative:** `unit/verify` [`TestRFC7854ErroredMirrorWithoutPDUEndsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L145) |
+| `RFC7854-4.8-1` | Unrecognized stat types and unexpected Stat Data must be ignored on receipt: "A BMP implementation MUST ignore unrecognized stat types on receipt, and likewise MUST ignore unexpected data in the Stat Data field." (§4.8, Stats Reports) | MUST | 4.8 | **positive:** `unit/verify` [`TestRFC7854UnrecognizedStatTypeIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L278). **negative:** `unit/verify` [`TestRFC7854TruncatedStatEndsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L290) |
+| `RFC7854-4.8-2` | A transmitted Stats Report must carry at least one statistic: "However, if an SR message is transmitted, at least one statistic MUST be carried in it." (§4.8, Stats Reports) | MUST | 4.8 | **positive:** `unit/verify` [`TestRFC7854StatsReportCarriesAStatistic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L451). **negative:** `unit/verify` [`TestRFC7854SenderRefusesEmptyStatistics`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L174) |
+| `RFC7854-5-1` | Pre-policy routes must have the L flag clear and post-policy routes must have it set: "Pre-policy routes MUST have their L flag clear in the BMP header (see Section 4), post-policy routes MUST have their L flag set." (§5, Route Monitoring) | MUST | 5 | **positive:** `unit/verify` [`TestRFC7854LFlagFollowsPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L478). **negative:** `unit/verify` [`TestRFC7854LFlagNotDecidedByBody`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L503) |
+| `RFC7854-5-2` | Where the time a route was installed is not available, the BMP Timestamp field must be set to 0: "Otherwise, the BMP Timestamp field MUST be set to 0, indicating that time is not available." (§5, Route Monitoring) | MUST | 5 | **positive:** `unit/verify` [`TestRFC7854UnknownRouteTimeIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L122). **negative:** `unit/verify` [`TestRFC7854KnownRouteTimeSurvivesReplay`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L142) |
+| `RFC7854-5-3` | A withdraw must carry the L flag of the announcement it withdraws, and must be sent twice where the route was announced both pre-policy and post-policy: "The withdraw MUST have its L flag set to correspond to that of any previous announcement; if the route in question was previously announced with L flag both clear and set, the withdraw MUST similarly be sent twice, with L flag clear and set." (§5, Route Monitoring) | MUST | 5 | **positive:** `unit/verify` [`TestRFC7854LFlagFollowsPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L479). **negative:** `unit/verify` [`TestRFC7854LFlagNotDecidedByBody`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L504) |
+| `RFC7854-8.2-1` | Where no transport session exists, the Local Port and Remote Port fields of a Peer Up message must be set to 0: "Since in this case no transport session actually exists, the Local and Remote Port fields of the Peer Up message MUST be set to 0." (§8.2, Peer Up Notification) | MUST | 8.2 | **positive:** `unit/verify` [`TestRFC7854LocRIBPeerUpPortsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L528). **negative:** `unit/verify` [`TestRFC7854BGPPeerUpCarriesTransportPorts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L542) |
 
 ## Gaps and untested MUSTs
 
-| Requirement | State | Reason |
-|---|---|---|
-| [`RFC7854-x-18`](#rfc7854-x-18) Initiation message must include the sysDescr TLV (type 1): "The sysDescr and sysName Information TLVs MUST be sent, any others are optional." (Message Types) | no test | no test carries this requirement id |
-| [`RFC7854-3.2-1`](#rfc7854-3.2-1) Retries of a failed connection must be subject to some variety of backoff: "Retries MUST be subject to some variety of backoff." (§3.2, Connection Establishment and Termination) | no test | no test carries this requirement id |
-| [`RFC7854-3.2-2`](#rfc7854-3.2-2) The router must restrict the rate at which BMP sessions may be established: "The router MUST also restrict the rate at which sessions may be established." (§3.2, Connection Establishment and Termination) | no test | no test carries this requirement id |
-| [`RFC7854-3.3-1`](#rfc7854-3.3-1) Once all the routes for a given peer have been sent, an End-of-RIB message must be sent for that peer: "Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer" (§3.3, Lifecycle of a BMP Session, and restated in the Route Monitoring section) | no test | no test carries this requirement id |
-| [`RFC7854-4.1-1`](#rfc7854-4.1-1) Unrecognized message types must be ignored on receipt: "A BMP implementation MUST ignore unrecognized message types upon receipt." (§4.1, Common Header) | no test | no test carries this requirement id |
-| [`RFC7854-4.2-1`](#rfc7854-4.2-1) The reserved per-peer flag bits must be transmitted as 0 and their values ignored on receipt: "They MUST be transmitted as 0 and their values MUST be ignored on receipt." (§4.2, Per-Peer Header) | no test | no test carries this requirement id |
-| [`RFC7854-4.4-1`](#rfc7854-4.4-1) When multiple strings are included in a string TLV, their ordering must be preserved when they are reported: "If multiple strings are included, their ordering MUST be preserved when they are reported." (§4.4, Information TLV) | no test | no test carries this requirement id |
-| [`RFC7854-4.4-2`](#rfc7854-4.4-2) The sysDescr TLV Information field must equal the MIB-II sysDescr object: "The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysDescr MIB-II [RFC1213] object." (§4.4, Information TLV) | no test | no test carries this requirement id |
-| [`RFC7854-4.4-3`](#rfc7854-4.4-3) The sysName TLV Information field must equal the MIB-II sysName object: "The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysName MIB-II [RFC1213] object." (§4.4, Information TLV) | no test | no test carries this requirement id |
-| [`RFC7854-4.5-1`](#rfc7854-4.5-1) After sending a termination message the router must close the TCP session and send no further messages: "Once the router has sent a termination message, it MUST close the TCP session without sending any further messages." (§4.5, Termination Message) | no test | no test carries this requirement id |
-| [`RFC7854-4.5-3`](#rfc7854-4.5-3) A Termination message must carry the Reason TLV (type 1): "Inclusion of this TLV is REQUIRED." (§4.5, Termination Message) | no test | no test carries this requirement id |
-| [`RFC7854-4.7-1`](#rfc7854-4.7-1) A BGP Message TLV in a Route Mirroring message must occur last in the list of TLVs: "If the BGP Message TLV occurs in the Route Mirroring message, it MUST occur last in the list of TLVs." (§4.7, Route Mirroring) | no test | no test carries this requirement id |
-| [`RFC7854-4.7-2`](#rfc7854-4.7-2) A Route Mirroring message carrying Information code 0 (Errored PDU) must also carry a BGP Message TLV: "A BGP Message TLV MUST also occur in the TLV list." (§4.7, Route Mirroring) | no test | no test carries this requirement id |
-| [`RFC7854-4.8-1`](#rfc7854-4.8-1) Unrecognized stat types and unexpected Stat Data must be ignored on receipt: "A BMP implementation MUST ignore unrecognized stat types on receipt, and likewise MUST ignore unexpected data in the Stat Data field." (§4.8, Stats Reports) | no test | no test carries this requirement id |
-| [`RFC7854-4.8-2`](#rfc7854-4.8-2) A transmitted Stats Report must carry at least one statistic: "However, if an SR message is transmitted, at least one statistic MUST be carried in it." (§4.8, Stats Reports) | no test | no test carries this requirement id |
-| [`RFC7854-5-1`](#rfc7854-5-1) Pre-policy routes must have the L flag clear and post-policy routes must have it set: "Pre-policy routes MUST have their L flag clear in the BMP header (see Section 4), post-policy routes MUST have their L flag set." (§5, Route Monitoring) | no test | no test carries this requirement id |
-| [`RFC7854-5-2`](#rfc7854-5-2) Where the time a route was installed is not available, the BMP Timestamp field must be set to 0: "Otherwise, the BMP Timestamp field MUST be set to 0, indicating that time is not available." (§5, Route Monitoring) | no test | no test carries this requirement id |
-| [`RFC7854-5-3`](#rfc7854-5-3) A withdraw must carry the L flag of the announcement it withdraws, and must be sent twice where the route was announced both pre-policy and post-policy: "The withdraw MUST have its L flag set to correspond to that of any previous announcement; if the route in question was previously announced with L flag both clear and set, the withdraw MUST similarly be sent twice, with L flag clear and set." (§5, Route Monitoring) | no test | no test carries this requirement id |
-| [`RFC7854-8.2-1`](#rfc7854-8.2-1) Where no transport session exists, the Local Port and Remote Port fields of a Peer Up message must be set to 0: "Since in this case no transport session actually exists, the Local and Remote Port fields of the Peer Up message MUST be set to 0." (§8.2, Peer Up Notification) | no test | no test carries this requirement id |
+RFC 7854 declares no gap, and every gated MUST it carries has a test bound to it.
 
 ## Proof state
 
@@ -192,7 +164,7 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestBMPCommonHeaderDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L37) | unit/verify | unproven |
-| negative | [`TestBMPMalformedHeaderDrops`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L74) | unit/verify | unproven |
+| negative | [`TestBMPMalformedHeaderDrops`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L77) | unit/verify | unproven |
 | positive | [`TestBMPCommonHeaderDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L18) | unit/verify | unproven |
 
 ### [`RFC7854-x-2`](#rfc7854-x-2)
@@ -214,8 +186,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestHasPeerHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L314) | unit/verify | unproven |
-| positive | [`TestHasPeerHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L312) | unit/verify | unproven |
+| negative | [`TestHasPeerHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L287) | unit/verify | unproven |
+| positive | [`TestHasPeerHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L285) | unit/verify | unproven |
 
 ### [`RFC7854-x-4`](#rfc7854-x-4)
 
@@ -230,14 +202,14 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7854-x-5`](#rfc7854-x-5)
 
-IPv4 Peer Address must be encoded as IPv4-mapped IPv6 (::ffff:x.x.x.x) in 16-byte field (Wire Format)
+IPv4 Peer Address occupies the least significant 4 bytes of the 16-byte field, "with the 12 most significant bytes zero-filled" (§4.2, Per-Peer Header)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestParseIPIntoIPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L441) | unit/verify | unproven |
-| positive | [`TestParseIPIntoIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L426) | unit/verify | unproven |
+| negative | [`TestParseIPIntoIPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L393) | unit/verify | unproven |
+| positive | [`TestParseIPIntoIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L379) | unit/verify | unproven |
 
 ### [`RFC7854-x-6`](#rfc7854-x-6)
 
@@ -267,10 +239,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestBMPPeerUpSkippedOnCacheMiss`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L269) | unit/verify | unproven |
-| negative | [`TestPeerUpOnCacheMissNeverReachesTheCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerup_openless_test.go#L47) | unit/verify | unproven |
+| negative | [`TestPeerUpOnCacheMissNeverReachesTheCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerup_openless_test.go#L40) | unit/verify | unproven |
 | positive | [`TestHandleSenderStatePeerUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L136) | unit/verify | unproven |
-| positive | [`TestBMPSenderPeerUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L207) | unit/verify | unproven |
+| positive | [`TestBMPSenderPeerUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L211) | unit/verify | unproven |
 
 ### [`RFC7854-x-9`](#rfc7854-x-9)
 
@@ -280,7 +251,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestBMPSenderRouteMonitoring`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L275) | unit/verify | unproven |
+| positive | [`TestBMPSenderRouteMonitoring`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L279) | unit/verify | unproven |
 
 ### [`RFC7854-x-10`](#rfc7854-x-10)
 
@@ -290,8 +261,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestHandleSenderStatePeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L298) | unit/verify | unproven |
-| positive | [`TestBMPSenderPeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L244) | unit/verify | unproven |
+| positive | [`TestHandleSenderStatePeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L269) | unit/verify | unproven |
+| positive | [`TestBMPSenderPeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L248) | unit/verify | unproven |
 
 ### [`RFC7854-x-11`](#rfc7854-x-11)
 
@@ -302,7 +273,7 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestSenderStopSendsTerminationToCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_queue_test.go#L561) | unit/verify | unproven |
-| positive | [`TestBMPSenderTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L359) | unit/verify | unproven |
+| positive | [`TestBMPSenderTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L363) | unit/verify | unproven |
 
 ### [`RFC7854-x-12`](#rfc7854-x-12)
 
@@ -312,7 +283,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestBMPReceiverUnidirectional`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L132) | unit/verify | unproven |
+| positive | [`TestBMPReceiverUnidirectional`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L135) | unit/verify | unproven |
 
 ### [`RFC7854-4.9-1`](#rfc7854-4.9-1)
 
@@ -327,7 +298,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7854-4.5-2`](#rfc7854-4.5-2)
 
-The monitoring station must close the TCP session after receiving a termination message (§4.5, Termination Message)
+Likewise, the monitoring station MUST close the TCP session after receiving a termination message. (§4.5, Termination Message)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -344,8 +315,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7854StatisticsTimeoutZeroSendsNoReport`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L464) | unit/verify | revert, verified |
-| positive | [`TestRFC7854StatisticsTimeoutSendsPeriodicReports`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L411) | unit/verify | revert, verified |
+| negative | [`TestRFC7854StatisticsTimeoutZeroSendsNoReport`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L475) | unit/verify | revert, verified |
+| positive | [`TestRFC7854StatisticsTimeoutSendsPeriodicReports`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L422) | unit/verify | revert, verified |
 
 ### [`RFC7854-x-16`](#rfc7854-x-16)
 
@@ -355,7 +326,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L462) | unit/verify | unproven |
+| positive | [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L463) | unit/verify | unproven |
 
 ### [`RFC7854-x-17`](#rfc7854-x-17)
 
@@ -365,7 +336,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L465) | unit/verify | unproven |
+| positive | [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L466) | unit/verify | unproven |
 
 ### [`RFC7854-x-18`](#rfc7854-x-18)
 
@@ -373,7 +344,11 @@ Initiation message must include the sysDescr TLV (type 1): "The sysDescr and sys
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-x-18, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854InitiationMissingSysDescrEndsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L15) | unit/verify | unproven |
+| positive | [`TestRFC7854InitiationEmptyIdentityValuesAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L39) | unit/verify | unproven |
+| positive | [`TestRFC7854InitiationCarriesSysDescr`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L29) | unit/verify | revert, verified |
 
 ### [`RFC7854-3.2-1`](#rfc7854-3.2-1)
 
@@ -381,7 +356,10 @@ Retries of a failed connection must be subject to some variety of backoff: "Retr
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-3.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854RetryNotBeforeBackoff`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L114) | unit/verify | revert, verified |
+| positive | [`TestRFC7854RetryBackoffDoubles`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L64) | unit/verify | revert, verified |
 
 ### [`RFC7854-3.2-2`](#rfc7854-3.2-2)
 
@@ -389,7 +367,10 @@ The router must restrict the rate at which BMP sessions may be established: "The
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-3.2-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854SessionEstablishmentRateLimited`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L174) | unit/verify | revert, verified |
+| positive | [`TestRFC7854SessionEstablishmentRateLimited`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L173) | unit/verify | revert, verified |
 
 ### [`RFC7854-3.3-1`](#rfc7854-3.3-1)
 
@@ -397,7 +378,11 @@ Once all the routes for a given peer have been sent, an End-of-RIB message must 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-3.3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854AdjReplayCompletionIsSessionScoped`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L95) | unit/verify | unproven |
+| negative | [`TestRFC7854IncompleteAdjReplayCannotClaimCompletion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L198) | unit/verify | unproven |
+| positive | [`TestRFC7854AdjReplayEndsEachFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L67) | unit/verify | unproven |
 
 ### [`RFC7854-4.1-1`](#rfc7854-4.1-1)
 
@@ -405,7 +390,10 @@ Unrecognized message types must be ignored on receipt: "A BMP implementation MUS
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-4.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854MalformedKnownTypeStillEndsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L261) | unit/verify | revert, verified |
+| positive | [`TestRFC7854UnrecognizedMessageTypeIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L252) | unit/verify | revert, verified |
 
 ### [`RFC7854-4.2-1`](#rfc7854-4.2-1)
 
@@ -413,7 +401,10 @@ The reserved per-peer flag bits must be transmitted as 0 and their values ignore
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-4.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854ReservedFlagsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L357) | unit/verify | revert, verified |
+| positive | [`TestRFC7854ReservedFlagsTransmittedAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L337) | unit/verify | revert, verified |
 
 ### [`RFC7854-4.4-1`](#rfc7854-4.4-1)
 
@@ -421,7 +412,12 @@ When multiple strings are included in a string TLV, their ordering must be prese
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-4.4-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854InitiationStringsKeepDuplicates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L32) | unit/verify | unproven |
+| negative | [`TestRFC7854PeerUpStringsKeepDuplicates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L55) | unit/verify | unproven |
+| positive | [`TestRFC7854InitiationStringsReportedInOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L21) | unit/verify | unproven |
+| positive | [`TestRFC7854PeerUpStringsReportedInOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L44) | unit/verify | unproven |
 
 ### [`RFC7854-4.4-2`](#rfc7854-4.4-2)
 
@@ -429,7 +425,10 @@ The sysDescr TLV Information field must equal the MIB-II sysDescr object: "The I
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-4.4-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854InitiationDescriptionChangesWithBuild`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L227) | unit/verify | unproven |
+| positive | [`TestRFC7854InitiationDescribesRunningSystem`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L205) | unit/verify | unproven |
 
 ### [`RFC7854-4.4-3`](#rfc7854-4.4-3)
 
@@ -437,7 +436,10 @@ The sysName TLV Information field must equal the MIB-II sysName object: "The Inf
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-4.4-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854InitiationSystemNameChanges`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L188) | unit/verify | unproven |
+| positive | [`TestRFC7854InitiationUsesConfiguredSystemName`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L168) | unit/verify | unproven |
 
 ### [`RFC7854-4.5-1`](#rfc7854-4.5-1)
 
@@ -445,7 +447,10 @@ After sending a termination message the router must close the TCP session and se
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-4.5-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854TerminationThenCloseAndSilence`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L385) | unit/verify | revert, verified |
+| positive | [`TestRFC7854TerminationThenCloseAndSilence`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L384) | unit/verify | revert, verified |
 
 ### [`RFC7854-4.5-3`](#rfc7854-4.5-3)
 
@@ -453,7 +458,10 @@ A Termination message must carry the Reason TLV (type 1): "Inclusion of this TLV
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-4.5-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854TerminationRequiresTwoByteReason`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L85) | unit/verify | unproven |
+| positive | [`TestRFC7854SenderTerminationCarriesReason`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L53) | unit/verify | unproven |
 
 ### [`RFC7854-4.7-1`](#rfc7854-4.7-1)
 
@@ -461,7 +469,11 @@ A BGP Message TLV in a Route Mirroring message must occur last in the list of TL
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-4.7-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854MirrorBGPMessageNotLastEndsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L133) | unit/verify | unproven |
+| positive | [`TestRFC7854ErroredMirrorWithPDUAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L119) | unit/verify | unproven |
+| positive | [`TestRFC7854RouteMirroringBGPMessageTLVLast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L421) | unit/verify | revert, verified |
 
 ### [`RFC7854-4.7-2`](#rfc7854-4.7-2)
 
@@ -469,7 +481,10 @@ A Route Mirroring message carrying Information code 0 (Errored PDU) must also ca
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-4.7-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854ErroredMirrorWithoutPDUEndsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L145) | unit/verify | unproven |
+| positive | [`TestRFC7854ErroredMirrorWithPDUAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L120) | unit/verify | unproven |
 
 ### [`RFC7854-4.8-1`](#rfc7854-4.8-1)
 
@@ -477,7 +492,10 @@ Unrecognized stat types and unexpected Stat Data must be ignored on receipt: "A 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-4.8-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854TruncatedStatEndsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L290) | unit/verify | revert, verified |
+| positive | [`TestRFC7854UnrecognizedStatTypeIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L278) | unit/verify | revert, verified |
 
 ### [`RFC7854-4.8-2`](#rfc7854-4.8-2)
 
@@ -485,7 +503,10 @@ A transmitted Stats Report must carry at least one statistic: "However, if an SR
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-4.8-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854SenderRefusesEmptyStatistics`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L174) | unit/verify | unproven |
+| positive | [`TestRFC7854StatsReportCarriesAStatistic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L451) | unit/verify | revert, verified |
 
 ### [`RFC7854-5-1`](#rfc7854-5-1)
 
@@ -493,7 +514,10 @@ Pre-policy routes must have the L flag clear and post-policy routes must have it
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-5-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854LFlagNotDecidedByBody`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L503) | unit/verify | revert, verified |
+| positive | [`TestRFC7854LFlagFollowsPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L478) | unit/verify | revert, verified |
 
 ### [`RFC7854-5-2`](#rfc7854-5-2)
 
@@ -501,7 +525,10 @@ Where the time a route was installed is not available, the BMP Timestamp field m
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-5-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854KnownRouteTimeSurvivesReplay`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L142) | unit/verify | unproven |
+| positive | [`TestRFC7854UnknownRouteTimeIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L122) | unit/verify | unproven |
 
 ### [`RFC7854-5-3`](#rfc7854-5-3)
 
@@ -509,7 +536,10 @@ A withdraw must carry the L flag of the announcement it withdraws, and must be s
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-5-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854LFlagNotDecidedByBody`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L504) | unit/verify | revert, verified |
+| positive | [`TestRFC7854LFlagFollowsPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L479) | unit/verify | revert, verified |
 
 ### [`RFC7854-8.2-1`](#rfc7854-8.2-1)
 
@@ -517,7 +547,10 @@ Where no transport session exists, the Local Port and Remote Port fields of a Pe
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7854-8.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7854BGPPeerUpCarriesTransportPorts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L542) | unit/verify | revert, verified |
+| positive | [`TestRFC7854LocRIBPeerUpPortsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L528) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

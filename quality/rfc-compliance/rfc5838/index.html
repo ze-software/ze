@@ -315,8 +315,8 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST NOT</td>
 <td>2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5838-2.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L278" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestIPv4OverV3BuildRoutes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L251" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6PrefixToNetipAFWidth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L283" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestIPv4OverV3BuildRoutes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L256" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6PrefixToNetipAFWidth</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.4-1">RFC5838-2.4-1</code></td><td colspan="3"><span class="rfc-subject">A router participating in an AF (AF-bit set) &#34;MUST discard Hello packets having the AF-bit clear in the Options field&#34; (§2.4)</span></td></tr>
@@ -351,8 +351,8 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>2.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5838-2.6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L331" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L332" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L336" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L337" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.6-2">RFC5838-2.6-2</code></td><td colspan="3"><span class="rfc-subject">After placing the IPv4 Forwarding Address in the first 32 bits of the Forwarding Address field, &#34;The remaining bits MUST be set to zero&#34; (§2.6)</span></td></tr>
@@ -360,7 +360,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>2.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5838-2.6-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L333" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L338" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> forwardingAddressForAF at origination_v6_nssa.go:29-31 zero-initialises the 16-byte field and writes only the leading 4 IPv4 octets, so the remaining bits are structurally zero and no non-zero-trailing path exists to reject</p></td>
 </tr>
@@ -373,7 +373,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze tracks a single per-interface MTU -- neighbor/dd.go:170 sends cfg.InterfaceMTU and neighbor/dd.go:45 checks it -- with no separate address-family MTU versus IPv6 MTU, so the two are not considered independently</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-2">RFC5838-2.7-2</code></td><td colspan="3"><span class="rfc-subject">&#34;The MTU in the Database Description packet MUST always contain the MTU corresponding to the advertised address family&#34; (§2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-2">RFC5838-2.7-2</code></td><td colspan="3"><span class="rfc-subject">The MTU in the Database Description packet MUST always contain the MTU corresponding to the advertised address family. (§2.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.7</td>
@@ -391,7 +391,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze has no IPv4-address-family interface MTU; the DD MTU is the one configured interface MTU at neighbor/dd.go:170, never an IPv4-specific value</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-4">RFC5838-2.7-4</code></td><td colspan="3"><span class="rfc-subject">&#34;The value used for OSPFv3 maximum packet size determination MUST also be compatible for an adjacency to be established&#34; (§2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-4">RFC5838-2.7-4</code></td><td colspan="3"><span class="rfc-subject">The value used for OSPFv3 maximum packet size determination MUST also be compatible for an adjacency to be established. (§2.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.7</td>
@@ -400,7 +400,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the adjacency MTU-compatibility gate at neighbor/dd.go:45 compares the single interface MTU only; ze does not derive an IPv6-MTU-based maximum packet size distinct from the AF MTU per RFC 5838 §2.7</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-8">RFC5838-2.7-8</code></td><td colspan="3"><span class="rfc-subject">&#34;If the IPv6 and IPv4 MTUs differ, the M6-bit MUST be set for non-IPv6 address families&#34; (§2.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.7-8">RFC5838-2.7-8</code></td><td colspan="3"><span class="rfc-subject">If the IPv6 and IPv4 MTUs differ, the M6-bit MUST be set for non-IPv6 address families. (§2.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.7</td>
@@ -423,8 +423,8 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>2.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5838-2.8-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L438" title="internal/plugins/ospf/virtual_link_test.go" target="_blank" rel="noopener"><code>TestV6VirtualEndpointResolvesGlobalAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L474" title="internal/plugins/ospf/virtual_link_test.go" target="_blank" rel="noopener"><code>TestV6VirtualEndpointRequiresGlobalAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L518" title="internal/plugins/ospf/virtual_link_test.go" target="_blank" rel="noopener"><code>TestV6VirtualEndpointResolvesGlobalAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L554" title="internal/plugins/ospf/virtual_link_test.go" target="_blank" rel="noopener"><code>TestV6VirtualEndpointRequiresGlobalAddress</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-4-1">RFC5838-4-1</code></td><td colspan="3"><span class="rfc-subject">When multiple OSPFv3 instances use the same interface &#34;they all MUST use the same Security Association (SA)&#34; (§4)</span></td></tr>
@@ -565,7 +565,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>{gap}, no test</td>
 <td>ze tracks a single per-interface MTU -- neighbor/dd.go:170 sends cfg.InterfaceMTU and neighbor/dd.go:45 checks it -- with no separate address-family MTU versus IPv6 MTU, so the two are not considered independently</td>
 </tr>
-<tr><td><a href="#rfc5838-2.7-2"><code>RFC5838-2.7-2</code></a> &#34;The MTU in the Database Description packet MUST always contain the MTU corresponding to the advertised address family&#34; (§2.7)</td>
+<tr><td><a href="#rfc5838-2.7-2"><code>RFC5838-2.7-2</code></a> The MTU in the Database Description packet MUST always contain the MTU corresponding to the advertised address family. (§2.7)</td>
 <td>{gap}, no test</td>
 <td>the Database Description always carries the single cfg.InterfaceMTU at neighbor/dd.go:170 with no per-address-family MTU, so for a non-IPv6 AF whose MTU differs the DD does not carry the AF-specific MTU</td>
 </tr>
@@ -573,11 +573,11 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>{gap}, no test</td>
 <td>ze has no IPv4-address-family interface MTU; the DD MTU is the one configured interface MTU at neighbor/dd.go:170, never an IPv4-specific value</td>
 </tr>
-<tr><td><a href="#rfc5838-2.7-4"><code>RFC5838-2.7-4</code></a> &#34;The value used for OSPFv3 maximum packet size determination MUST also be compatible for an adjacency to be established&#34; (§2.7)</td>
+<tr><td><a href="#rfc5838-2.7-4"><code>RFC5838-2.7-4</code></a> The value used for OSPFv3 maximum packet size determination MUST also be compatible for an adjacency to be established. (§2.7)</td>
 <td>{gap}, no test</td>
 <td>the adjacency MTU-compatibility gate at neighbor/dd.go:45 compares the single interface MTU only; ze does not derive an IPv6-MTU-based maximum packet size distinct from the AF MTU per RFC 5838 §2.7</td>
 </tr>
-<tr><td><a href="#rfc5838-2.7-8"><code>RFC5838-2.7-8</code></a> &#34;If the IPv6 and IPv4 MTUs differ, the M6-bit MUST be set for non-IPv6 address families&#34; (§2.7)</td>
+<tr><td><a href="#rfc5838-2.7-8"><code>RFC5838-2.7-8</code></a> If the IPv6 and IPv4 MTUs differ, the M6-bit MUST be set for non-IPv6 address families. (§2.7)</td>
 <td>{gap}, no test</td>
 <td>ze implements no M6-bit -- a grep for m6 across internal/plugins/ospf returns nothing -- so the DD encoder at encoder_v6.go:90 never sets it for a non-IPv6 AF</td>
 </tr>
@@ -611,12 +611,12 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L251" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6PrefixToNetipAFWidth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L256" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6PrefixToNetipAFWidth</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L278" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestIPv4OverV3BuildRoutes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L283" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestIPv4OverV3BuildRoutes</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -670,12 +670,12 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L332" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L337" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L331" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L336" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -690,7 +690,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L333" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L338" title="internal/plugins/ospf/afstrategy_v6_test.go" target="_blank" rel="noopener"><code>TestV6ForwardingAddrAFWidth</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -702,7 +702,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5838-2.7-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5838-2.7-2"><code>RFC5838-2.7-2</code></a></h3>
-<p>&#34;The MTU in the Database Description packet MUST always contain the MTU corresponding to the advertised address family&#34; (§2.7)</p>
+<p>The MTU in the Database Description packet MUST always contain the MTU corresponding to the advertised address family. (§2.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5838-2.7-2, so no unit is bound to it.</p>
 <h3><a href="#rfc5838-2.7-3"><code>RFC5838-2.7-3</code></a></h3>
@@ -710,11 +710,11 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5838-2.7-3, so no unit is bound to it.</p>
 <h3><a href="#rfc5838-2.7-4"><code>RFC5838-2.7-4</code></a></h3>
-<p>&#34;The value used for OSPFv3 maximum packet size determination MUST also be compatible for an adjacency to be established&#34; (§2.7)</p>
+<p>The value used for OSPFv3 maximum packet size determination MUST also be compatible for an adjacency to be established. (§2.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5838-2.7-4, so no unit is bound to it.</p>
 <h3><a href="#rfc5838-2.7-8"><code>RFC5838-2.7-8</code></a></h3>
-<p>&#34;If the IPv6 and IPv4 MTUs differ, the M6-bit MUST be set for non-IPv6 address families&#34; (§2.7)</p>
+<p>If the IPv6 and IPv4 MTUs differ, the M6-bit MUST be set for non-IPv6 address families. (§2.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5838-2.7-8, so no unit is bound to it.</p>
 <h3><a href="#rfc5838-2.7-11"><code>RFC5838-2.7-11</code></a></h3>
@@ -729,12 +729,12 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L474" title="internal/plugins/ospf/virtual_link_test.go" target="_blank" rel="noopener"><code>TestV6VirtualEndpointRequiresGlobalAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L554" title="internal/plugins/ospf/virtual_link_test.go" target="_blank" rel="noopener"><code>TestV6VirtualEndpointRequiresGlobalAddress</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L438" title="internal/plugins/ospf/virtual_link_test.go" target="_blank" rel="noopener"><code>TestV6VirtualEndpointResolvesGlobalAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L518" title="internal/plugins/ospf/virtual_link_test.go" target="_blank" rel="noopener"><code>TestV6VirtualEndpointResolvesGlobalAddress</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -951,7 +951,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

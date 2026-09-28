@@ -92,9 +92,9 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2890-2.2-3` | Sequence Number MUST be used by the receiver to establish packet order (S2.2) | MUST | 2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** GRE receive-side sequence ordering is performed by the kernel/VPP datapath; ze has no GRE decapsulation or packet-parse code path |
-| `RFC2890-2.2-4` | If a packet has waited longer than OUTOFORDER_TIMER milliseconds in the buffer, the receiver MUST immediately traverse the buffer in sorted order, decapsulating packets (S2.2) | MUST | 2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze has no GRE receiver buffer or OUTOFORDER_TIMER; it programs kernel/VPP tunnels and does not process GRE payloads |
-| `RFC2890-3-1` | IP security protocols (ESP or AH) MUST be used to protect the GRE header and tunneled payload when using Sequence Number (S3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze applies no ESP or AH to GRE; IPsec is not wired to the GRE tunnel builders (internal/plugins/iface/netlink/tunnel_linux.go, internal/plugins/iface/vpp/tunnel.go) |
+| `RFC2890-2.2-3` | The Sequence Number MUST be used by the receiver to establish the order in which packets have been transmitted from the encapsulator to the receiver. (S2.2) | MUST | 2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** GRE receive-side sequence ordering is performed by the kernel/VPP datapath; ze has no GRE decapsulation or packet-parse code path |
+| `RFC2890-2.2-4` | If a packet has been waiting that long, the receiver MUST immediately traverse the buffer in sorted order, decapsulating packets (and ignoring any sequence number gaps) until there are no more packets in the buffer that have been waiting longer than OUTOFORDER_TIMER milliseconds. (S2.2) | MUST | 2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze has no GRE receiver buffer or OUTOFORDER_TIMER; it programs kernel/VPP tunnels and does not process GRE payloads |
+| `RFC2890-3-1` | In order to protect against such attacks, IP security protocols [4] MUST be used to protect the GRE header and the tunneled payload. (S3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze applies no ESP or AH to GRE; IPsec is not wired to the GRE tunnel builders (internal/plugins/iface/netlink/tunnel_linux.go, internal/plugins/iface/vpp/tunnel.go) |
 | `RFC2890-1.1-1` | When silently discarding, the implementation SHOULD provide the capability of logging the error (S1.1) | SHOULD | 1.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2890-1.1-2` | When silently discarding, the implementation SHOULD record the event in a statistics counter (S1.1) | SHOULD | 1.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2890-2.2-5` | An out-of-sequence packet SHOULD be silently discarded (S2.2) | SHOULD | 2.2 | **positive:** no positive test. **negative:** no negative test |
@@ -104,9 +104,9 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC2890-2.2-3`](#rfc2890-2.2-3) Sequence Number MUST be used by the receiver to establish packet order (S2.2) | no test | no test carries this requirement id; annotated {not-applicable}: GRE receive-side sequence ordering is performed by the kernel/VPP datapath; ze has no GRE decapsulation or packet-parse code path |
-| [`RFC2890-2.2-4`](#rfc2890-2.2-4) If a packet has waited longer than OUTOFORDER_TIMER milliseconds in the buffer, the receiver MUST immediately traverse the buffer in sorted order, decapsulating packets (S2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze has no GRE receiver buffer or OUTOFORDER_TIMER; it programs kernel/VPP tunnels and does not process GRE payloads |
-| [`RFC2890-3-1`](#rfc2890-3-1) IP security protocols (ESP or AH) MUST be used to protect the GRE header and tunneled payload when using Sequence Number (S3) | no test | no test carries this requirement id; annotated {not-applicable}: ze applies no ESP or AH to GRE; IPsec is not wired to the GRE tunnel builders (internal/plugins/iface/netlink/tunnel_linux.go, internal/plugins/iface/vpp/tunnel.go) |
+| [`RFC2890-2.2-3`](#rfc2890-2.2-3) The Sequence Number MUST be used by the receiver to establish the order in which packets have been transmitted from the encapsulator to the receiver. (S2.2) | no test | no test carries this requirement id; annotated {not-applicable}: GRE receive-side sequence ordering is performed by the kernel/VPP datapath; ze has no GRE decapsulation or packet-parse code path |
+| [`RFC2890-2.2-4`](#rfc2890-2.2-4) If a packet has been waiting that long, the receiver MUST immediately traverse the buffer in sorted order, decapsulating packets (and ignoring any sequence number gaps) until there are no more packets in the buffer that have been waiting longer than OUTOFORDER_TIMER milliseconds. (S2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze has no GRE receiver buffer or OUTOFORDER_TIMER; it programs kernel/VPP tunnels and does not process GRE payloads |
+| [`RFC2890-3-1`](#rfc2890-3-1) In order to protect against such attacks, IP security protocols [4] MUST be used to protect the GRE header and the tunneled payload. (S3) | no test | no test carries this requirement id; annotated {not-applicable}: ze applies no ESP or AH to GRE; IPsec is not wired to the GRE tunnel builders (internal/plugins/iface/netlink/tunnel_linux.go, internal/plugins/iface/vpp/tunnel.go) |
 
 ## Proof state
 
@@ -114,7 +114,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC2890-2.2-3`](#rfc2890-2.2-3)
 
-Sequence Number MUST be used by the receiver to establish packet order (S2.2)
+The Sequence Number MUST be used by the receiver to establish the order in which packets have been transmitted from the encapsulator to the receiver. (S2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -122,7 +122,7 @@ No test carries RFC2890-2.2-3, so no unit is bound to it.
 
 ### [`RFC2890-2.2-4`](#rfc2890-2.2-4)
 
-If a packet has waited longer than OUTOFORDER_TIMER milliseconds in the buffer, the receiver MUST immediately traverse the buffer in sorted order, decapsulating packets (S2.2)
+If a packet has been waiting that long, the receiver MUST immediately traverse the buffer in sorted order, decapsulating packets (and ignoring any sequence number gaps) until there are no more packets in the buffer that have been waiting longer than OUTOFORDER_TIMER milliseconds. (S2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -130,7 +130,7 @@ No test carries RFC2890-2.2-4, so no unit is bound to it.
 
 ### [`RFC2890-3-1`](#rfc2890-3-1)
 
-IP security protocols (ESP or AH) MUST be used to protect the GRE header and tunneled payload when using Sequence Number (S3)
+In order to protect against such attacks, IP security protocols [4] MUST be used to protect the GRE header and the tunneled payload. (S3)
 
 Audit verdict: not audited: no reader has judged these tests
 

@@ -298,7 +298,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-3-1">RFC8484-3-1</code></td><td colspan="3"><span class="rfc-subject">A DoH client MUST NOT use a different URI simply because it was discovered outside the client&#39;s configuration, such as through HTTP/2 server push or a server offering an unsolicited response that appears to be a valid answer to a DNS query (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-3-1">RFC8484-3-1</code></td><td colspan="3"><span class="rfc-subject">A DoH client MUST NOT use a different URI simply because it was discovered outside of the client&#39;s configuration (such as through HTTP/2 server push) or because a server offers an unsolicited response that appears to be a valid answer to a DNS query. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3</td>
@@ -307,7 +307,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> this binds the DoH client&#39;s URI-selection logic, and ze implements no DoH client -- it is an authoritative DoH server only (internal/component/resolve performs no upstream HTTPS resolution)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-4.1-1">RFC8484-4.1-1</code></td><td colspan="3"><span class="rfc-subject">`Future specifications` for new media types for DoH MUST define the variables used for URI Template processing with this protocol (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-4.1-1">RFC8484-4.1-1</code></td><td colspan="3"><span class="rfc-subject">Future specifications for new media types for DoH MUST define the variables used for URI Template processing with this protocol. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -361,7 +361,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the handler sets Cache-Control max-age to exactly the smallest Answer-section TTL, so the assigned freshness equals (hence never exceeds) that minimum (internal/core/dnsserver/secure.go:416-419, :478)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-5.1-2">RFC8484-5.1-2</code></td><td colspan="3"><span class="rfc-subject">If the DNS response has no records in the Answer section but has an SOA record in the Authority section, the response freshness lifetime MUST NOT be greater than the MINIMUM field from that SOA record (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-5.1-2">RFC8484-5.1-2</code></td><td colspan="3"><span class="rfc-subject">If the DNS response has no records in the Answer section, and the DNS response has an SOA record in the Authority section, the response freshness lifetime MUST NOT be greater than the MINIMUM field from that SOA record (see [RFC2308]). (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.1</td>
@@ -370,7 +370,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> minAnswerTTL iterates only the Answer section and the handler sets no Cache-Control when that minimum is 0, so a NODATA response&#39;s freshness is never capped at the Authority SOA MINIMUM field (internal/core/dnsserver/secure.go:478-488, :416)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-5.1-3">RFC8484-5.1-3</code></td><td colspan="3"><span class="rfc-subject">DoH clients MUST account for the Age response header field&#39;s value when calculating the DNS TTL of a response (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-5.1-3">RFC8484-5.1-3</code></td><td colspan="3"><span class="rfc-subject">DoH clients MUST account for the Age response header field&#39;s value [RFC7234] when calculating the DNS TTL of a response. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
@@ -397,7 +397,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L478" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHRejectsWrongContentType</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-5.4-2">RFC8484-5.4-2</code></td><td colspan="3"><span class="rfc-subject">Other media types MUST be flexible enough to express every DNS query that would normally be sent in DNS over UDP, including queries and responses that use DNS extensions but not those that require multiple responses (§5.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-5.4-2">RFC8484-5.4-2</code></td><td colspan="3"><span class="rfc-subject">Those media types MUST be flexible enough to express every DNS query that would normally be sent in DNS over UDP (including queries and responses that use DNS extensions, but not those that require multiple responses). (§5.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.4</td>
@@ -415,7 +415,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the handler packs the full reply and writes it over HTTP framing, never consulting the request&#39;s EDNS UDP payload size and never UDP-truncating, so the size is ignored by construction (internal/core/dnsserver/secure.go:410-422)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-6-2">RFC8484-6-2</code></td><td colspan="3"><span class="rfc-subject">When using the GET method, the data payload for this media type MUST be encoded with base64url and provided as a variable named &#34;dns&#34; to the URI Template expansion (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-6-2">RFC8484-6-2</code></td><td colspan="3"><span class="rfc-subject">When using the GET method, the data payload for this media type MUST be encoded with base64url [RFC4648] and then provided as a variable named &#34;dns&#34; to the URI Template expansion. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -550,11 +550,11 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc8484-3-1"><code>RFC8484-3-1</code></a> A DoH client MUST NOT use a different URI simply because it was discovered outside the client&#39;s configuration, such as through HTTP/2 server push or a server offering an unsolicited response that appears to be a valid answer to a DNS query (§3)</td>
+<tr><td><a href="#rfc8484-3-1"><code>RFC8484-3-1</code></a> A DoH client MUST NOT use a different URI simply because it was discovered outside of the client&#39;s configuration (such as through HTTP/2 server push) or because a server offers an unsolicited response that appears to be a valid answer to a DNS query. (§3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this binds the DoH client&#39;s URI-selection logic, and ze implements no DoH client -- it is an authoritative DoH server only (internal/component/resolve performs no upstream HTTPS resolution)</td>
 </tr>
-<tr><td><a href="#rfc8484-4.1-1"><code>RFC8484-4.1-1</code></a> `Future specifications` for new media types for DoH MUST define the variables used for URI Template processing with this protocol (§4.1)</td>
+<tr><td><a href="#rfc8484-4.1-1"><code>RFC8484-4.1-1</code></a> Future specifications for new media types for DoH MUST define the variables used for URI Template processing with this protocol. (§4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this binds authors of new DoH media-type specifications, and ze defines no media type beyond application/dns-message (internal/core/dnsserver/secure.go:47)</td>
 </tr>
@@ -562,11 +562,11 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this binds a DoH client preparing to process responses, and ze implements no DoH client (server role only)</td>
 </tr>
-<tr><td><a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a> If the DNS response has no records in the Answer section but has an SOA record in the Authority section, the response freshness lifetime MUST NOT be greater than the MINIMUM field from that SOA record (§5.1)</td>
+<tr><td><a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a> If the DNS response has no records in the Answer section, and the DNS response has an SOA record in the Authority section, the response freshness lifetime MUST NOT be greater than the MINIMUM field from that SOA record (see [RFC2308]). (§5.1)</td>
 <td>{gap}, no test</td>
 <td>minAnswerTTL iterates only the Answer section and the handler sets no Cache-Control when that minimum is 0, so a NODATA response&#39;s freshness is never capped at the Authority SOA MINIMUM field (internal/core/dnsserver/secure.go:478-488, :416)</td>
 </tr>
-<tr><td><a href="#rfc8484-5.1-3"><code>RFC8484-5.1-3</code></a> DoH clients MUST account for the Age response header field&#39;s value when calculating the DNS TTL of a response (§5.1)</td>
+<tr><td><a href="#rfc8484-5.1-3"><code>RFC8484-5.1-3</code></a> DoH clients MUST account for the Age response header field&#39;s value [RFC7234] when calculating the DNS TTL of a response. (§5.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this binds a DoH client&#39;s TTL computation using the Age response header, and ze implements no DoH client</td>
 </tr>
@@ -574,7 +574,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this binds a DoH client&#39;s URI validation before trusting a response, and ze implements no DoH client</td>
 </tr>
-<tr><td><a href="#rfc8484-5.4-2"><code>RFC8484-5.4-2</code></a> Other media types MUST be flexible enough to express every DNS query that would normally be sent in DNS over UDP, including queries and responses that use DNS extensions but not those that require multiple responses (§5.4)</td>
+<tr><td><a href="#rfc8484-5.4-2"><code>RFC8484-5.4-2</code></a> Those media types MUST be flexible enough to express every DNS query that would normally be sent in DNS over UDP (including queries and responses that use DNS extensions, but not those that require multiple responses). (§5.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this binds definers of media types other than application/dns-message, and ze offers only application/dns-message (internal/core/dnsserver/secure.go:47)</td>
 </tr>
@@ -585,11 +585,11 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8484-3-1"><code>RFC8484-3-1</code></a></h3>
-<p>A DoH client MUST NOT use a different URI simply because it was discovered outside the client&#39;s configuration, such as through HTTP/2 server push or a server offering an unsolicited response that appears to be a valid answer to a DNS query (§3)</p>
+<p>A DoH client MUST NOT use a different URI simply because it was discovered outside of the client&#39;s configuration (such as through HTTP/2 server push) or because a server offers an unsolicited response that appears to be a valid answer to a DNS query. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8484-3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8484-4.1-1"><code>RFC8484-4.1-1</code></a></h3>
-<p>`Future specifications` for new media types for DoH MUST define the variables used for URI Template processing with this protocol (§4.1)</p>
+<p>Future specifications for new media types for DoH MUST define the variables used for URI Template processing with this protocol. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8484-4.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8484-4.1-2"><code>RFC8484-4.1-2</code></a></h3>
@@ -667,11 +667,11 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 </table>
 </div>
 <h3><a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a></h3>
-<p>If the DNS response has no records in the Answer section but has an SOA record in the Authority section, the response freshness lifetime MUST NOT be greater than the MINIMUM field from that SOA record (§5.1)</p>
+<p>If the DNS response has no records in the Answer section, and the DNS response has an SOA record in the Authority section, the response freshness lifetime MUST NOT be greater than the MINIMUM field from that SOA record (see [RFC2308]). (§5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8484-5.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8484-5.1-3"><code>RFC8484-5.1-3</code></a></h3>
-<p>DoH clients MUST account for the Age response header field&#39;s value when calculating the DNS TTL of a response (§5.1)</p>
+<p>DoH clients MUST account for the Age response header field&#39;s value [RFC7234] when calculating the DNS TTL of a response. (§5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8484-5.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc8484-5.3-1"><code>RFC8484-5.3-1</code></a></h3>
@@ -699,7 +699,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 </table>
 </div>
 <h3><a href="#rfc8484-5.4-2"><code>RFC8484-5.4-2</code></a></h3>
-<p>Other media types MUST be flexible enough to express every DNS query that would normally be sent in DNS over UDP, including queries and responses that use DNS extensions but not those that require multiple responses (§5.4)</p>
+<p>Those media types MUST be flexible enough to express every DNS query that would normally be sent in DNS over UDP (including queries and responses that use DNS extensions, but not those that require multiple responses). (§5.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8484-5.4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8484-6-1"><code>RFC8484-6-1</code></a></h3>
@@ -718,7 +718,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
 </table>
 </div>
 <h3><a href="#rfc8484-6-2"><code>RFC8484-6-2</code></a></h3>
-<p>When using the GET method, the data payload for this media type MUST be encoded with base64url and provided as a variable named &#34;dns&#34; to the URI Template expansion (§6)</p>
+<p>When using the GET method, the data payload for this media type MUST be encoded with base64url [RFC4648] and then provided as a variable named &#34;dns&#34; to the URI Template expansion. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1022,7 +1022,7 @@ One MUST gap (<a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>): for a NO
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

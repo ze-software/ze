@@ -102,15 +102,15 @@ Same IS-IS experimental status.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5310-3.2-1` | Level 1 Sequence Number PDUs "SHALL use the Area Authentication string, as in Level 1 Link State PDUs" (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISAuthEngineSignLevel`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L114). **negative:** `unit/verify` [`TestISISAuthChainSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L204) |
-| `RFC5310-3.2-2` | Level 2 Sequence Number PDUs shall use the domain authentication string, as in Level 2 Link State PDUs (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISAuthEngineSignLevel`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L118). **negative:** `unit/verify` [`TestISISAuthLevelChainCrossUseL2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L286) |
-| `RFC5310-3.2-3` | "IS-IS HELLO PDUs SHALL use the Link Level Authentication string" (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISAuthReject`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L158). **negative:** `unit/verify` [`TestISISAuthReject`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L170) |
-| `RFC5310-3.2-5` | "The CRYPTO_AUTH result for the IS-IS HELLO PDUs SHALL be calculated after the PDU is padded to the MTU size, if padding is not disabled" (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISHelloSignedOverPaddedPDU`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L72). **negative:** no negative test. **{single-polarity}:** ze always pads the IIH before signing it (circuit/runtime.go:273-276 for LAN, :293-304 for P2P), so there is no sign-before-pad code path and no negative (unpadded-sign) behavior to assert. The positive is proven in TestISISHelloSignedOverPaddedPDU: the bytes handed to the signer are already padded to MTU-LLC and carry Padding TLV 8 |
+| `RFC5310-3.2-1` | Level 1 Sequence Number PDUs "SHALL use the Area Authentication string, as in Level 1 Link State PDUs" (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISAuthEngineSignLevel`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L112). **negative:** `unit/verify` [`TestISISAuthChainSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L202) |
+| `RFC5310-3.2-2` | Level 2 Sequence Number PDUs shall use the domain authentication string, as in Level 2 Link State PDUs (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISAuthEngineSignLevel`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L116). **negative:** `unit/verify` [`TestISISAuthLevelChainCrossUseL2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L284) |
+| `RFC5310-3.2-3` | "IS-IS HELLO PDUs SHALL use the Link Level Authentication string" (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISAuthReject`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L156). **negative:** `unit/verify` [`TestISISAuthReject`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L168) |
+| `RFC5310-3.2-5` | The CRYPTO_AUTH result for the IS-IS HELLO PDUs SHALL be calculated after the PDU is padded to the MTU size, if padding is not disabled. (§3.2) | SHALL | 3.2 | **positive:** `unit/verify` [`TestISISHelloSignedOverPaddedPDU`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L72). **negative:** no negative test. **{single-polarity}:** ze always pads the IIH before signing it (circuit/runtime.go:273-276 for LAN, :293-304 for P2P), so there is no sign-before-pad code path and no negative (unpadded-sign) behavior to assert. The positive is proven in TestISISHelloSignedOverPaddedPDU: the bytes handed to the signer are already padded to MTU-LLC and carry Padding TLV 8 |
 | `RFC5310-3.2-6` | Implementations that support the optional checksum for the Sequence Number PDUs and IS-IS HELLO PDUs "MUST NOT include the Checksum TLV" (§3.2) | MUST NOT | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the antecedent is false -- ze implements no optional IS-IS per-PDU Checksum TLV (internal/plugins/isis/packet/tlv.go has no TLV 12 codec), so this conditional MUST NOT has no applicable code path |
-| `RFC5310-3.4-1` | "An implementation MUST fill the authentication type and the length before the authentication data is computed" (§3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestISISAuthHMACSHAApadPreimage`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L234). **positive:** `unit/verify` [`TestISISAuthSignVerifyHMACSHA256`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L161). **negative:** no negative test. **{single-polarity}:** ze always builds the Authentication TLV with the auth-type byte and sets the TLV length before the digest is computed (auth_sign.go:47-52), then runs the HMAC over the full signed PDU (auth_sign.go:274-276), so no code path omits the type or length from the pre-image and there is no negative to assert. The positive is proven by the known-answer TestISISAuthHMACSHAApadPreimage (the re-hashed pre-image still carries the type byte and length) and the on-wire type-3 round-trip TestISISAuthSignVerifyHMACSHA256 |
-| `RFC5310-3.4-2` | "The authentication data for the IS-IS IIH PDUs MUST be computed after the IS-IS Hello (IIH) has been padded to the MTU size, if padding is not explicitly disabled" (§3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestISISHelloSignedOverPaddedPDU`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L75). **negative:** no negative test. **{single-polarity}:** ze pads the IIH before signing it (circuit/runtime.go:273-276 pads then signs), with no sign-before-pad code path, so no negative (auth-computed-before-padding) behavior exists to assert. The positive is proven in TestISISHelloSignedOverPaddedPDU: the signer receives the PDU already padded to MTU-LLC |
+| `RFC5310-3.4-1` | An implementation MUST fill the authentication type and the length before the authentication data is computed. (§3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestISISAuthHMACSHAApadPreimage`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L234). **positive:** `unit/verify` [`TestISISAuthSignVerifyHMACSHA256`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L161). **negative:** no negative test. **{single-polarity}:** ze always builds the Authentication TLV with the auth-type byte and sets the TLV length before the digest is computed (auth_sign.go:47-52), then runs the HMAC over the full signed PDU (auth_sign.go:274-276), so no code path omits the type or length from the pre-image and there is no negative to assert. The positive is proven by the known-answer TestISISAuthHMACSHAApadPreimage (the re-hashed pre-image still carries the type byte and length) and the on-wire type-3 round-trip TestISISAuthSignVerifyHMACSHA256 |
+| `RFC5310-3.4-2` | The authentication data for the IS-IS IIH PDUs MUST be computed after the IS-IS Hello (IIH) has been padded to the MTU size, if padding is not explicitly disabled. (§3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestISISHelloSignedOverPaddedPDU`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L75). **negative:** no negative test. **{single-polarity}:** ze pads the IIH before signing it (circuit/runtime.go:273-276 pads then signs), with no sign-before-pad code path, so no negative (auth-computed-before-padding) behavior exists to assert. The positive is proven in TestISISHelloSignedOverPaddedPDU: the signer receives the PDU already padded to MTU-LLC |
 | `RFC5310-4-1` | "the remaining lifetime of the LSP MUST be set to zero before computing the authentication", so that field is not authenticated (§4) | MUST | 4 | **positive:** `unit/verify` [`TestISISAuthLSPChecksumAfterSign`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L391). **positive:** `unit/verify` [`TestISISAuthRotationOverlapAccepts`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L666). **negative:** no negative test. **{single-polarity}:** ze always zeroes the Checksum and Remaining Lifetime before the LSP digest (auth_sign.go:268-272), so those fields are never part of the HMAC. The exclusion is observable only as non-rejection -- a post-sign Remaining-Lifetime change still verifies -- and there is no field-included code path that rejects, so no negative exists. The positive is proven in TestISISAuthLSPChecksumAfterSign and the HMAC-SHA-256 type-3 LSP round-trip TestISISAuthRotationOverlapAccepts |
-| `RFC5310-4-2` | "implementations MUST be able to store and use more than one key at the same time" (§4) | MUST | 4 | **positive:** `unit/verify` [`TestISISAuthRotation`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_keystore_test.go#L78). **positive:** `unit/verify` [`TestISISAuthRotationOverlapAccepts`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L663). **negative:** `unit/verify` [`TestISISAuthKeyIDMismatchRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L688). **negative:** `unit/verify` [`TestISISAuthWrongKeyRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L637) |
+| `RFC5310-4-2` | To ensure greater security, the keys used should be changed periodically, and implementations MUST be able to store and use more than one key at the same time. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestISISAuthRotation`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_keystore_test.go#L78). **positive:** `unit/verify` [`TestISISAuthRotationOverlapAccepts`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L663). **negative:** `unit/verify` [`TestISISAuthKeyIDMismatchRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L688). **negative:** `unit/verify` [`TestISISAuthWrongKeyRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L637) |
 | `RFC5310-3.5-1` | When the calculated data and the received authentication data do not match, the PDU is discarded and "an error event SHOULD be logged" (§3.5) | SHOULD | 3.5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5310-3.2-4` | The IS-IS HELLO PDU Link Level Authentication string "MAY be different from that of Link State PDUs" (§3.2) | MAY | 3.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5310-3.5-2` | "An implementation MAY have a transition mode where it includes CRYPTO_AUTH information in the PDUs but does not verify this information" as a migration aid (§3.5) | MAY | 3.5 | **positive:** no positive test. **negative:** no negative test |
@@ -133,8 +133,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISAuthChainSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L204) | unit/verify | unproven |
-| positive | [`TestISISAuthEngineSignLevel`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L114) | unit/verify | unproven |
+| negative | [`TestISISAuthChainSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L202) | unit/verify | unproven |
+| positive | [`TestISISAuthEngineSignLevel`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L112) | unit/verify | unproven |
 
 ### [`RFC5310-3.2-2`](#rfc5310-3.2-2)
 
@@ -144,8 +144,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISAuthLevelChainCrossUseL2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L286) | unit/verify | unproven |
-| positive | [`TestISISAuthEngineSignLevel`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L118) | unit/verify | unproven |
+| negative | [`TestISISAuthLevelChainCrossUseL2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L284) | unit/verify | unproven |
+| positive | [`TestISISAuthEngineSignLevel`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L116) | unit/verify | unproven |
 
 ### [`RFC5310-3.2-3`](#rfc5310-3.2-3)
 
@@ -155,12 +155,12 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISAuthReject`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L170) | unit/verify | unproven |
-| positive | [`TestISISAuthReject`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L158) | unit/verify | unproven |
+| negative | [`TestISISAuthReject`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L168) | unit/verify | unproven |
+| positive | [`TestISISAuthReject`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L156) | unit/verify | unproven |
 
 ### [`RFC5310-3.2-5`](#rfc5310-3.2-5)
 
-"The CRYPTO_AUTH result for the IS-IS HELLO PDUs SHALL be calculated after the PDU is padded to the MTU size, if padding is not disabled" (§3.2)
+The CRYPTO_AUTH result for the IS-IS HELLO PDUs SHALL be calculated after the PDU is padded to the MTU size, if padding is not disabled. (§3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -178,7 +178,7 @@ No test carries RFC5310-3.2-6, so no unit is bound to it.
 
 ### [`RFC5310-3.4-1`](#rfc5310-3.4-1)
 
-"An implementation MUST fill the authentication type and the length before the authentication data is computed" (§3.4)
+An implementation MUST fill the authentication type and the length before the authentication data is computed. (§3.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -189,7 +189,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5310-3.4-2`](#rfc5310-3.4-2)
 
-"The authentication data for the IS-IS IIH PDUs MUST be computed after the IS-IS Hello (IIH) has been padded to the MTU size, if padding is not explicitly disabled" (§3.4)
+The authentication data for the IS-IS IIH PDUs MUST be computed after the IS-IS Hello (IIH) has been padded to the MTU size, if padding is not explicitly disabled. (§3.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -210,7 +210,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5310-4-2`](#rfc5310-4-2)
 
-"implementations MUST be able to store and use more than one key at the same time" (§4)
+To ensure greater security, the keys used should be changed periodically, and implementations MUST be able to store and use more than one key at the same time. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 

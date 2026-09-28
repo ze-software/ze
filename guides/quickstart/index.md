@@ -16,7 +16,7 @@ Requires **Go 1.27+** on a macOS or Linux development host. Windows is not a sup
 
 To get a `ze` binary without cloning the repository, use `go install` with the
 default feature tags derived from `feature-gates.txt`:
-<!-- source: internal/le/featuretags/daemontags.go -- DaemonTags -->
+<!-- source: internal/le/repo/featuretags/daemontags.go -- DaemonTags -->
 
 ```bash
 CGO_ENABLED=0 go install -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' github.com/ze-software/ze/cmd/ze@latest
@@ -256,12 +256,12 @@ Use the built-in test peer to accept any BGP session:
 
 ```bash
 # Terminal 1: start a sink peer (accepts sessions, replies keepalive)
-bin/ze-test peer --mode sink --port 1179 --asn 65001
+bin/le test peer --mode sink --port 1179 --asn 65001
 
 # Terminal 2: start ze with config pointing to localhost:1179
 ./ze start example-local.conf
 ```
-<!-- source: internal/test/cli/cmd_peer.go -- ze-test peer command -->
+<!-- source: internal/test/cli/cmd_peer.go -- le test peer command -->
 
 Where `example-local.conf` is the config above with the peer's `connection`
 block pointed at the local sink, so ze dials `127.0.0.1:1179` instead of

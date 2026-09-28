@@ -468,6 +468,11 @@ A reload that asks either of them for a different mode fails the whole commit:</
 </code></pre>
 <p>The reload is refused before anything is applied. No listener moves and no
 credential changes. Restart ze to apply that edit.</p>
+<p>The MCP <code>enabled</code> leaf is fixed in the same way when the config block started
+MCP: a reload that flips it fails with <code>mcp enabled cannot change while running</code>.
+When <code>--mcp</code>, <code>ze.mcp.listen</code>, or <code>ze.mcp.enabled</code> started MCP, the leaf did not
+decide whether MCP runs, and a reload does not compare it. A reload that then
+adds a block with a non-loopback address is judged by the listener guard below.</p>
 <p>A transport the config does not enable is never built, and a server that does
 not run cannot refuse a reload. An <code>api-server</code> block that enables REST alone
 reloads on the REST server, and says nothing about gRPC.</p>
@@ -748,7 +753,7 @@ and continues.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

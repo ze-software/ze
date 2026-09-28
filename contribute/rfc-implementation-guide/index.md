@@ -2,6 +2,13 @@
 
 This guide provides a step-by-step checklist for implementing an RFC in Ze. Use it alongside `planning.md` to ensure complete implementations.
 
+The implementation boundary is the owner's agreed capability scope. Completing
+started code includes its callers, error paths and documentation; it does not
+commission every absent feature in the RFC. Keep unimplemented requirements
+visible as gaps and leave unstarted specs in the backlog. Source inspection,
+executed tests and remaining verification must be reported separately.
+See `ai/rules/rfc-compliance.md` and `docs/contributing/spec-workflow.md`.
+
 ## Overview
 
 An RFC implementation typically touches these areas (not all apply to every RFC):
@@ -548,16 +555,19 @@ Evidence has two axes: KIND (which layer the test exercises) and TIER (whether
 anything executes it). Both are DERIVED from the carrier table rather than
 declared by the test.
 
+The scanner includes command tests under `cmd/`, including tests of daemon listeners.
+<!-- source: internal/le/rfc/rfc.go -- testRoots -->
+
 | Carrier | Kind | Executed by | Tier |
 |---------|------|-------------|------|
-| `*_test.go` outside `internal/le/` | `unit` | `./le test-unit all` | `verify`, on every push |
-| `test/<suite>/*.ci` from `suiteCarriers` | `functional` | `./le functional gating` | `verify` for each suite in `functional.GatingNames()`. Other directories need a separately registered carrier; `test/draft/` is skipped entirely |
-| `test/exabgp-compat/*.ci` | `functional` | `./le functional exabgp-test` | `verify`, through the full verifier's separate ExaBGP stage |
-| `test/editor/*.et` | `editor` | `./le functional editor` | `verify`, on the same earned-per-suite basis |
-| `internal/le/interoplab/bgp/*.go` | `interop` | `./le integration interop` | `nightly` when a scheduled workflow names that runner, `unrun` otherwise |
-| `internal/le/interoplab/ipsec/*.go` | `interop` | `./le integration interop-ipsec` | same derivation |
-| `internal/le/interoplab/l2tp/*.go` | `interop` | `./le deployment docker-l2tp-ppp-test` | same derivation |
-| `internal/le/interoplab/pppoe/*.go` | `interop` | `./le deployment docker-pppoe-accel-test` | same derivation |
+| `*_test.go` outside `internal/le/` | `unit` | `./le test unit all` | `verify`, on every push |
+| `test/<suite>/*.ci` from `suiteCarriers` | `functional` | `./le test functional gating` | `verify` for each suite in `functional.GatingNames()`. Other directories need a separately registered carrier; `test/draft/` is skipped entirely |
+| `test/exabgp-compat/*.ci` | `functional` | `./le test functional exabgp-test` | `verify`, through the full verifier's separate ExaBGP stage |
+| `test/editor/*.et` | `editor` | `./le test functional editor` | `verify`, on the same earned-per-suite basis |
+| `internal/le/interoplab/bgp/*.go` | `interop` | `./le test integration interop` | `nightly` when a scheduled workflow names that runner, `unrun` otherwise |
+| `internal/le/interoplab/ipsec/*.go` | `interop` | `./le test integration interop-ipsec` | same derivation |
+| `internal/le/interoplab/l2tp/*.go` | `interop` | `./le test deployment docker-l2tp-ppp-test` | same derivation |
+| `internal/le/interoplab/pppoe/*.go` | `interop` | `./le test deployment docker-pppoe-accel-test` | same derivation |
 
 The four legacy trees under `test/interop*/` carry the same interop kinds through
 `legacyInteropCarriers`, keyed on a `/check.py` suffix.
@@ -678,7 +688,7 @@ it is a forgery, not a shortcut, so the reason names what the owner approved
 and why the tagged requirement is still proven after the change, quoting the
 requirement id.
 
-<!-- source: internal/le/testweakened/proposed.go -- RFC-tagged carrier approval -->
+<!-- source: internal/le/test/weakened/proposed.go -- RFC-tagged carrier approval -->
 <!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->
 
 Full rules: `ai/skills/ze-rfc.md`; audit method: `ai/skills/ze-rfc-audit.md`.
@@ -729,9 +739,9 @@ in it bounds what the summary MISSED, and a green `./le rfc check` is bounded
 by what was extracted. Record the walk in an artifact the gate re-checks:
 
 ```
-./le rfc extraction-create stem rfcNNNN   # skeleton to session scratch, never to rfc/extraction/
-                                          # classify every site and section by hand,
-                                          # then move the file in as the command says
+./le rfc extraction-create stem rfcNNNN   # derive the inventory and preserve matching decisions
+                                          # an unclassified skeleton stays in session scratch;
+                                          # a fully classified refresh may replace the artifact
 ./le rfc extraction-classify decisions <path>  # or write the decisions in one file and apply them
 ./le rfc check                            # re-derives the inventory and judges it
 ```
@@ -742,6 +752,11 @@ each section is `walked` or `skipped`. An unclassified site fails the gate, so
 generating the skeleton cannot produce a sign-off, only the walk can. Enrolling
 a stem that was not enrolled at HEAD REQUIRES this artifact. Contract and field
 reference: `rfc/extraction/README.md`.
+
+Only the native writer derives source hashes and locators. A source revision
+requires a new walk of changed sites and sections; retaining an older artifact
+preserves history but does not sign off the revised document.
+<!-- source: internal/le/rfc/extraction_create.go -- deriveExtractionDocument, placeExtractionDocument -->
 
 One exclusion kind does not dismiss its sentence. `relocated-to-spec` says the
 obligation is owed by a named spec, under an id reserved there, because an owner
@@ -765,9 +780,9 @@ Read the signed, enrolled, relocated, and unsigned counts with
 Before marking implementation complete:
 
 ```
-[ ] Pre-commit verification passes: ./le verify current mode full
-[ ] Fuzz targets pass: ./le fuzz run
-[ ] Functional tests pass: ./le functional gating
+[ ] Verify the agreed implementation boundary through ./le verify worktree
+[ ] Fuzz targets pass: ./le test fuzz run
+[ ] Functional tests pass: ./le test functional gating
 [ ] RFC MUST tests have both polarities: ./le rfc check
 [ ] RFC section comments on all protocol code
 [ ] RFC constraint comments with quoted requirements
@@ -775,8 +790,8 @@ Before marking implementation complete:
 [ ] No backwards-compatibility shims (Ze rule)
 [ ] No version numbers in config (Ze rule)
 [ ] Architecture docs updated
-[ ] Write learned summary to plan/learned/NNN-<name>.md
-[ ] All changes in single commit
+[ ] Complete the independent review and native closure steps in docs/contributing/spec-workflow.md
+[ ] Preserve the completed spec with the implementation in commit A; remove it only in commit B
 ```
 
 ---

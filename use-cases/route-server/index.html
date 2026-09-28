@@ -75,7 +75,7 @@
 <p>A practical deployment uses:</p>
 <ul>
 <li><code>bgp-rs</code> for route-server forwarding;</li>
-<li><code>bgp-adj-rib-in</code> for accepted inbound route state and replay;</li>
+<li><code>bgp-adj-rib-in</code> for retained inbound routes and eligible-route replay;</li>
 <li><code>bgp-rib</code> where local RIB operations or route visibility require it;</li>
 <li>BGP Role for route-server and route-server-client relationships;</li>
 <li>RPKI and IRR policy where the IXP requires them;</li>
@@ -92,6 +92,7 @@ loopback-only Looking Glass:</p>
     internal adj-rib-in { use bgp-adj-rib-in; }
     internal rpki { use bgp-rpki; }
     internal role { use bgp-role; }
+    internal transit-filter { use bgp-filter-path-asn; }
 }
 
 environment {
@@ -106,19 +107,38 @@ bgp {
     session { asn { local 65000; } }
 
     rpki {
-        cache-server 192.0.2.100 { port 323; }
+        cache-server 192.0.2.100 { port 323; trusted-network true; }
         action { invalid reject; not-found accept; }
+    }
+
+    policy {
+        reject-asn NO-TRANSIT { indirect [ 174 701 3356 ]; }
     }
 
     group members {
         session {
+            rs-client true;
             family {
                 ipv4/unicast { prefix { maximum 10000; } }
             }
         }
         role { import rs; strict false; }
-        process rpki { receive [ update ]; }
-        process adj-rib-in { receive [ update state ]; }
+        attach process rpki { receive [ update-received state ]; }
+        filter {
+            import [ NO-TRANSIT ];
+            export [ NO-TRANSIT ];
+        }
+        attach process adj-rib-in {
+            receive [ update-received state ];
+            send [ update ];
+        }
+        attach process rib {
+            receive [ update state refresh ];
+        }
+        attach process rs {
+            receive [ update-received state open-received refresh ];
+            send [ update ];
+        }
 
         peer member-a {
             connection {
@@ -144,13 +164,17 @@ bgp {
     }
 }
 </code></pre>
-<p>Replace the RTR cache address and prefix maximum with the values approved for
-the IXP. Validate the exact file before starting it:</p>
+<p>Replace the RTR cache address, prefix maximum, and transit-AS list with the values
+approved for the IXP. The example permits plaintext RTR only on a trusted network;
+use TLS for a cache outside that boundary. Invalid routes remain visible in
+Adj-RIB-In but cannot be selected or exported. Validate the exact file before
+starting it:</p>
 <pre><code class="language-console">ze config validate route-server.conf
 ze start route-server.conf
 </code></pre>
-<p>This baseline sends the best eligible path to each member. Configure ADD-PATH
-only after both directions and every member implementation have been tested.</p>
+<p>The route-server plugin distributes eligible routes without prepending the
+server's ASN. Configure ADD-PATH only after both directions and every member
+implementation have been tested.</p>
 <h2 id="session-policy">Session policy</h2>
 <p>For every member:</p>
 <ol>
@@ -238,7 +262,7 @@ ze cli -c "show errors"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

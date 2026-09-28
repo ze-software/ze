@@ -11,7 +11,7 @@ daemon instances in containers and exchange real BGP messages.
 |---------|-------------|
 | Target daemons | FRR, BIRD, GoBGP (tested), rustbgpd, RustyBGP, freeRtr (Dockerfiles ready) |
 | Scenario count | 100+ scenarios covering core BGP protocol and extensions plus adjacent protocols (RPKI, BMP, IS-IS, OSPF/OSPFv3) |
-| Runner | `./le integration interop` (all) or `INTEROP_SCENARIO=<name> ./le integration interop` (single) |
+| Runner | `./le test integration interop` (all) or `INTEROP_SCENARIO=<name> ./le test integration interop` (single) |
 | Container images | Customizable via env vars (e.g., `FRR_IMAGE=quay.io/frrouting/frr:10.3`) |
 
 ## Scenarios

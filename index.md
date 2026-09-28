@@ -17,9 +17,9 @@ Expected initial release: Q4 2026.
 
  [All updates](https://ze-software.net/project/changes/) Engineering note
 
-### [Reference stays attached to code](https://ze-software.net/blog/reference-from-the-system/)
+### [Keeping documentation in step with the code](https://ze-software.net/blog/reference-from-the-system/)
 
-Ze's command and configuration declarations also feed its reference pages. That leaves the writing for the…
+Ze generates command, configuration and support reference data from the code and its records, so the…
 
  Recently shipped
 
@@ -37,17 +37,17 @@ One page per RFC, naming each requirement, the test evidence behind it, and the 
 
 Every homepage number links to the page where you can inspect the test layer, transcript, peer list, RFC gate, or generated source evidence behind it.
 
- [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**30,800+ unit tests**
+ [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**32,200+ unit tests**
 
 - Wire encoding, parsing
 - Config, FSM, plugins
 - gomu mutates code to check assertions
 
- Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**1,893 of 3,797 RFC MUSTs**
+ Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**150 RFCs supported**
 
-- 49.9% tested
-- 147 RFCs Ze claims support for
-- 174 requirement lists checked against the RFC
+- 3,898 MUSTs to test
+- 2,489 checked with a test
+- 63.9% done
 
  RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**2,000+ end to end tests**
 
@@ -55,7 +55,7 @@ Every homepage number links to the page where you can inspect the test layer, tr
 - Editor, commits, reloads
 - Commands checked as operators run them
 
- Functional transcript format and rerun path.](https://ze-software.net/quality/functional-ci/) [**84 fuzz targets**
+ Functional transcript format and rerun path.](https://ze-software.net/quality/functional-ci/) [**88 fuzz targets**
 
 - Parsers, external inputs
 - Wire formats, config files

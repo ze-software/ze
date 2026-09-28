@@ -1,6 +1,6 @@
 # Chaos-Tested BGP Peering
 
-Use `ze-chaos` before deployment to prove that a peer configuration converges, survives selected faults, and produces a reproducible failure record when it does not.
+Use `le chaos run` before deployment to prove that a peer configuration converges, survives selected faults, and produces a reproducible failure record when it does not.
 
 ## Start from a validated peer
 
@@ -14,27 +14,27 @@ runs the same four-peer shape:
 
 ```console
 mkdir -p evidence/seed-42
-ze-chaos --config-only --seed 42 --peers 4 --config-out evidence/seed-42/ze.conf
+./le chaos run --config-only --seed 42 --peers 4 --config-out evidence/seed-42/ze.conf
 ze config validate evidence/seed-42/ze.conf
-ze-chaos --event-log evidence/seed-42/run.ndjson --seed 42 --peers 4 --duration 60s
+./le chaos run --event-log evidence/seed-42/run.ndjson --seed 42 --peers 4 --duration 60s
 ```
 
 For a deterministic in-process run that also varies route activity:
 
 ```console
-ze-chaos --in-process --event-log evidence/seed-42/in-process.ndjson --seed 42 --duration 60s --chaos-rate 0.1 --route-rate 0.05
+./le chaos run --in-process --event-log evidence/seed-42/in-process.ndjson --seed 42 --duration 60s --chaos-rate 0.1 --route-rate 0.05
 ```
 
 Replay the captured run before accepting the result:
 
 ```console
-ze-chaos --replay evidence/seed-42/run.ndjson
+./le chaos run --replay evidence/seed-42/run.ndjson
 ```
 
 If replay preserves a failure, reduce it to the smallest event sequence:
 
 ```console
-ze-chaos --shrink evidence/seed-42/run.ndjson
+./le chaos run --shrink evidence/seed-42/run.ndjson
 ```
 
 Keep `ze.conf`, the event logs, the seed, the Ze version, and the final command
@@ -75,8 +75,8 @@ Run one fault class at a time before combining them. This keeps failures attribu
 When a scenario fails:
 
 ```console
-ze-chaos --replay run.ndjson
-ze-chaos --shrink run.ndjson
+./le chaos run --replay run.ndjson
+./le chaos run --shrink run.ndjson
 ```
 
 Replay proves the failure is deterministic. Shrink removes unrelated events until the smallest useful reproduction remains. Keep the seed, event log, configuration, binary version, and final report together.

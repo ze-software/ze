@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 75.0% | 3 of 4 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 4 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 6 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 33.3% | 2 of 6 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -68,7 +68,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 6 |
 | Tagged units | 6 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 2 |
 | Summary | `rfc/short/rfc1877.md` |
 | Requirement shard | `rfc/requirements/rfc1877.md` |
 | RFC text | `rfc/full/rfc1877.txt` |
@@ -111,7 +111,7 @@ Carries the L2TP and PPPoE Partial status. One MUST gap gated in [`rfc/short/rfc
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC1877-x-1` | Link must still be usable for IPv4 traffic with or without DNS assignment (Scope) | MUST | x | **positive:** `unit/verify` [`TestIPCPDNSRejectAbsorbed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L313). **negative:** `unit/verify` [`TestIPCPIPAddressRejectIsFatal`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L387) |
+| `RFC1877-x-1` | Link must still be usable for IPv4 traffic with or without DNS assignment (Scope) | MUST | x | **positive:** `unit/verify` [`TestIPCPDNSIsOptional`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L300). **negative:** `unit/verify` [`TestIPCPIPAddressRejectIsFatal`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L390) |
 | `RFC1877-x-2` | Option with Length other than 6 must be Configure-Rejected (Configuration Options) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{gap}:** A DNS option (Primary/Secondary DNS, type 129/131) with a Length other than 6 is validated by parseIPCPv4Option (internal/component/l2tp/ppp/ipcp.go:100-102, errIPCPBadOptionLen) and flags the Configure-Request as bad in evalIPCPRequest (internal/component/l2tp/ppp/ncp.go:397-400), but Ze responds with a Configure-Nak carrying its own DNS values rather than a Configure-Reject of the malformed option. buildNakOrReject (ncp.go:586-601) takes the Reject branch only for UNKNOWN option TYPES: ipcpHasUnknownOption (ipcp.go:142-158) checks the type, not the length, so a known-type option with a bad length falls to the Nak branch. Disclosed in docs/features/rfc-status.md |
 | `RFC1877-x-3` | Configure-Ack must echo the option Data verbatim when value is acceptable (Negotiation Semantics) | MUST | x | **positive:** `unit/verify` [`TestRFC1877ConfigureAckEchoesAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1877_dns_options_test.go#L13). **negative:** `unit/verify` [`TestRFC1877ConfigureAckEchoesAcceptable`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1877_dns_options_test.go#L17) |
 | `RFC1877-x-4` | Configure-Reject must echo the offending option when option is not supported (Negotiation Semantics) | MUST | x | **positive:** `unit/verify` [`TestRFC1877ConfigureRejectEchoesUnsupportedOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1877_dns_options_test.go#L66). **negative:** `unit/verify` [`TestRFC1877ConfigureRejectEchoesUnsupportedOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1877_dns_options_test.go#L69) |
@@ -135,8 +135,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestIPCPIPAddressRejectIsFatal`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L387) | unit/verify | unproven |
-| positive | [`TestIPCPDNSRejectAbsorbed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L313) | unit/verify | unproven |
+| negative | [`TestIPCPIPAddressRejectIsFatal`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L390) | unit/verify | revert, verified |
+| positive | [`TestIPCPDNSIsOptional`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L300) | unit/verify | revert, verified |
 
 ### [`RFC1877-x-2`](#rfc1877-x-2)
 

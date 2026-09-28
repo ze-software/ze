@@ -302,7 +302,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3-1">RFC8669-3-1</code></td><td colspan="3"><span class="rfc-subject">Unknown TLVs MUST be ignored and propagated unmodified (§3, §6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3-1">RFC8669-3-1</code></td><td colspan="3"><span class="rfc-subject">For future extensibility, unknown TLVs MUST be ignored and propagated unmodified. (§3, §6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -320,7 +320,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> neither the sender nor the receiver requires TLV type 1 for labeled unicast -- validatePrefixSIDAttr accepts a Prefix-SID with no Label-Index TLV (internal/component/bgp/message/rfc7606.go:837) and BuildLabeledUnicast attaches whatever bytes the route configuration produced, including an SRv6-only attribute (internal/component/bgp/message/update_build_labeled.go:189)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.1-2">RFC8669-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Label-Index TLV MUST be ignored when received for other BGP AFI/SAFI combinations (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.1-2">RFC8669-3.1-2</code></td><td colspan="3"><span class="rfc-subject">It MUST be ignored when received for other BGP AFI/SAFI combinations. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -401,7 +401,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze has no receive-side Originator SRGB consumer for any family -- ExtractSRv6SIDFull steps over TLV type 3 by length (internal/component/bgp/plugins/rib/pool/srv6sid.go:47) and the only SRGB code in internal/component/bgp is the config-side encoder -- so the TLV is ignored on every AFI/SAFI and there is no SRGB-driven behavior to drive negatively</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4-1">RFC8669-4-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker receiving a BGP Prefix-SID attribute from an EBGP neighbor outside the SR domain MUST discard the attribute unless configured to accept (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4-1">RFC8669-4-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker receiving a BGP Prefix-SID attribute from an External BGP (EBGP) neighbor residing outside the boundaries of the SR domain MUST discard the attribute unless it is configured to accept the attribute from the EBGP neighbor. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -421,7 +421,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the receive validator never scans for TLV type 1, so a labeled-unicast Prefix-SID with no Label-Index TLV is accepted as well formed (internal/component/bgp/message/rfc7606.go:837)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-2">RFC8669-4.1-2</code></td><td colspan="3"><span class="rfc-subject">A BGP Prefix-SID attribute received without a Label-Index TLV MUST be considered &#34;invalid&#34; (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-2">RFC8669-4.1-2</code></td><td colspan="3"><span class="rfc-subject">A BGP Prefix-SID attribute received without a Label-Index TLV MUST be considered to be &#34;invalid&#34; by the receiving speaker. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -430,7 +430,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze has no &#34;invalid&#34; state for the Prefix-SID attribute -- validatePrefixSIDAttr returns nil for any attribute whose TLVs fit the declared bounds, whatever their types (internal/component/bgp/message/rfc7606.go:858)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-3">RFC8669-4.1-3</code></td><td colspan="3"><span class="rfc-subject">If multiple different prefixes are received with the same label index, all MUST have their BGP Prefix-SID attribute considered &#34;conflicting&#34; (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-3">RFC8669-4.1-3</code></td><td colspan="3"><span class="rfc-subject">If multiple different prefixes are received with the same label index, all of the different prefixes MUST have their BGP Prefix-SID attribute considered to be &#34;conflicting&#34;. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -439,7 +439,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze keeps no label-index-to-prefix reverse index and reads no label index at all -- the only reader of the Prefix-SID TLV list is the SRv6 extractor, which skips TLV type 1 (internal/component/bgp/plugins/rib/pool/srv6sid.go:47), so no conflict can be detected</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-4">RFC8669-4.1-4</code></td><td colspan="3"><span class="rfc-subject">When receiving &#34;invalid&#34; or &#34;conflicting&#34; BGP Prefix-SID attribute, speaker MUST ignore the attribute (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-4">RFC8669-4.1-4</code></td><td colspan="3"><span class="rfc-subject">When a BGP speaker receives a path from a neighbor with an &#34;invalid&#34; or &#34;conflicting&#34; BGP Prefix-SID attribute, or when a BGP speaker receives a path from a neighbor with a BGP Prefix-SID attribute but is unable to process it (e.g., local policy disables the functionality), it MUST ignore the BGP Prefix-SID attribute. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -448,7 +448,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> neither the invalid nor the conflicting state is computed, so the ignore action has no trigger -- the receive path&#39;s only Prefix-SID discard reasons are malformed TLV bounds (internal/component/bgp/message/rfc7606.go:842) and the EBGP boundary rule (internal/component/bgp/reactor/session_validation.go:107)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-5">RFC8669-4.1-5</code></td><td colspan="3"><span class="rfc-subject">Speaker MUST assign a local (dynamic) label (non-SRGB) for prefixes with invalid/conflicting Prefix-SID (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-5">RFC8669-4.1-5</code></td><td colspan="3"><span class="rfc-subject">For the purposes of label allocation, a BGP speaker MUST assign a local (also called dynamic) label (non-SRGB) for such a prefix as per classic Multiprotocol BGP IPv4/IPv6 Labeled Unicast ([RFC8277]) operation. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -457,7 +457,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze allocates no local label for a BGP prefix at all -- the label programmed for a labeled-unicast route is the one carried in the received NLRI (internal/component/bgp/plugins/rib/rib_bestchange.go:900), and the only MPLS ingress allocators are LDP and RSVP-TE (internal/plugins/ldp/fib.go:135, internal/plugins/rsvpte/fib.go:45)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-6">RFC8669-4.1-6</code></td><td colspan="3"><span class="rfc-subject">For &#34;invalid&#34; BGP Prefix-SID attribute, speaker MUST follow the error-handling rules specified in Section 6 (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-6">RFC8669-4.1-6</code></td><td colspan="3"><span class="rfc-subject">In the case of an &#34;invalid&#34; BGP Prefix-SID attribute, a BGP speaker MUST follow the error-handling rules specified in Section 6. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -466,7 +466,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the Section 6 error handling exists and fires for malformed TLV bounds and trailing bytes (internal/component/bgp/message/rfc7606.go:842,:859), but the &#34;invalid&#34; condition that would route a missing-Label-Index attribute into it is never computed (internal/component/bgp/message/rfc7606.go:837)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-7">RFC8669-4.1-7</code></td><td colspan="3"><span class="rfc-subject">Implicit NULL label in NLRI: speaker MUST adhere to standard behavior and program MPLS data plane to pop the top label (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-4.1-7">RFC8669-4.1-7</code></td><td colspan="3"><span class="rfc-subject">Specifically, a BGP speaker receiving a prefix with a BGP Prefix-SID attribute and a label NLRI field of Implicit NULL [RFC3032] from a neighbor MUST adhere to standard behavior and program its MPLS data plane to pop the top label when forwarding traffic to the prefix. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -484,7 +484,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the label taken off the received NLRI is carried unchanged to the forwarding plane (internal/core/bgp/nlri/nlrisplit/labeled.go:110 to internal/component/bgp/plugins/rib/rib_bestchange.go:900 to internal/plugins/fib/kernel/nexthop_linux.go:75); the rule states which label to use, not a condition to reject, so there is no non-conforming input whose rejection could be asserted</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-5.1-1">RFC8669-5.1-1</code></td><td colspan="3"><span class="rfc-subject">Label field of the advertised NLRI MUST be set to the local/incoming label programmed in the MPLS data plane (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-5.1-1">RFC8669-5.1-1</code></td><td colspan="3"><span class="rfc-subject">In all cases, the Label field of the advertised NLRI ([RFC8277] [RFC4364]) MUST be set to the local/incoming label programmed in the MPLS data plane for the given advertised prefix. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
@@ -512,7 +512,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-ebgp-egress-boundary.ci#L4" title="test/plugin/prefixsid-ebgp-egress-boundary.ci" target="_blank" rel="noopener"><code>prefixsid-ebgp-egress-boundary.ci</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-6-1">RFC8669-6-1</code></td><td colspan="3"><span class="rfc-subject">Malformed BGP Prefix-SID attribute: MUST ignore the received attribute and not advertise it to other BGP peers (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-6-1">RFC8669-6-1</code></td><td colspan="3"><span class="rfc-subject">When a BGP speaker receives a BGP UPDATE message containing a malformed or invalid BGP Prefix-SID attribute attached to an IPv4/ IPv6 Labeled Unicast prefix ([RFC8277]), it MUST ignore the received BGP Prefix-SID attribute and not advertise it to other BGP peers. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -522,7 +522,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8669_test.go#L238" title="internal/component/bgp/message/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669TrailingBytesDiscarded</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-6-2">RFC8669-6-2</code></td><td colspan="3"><span class="rfc-subject">If the BGP Prefix-SID attribute appears more than once in an UPDATE, all occurrences other than the first SHALL be discarded (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-6-2">RFC8669-6-2</code></td><td colspan="3"><span class="rfc-subject">As per [RFC7606], if the BGP Prefix-SID attribute appears more than once in an UPDATE message, all the occurrences of the attribute other than the first one SHALL be discarded and the UPDATE message will continue to be processed. (§6)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>6</td>
@@ -531,7 +531,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the processing half holds -- an already-seen non-MP attribute code is skipped without validation (internal/component/bgp/message/rfc7606.go:283) -- but nothing removes the duplicate from the bytes forwarded on. A valid first occurrence with a duplicate produces no DiscardEntry, and ApplyAttrDiscard returns the path attributes untouched when the entry list is empty (internal/component/bgp/message/attr_discard.go:73-75), so the second copy is re-advertised. When the FIRST occurrence is the malformed one, applyInPlace tombstones it through AttrFind, which returns only the first match (internal/component/bgp/message/attr_discard.go:111, internal/core/bgp/attribute/iterator.go:155), leaving the untouched duplicate on the wire</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-6-3">RFC8669-6-3</code></td><td colspan="3"><span class="rfc-subject">If a recognized TLV appears more than once, all occurrences other than the first SHALL be discarded (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-6-3">RFC8669-6-3</code></td><td colspan="3"><span class="rfc-subject">Similarly, if a recognized TLV appears more than once in a BGP Prefix-SID attribute while the specification only allows for a single occurrence, then all the occurrences of the TLV other than the first one SHALL be discarded and the Prefix-SID attribute will continue to be processed. (§6)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>6</td>
@@ -612,7 +612,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-5.1-2">RFC8669-5.1-2</code></td><td colspan="3"><span class="rfc-subject">Implementation SHOULD NOT advertise the BGP Prefix-SID attribute outside an AS unless explicitly configured (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-5.1-2">RFC8669-5.1-2</code></td><td colspan="3"><span class="rfc-subject">Since the label-index value must be unique within an SR domain, by default an implementation SHOULD NOT advertise the BGP Prefix-SID attribute outside an AS unless it is explicitly configured to do so. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>5.1</td>
@@ -728,35 +728,35 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>the receive validator never scans for TLV type 1, so a labeled-unicast Prefix-SID with no Label-Index TLV is accepted as well formed (internal/component/bgp/message/rfc7606.go:837)</td>
 </tr>
-<tr><td><a href="#rfc8669-4.1-2"><code>RFC8669-4.1-2</code></a> A BGP Prefix-SID attribute received without a Label-Index TLV MUST be considered &#34;invalid&#34; (§4.1)</td>
+<tr><td><a href="#rfc8669-4.1-2"><code>RFC8669-4.1-2</code></a> A BGP Prefix-SID attribute received without a Label-Index TLV MUST be considered to be &#34;invalid&#34; by the receiving speaker. (§4.1)</td>
 <td>{gap}, no test</td>
 <td>ze has no &#34;invalid&#34; state for the Prefix-SID attribute -- validatePrefixSIDAttr returns nil for any attribute whose TLVs fit the declared bounds, whatever their types (internal/component/bgp/message/rfc7606.go:858)</td>
 </tr>
-<tr><td><a href="#rfc8669-4.1-3"><code>RFC8669-4.1-3</code></a> If multiple different prefixes are received with the same label index, all MUST have their BGP Prefix-SID attribute considered &#34;conflicting&#34; (§4.1)</td>
+<tr><td><a href="#rfc8669-4.1-3"><code>RFC8669-4.1-3</code></a> If multiple different prefixes are received with the same label index, all of the different prefixes MUST have their BGP Prefix-SID attribute considered to be &#34;conflicting&#34;. (§4.1)</td>
 <td>{gap}, no test</td>
 <td>ze keeps no label-index-to-prefix reverse index and reads no label index at all -- the only reader of the Prefix-SID TLV list is the SRv6 extractor, which skips TLV type 1 (internal/component/bgp/plugins/rib/pool/srv6sid.go:47), so no conflict can be detected</td>
 </tr>
-<tr><td><a href="#rfc8669-4.1-4"><code>RFC8669-4.1-4</code></a> When receiving &#34;invalid&#34; or &#34;conflicting&#34; BGP Prefix-SID attribute, speaker MUST ignore the attribute (§4.1)</td>
+<tr><td><a href="#rfc8669-4.1-4"><code>RFC8669-4.1-4</code></a> When a BGP speaker receives a path from a neighbor with an &#34;invalid&#34; or &#34;conflicting&#34; BGP Prefix-SID attribute, or when a BGP speaker receives a path from a neighbor with a BGP Prefix-SID attribute but is unable to process it (e.g., local policy disables the functionality), it MUST ignore the BGP Prefix-SID attribute. (§4.1)</td>
 <td>{gap}, no test</td>
 <td>neither the invalid nor the conflicting state is computed, so the ignore action has no trigger -- the receive path&#39;s only Prefix-SID discard reasons are malformed TLV bounds (internal/component/bgp/message/rfc7606.go:842) and the EBGP boundary rule (internal/component/bgp/reactor/session_validation.go:107)</td>
 </tr>
-<tr><td><a href="#rfc8669-4.1-5"><code>RFC8669-4.1-5</code></a> Speaker MUST assign a local (dynamic) label (non-SRGB) for prefixes with invalid/conflicting Prefix-SID (§4.1)</td>
+<tr><td><a href="#rfc8669-4.1-5"><code>RFC8669-4.1-5</code></a> For the purposes of label allocation, a BGP speaker MUST assign a local (also called dynamic) label (non-SRGB) for such a prefix as per classic Multiprotocol BGP IPv4/IPv6 Labeled Unicast ([RFC8277]) operation. (§4.1)</td>
 <td>{gap}, no test</td>
 <td>ze allocates no local label for a BGP prefix at all -- the label programmed for a labeled-unicast route is the one carried in the received NLRI (internal/component/bgp/plugins/rib/rib_bestchange.go:900), and the only MPLS ingress allocators are LDP and RSVP-TE (internal/plugins/ldp/fib.go:135, internal/plugins/rsvpte/fib.go:45)</td>
 </tr>
-<tr><td><a href="#rfc8669-4.1-6"><code>RFC8669-4.1-6</code></a> For &#34;invalid&#34; BGP Prefix-SID attribute, speaker MUST follow the error-handling rules specified in Section 6 (§4.1)</td>
+<tr><td><a href="#rfc8669-4.1-6"><code>RFC8669-4.1-6</code></a> In the case of an &#34;invalid&#34; BGP Prefix-SID attribute, a BGP speaker MUST follow the error-handling rules specified in Section 6. (§4.1)</td>
 <td>{gap}, no test</td>
 <td>the Section 6 error handling exists and fires for malformed TLV bounds and trailing bytes (internal/component/bgp/message/rfc7606.go:842,:859), but the &#34;invalid&#34; condition that would route a missing-Label-Index attribute into it is never computed (internal/component/bgp/message/rfc7606.go:837)</td>
 </tr>
-<tr><td><a href="#rfc8669-4.1-7"><code>RFC8669-4.1-7</code></a> Implicit NULL label in NLRI: speaker MUST adhere to standard behavior and program MPLS data plane to pop the top label (§4.1)</td>
+<tr><td><a href="#rfc8669-4.1-7"><code>RFC8669-4.1-7</code></a> Specifically, a BGP speaker receiving a prefix with a BGP Prefix-SID attribute and a label NLRI field of Implicit NULL [RFC3032] from a neighbor MUST adhere to standard behavior and program its MPLS data plane to pop the top label when forwarding traffic to the prefix. (§4.1)</td>
 <td>{gap}, no test</td>
 <td>the received NLRI label is programmed as an MPLS encapsulation without any implicit-NULL exception -- validateMPLSLabels accepts label 3 like any other value (internal/plugins/fib/kernel/mpls.go:23) and buildMPLSEncap pushes whatever labels it is given (internal/plugins/fib/kernel/nexthop_linux.go:75), so an implicit-NULL labeled-unicast route is programmed as a push of label 3 rather than a pop</td>
 </tr>
-<tr><td><a href="#rfc8669-5.1-1"><code>RFC8669-5.1-1</code></a> Label field of the advertised NLRI MUST be set to the local/incoming label programmed in the MPLS data plane (§5.1)</td>
+<tr><td><a href="#rfc8669-5.1-1"><code>RFC8669-5.1-1</code></a> In all cases, the Label field of the advertised NLRI ([RFC8277] [RFC4364]) MUST be set to the local/incoming label programmed in the MPLS data plane for the given advertised prefix. (§5.1)</td>
 <td>{gap}, no test</td>
 <td>BuildLabeledUnicastNLRIBytes writes the label taken from the route configuration into the NLRI (internal/component/bgp/message/update_build_labeled.go:278, fed by internal/component/bgp/reactor/peer_static_routes.go:86) and nothing programs a matching incoming MPLS entry -- the only emitters of MPLS ingress/transit entries are LDP and RSVP-TE (internal/plugins/ldp/fib.go:135, internal/plugins/rsvpte/fib.go:50)</td>
 </tr>
-<tr><td><a href="#rfc8669-6-2"><code>RFC8669-6-2</code></a> If the BGP Prefix-SID attribute appears more than once in an UPDATE, all occurrences other than the first SHALL be discarded (§6)</td>
+<tr><td><a href="#rfc8669-6-2"><code>RFC8669-6-2</code></a> As per [RFC7606], if the BGP Prefix-SID attribute appears more than once in an UPDATE message, all the occurrences of the attribute other than the first one SHALL be discarded and the UPDATE message will continue to be processed. (§6)</td>
 <td>{gap}, no test</td>
 <td>the processing half holds -- an already-seen non-MP attribute code is skipped without validation (internal/component/bgp/message/rfc7606.go:283) -- but nothing removes the duplicate from the bytes forwarded on. A valid first occurrence with a duplicate produces no DiscardEntry, and ApplyAttrDiscard returns the path attributes untouched when the entry list is empty (internal/component/bgp/message/attr_discard.go:73-75), so the second copy is re-advertised. When the FIRST occurrence is the malformed one, applyInPlace tombstones it through AttrFind, which returns only the first match (internal/component/bgp/message/attr_discard.go:111, internal/core/bgp/attribute/iterator.go:155), leaving the untouched duplicate on the wire</td>
 </tr>
@@ -767,7 +767,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8669-3-1"><code>RFC8669-3-1</code></a></h3>
-<p>Unknown TLVs MUST be ignored and propagated unmodified (§3, §6)</p>
+<p>For future extensibility, unknown TLVs MUST be ignored and propagated unmodified. (§3, §6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -786,7 +786,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8669-3.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8669-3.1-2"><code>RFC8669-3.1-2</code></a></h3>
-<p>Label-Index TLV MUST be ignored when received for other BGP AFI/SAFI combinations (§3.1)</p>
+<p>It MUST be ignored when received for other BGP AFI/SAFI combinations. (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -936,7 +936,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8669-4-1"><code>RFC8669-4-1</code></a></h3>
-<p>A BGP speaker receiving a BGP Prefix-SID attribute from an EBGP neighbor outside the SR domain MUST discard the attribute unless configured to accept (§4)</p>
+<p>A BGP speaker receiving a BGP Prefix-SID attribute from an External BGP (EBGP) neighbor residing outside the boundaries of the SR domain MUST discard the attribute unless it is configured to accept the attribute from the EBGP neighbor. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -970,27 +970,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8669-4.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8669-4.1-2"><code>RFC8669-4.1-2</code></a></h3>
-<p>A BGP Prefix-SID attribute received without a Label-Index TLV MUST be considered &#34;invalid&#34; (§4.1)</p>
+<p>A BGP Prefix-SID attribute received without a Label-Index TLV MUST be considered to be &#34;invalid&#34; by the receiving speaker. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8669-4.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8669-4.1-3"><code>RFC8669-4.1-3</code></a></h3>
-<p>If multiple different prefixes are received with the same label index, all MUST have their BGP Prefix-SID attribute considered &#34;conflicting&#34; (§4.1)</p>
+<p>If multiple different prefixes are received with the same label index, all of the different prefixes MUST have their BGP Prefix-SID attribute considered to be &#34;conflicting&#34;. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8669-4.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc8669-4.1-4"><code>RFC8669-4.1-4</code></a></h3>
-<p>When receiving &#34;invalid&#34; or &#34;conflicting&#34; BGP Prefix-SID attribute, speaker MUST ignore the attribute (§4.1)</p>
+<p>When a BGP speaker receives a path from a neighbor with an &#34;invalid&#34; or &#34;conflicting&#34; BGP Prefix-SID attribute, or when a BGP speaker receives a path from a neighbor with a BGP Prefix-SID attribute but is unable to process it (e.g., local policy disables the functionality), it MUST ignore the BGP Prefix-SID attribute. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8669-4.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc8669-4.1-5"><code>RFC8669-4.1-5</code></a></h3>
-<p>Speaker MUST assign a local (dynamic) label (non-SRGB) for prefixes with invalid/conflicting Prefix-SID (§4.1)</p>
+<p>For the purposes of label allocation, a BGP speaker MUST assign a local (also called dynamic) label (non-SRGB) for such a prefix as per classic Multiprotocol BGP IPv4/IPv6 Labeled Unicast ([RFC8277]) operation. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8669-4.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc8669-4.1-6"><code>RFC8669-4.1-6</code></a></h3>
-<p>For &#34;invalid&#34; BGP Prefix-SID attribute, speaker MUST follow the error-handling rules specified in Section 6 (§4.1)</p>
+<p>In the case of an &#34;invalid&#34; BGP Prefix-SID attribute, a BGP speaker MUST follow the error-handling rules specified in Section 6. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8669-4.1-6, so no unit is bound to it.</p>
 <h3><a href="#rfc8669-4.1-7"><code>RFC8669-4.1-7</code></a></h3>
-<p>Implicit NULL label in NLRI: speaker MUST adhere to standard behavior and program MPLS data plane to pop the top label (§4.1)</p>
+<p>Specifically, a BGP speaker receiving a prefix with a BGP Prefix-SID attribute and a label NLRI field of Implicit NULL [RFC3032] from a neighbor MUST adhere to standard behavior and program its MPLS data plane to pop the top label when forwarding traffic to the prefix. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8669-4.1-7, so no unit is bound to it.</p>
 <h3><a href="#rfc8669-4.1-8"><code>RFC8669-4.1-8</code></a></h3>
@@ -1009,7 +1009,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8669-5.1-1"><code>RFC8669-5.1-1</code></a></h3>
-<p>Label field of the advertised NLRI MUST be set to the local/incoming label programmed in the MPLS data plane (§5.1)</p>
+<p>In all cases, the Label field of the advertised NLRI ([RFC8277] [RFC4364]) MUST be set to the local/incoming label programmed in the MPLS data plane for the given advertised prefix. (§5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8669-5.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8669-8-1"><code>RFC8669-8-1</code></a></h3>
@@ -1083,7 +1083,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8669-6-1"><code>RFC8669-6-1</code></a></h3>
-<p>Malformed BGP Prefix-SID attribute: MUST ignore the received attribute and not advertise it to other BGP peers (§6)</p>
+<p>When a BGP speaker receives a BGP UPDATE message containing a malformed or invalid BGP Prefix-SID attribute attached to an IPv4/ IPv6 Labeled Unicast prefix ([RFC8277]), it MUST ignore the received BGP Prefix-SID attribute and not advertise it to other BGP peers. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1108,11 +1108,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8669-6-2"><code>RFC8669-6-2</code></a></h3>
-<p>If the BGP Prefix-SID attribute appears more than once in an UPDATE, all occurrences other than the first SHALL be discarded (§6)</p>
+<p>As per [RFC7606], if the BGP Prefix-SID attribute appears more than once in an UPDATE message, all the occurrences of the attribute other than the first one SHALL be discarded and the UPDATE message will continue to be processed. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8669-6-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8669-6-3"><code>RFC8669-6-3</code></a></h3>
-<p>If a recognized TLV appears more than once, all occurrences other than the first SHALL be discarded (§6)</p>
+<p>Similarly, if a recognized TLV appears more than once in a BGP Prefix-SID attribute while the specification only allows for a single occurrence, then all the occurrences of the TLV other than the first one SHALL be discarded and the Prefix-SID attribute will continue to be processed. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1361,7 +1361,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

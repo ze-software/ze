@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5305 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 11 gated MUST-level requirements, 0 declared gaps, 3 with no test." />
+        <meta name="description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 11 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 5305 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 11 gated MUST-level requirements, 0 declared gaps, 3 with no test." />
+        <meta property="og:description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 11 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5305 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 11 gated MUST-level requirements, 0 declared gaps, 3 with no test." />
+        <meta name="twitter:description" content="RFC 5305: IS-IS Extensions for Traffic Engineering. 11 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,24 +116,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>45.5%</strong><b>5 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>63.6%</strong><b>7 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>8.3%</strong><b>1 of 12 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>31.2%</strong><b>5 of 16 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>11</strong><b>of 15 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>3</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>27.3%</strong><b>3 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>4</strong><b>of 11 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>36.4%</strong><b>4 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>27.3%</strong><b>3 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -163,7 +159,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -209,28 +205,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>11</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>3</td>
+<td>4</td>
 </tr>
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>3</td>
+<td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>12</td>
+<td>16</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>12</td>
+<td>16</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>1</td>
+<td>5</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5305.md</code></td>
@@ -265,11 +261,11 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>5</strong></td>
+<td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>3</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -277,7 +273,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>3</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -292,9 +288,8 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc5305-3-1"><code>RFC5305-3-1</code></a>, <a href="#rfc5305-3-2"><code>RFC5305-3-2</code></a>, <a href="#rfc5305-4-1"><code>RFC5305-4-1</code></a>, <a href="#rfc5305-4.1-1"><code>RFC5305-4.1-1</code></a>, <a href="#rfc5305-2-1"><code>RFC5305-2-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (3):</strong> <a href="#rfc5305-3.2-1"><code>RFC5305-3.2-1</code></a>, <a href="#rfc5305-3.2-2"><code>RFC5305-3.2-2</code></a>, <a href="#rfc5305-4.3-1"><code>RFC5305-4.3-1</code></a></p>
-<p class="rfc-id-list"><strong>No test and no annotation (3):</strong> <a href="#rfc5305-3.7-1"><code>RFC5305-3.7-1</code></a>, <a href="#rfc5305-4.1-2"><code>RFC5305-4.1-2</code></a>, <a href="#rfc5305-4.2-1"><code>RFC5305-4.2-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#rfc5305-3-1"><code>RFC5305-3-1</code></a>, <a href="#rfc5305-3-2"><code>RFC5305-3-2</code></a>, <a href="#rfc5305-4-1"><code>RFC5305-4-1</code></a>, <a href="#rfc5305-4.1-1"><code>RFC5305-4.1-1</code></a>, <a href="#rfc5305-4.1-2"><code>RFC5305-4.1-2</code></a>, <a href="#rfc5305-4.2-1"><code>RFC5305-4.2-1</code></a>, <a href="#rfc5305-2-1"><code>RFC5305-2-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (4):</strong> <a href="#rfc5305-3.7-1"><code>RFC5305-3.7-1</code></a>, <a href="#rfc5305-3.2-1"><code>RFC5305-3.2-1</code></a>, <a href="#rfc5305-3.2-2"><code>RFC5305-3.2-2</code></a>, <a href="#rfc5305-4.3-1"><code>RFC5305-4.3-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -333,8 +328,8 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5305-4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L255" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineLeakOrigination</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L266" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineLeakOrigination</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L259" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineLeakOrigination</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L270" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineLeakOrigination</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/consumer_test.go#L169" title="internal/plugins/isis/redistribute/consumer_test.go" target="_blank" rel="noopener"><code>TestISISRedistConsumerConnected</code></a></span></div>
 </div></td>
 </tr>
@@ -345,15 +340,15 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5305-3.7-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Owner decision 2026-09-21: &#34;Keep configured routes&#34; for TE path computation. The conditional subject is &#34;traffic engineering SPF calculations&#34;; internal/plugins/rsvpte/register.go parseERO, routing.go resolveExplicitPath and frr.go selectBypass consume configured routes, native next-hop lookups and configured bypasses. internal/plugins/isis/spf/spf.go computes normal SPF. There is no CSPF/TE shortest-path consumer to apply this fallback. This exclusion does not cover native TE advertisement or wire duties, and BGP-LS export is not TE-SPF</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-4.1-2">RFC5305-4.1-2</code></td><td colspan="3"><span class="rfc-subject">The up/down bit SHALL be set to 0 when a prefix is first injected into IS-IS (Section 4.1)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5305-4.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/inject_rfc5305_test.go#L15" title="internal/plugins/isis/redistribute/inject_rfc5305_test.go" target="_blank" rel="noopener"><code>TestRFC5305FirstInjectionClearsUpDown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/inject_rfc5305_test.go#L37" title="internal/plugins/isis/redistribute/inject_rfc5305_test.go" target="_blank" rel="noopener"><code>TestRFC5305ConnectedInjectionClearsUpDown</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-4.2-1">RFC5305-4.2-1</code></td><td colspan="3"><span class="rfc-subject">If there are no sub-TLVs associated with a prefix, the bit indicating the presence of sub-TLVs SHALL be set to 0 (Section 4.2)</span></td></tr>
@@ -361,8 +356,8 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <td>SHALL</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5305-4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_rfc5305_test.go#L24" title="internal/plugins/isis/packet/tlv_ipv4_rfc5305_test.go" target="_blank" rel="noopener"><code>TestRFC5305NoSubTLVsClearsPresenceBit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_rfc5305_test.go#L39" title="internal/plugins/isis/packet/tlv_ipv4_rfc5305_test.go" target="_blank" rel="noopener"><code>TestRFC5305SubTLVsSetPresenceBit</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5305-3.2-1">RFC5305-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Inject sub-TLV 6 / sub-TLV 8 / Router-ID addresses as /32 routes (Section 3.2, Section 3.3, Section 4.3)</span></td></tr>
@@ -449,15 +444,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <tbody>
 <tr><td><a href="#rfc5305-3.7-1"><code>RFC5305-3.7-1</code></a> If a link is advertised without sub-TLV 18, traffic engineering SPF calculations MUST use the normal default metric of this link, which is advertised in the fixed part of the extended IS reachability TLV (Section 3.7)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5305-4.1-2"><code>RFC5305-4.1-2</code></a> The up/down bit SHALL be set to 0 when a prefix is first injected into IS-IS (Section 4.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5305-4.2-1"><code>RFC5305-4.2-1</code></a> If there are no sub-TLVs associated with a prefix, the bit indicating the presence of sub-TLVs SHALL be set to 0 (Section 4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Owner decision 2026-09-21: &#34;Keep configured routes&#34; for TE path computation. The conditional subject is &#34;traffic engineering SPF calculations&#34;; internal/plugins/rsvpte/register.go parseERO, routing.go resolveExplicitPath and frr.go selectBypass consume configured routes, native next-hop lookups and configured bypasses. internal/plugins/isis/spf/spf.go computes normal SPF. There is no CSPF/TE shortest-path consumer to apply this fallback. This exclusion does not cover native TE advertisement or wire duties, and BGP-LS export is not TE-SPF</td>
 </tr>
 <tr><td><a href="#rfc5305-3.2-1"><code>RFC5305-3.2-1</code></a> Inject sub-TLV 6 / sub-TLV 8 / Router-ID addresses as /32 routes (Section 3.2, Section 3.3, Section 4.3)</td>
 <td>no test</td>
@@ -545,7 +532,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L266" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineLeakOrigination</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L270" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineLeakOrigination</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -555,7 +542,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L255" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineLeakOrigination</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L259" title="internal/plugins/isis/lsdb_wiring_test.go" target="_blank" rel="noopener"><code>TestISISEngineLeakOrigination</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -569,11 +556,43 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
 <h3><a href="#rfc5305-4.1-2"><code>RFC5305-4.1-2</code></a></h3>
 <p>The up/down bit SHALL be set to 0 when a prefix is first injected into IS-IS (Section 4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5305-4.1-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/inject_rfc5305_test.go#L37" title="internal/plugins/isis/redistribute/inject_rfc5305_test.go" target="_blank" rel="noopener"><code>TestRFC5305ConnectedInjectionClearsUpDown</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/inject_rfc5305_test.go#L15" title="internal/plugins/isis/redistribute/inject_rfc5305_test.go" target="_blank" rel="noopener"><code>TestRFC5305FirstInjectionClearsUpDown</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5305-4.2-1"><code>RFC5305-4.2-1</code></a></h3>
 <p>If there are no sub-TLVs associated with a prefix, the bit indicating the presence of sub-TLVs SHALL be set to 0 (Section 4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5305-4.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_rfc5305_test.go#L39" title="internal/plugins/isis/packet/tlv_ipv4_rfc5305_test.go" target="_blank" rel="noopener"><code>TestRFC5305SubTLVsSetPresenceBit</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_ipv4_rfc5305_test.go#L24" title="internal/plugins/isis/packet/tlv_ipv4_rfc5305_test.go" target="_blank" rel="noopener"><code>TestRFC5305NoSubTLVsClearsPresenceBit</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5305-3.2-1"><code>RFC5305-3.2-1</code></a></h3>
 <p>Inject sub-TLV 6 / sub-TLV 8 / Router-ID addresses as /32 routes (Section 3.2, Section 3.3, Section 4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -849,7 +868,7 @@ TE sub-TLVs (6/8) and TLV 134 (TE Router ID) are not implemented (no IS-IS TE).
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

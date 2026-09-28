@@ -287,7 +287,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2890-2.2-3">RFC2890-2.2-3</code></td><td colspan="3"><span class="rfc-subject">Sequence Number MUST be used by the receiver to establish packet order (S2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2890-2.2-3">RFC2890-2.2-3</code></td><td colspan="3"><span class="rfc-subject">The Sequence Number MUST be used by the receiver to establish the order in which packets have been transmitted from the encapsulator to the receiver. (S2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.2</td>
@@ -296,7 +296,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> GRE receive-side sequence ordering is performed by the kernel/VPP datapath; ze has no GRE decapsulation or packet-parse code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2890-2.2-4">RFC2890-2.2-4</code></td><td colspan="3"><span class="rfc-subject">If a packet has waited longer than OUTOFORDER_TIMER milliseconds in the buffer, the receiver MUST immediately traverse the buffer in sorted order, decapsulating packets (S2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2890-2.2-4">RFC2890-2.2-4</code></td><td colspan="3"><span class="rfc-subject">If a packet has been waiting that long, the receiver MUST immediately traverse the buffer in sorted order, decapsulating packets (and ignoring any sequence number gaps) until there are no more packets in the buffer that have been waiting longer than OUTOFORDER_TIMER milliseconds. (S2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.2</td>
@@ -305,7 +305,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze has no GRE receiver buffer or OUTOFORDER_TIMER; it programs kernel/VPP tunnels and does not process GRE payloads</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2890-3-1">RFC2890-3-1</code></td><td colspan="3"><span class="rfc-subject">IP security protocols (ESP or AH) MUST be used to protect the GRE header and tunneled payload when using Sequence Number (S3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2890-3-1">RFC2890-3-1</code></td><td colspan="3"><span class="rfc-subject">In order to protect against such attacks, IP security protocols [4] MUST be used to protect the GRE header and the tunneled payload. (S3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -359,15 +359,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc2890-2.2-3"><code>RFC2890-2.2-3</code></a> Sequence Number MUST be used by the receiver to establish packet order (S2.2)</td>
+<tr><td><a href="#rfc2890-2.2-3"><code>RFC2890-2.2-3</code></a> The Sequence Number MUST be used by the receiver to establish the order in which packets have been transmitted from the encapsulator to the receiver. (S2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: GRE receive-side sequence ordering is performed by the kernel/VPP datapath; ze has no GRE decapsulation or packet-parse code path</td>
 </tr>
-<tr><td><a href="#rfc2890-2.2-4"><code>RFC2890-2.2-4</code></a> If a packet has waited longer than OUTOFORDER_TIMER milliseconds in the buffer, the receiver MUST immediately traverse the buffer in sorted order, decapsulating packets (S2.2)</td>
+<tr><td><a href="#rfc2890-2.2-4"><code>RFC2890-2.2-4</code></a> If a packet has been waiting that long, the receiver MUST immediately traverse the buffer in sorted order, decapsulating packets (and ignoring any sequence number gaps) until there are no more packets in the buffer that have been waiting longer than OUTOFORDER_TIMER milliseconds. (S2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze has no GRE receiver buffer or OUTOFORDER_TIMER; it programs kernel/VPP tunnels and does not process GRE payloads</td>
 </tr>
-<tr><td><a href="#rfc2890-3-1"><code>RFC2890-3-1</code></a> IP security protocols (ESP or AH) MUST be used to protect the GRE header and tunneled payload when using Sequence Number (S3)</td>
+<tr><td><a href="#rfc2890-3-1"><code>RFC2890-3-1</code></a> In order to protect against such attacks, IP security protocols [4] MUST be used to protect the GRE header and the tunneled payload. (S3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze applies no ESP or AH to GRE; IPsec is not wired to the GRE tunnel builders (internal/plugins/iface/netlink/tunnel_linux.go, internal/plugins/iface/vpp/tunnel.go)</td>
 </tr>
@@ -378,15 +378,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc2890-2.2-3"><code>RFC2890-2.2-3</code></a></h3>
-<p>Sequence Number MUST be used by the receiver to establish packet order (S2.2)</p>
+<p>The Sequence Number MUST be used by the receiver to establish the order in which packets have been transmitted from the encapsulator to the receiver. (S2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2890-2.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc2890-2.2-4"><code>RFC2890-2.2-4</code></a></h3>
-<p>If a packet has waited longer than OUTOFORDER_TIMER milliseconds in the buffer, the receiver MUST immediately traverse the buffer in sorted order, decapsulating packets (S2.2)</p>
+<p>If a packet has been waiting that long, the receiver MUST immediately traverse the buffer in sorted order, decapsulating packets (and ignoring any sequence number gaps) until there are no more packets in the buffer that have been waiting longer than OUTOFORDER_TIMER milliseconds. (S2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2890-2.2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc2890-3-1"><code>RFC2890-3-1</code></a></h3>
-<p>IP security protocols (ESP or AH) MUST be used to protect the GRE header and tunneled payload when using Sequence Number (S3)</p>
+<p>In order to protect against such attacks, IP security protocols [4] MUST be used to protect the GRE header and the tunneled payload. (S3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2890-3-1, so no unit is bound to it.</p>
 </section>
@@ -542,7 +542,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

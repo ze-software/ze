@@ -92,7 +92,7 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC6996-4-1` | Private Use ASNs MUST be removed from AS path attributes (including AS4_PATH) before being advertised to the global Internet (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC6996StripsPrivateUseASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go#L47). **negative:** `unit/verify` [`TestRFC6996KeepsPublicASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go#L56) |
+| `RFC6996-4-1` | If Private Use ASNs are used and prefixes originate from these ASNs, Private Use ASNs MUST be removed from AS path attributes (including AS4_PATH if utilizing a four-octet AS number space) before being advertised to the global Internet. (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC6996StripsPrivateUseASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go#L47). **negative:** `unit/verify` [`TestRFC6996KeepsPublicASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go#L56) |
 | `RFC6996-4-2` | Operators SHOULD ensure that all EBGP speakers support RFC 6793 extensions and that implementation-specific features recognizing Private Use ASNs have been updated to recognize both ranges prior to using the four-octet Private Use ASN range (Section 4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC6996-4-3` | Normal AS path filtering MAY also be used to prevent prefixes originating from Private Use ASNs from being advertised to the global Internet (Section 4) | MAY | 4 | **positive:** no positive test. **negative:** no negative test |
 
@@ -106,7 +106,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC6996-4-1`](#rfc6996-4-1)
 
-Private Use ASNs MUST be removed from AS path attributes (including AS4_PATH) before being advertised to the global Internet (Section 4)
+If Private Use ASNs are used and prefixes originate from these ASNs, Private Use ASNs MUST be removed from AS path attributes (including AS4_PATH if utilizing a four-octet AS number space) before being advertised to the global Internet. (Section 4)
 
 Audit verdict: not audited: no reader has judged these tests
 

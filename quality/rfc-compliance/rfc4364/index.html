@@ -291,7 +291,7 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.1-1">RFC4364-4.3.1-1</code></td><td colspan="3"><span class="rfc-subject">If the CE is allowed to attach RTs to its routes, the PE MUST filter out all routes that contain RTs the customer is not allowed to use (§4.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.1-1">RFC4364-4.3.1-1</code></td><td colspan="3"><span class="rfc-subject">If the CE is allowed to attach RTs to its routes, the PE MUST filter out all routes that contain RTs that the customer is not allowed to use. (§4.3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3.1 - The Route Target Attribute</td>
@@ -300,7 +300,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so there is no CE-attached-Route-Target authorization/filter code path to enforce</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.1-2">RFC4364-4.3.1-2</code></td><td colspan="3"><span class="rfc-subject">If the CE is not allowed to attach RTs but does so anyway, the PE MUST remove the RT before converting the customer&#39;s route to a VPN-IPv4 route (§4.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.1-2">RFC4364-4.3.1-2</code></td><td colspan="3"><span class="rfc-subject">If the CE is not allowed to attach RTs to its routes, but does so anyway, the PE MUST remove the RT before converting the customer&#39;s route to a VPN- IPv4 route. (§4.3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3.1 - The Route Target Attribute</td>
@@ -309,7 +309,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path; there is no customer-route-to-VPN-IPv4 conversion stage (no VRF ingest), so the strip-disallowed-RT obligation has no host</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-1">RFC4364-4.3.2-1</code></td><td colspan="3"><span class="rfc-subject">All systems implementing this VPN architecture using MPLS LSPs MUST support Label Distribution Protocol (LDP) (§4.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-1">RFC4364-4.3.2-1</code></td><td colspan="3"><span class="rfc-subject">To ensure interoperability among systems that implement this VPN architecture using MPLS label switched paths as the tunneling technology, all such systems MUST support Label Distribution Protocol (LDP) [MPLS-LDP]. (§4.3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3.2 - Route Distribution Among PEs by BGP</td>
@@ -345,7 +345,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> accepting or rejecting a labeled packet at a backbone router is an MPLS forwarding/security duty; ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so it is not a P or PE forwarder</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-13.1-1">RFC4364-13.1-1</code></td><td colspan="3"><span class="rfc-subject">Any implementation allowing VPN packets to be tunneled via MPLS-in-IP/GRE MUST contain an implementation of IPsec (§13.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-13.1-1">RFC4364-13.1-1</code></td><td colspan="3"><span class="rfc-subject">Any implementation of BGP/MPLS IP VPNs that allows VPN packets to be tunneled as described in that document MUST contain an implementation of IPsec that can be used as therein described. (§13.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>13.1 - Data Plane</td>
@@ -354,7 +354,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so it never tunnels VPN packets via MPLS-in-IP/GRE and the must-contain-IPsec trigger never fires (the IKE/IPsec engine in internal/component/ike is unrelated to VPN tunneling)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-13.1-2">RFC4364-13.1-2</code></td><td colspan="3"><span class="rfc-subject">Any implementation allowing MPLS-in-IP/GRE tunneling without IPsec MUST allow the egress PE to validate the IP source address of tunneled packets (§13.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-13.1-2">RFC4364-13.1-2</code></td><td colspan="3"><span class="rfc-subject">Any implementation that allows MPLS-in-IP and/or MPLS-in-GRE tunneling to be used without IPsec MUST allow the egress PE to validate in this manner the IP source address of any tunneled packet that it receives. (§13.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>13.1 - Data Plane</td>
@@ -417,15 +417,15 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc4364-4.3.1-1"><code>RFC4364-4.3.1-1</code></a> If the CE is allowed to attach RTs to its routes, the PE MUST filter out all routes that contain RTs the customer is not allowed to use (§4.3.1)</td>
+<tr><td><a href="#rfc4364-4.3.1-1"><code>RFC4364-4.3.1-1</code></a> If the CE is allowed to attach RTs to its routes, the PE MUST filter out all routes that contain RTs that the customer is not allowed to use. (§4.3.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so there is no CE-attached-Route-Target authorization/filter code path to enforce</td>
 </tr>
-<tr><td><a href="#rfc4364-4.3.1-2"><code>RFC4364-4.3.1-2</code></a> If the CE is not allowed to attach RTs but does so anyway, the PE MUST remove the RT before converting the customer&#39;s route to a VPN-IPv4 route (§4.3.1)</td>
+<tr><td><a href="#rfc4364-4.3.1-2"><code>RFC4364-4.3.1-2</code></a> If the CE is not allowed to attach RTs to its routes, but does so anyway, the PE MUST remove the RT before converting the customer&#39;s route to a VPN- IPv4 route. (§4.3.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path; there is no customer-route-to-VPN-IPv4 conversion stage (no VRF ingest), so the strip-disallowed-RT obligation has no host</td>
 </tr>
-<tr><td><a href="#rfc4364-4.3.2-1"><code>RFC4364-4.3.2-1</code></a> All systems implementing this VPN architecture using MPLS LSPs MUST support Label Distribution Protocol (LDP) (§4.3.2)</td>
+<tr><td><a href="#rfc4364-4.3.2-1"><code>RFC4364-4.3.2-1</code></a> To ensure interoperability among systems that implement this VPN architecture using MPLS label switched paths as the tunneling technology, all such systems MUST support Label Distribution Protocol (LDP) [MPLS-LDP]. (§4.3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: LDP support for VPN LSP tunneling is a PE data-plane duty; ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so it neither sets up nor forwards over VPN LSPs</td>
 </tr>
@@ -441,11 +441,11 @@ No tracked gap in current source anchors.
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: accepting or rejecting a labeled packet at a backbone router is an MPLS forwarding/security duty; ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so it is not a P or PE forwarder</td>
 </tr>
-<tr><td><a href="#rfc4364-13.1-1"><code>RFC4364-13.1-1</code></a> Any implementation allowing VPN packets to be tunneled via MPLS-in-IP/GRE MUST contain an implementation of IPsec (§13.1)</td>
+<tr><td><a href="#rfc4364-13.1-1"><code>RFC4364-13.1-1</code></a> Any implementation of BGP/MPLS IP VPNs that allows VPN packets to be tunneled as described in that document MUST contain an implementation of IPsec that can be used as therein described. (§13.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so it never tunnels VPN packets via MPLS-in-IP/GRE and the must-contain-IPsec trigger never fires (the IKE/IPsec engine in internal/component/ike is unrelated to VPN tunneling)</td>
 </tr>
-<tr><td><a href="#rfc4364-13.1-2"><code>RFC4364-13.1-2</code></a> Any implementation allowing MPLS-in-IP/GRE tunneling without IPsec MUST allow the egress PE to validate the IP source address of tunneled packets (§13.1)</td>
+<tr><td><a href="#rfc4364-13.1-2"><code>RFC4364-13.1-2</code></a> Any implementation that allows MPLS-in-IP and/or MPLS-in-GRE tunneling to be used without IPsec MUST allow the egress PE to validate in this manner the IP source address of any tunneled packet that it receives. (§13.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so there is no MPLS-in-IP/GRE VPN data path at an egress PE to validate a tunneled packet&#39;s source address</td>
 </tr>
@@ -456,15 +456,15 @@ No tracked gap in current source anchors.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc4364-4.3.1-1"><code>RFC4364-4.3.1-1</code></a></h3>
-<p>If the CE is allowed to attach RTs to its routes, the PE MUST filter out all routes that contain RTs the customer is not allowed to use (§4.3.1)</p>
+<p>If the CE is allowed to attach RTs to its routes, the PE MUST filter out all routes that contain RTs that the customer is not allowed to use. (§4.3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4364-4.3.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4364-4.3.1-2"><code>RFC4364-4.3.1-2</code></a></h3>
-<p>If the CE is not allowed to attach RTs but does so anyway, the PE MUST remove the RT before converting the customer&#39;s route to a VPN-IPv4 route (§4.3.1)</p>
+<p>If the CE is not allowed to attach RTs to its routes, but does so anyway, the PE MUST remove the RT before converting the customer&#39;s route to a VPN- IPv4 route. (§4.3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4364-4.3.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4364-4.3.2-1"><code>RFC4364-4.3.2-1</code></a></h3>
-<p>All systems implementing this VPN architecture using MPLS LSPs MUST support Label Distribution Protocol (LDP) (§4.3.2)</p>
+<p>To ensure interoperability among systems that implement this VPN architecture using MPLS label switched paths as the tunneling technology, all such systems MUST support Label Distribution Protocol (LDP) [MPLS-LDP]. (§4.3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4364-4.3.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4364-4.3.2-2"><code>RFC4364-4.3.2-2</code></a></h3>
@@ -480,11 +480,11 @@ No tracked gap in current source anchors.
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4364-6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4364-13.1-1"><code>RFC4364-13.1-1</code></a></h3>
-<p>Any implementation allowing VPN packets to be tunneled via MPLS-in-IP/GRE MUST contain an implementation of IPsec (§13.1)</p>
+<p>Any implementation of BGP/MPLS IP VPNs that allows VPN packets to be tunneled as described in that document MUST contain an implementation of IPsec that can be used as therein described. (§13.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4364-13.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4364-13.1-2"><code>RFC4364-13.1-2</code></a></h3>
-<p>Any implementation allowing MPLS-in-IP/GRE tunneling without IPsec MUST allow the egress PE to validate the IP source address of tunneled packets (§13.1)</p>
+<p>Any implementation that allows MPLS-in-IP and/or MPLS-in-GRE tunneling to be used without IPsec MUST allow the egress PE to validate in this manner the IP source address of any tunneled packet that it receives. (§13.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4364-13.1-2, so no unit is bound to it.</p>
 </section>
@@ -1077,7 +1077,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

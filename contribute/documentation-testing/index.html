@@ -57,9 +57,9 @@ change.</p>
 <li><a href="#when-to-run">When to run</a></li>
 <li><a href="#how-to-interpret-output">How to interpret output</a>
 <ol>
-<li><a href="#le-docvalid-doc-drift">./le docvalid doc-drift</a></li>
-<li><a href="#le-docvalid-command-contract">./le docvalid command-contract</a></li>
-<li><a href="#le-docvalid-help-shape">./le docvalid help-shape</a>
+<li><a href="#le-doc-yang-contract-doc-drift">./le doc yang-contract doc-drift</a></li>
+<li><a href="#le-doc-yang-contract-command-contract">./le doc yang-contract command-contract</a></li>
+<li><a href="#le-doc-yang-contract-help-shape">./le doc yang-contract help-shape</a>
 <ol>
 <li><a href="#what-the-config-corpus-is">What the config corpus IS</a></li>
 <li><a href="#the-pair-rules">The pair rules</a></li>
@@ -92,23 +92,23 @@ checks needed for the current diff and is included in <code>./le verify current 
 </thead>
 <tbody>
 <tr>
-<td><code>./le docvalid doc-drift</code></td>
+<td><code>./le doc yang-contract doc-drift</code></td>
 <td>Published counts and lists agree with live registries and the tree</td>
 </tr>
 <tr>
-<td><code>./le docvalid command-contract</code></td>
+<td><code>./le doc yang-contract command-contract</code></td>
 <td>Every YANG <code>ze:command</code> has a registered handler</td>
 </tr>
 <tr>
-<td><code>./le docvalid usage-contract</code></td>
+<td><code>./le doc yang-contract usage-contract</code></td>
 <td>The model states every command's argument grammar, and no description spells one in prose</td>
 </tr>
 <tr>
-<td><code>./le docvalid help-shape</code></td>
+<td><code>./le doc yang-contract help-shape</code></td>
 <td>Every command node, every RPC, every offline local command and every config node declares a one-line summary a row renders whole, with a long text beside it, and the report states how much of each corpus is written</td>
 </tr>
 <tr>
-<td><code>./le docs-to-code check</code></td>
+<td><code>./le doc index check</code></td>
 <td>Documentation source paths and claimed symbols resolve</td>
 </tr>
 <tr>
@@ -116,11 +116,11 @@ checks needed for the current diff and is included in <code>./le verify current 
 <td>Tracked path citations resolve</td>
 </tr>
 <tr>
-<td><code>./le digest</code></td>
+<td><code>./le ai digest</code></td>
 <td>Every <code>file:line</code> anchor in. <span class="ev-src"><span class="ev-ref"><code>ai/digests/*.md</code></span></span></td>
 </tr>
 <tr>
-<td><code>./le consistency</code></td>
+<td><code>./le doc consistency</code></td>
 <td>Design references, cross-references, JSON tags, and package citations agree</td>
 </tr>
 <tr>
@@ -128,7 +128,7 @@ checks needed for the current diff and is included in <code>./le verify current 
 <td>Changed files trigger their documentation and inventory checks</td>
 </tr>
 <tr>
-<td><code>./le ste check</code></td>
+<td><code>./le doc ste check</code></td>
 <td class="cell-no">✕</td>
 </tr>
 </tbody>
@@ -136,13 +136,13 @@ checks needed for the current diff and is included in <code>./le verify current 
 <p><code>./le doc check verify</code> combines documentation drift, command validation, the two
 command help gates, and source-anchor validation. <code>./le doc wiring</code> is the changed-file-aware
 pre-commit gate.</p>
-<!-- source: internal/le/docvalid/actions.go -- Answer -->
-<!-- source: internal/le/docvalid/actions.go -- Answer -->
-<!-- source: internal/le/docstocode/actions.go -- Answer -->
+<!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
+<!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
+<!-- source: internal/le/doc/index/actions.go -- Answer -->
 <!-- source: internal/le/doc/check/actions.go -- Answer -->
-<!-- source: internal/le/consistency/consistency.go -- Answer -->
+<!-- source: internal/le/doc/consistency/consistency.go -- Answer -->
 <!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
-<!-- source: internal/le/ste/actions.go -- Answer -->
+<!-- source: internal/le/doc/ste/actions.go -- Answer -->
 <h2 id="when-to-run">When to run</h2>
 <table>
 <thead>
@@ -154,7 +154,7 @@ pre-commit gate.</p>
 <tbody>
 <tr>
 <td>After you write any prose, in any file</td>
-<td><code>./le ste review-changed</code></td>
+<td><code>./le doc ste review-changed</code></td>
 </tr>
 <tr>
 <td>After editing any file under <code>docs/</code></td>
@@ -170,19 +170,19 @@ pre-commit gate.</p>
 </tr>
 <tr>
 <td>After adding or renaming a YANG <code>ze:command</code></td>
-<td><code>./le docvalid command-contract</code></td>
+<td><code>./le doc yang-contract command-contract</code></td>
 </tr>
 <tr>
 <td>After writing the <code>description</code> or the <code>ze:help</code> of a command node, an RPC or a config node</td>
-<td><code>./le docvalid help-shape</code></td>
+<td><code>./le doc yang-contract help-shape</code></td>
 </tr>
 <tr>
 <td>After writing the <code>ShortHelp</code> or the <code>Description</code> of a <code>registry.Meta</code></td>
-<td><code>./le docvalid help-shape</code></td>
+<td><code>./le doc yang-contract help-shape</code></td>
 </tr>
 <tr>
 <td>While an agent writes a <code>ze:help</code> in any <code>.yang</code> file</td>
-<td><code>./le hook-check pretool-writeedit</code> answers on the proposed text, before the file lands</td>
+<td><code>./le ai hooks pretool-writeedit</code> answers on the proposed text, before the file lands</td>
 </tr>
 <tr>
 <td>After adding a doc validator, inventory source, command source, or exported Go API</td>
@@ -200,7 +200,7 @@ command, inventory, and wiring checks for changed files.</p>
 <!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 <h2 id="how-to-interpret-output">How to interpret output</h2>
-<h3 id="le-docvalid-doc-drift"><code>./le docvalid doc-drift</code></h3>
+<h3 id="le-doc-yang-contract-doc-drift"><code>./le doc yang-contract doc-drift</code></h3>
 <pre><code>  Documentation drift detected (N issues)
 
   x docs/DESIGN.md:708: claims 19 interop scenarios, actual is 32
@@ -210,7 +210,7 @@ command, inventory, and wiring checks for changed files.</p>
 <p>Each issue points at a file, a line number (0 = file-level), and a
 description. Most fixes are mechanical: update a count, add a missing
 table row, remove a stale entry.</p>
-<h3 id="le-docvalid-command-contract"><code>./le docvalid command-contract</code></h3>
+<h3 id="le-doc-yang-contract-command-contract"><code>./le doc yang-contract command-contract</code></h3>
 <pre><code># Command Validation
 
 YANG commands: 97
@@ -228,7 +228,7 @@ Registered handlers: 69
 <li>YANG declares a command but no Go code registered an RPC or local handler -&gt; dead command</li>
 <li>RPC handler registered but YANG doesn't declare it -&gt; command unreachable from CLI</li>
 </ul>
-<h3 id="le-docvalid-help-shape"><code>./le docvalid help-shape</code></h3>
+<h3 id="le-doc-yang-contract-help-shape"><code>./le doc yang-contract help-shape</code></h3>
 <pre><code># Command Help Shape
 
 Command tree nodes: 611
@@ -281,7 +281,7 @@ is held to the two caps and to the pair rules, and to nothing else: the
 summary of a config node is written over as many lines as its author needed,
 and <code>entryShortHelp</code> collapses the whitespace before it renders, so a newline
 in one is the normal spelling rather than a defect.</p>
-<!-- source: internal/le/docvalid/helpshape_schema.go -- collectSchema -->
+<!-- source: internal/le/doc/yangcontract/helpshape_schema.go -- collectSchema -->
 <h4 id="what-the-config-corpus-is">What the config corpus IS</h4>
 <p>The population is the RESOLVED entry tree of the <code>-conf</code> modules, which is the
 tree the completer itself walks. Deriving it settles three questions no rule
@@ -381,7 +381,7 @@ an operator can reach owes both texts wherever it was written.</p>
 written, so the rule holds over the whole tree and the <code>HEAD</code> baseline that
 scoped it is gone. There is no file to append a path to, and no scope line in
 the report: a summary with no long text beside it is refused wherever it sits.</p>
-<!-- source: internal/le/docvalid/helpshape.go -- judgePair -->
+<!-- source: internal/le/doc/yangcontract/helpshape.go -- judgePair -->
 <p>The third corpus is read two ways, because Go forbids importing a main package.
 The registrations this binary links are read from the registry. The four
 <code>cmd/ze</code> declares in <code>package main</code> are read from its source, and a registration
@@ -404,10 +404,10 @@ refusals.</p>
 belongs in the <code>description</code> beside it, or in the <code>Description</code> beside it, which no
 one-line surface reads.</p>
 <h3 id="the-write-hook-an-edit-before-the-gate">The write hook, an edit before the gate</h3>
-<p><code>./le hook-check pretool-writeedit</code> reads the PROPOSED text of any <code>.yang</code> file
+<p><code>./le ai hooks pretool-writeedit</code> reads the PROPOSED text of any <code>.yang</code> file
 an agent writes or edits, and warns with exit 1. It loads no YANG model. It
 reads the file it was handed, which is not on disk yet. It never speaks for the
-tree: <code>./le docvalid help-shape</code> is the gate.</p>
+tree: <code>./le doc yang-contract help-shape</code> is the gate.</p>
 <!-- source: internal/le/hookruntime/writeedit.go -- writeYangDescription, scanYangText -->
 <table>
 <thead>
@@ -492,7 +492,7 @@ that stopped early must not read as a file that broke no rule.</p>
 </tr>
 <tr>
 <td>Functional test release-gate list wrong</td>
-<td>Update. <span class="ev-src"><span class="ev-ref"><code>docs/functional-tests.md</code></span><span class="ev-ref"><code>internal/le/functional/catalog.go</code></span></span></td>
+<td>Update. <span class="ev-src"><span class="ev-ref"><code>docs/functional-tests.md</code></span><span class="ev-ref"><code>internal/le/test/functional/catalog.go</code></span></span></td>
 </tr>
 <tr>
 <td>Stale text parser allocation claim</td>
@@ -529,25 +529,25 @@ that stopped early must not read as a file that broke no rule.</p>
 </tbody>
 </table>
 <h2 id="how-the-tools-find-drift">How the tools find drift</h2>
-<p><code>internal/le/docvalid.Answer</code> imports <code>internal/component/plugin/all</code> so all
+<p><code>internal/le/doc/yangcontract.Answer</code> imports <code>internal/component/plugin/all</code> so all
 plugins register themselves, then queries <code>registry.All()</code> and
 <code>registry.FamilyMap()</code>. It walks the <code>.ci</code> files and reads the native functional
-suite catalog from <code>internal/le/functional</code>. It compares those facts with
+suite catalog from <code>internal/le/test/functional</code>. It compares those facts with
 claims in <code>docs/DESIGN.md</code>, <code>docs/comparison.md</code>, <code>README.md</code>,
 <code>docs/features.md</code>, and <code>docs/functional-tests.md</code>.</p>
-<p><code>internal/le/docvalid.Answer</code> imports the same set plus the BGP cmd plugin
+<p><code>internal/le/doc/yangcontract.Answer</code> imports the same set plus the BGP cmd plugin
 schema/handler packages, loads the YANG modules, and walks the schema tree
 looking for <code>ze:command</code> extensions. For each extension it checks
 <code>registry.CollectRPCHandlers()</code> for a matching method name.</p>
-<p><code>./le docs-to-code check</code> scans every Markdown source anchor under <code>docs/</code> and
-refuses a missing source path or symbol. <code>./le docs-to-code update</code> regenerates
+<p><code>./le doc index check</code> scans every Markdown source anchor under <code>docs/</code> and
+refuses a missing source path or symbol. <code>./le doc index write</code> regenerates
 the two documentation indexes.</p>
 <p>One walk of <code>docs/</code> feeds the path and symbol checks. An anchor is
-<code>&lt;!-- source: &lt;path&gt; -- Sym1, Sym2 --&gt;</code>. <code>internal/le/docstocode.CheckCodeIndex</code>
+<code>&lt;!-- source: &lt;path&gt; -- Sym1, Sym2 --&gt;</code>. <code>internal/le/doc/index.CheckCodeIndex</code>
 keeps an identifier or dotted method chain from the claim and compares it with
 the declarations in the anchored Go file. The scan is independent of build
 tags, so a Linux declaration remains visible on a macOS host.</p>
-<p>The same walk answers the opposite question. <code>internal/le/docstocode.ClaimsByPath</code>
+<p>The same walk answers the opposite question. <code>internal/le/doc/index.ClaimsByPath</code>
 maps a code path to the claims written about it, each with the symbols its
 anchor names, and the <code>doc-drift</code> check in <code>internal/le/doc/wiring</code> refuses a
 commit that changed one of those symbols and left its page alone.</p>
@@ -582,7 +582,7 @@ edits.</p>
 <p>The three roots outside the tracked citation scan are <code>vendor/</code>,
 <code>third_party/</code>, and <code>plan/handover/</code>: the first two hold another repository's
 files, while the last records an earlier tree.</p>
-<p><code>internal/le/consistency</code> parses <code>// Design:</code>, <code>// Detail:</code>, <code>// Overview:</code>, and
+<p><code>internal/le/doc/consistency</code> parses <code>// Design:</code>, <code>// Detail:</code>, <code>// Overview:</code>, and
 <code>// Related:</code> comments, checks their symmetry, and reports references to
 packages that no longer exist.</p>
 <h2 id="adding-a-new-documentation-check">Adding a new documentation check</h2>
@@ -591,13 +591,13 @@ packages that no longer exist.</p>
 <li>Add one action to that package's table and register its area through
 <code>leroot.Register</code>. A related check joins an existing area rather than opening
 another root name.</li>
-<li>Register the action with <code>internal/le/leroot</code> and expose it as
+<li>Register the action with <code>internal/le/le/root</code> and expose it as
 <code>./le &lt;area&gt; &lt;action&gt;</code>.</li>
 <li>Add the callable action to <code>internal/le/doc/wiring</code> when changed files should
 trigger it during pre-commit verification.</li>
 <li>Add its producer and exact command to this page and <code>ai/INDEX.md</code>.</li>
 <li>If agent rules need the command, edit the canonical rule point and render the
-rule corpus through <code>./le rules render-update</code>.</li>
+rule corpus through <code>./le ai rules render-update</code>.</li>
 </ol>
 <p>Repository tooling is compiled Go under <code>internal/le</code>; package-owned fixtures
 belong in that package's <code>testdata/</code> directory.</p>
@@ -621,7 +621,7 @@ command validation, and changed-file wiring</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

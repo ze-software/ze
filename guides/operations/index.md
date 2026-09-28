@@ -61,7 +61,8 @@ daemon started on a non-default folder, set `ZE_CONFIG_DIR` to that folder.
 the explicit file on every start. Its daemon commits update that file and stored
 history. Bare `ze start` reads the stored active configuration. A `database.zefs`
 beside the live location is refused without conversion. The diagnostic names
-`ze init --from <blob>`, which imports a local blob; the URL form is storage-2.
+`ze init --from <source>`, which imports a blob from a local path or from an
+`http` or `https` URL, optionally pinned with `--sha256 <hex>`.
 Appliance first boot already imports its seed explicitly.
 <!-- source: cmd/ze/ze_core_start.go -- openExplicitStore, cmdStart -->
 <!-- source: internal/plugins/init/main.go -- Run -->
@@ -102,6 +103,12 @@ never the tree's framing bytes.
 | `ze data registered` | Show registered key patterns |
 | `ze data check` | Check integrity; exits 0 clean, 1 corrupt, 2 unreadable |
 | `ze data repair --output <path>` | Copy recoverable keys into a new destination |
+| `ze data backup <file> [spare <n>]` | Copy every key to one exact-fit 0600 blob artifact under the store lock; offline only |
+| `ze data restore <file> config [name <source-name>]` | Commit the artifact's config as a new active version; offline only |
+| `ze data restore <file> full` | Replace the whole tree with the artifact's keys; the previous tree is kept as `database.replaced-<stamp>` and the artifact is unchanged; offline only |
+| `request data backup path <absolute-file> [spare <n>] [force]` | Live backup of the daemon's store, written on the daemon's host |
+| `request data restore path <absolute-file> config [name <source-name>]` | Live config restore: staged as the candidate, active only when the reload accepts it |
+| `request data restore path <absolute-file> config [name <source-name>] client <name>` | On a hub: restore the config it serves to managed client `<name>`; the hub pushes `config-changed` and does not reload |
 | `ze data encode [--crc\|--header] [--cap N] <string\|->` | Encode a netcapstring for inspection |
 
 <!-- source: internal/component/config/storage/cli/main.go -- subcommandHandlers -->
@@ -153,6 +160,16 @@ ze signal reload --host 10.0.0.1 --port 2222
 Reload writes the edited config as a candidate version. The active pointer moves
 only after verification, apply, and subsystem reload succeed. A failed reload
 clears the candidate and keeps the previous active config.
+
+A SIGHUP that arrives while the process is still in Go package initialization,
+before `main` registers any handler, kills ze. That window is the first few
+hundred milliseconds after exec, and nothing in ze runs earlier. The remedy is
+the supervisor's: start ze with SIGHUP ignored. Go keeps an inherited ignored
+SIGHUP until ze registers it, so the signal is lost in that window instead of
+fatal, and every later SIGHUP reloads. `ze install systemd` writes this into the
+unit (`sh -c 'trap "" HUP; exec ze start'`), because systemd has no directive
+that ignores a signal. A supervisor you write yourself does the same, or never
+sends SIGHUP before ze is ready. Details: `docs/architecture/behavior/signals.md`.
 
 ### Exit Codes (signal command)
 
@@ -343,7 +360,7 @@ Wants=network-online.target
 Type=simple
 User=ze
 Group=ze
-ExecStart=/usr/local/bin/ze start
+ExecStart=/bin/sh -c 'trap "" HUP; exec /usr/local/bin/ze start'
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5

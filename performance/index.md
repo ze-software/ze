@@ -4,11 +4,11 @@ Benchmarks
 
 Measured, not claimed.
 
-Benchmark numbers need context: these numbers measure one scenario, on one machine, under artificial conditions. They show relative differences between implementations, not absolute performance. If it matters to you, run `ze-perf` on your own hardware with your own workload.
+Benchmark numbers need context: these numbers measure one scenario, on one machine, under artificial conditions. They show relative differences between implementations, not absolute performance. If it matters to you, run `le perf` on your own hardware with your own workload.
 
 `BGP benchmark`
 
-`ze-perf` establishes two BGP sessions with a device under test: a sender injects 100,000 routes, a receiver times their arrival. The same harness runs unmodified against BIRD, FRR, GoBGP, RustyBGP, freeRtr, rustbgpd, and OpenBGPd, all in Docker on the same host.
+`le perf` establishes two BGP sessions with a device under test: a sender injects 100,000 routes, a receiver times their arrival. The same harness runs unmodified against BIRD, FRR, GoBGP, RustyBGP, freeRtr, rustbgpd, and OpenBGPd, all in Docker on the same host.
 
 Go carries an estimated 10-15% CPU overhead against C/Rust implementations. That number comes from code-path analysis, not a measured benchmark -- Ze has not been benchmarked at DFZ scale (1M+ prefixes).
 
@@ -18,19 +18,19 @@ Go carries an estimated 10-15% CPU overhead against C/Rust implementations. That
 - **Full results:** [All DUTs, all runs, full methodology](https://ze-software.net/performance/bgp/)
 
 ```
-# build ze-perf and all DUT images, then run
-$ go build -o bin/ze-perf ./cmd/ze-perf && go run ./cmd/ze-perf-run --build --test
+# build all DUT images, then run
+$ ./le perf run
 
 # test specific DUTs only
-$ go run ./cmd/ze-perf-run --build --test ze bird
+$ ./le perf run dut "ze bird"
 
 # regenerate docs/performance.md from results
-$ bin/ze-perf report --doc test/perf/results/*.json
+$ ./le perf report --doc test/perf/results/*.json
 ```
 
 `Prerequisites`
 
-Docker (Colima on macOS). `ze-perf` works against any BGP implementation, not just Ze -- point it at your own DUT.
+Docker (Colima on macOS). `le perf` works against any BGP implementation, not just Ze -- point it at your own DUT.
 
 - [Benchmarking guide architecture, flags, JSON output](https://ze-software.net/guides/benchmarking/)
 - [BGP performance tests with Ze sender, receiver, DUT, JSON](https://ze-software.net/use-cases/bgp-performance/)

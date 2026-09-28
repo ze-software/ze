@@ -13,7 +13,7 @@ NTP client: system clock synchronization
 
 ## Configuration
 
-`environment`
+`environment/ntp`
 
 ## Dependencies
 

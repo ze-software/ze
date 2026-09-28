@@ -109,23 +109,23 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7166-2.1-1` | OSPFv3 routers set the AT-bit in all OSPFv3 Hello and Database Description packets that contain an Authentication Trailer (§2.1) | MUST | 2.1 - AT-Bit | **positive:** no positive test. **negative:** no negative test. **{gap}:** no AT-bit exists in the OSPFv3 Options bitset -- internal/plugins/ospf/v3/types/options.go:14-23 defines only V6/E/N/R/AF, and the Hello/DD encoders internal/plugins/ospf/v3/packet/hello.go:88 and dbdesc.go:73 never set one, so no Authentication Trailer is emitted |
-| `RFC7166-3-3` | When a new key replaces an old key, the new key's KeyStartGenerate be less than or equal to the old key's KeyStopGenerate (§3) | MUST | 3 - OSPFv3 Security Association | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze has no OSPFv3 Security Association carrying the RFC 7166 KeyStartAccept/KeyStartGenerate/KeyStopGenerate/KeyStopAccept lifetimes -- the only key model is the OSPFv2 send-lifetime pair in internal/plugins/ospf/auth_keystore.go:29-32, and validateKeyRollover internal/plugins/ospf/config.go:1007 orders OSPFv2 send-lifetimes only |
+| `RFC7166-2.1-1` | OSPFv3 routers MUST set the AT-bit in OSPFv3 Hello and Database Description packets to indicate that all the packets on this link will include an Authentication Trailer. (§2.1) | MUST | 2.1 - AT-Bit | **positive:** no positive test. **negative:** no negative test. **{gap}:** no AT-bit exists in the OSPFv3 Options bitset -- internal/plugins/ospf/v3/types/options.go:14-23 defines only V6/E/N/R/AF, and the Hello/DD encoders internal/plugins/ospf/v3/packet/hello.go:88 and dbdesc.go:73 never set one, so no Authentication Trailer is emitted |
+| `RFC7166-3-3` | When a new key replaces an old key, the KeyStartGenerate time for the new key MUST be less than or equal to the KeyStopGenerate time of the old key. (§3) | MUST | 3 - OSPFv3 Security Association | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze has no OSPFv3 Security Association carrying the RFC 7166 KeyStartAccept/KeyStartGenerate/KeyStopGenerate/KeyStopAccept lifetimes -- the only key model is the OSPFv2 send-lifetime pair in internal/plugins/ospf/auth_keystore.go:29-32, and validateKeyRollover internal/plugins/ospf/config.go:1007 orders OSPFv2 send-lifetimes only |
 | `RFC7166-3-6` | Transmit an OSPFv3 packet unauthenticated when the last key associated with an interface has expired (§3) | MUST NOT | 3 - OSPFv3 Security Association | **positive:** no positive test. **negative:** no negative test. **{gap}:** no OSPFv3 Authentication Trailer is ever produced -- internal/plugins/ospf/auth_wiring.go:28 signPacket appends the OSPFv2 trailer via internal/plugins/ospf/packet/auth_verify.go:157, so there is no OSPFv3 authenticated-transmit path whose key expiry this could govern; the never-revert selection in auth_keystore.go:281-286 is OSPFv2-only |
 | `RFC7166-4.1-2` | Ignore the Reserved field when receiving protocol packets (§4.1) | MUST | 4.1 - Authentication Trailer fields | **positive:** no positive test. **negative:** no negative test. **{gap}:** no OSPFv3 trailer decoder exists -- the only receive-side auth verify internal/plugins/ospf/auth_wiring.go:56 verifyPacket delegates to internal/plugins/ospf/auth_keystore.go:330 which decodes an OSPFv2 common header, so an OSPFv3 trailer Reserved field is never parsed |
-| `RFC7166-4.1-3` | Increment the 64-bit cryptographic sequence number for every OSPFv3 packet sent (§4.1) | MUST | 4.1 - Authentication Trailer fields | **positive:** no positive test. **negative:** no negative test. **{gap}:** the 64-bit ESN counter in internal/plugins/ospf/auth_keystore.go:304-314 feeds the OSPFv2 packet.Sign trailer, not an OSPFv3 trailer; no OSPFv3 Cryptographic Sequence Number field is ever written |
-| `RFC7166-4.1-4` | On reception, require the sequence number to be greater than that of the last accepted OSPFv3 packet of the same packet type from the sending neighbor (§4.1) | MUST | 4.1 - Authentication Trailer fields | **positive:** no positive test. **negative:** no negative test. **{gap}:** the per-packet-type strictly-greater replay check internal/plugins/ospf/auth_keystore.go:352-361 runs only inside the OSPFv2 verify path; there is no OSPFv3 trailer receive path to which it applies |
-| `RFC7166-4.1-5` | Use available mechanisms to preserve the sequence number's strictly increasing property for the router's deployed life, including cold restarts (§4.1) | MUST | 4.1 - Authentication Trailer fields | **positive:** no positive test. **negative:** no negative test. **{gap}:** the persisted boot-count mechanism internal/plugins/ospf/auth_keystore.go:115 loadOSPFBootCount seeds the OSPFv2 ESN sequence only; no OSPFv3 trailer sequence is emitted for it to protect |
-| `RFC7166-4.1.1-1` | Reset all keys before the 64-bit sequence number can wrap, to avoid replay attacks (§4.1.1) | MUST | 4.1.1 - Sequence Number Wrap | **positive:** no positive test. **negative:** no negative test. **{gap}:** no OSPFv3 trailer or its 64-bit sequence exists to wrap -- internal/plugins/ospf/auth_keystore.go:311-314 only bumps bootCount on the OSPFv2 ESN low-word wrap and performs no key reset |
-| `RFC7166-4.2-3` | Omit OSPFv3 header checksum verification for received packets that include an Authentication Trailer (§4.2) | MUST | 4.2 - Checksum handling | **positive:** no positive test. **negative:** no negative test. **{gap}:** the receive path never detects an OSPFv3 Authentication Trailer, so it cannot conditionally omit header-checksum verification; only the transmit-side checksum-omission hook exists at internal/plugins/ospf/v3/packet/checksum.go:165-167 and internal/plugins/ospf/v3/packet/header.go:277-280 |
-| `RFC7166-4.2-4` | Omit LLS data block checksum verification for received packets that include an Authentication Trailer (§4.2) | MUST | 4.2 - Checksum handling | **positive:** no positive test. **negative:** no negative test. **{gap}:** the OSPFv3 codec implements no LLS data block -- there is no LLS type under internal/plugins/ospf/v3/packet/ -- and no trailer receive path, so there is no LLS checksum to conditionally omit |
+| `RFC7166-4.1-3` | The 64-bit sequence number MUST be incremented for every OSPFv3 packet sent by the OSPFv3 router. (§4.1) | MUST | 4.1 - Authentication Trailer fields | **positive:** no positive test. **negative:** no negative test. **{gap}:** the 64-bit ESN counter in internal/plugins/ospf/auth_keystore.go:304-314 feeds the OSPFv2 packet.Sign trailer, not an OSPFv3 trailer; no OSPFv3 Cryptographic Sequence Number field is ever written |
+| `RFC7166-4.1-4` | Upon reception, the sequence number MUST be greater than the sequence number in the last accepted OSPFv3 packet of the same OSPFv3 packet type from the sending OSPFv3 neighbor. (§4.1) | MUST | 4.1 - Authentication Trailer fields | **positive:** no positive test. **negative:** no negative test. **{gap}:** the per-packet-type strictly-greater replay check internal/plugins/ospf/auth_keystore.go:352-361 runs only inside the OSPFv2 verify path; there is no OSPFv3 trailer receive path to which it applies |
+| `RFC7166-4.1-5` | OSPFv3 routers implementing this specification MUST use available mechanisms to preserve the sequence number's strictly increasing property for the deployed life of the OSPFv3 router (including cold restarts). (§4.1) | MUST | 4.1 - Authentication Trailer fields | **positive:** no positive test. **negative:** no negative test. **{gap}:** the persisted boot-count mechanism internal/plugins/ospf/auth_keystore.go:115 loadOSPFBootCount seeds the OSPFv2 ESN sequence only; no OSPFv3 trailer sequence is emitted for it to protect |
+| `RFC7166-4.1.1-1` | If by some chance the OSPFv3 router is deployed long enough that there is a possibility that the 64-bit sequence number may wrap, all keys, independent of their key distribution mechanism, MUST be reset to avoid the possibility of replay attacks. (§4.1.1) | MUST | 4.1.1 - Sequence Number Wrap | **positive:** no positive test. **negative:** no negative test. **{gap}:** no OSPFv3 trailer or its 64-bit sequence exists to wrap -- internal/plugins/ospf/auth_keystore.go:311-314 only bumps bootCount on the OSPFv2 ESN low-word wrap and performs no key reset |
+| `RFC7166-4.2-3` | o For received OSPFv3 packets including an OSPFv3 Authentication Trailer, OSPFv3 header checksum verification MUST be omitted. (§4.2) | MUST | 4.2 - Checksum handling | **positive:** no positive test. **negative:** no negative test. **{gap}:** the receive path never detects an OSPFv3 Authentication Trailer, so it cannot conditionally omit header-checksum verification; only the transmit-side checksum-omission hook exists at internal/plugins/ospf/v3/packet/checksum.go:165-167 and internal/plugins/ospf/v3/packet/header.go:277-280 |
+| `RFC7166-4.2-4` | o For received OSPFv3 packets including an LLS data block and OSPFv3 Authentication Trailer, LLS data block checksum verification MUST be omitted. (§4.2) | MUST | 4.2 - Checksum handling | **positive:** no positive test. **negative:** no negative test. **{gap}:** the OSPFv3 codec implements no LLS data block -- there is no LLS type under internal/plugins/ospf/v3/packet/ -- and no trailer receive path, so there is no LLS checksum to conditionally omit |
 | `RFC7166-4.3-1` | Include support for at least HMAC-SHA-256 (§4.3) | MUST | 4.3 - Cryptographic Authentication algorithms | **positive:** no positive test. **negative:** no negative test. **{gap}:** the HMAC-SHA-256 primitive exists only for the OSPFv2 trailer at internal/plugins/ospf/packet/auth_verify.go:69 and :120; no OSPFv3 Authentication Trailer wires any algorithm |
-| `RFC7166-4.3-4` | Use HMAC-SHA-256 as the default authentication algorithm (§4.3) | MUST | 4.3 - Cryptographic Authentication algorithms | **positive:** no positive test. **negative:** no negative test. **{gap}:** no OSPFv3 trailer means no OSPFv3 default algorithm; the OSPFv2 keychain algorithm is operator-selected per key at internal/plugins/ospf/auth_keystore.go:239-252 with no HMAC-SHA-256 default |
+| `RFC7166-4.3-4` | Implementations of this specification MUST use HMAC-SHA-256 as the default authentication algorithm. (§4.3) | MUST | 4.3 - Cryptographic Authentication algorithms | **positive:** no positive test. **negative:** no negative test. **{gap}:** no OSPFv3 trailer means no OSPFv3 default algorithm; the OSPFv2 keychain algorithm is operator-selected per key at internal/plugins/ospf/auth_keystore.go:239-252 with no HMAC-SHA-256 default |
 | `RFC7166-4.4-1` | Append the two-octet OSPFv3 Cryptographic Protocol ID to the Authentication Key prior to use; other protocols sharing common keys similarly append their own IDs (§4.4) | MUST | 4.4 - Cryptographic Authentication procedure | **positive:** no positive test. **negative:** no negative test. **{gap}:** only the OSPFv2 Cryptographic Protocol ID 0x0001 is appended, and only for the OSPFv2 AuType-3 trailer at internal/plugins/ospf/packet/auth_verify.go:38 and :195; there is no OSPFv3 Cryptographic Protocol ID constant or OSPFv3 trailer to apply it to |
-| `RFC7166-4.6-1` | Minimally support examining the L-bit in the OSPFv3 Options and using the LLS data block length to access the Authentication Trailer (§4.6) | MUST | 4.6 - Packet reception | **positive:** no positive test. **negative:** no negative test. **{gap}:** the OSPFv3 codec parses no LLS block, defines no L-bit in internal/plugins/ospf/v3/types/options.go:14-23, and defines no trailer, so it cannot locate an Authentication Trailer past an LLS block |
+| `RFC7166-4.6-1` | Due to the placement of the AT following the LLS data block and the fact that the LLS data block is included in the Cryptographic Authentication computation, OSPFv3 routers supporting this specification MUST minimally support examining the L-bit in the OSPFv3 options and using the length in the LLS data block to access the AT. (§4.6) | MUST | 4.6 - Packet reception | **positive:** no positive test. **negative:** no negative test. **{gap}:** the OSPFv3 codec parses no LLS block, defines no L-bit in internal/plugins/ospf/v3/types/options.go:14-23, and defines no trailer, so it cannot locate an Authentication Trailer past an LLS block |
 | `RFC7166-4.6-3` | Drop a packet whose cryptographic sequence number is less than or equal to the last accepted value for that neighbor and OSPFv3 packet type (§4.6) | MUST | 4.6 - Packet reception | **positive:** no positive test. **negative:** no negative test. **{gap}:** the seq<=last drop at internal/plugins/ospf/auth_keystore.go:357-359 is reached only via the OSPFv2 verify path; no OSPFv3 trailer receive path exists |
 | `RFC7166-4.6-5` | Discard the packet when the computed digest does not match the received Authentication Data (§4.6) | MUST | 4.6 - Packet reception | **positive:** no positive test. **negative:** no negative test. **{gap}:** the constant-time digest compare at internal/plugins/ospf/packet/auth_verify.go:242 and :263 verifies the OSPFv2 trailer only; there is no OSPFv3 trailer digest to verify |
-| `RFC7166-4.6-6` | After successful authentication, store the 64-bit cryptographic sequence number for each OSPFv3 packet type received from the neighbor (§4.6) | MUST | 4.6 - Packet reception | **positive:** no positive test. **negative:** no negative test. **{gap}:** the recvSeq high-water store keyed by packet type at internal/plugins/ospf/auth_keystore.go:352-361 records OSPFv2-trailer sequences only; no OSPFv3 trailer sequence is ever received to store |
+| `RFC7166-4.6-6` | After the OSPFv3 packet has been successfully authenticated, implementations MUST store the 64-bit cryptographic sequence number for each OSPFv3 packet type received from the neighbor. (§4.6) | MUST | 4.6 - Packet reception | **positive:** no positive test. **negative:** no negative test. **{gap}:** the recvSeq high-water store keyed by packet type at internal/plugins/ospf/auth_keystore.go:352-361 records OSPFv2-trailer sequences only; no OSPFv3 trailer sequence is ever received to store |
 | `RFC7166-3-1` | Set KeyStartAccept less than KeyStartGenerate for smooth key transition (§3) | SHOULD | 3 - OSPFv3 Security Association | **positive:** no positive test. **negative:** no negative test |
 | `RFC7166-3-2` | Set KeyStopGenerate less than KeyStopAccept for smooth key transition (§3) | SHOULD | 3 - OSPFv3 Security Association | **positive:** no positive test. **negative:** no negative test |
 | `RFC7166-3-4` | Persist key storage across warm or cold system restarts (§3) | SHOULD | 3 - OSPFv3 Security Association | **positive:** no positive test. **negative:** no negative test |
@@ -147,23 +147,23 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC7166-2.1-1`](#rfc7166-2.1-1) OSPFv3 routers set the AT-bit in all OSPFv3 Hello and Database Description packets that contain an Authentication Trailer (§2.1) | {gap}, no test | no AT-bit exists in the OSPFv3 Options bitset -- internal/plugins/ospf/v3/types/options.go:14-23 defines only V6/E/N/R/AF, and the Hello/DD encoders internal/plugins/ospf/v3/packet/hello.go:88 and dbdesc.go:73 never set one, so no Authentication Trailer is emitted |
-| [`RFC7166-3-3`](#rfc7166-3-3) When a new key replaces an old key, the new key's KeyStartGenerate be less than or equal to the old key's KeyStopGenerate (§3) | {gap}, no test | ze has no OSPFv3 Security Association carrying the RFC 7166 KeyStartAccept/KeyStartGenerate/KeyStopGenerate/KeyStopAccept lifetimes -- the only key model is the OSPFv2 send-lifetime pair in internal/plugins/ospf/auth_keystore.go:29-32, and validateKeyRollover internal/plugins/ospf/config.go:1007 orders OSPFv2 send-lifetimes only |
+| [`RFC7166-2.1-1`](#rfc7166-2.1-1) OSPFv3 routers MUST set the AT-bit in OSPFv3 Hello and Database Description packets to indicate that all the packets on this link will include an Authentication Trailer. (§2.1) | {gap}, no test | no AT-bit exists in the OSPFv3 Options bitset -- internal/plugins/ospf/v3/types/options.go:14-23 defines only V6/E/N/R/AF, and the Hello/DD encoders internal/plugins/ospf/v3/packet/hello.go:88 and dbdesc.go:73 never set one, so no Authentication Trailer is emitted |
+| [`RFC7166-3-3`](#rfc7166-3-3) When a new key replaces an old key, the KeyStartGenerate time for the new key MUST be less than or equal to the KeyStopGenerate time of the old key. (§3) | {gap}, no test | ze has no OSPFv3 Security Association carrying the RFC 7166 KeyStartAccept/KeyStartGenerate/KeyStopGenerate/KeyStopAccept lifetimes -- the only key model is the OSPFv2 send-lifetime pair in internal/plugins/ospf/auth_keystore.go:29-32, and validateKeyRollover internal/plugins/ospf/config.go:1007 orders OSPFv2 send-lifetimes only |
 | [`RFC7166-3-6`](#rfc7166-3-6) Transmit an OSPFv3 packet unauthenticated when the last key associated with an interface has expired (§3) | {gap}, no test | no OSPFv3 Authentication Trailer is ever produced -- internal/plugins/ospf/auth_wiring.go:28 signPacket appends the OSPFv2 trailer via internal/plugins/ospf/packet/auth_verify.go:157, so there is no OSPFv3 authenticated-transmit path whose key expiry this could govern; the never-revert selection in auth_keystore.go:281-286 is OSPFv2-only |
 | [`RFC7166-4.1-2`](#rfc7166-4.1-2) Ignore the Reserved field when receiving protocol packets (§4.1) | {gap}, no test | no OSPFv3 trailer decoder exists -- the only receive-side auth verify internal/plugins/ospf/auth_wiring.go:56 verifyPacket delegates to internal/plugins/ospf/auth_keystore.go:330 which decodes an OSPFv2 common header, so an OSPFv3 trailer Reserved field is never parsed |
-| [`RFC7166-4.1-3`](#rfc7166-4.1-3) Increment the 64-bit cryptographic sequence number for every OSPFv3 packet sent (§4.1) | {gap}, no test | the 64-bit ESN counter in internal/plugins/ospf/auth_keystore.go:304-314 feeds the OSPFv2 packet.Sign trailer, not an OSPFv3 trailer; no OSPFv3 Cryptographic Sequence Number field is ever written |
-| [`RFC7166-4.1-4`](#rfc7166-4.1-4) On reception, require the sequence number to be greater than that of the last accepted OSPFv3 packet of the same packet type from the sending neighbor (§4.1) | {gap}, no test | the per-packet-type strictly-greater replay check internal/plugins/ospf/auth_keystore.go:352-361 runs only inside the OSPFv2 verify path; there is no OSPFv3 trailer receive path to which it applies |
-| [`RFC7166-4.1-5`](#rfc7166-4.1-5) Use available mechanisms to preserve the sequence number's strictly increasing property for the router's deployed life, including cold restarts (§4.1) | {gap}, no test | the persisted boot-count mechanism internal/plugins/ospf/auth_keystore.go:115 loadOSPFBootCount seeds the OSPFv2 ESN sequence only; no OSPFv3 trailer sequence is emitted for it to protect |
-| [`RFC7166-4.1.1-1`](#rfc7166-4.1.1-1) Reset all keys before the 64-bit sequence number can wrap, to avoid replay attacks (§4.1.1) | {gap}, no test | no OSPFv3 trailer or its 64-bit sequence exists to wrap -- internal/plugins/ospf/auth_keystore.go:311-314 only bumps bootCount on the OSPFv2 ESN low-word wrap and performs no key reset |
-| [`RFC7166-4.2-3`](#rfc7166-4.2-3) Omit OSPFv3 header checksum verification for received packets that include an Authentication Trailer (§4.2) | {gap}, no test | the receive path never detects an OSPFv3 Authentication Trailer, so it cannot conditionally omit header-checksum verification; only the transmit-side checksum-omission hook exists at internal/plugins/ospf/v3/packet/checksum.go:165-167 and internal/plugins/ospf/v3/packet/header.go:277-280 |
-| [`RFC7166-4.2-4`](#rfc7166-4.2-4) Omit LLS data block checksum verification for received packets that include an Authentication Trailer (§4.2) | {gap}, no test | the OSPFv3 codec implements no LLS data block -- there is no LLS type under internal/plugins/ospf/v3/packet/ -- and no trailer receive path, so there is no LLS checksum to conditionally omit |
+| [`RFC7166-4.1-3`](#rfc7166-4.1-3) The 64-bit sequence number MUST be incremented for every OSPFv3 packet sent by the OSPFv3 router. (§4.1) | {gap}, no test | the 64-bit ESN counter in internal/plugins/ospf/auth_keystore.go:304-314 feeds the OSPFv2 packet.Sign trailer, not an OSPFv3 trailer; no OSPFv3 Cryptographic Sequence Number field is ever written |
+| [`RFC7166-4.1-4`](#rfc7166-4.1-4) Upon reception, the sequence number MUST be greater than the sequence number in the last accepted OSPFv3 packet of the same OSPFv3 packet type from the sending OSPFv3 neighbor. (§4.1) | {gap}, no test | the per-packet-type strictly-greater replay check internal/plugins/ospf/auth_keystore.go:352-361 runs only inside the OSPFv2 verify path; there is no OSPFv3 trailer receive path to which it applies |
+| [`RFC7166-4.1-5`](#rfc7166-4.1-5) OSPFv3 routers implementing this specification MUST use available mechanisms to preserve the sequence number's strictly increasing property for the deployed life of the OSPFv3 router (including cold restarts). (§4.1) | {gap}, no test | the persisted boot-count mechanism internal/plugins/ospf/auth_keystore.go:115 loadOSPFBootCount seeds the OSPFv2 ESN sequence only; no OSPFv3 trailer sequence is emitted for it to protect |
+| [`RFC7166-4.1.1-1`](#rfc7166-4.1.1-1) If by some chance the OSPFv3 router is deployed long enough that there is a possibility that the 64-bit sequence number may wrap, all keys, independent of their key distribution mechanism, MUST be reset to avoid the possibility of replay attacks. (§4.1.1) | {gap}, no test | no OSPFv3 trailer or its 64-bit sequence exists to wrap -- internal/plugins/ospf/auth_keystore.go:311-314 only bumps bootCount on the OSPFv2 ESN low-word wrap and performs no key reset |
+| [`RFC7166-4.2-3`](#rfc7166-4.2-3) o For received OSPFv3 packets including an OSPFv3 Authentication Trailer, OSPFv3 header checksum verification MUST be omitted. (§4.2) | {gap}, no test | the receive path never detects an OSPFv3 Authentication Trailer, so it cannot conditionally omit header-checksum verification; only the transmit-side checksum-omission hook exists at internal/plugins/ospf/v3/packet/checksum.go:165-167 and internal/plugins/ospf/v3/packet/header.go:277-280 |
+| [`RFC7166-4.2-4`](#rfc7166-4.2-4) o For received OSPFv3 packets including an LLS data block and OSPFv3 Authentication Trailer, LLS data block checksum verification MUST be omitted. (§4.2) | {gap}, no test | the OSPFv3 codec implements no LLS data block -- there is no LLS type under internal/plugins/ospf/v3/packet/ -- and no trailer receive path, so there is no LLS checksum to conditionally omit |
 | [`RFC7166-4.3-1`](#rfc7166-4.3-1) Include support for at least HMAC-SHA-256 (§4.3) | {gap}, no test | the HMAC-SHA-256 primitive exists only for the OSPFv2 trailer at internal/plugins/ospf/packet/auth_verify.go:69 and :120; no OSPFv3 Authentication Trailer wires any algorithm |
-| [`RFC7166-4.3-4`](#rfc7166-4.3-4) Use HMAC-SHA-256 as the default authentication algorithm (§4.3) | {gap}, no test | no OSPFv3 trailer means no OSPFv3 default algorithm; the OSPFv2 keychain algorithm is operator-selected per key at internal/plugins/ospf/auth_keystore.go:239-252 with no HMAC-SHA-256 default |
+| [`RFC7166-4.3-4`](#rfc7166-4.3-4) Implementations of this specification MUST use HMAC-SHA-256 as the default authentication algorithm. (§4.3) | {gap}, no test | no OSPFv3 trailer means no OSPFv3 default algorithm; the OSPFv2 keychain algorithm is operator-selected per key at internal/plugins/ospf/auth_keystore.go:239-252 with no HMAC-SHA-256 default |
 | [`RFC7166-4.4-1`](#rfc7166-4.4-1) Append the two-octet OSPFv3 Cryptographic Protocol ID to the Authentication Key prior to use; other protocols sharing common keys similarly append their own IDs (§4.4) | {gap}, no test | only the OSPFv2 Cryptographic Protocol ID 0x0001 is appended, and only for the OSPFv2 AuType-3 trailer at internal/plugins/ospf/packet/auth_verify.go:38 and :195; there is no OSPFv3 Cryptographic Protocol ID constant or OSPFv3 trailer to apply it to |
-| [`RFC7166-4.6-1`](#rfc7166-4.6-1) Minimally support examining the L-bit in the OSPFv3 Options and using the LLS data block length to access the Authentication Trailer (§4.6) | {gap}, no test | the OSPFv3 codec parses no LLS block, defines no L-bit in internal/plugins/ospf/v3/types/options.go:14-23, and defines no trailer, so it cannot locate an Authentication Trailer past an LLS block |
+| [`RFC7166-4.6-1`](#rfc7166-4.6-1) Due to the placement of the AT following the LLS data block and the fact that the LLS data block is included in the Cryptographic Authentication computation, OSPFv3 routers supporting this specification MUST minimally support examining the L-bit in the OSPFv3 options and using the length in the LLS data block to access the AT. (§4.6) | {gap}, no test | the OSPFv3 codec parses no LLS block, defines no L-bit in internal/plugins/ospf/v3/types/options.go:14-23, and defines no trailer, so it cannot locate an Authentication Trailer past an LLS block |
 | [`RFC7166-4.6-3`](#rfc7166-4.6-3) Drop a packet whose cryptographic sequence number is less than or equal to the last accepted value for that neighbor and OSPFv3 packet type (§4.6) | {gap}, no test | the seq<=last drop at internal/plugins/ospf/auth_keystore.go:357-359 is reached only via the OSPFv2 verify path; no OSPFv3 trailer receive path exists |
 | [`RFC7166-4.6-5`](#rfc7166-4.6-5) Discard the packet when the computed digest does not match the received Authentication Data (§4.6) | {gap}, no test | the constant-time digest compare at internal/plugins/ospf/packet/auth_verify.go:242 and :263 verifies the OSPFv2 trailer only; there is no OSPFv3 trailer digest to verify |
-| [`RFC7166-4.6-6`](#rfc7166-4.6-6) After successful authentication, store the 64-bit cryptographic sequence number for each OSPFv3 packet type received from the neighbor (§4.6) | {gap}, no test | the recvSeq high-water store keyed by packet type at internal/plugins/ospf/auth_keystore.go:352-361 records OSPFv2-trailer sequences only; no OSPFv3 trailer sequence is ever received to store |
+| [`RFC7166-4.6-6`](#rfc7166-4.6-6) After the OSPFv3 packet has been successfully authenticated, implementations MUST store the 64-bit cryptographic sequence number for each OSPFv3 packet type received from the neighbor. (§4.6) | {gap}, no test | the recvSeq high-water store keyed by packet type at internal/plugins/ospf/auth_keystore.go:352-361 records OSPFv2-trailer sequences only; no OSPFv3 trailer sequence is ever received to store |
 
 ## Proof state
 
@@ -171,7 +171,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC7166-2.1-1`](#rfc7166-2.1-1)
 
-OSPFv3 routers set the AT-bit in all OSPFv3 Hello and Database Description packets that contain an Authentication Trailer (§2.1)
+OSPFv3 routers MUST set the AT-bit in OSPFv3 Hello and Database Description packets to indicate that all the packets on this link will include an Authentication Trailer. (§2.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -179,7 +179,7 @@ No test carries RFC7166-2.1-1, so no unit is bound to it.
 
 ### [`RFC7166-3-3`](#rfc7166-3-3)
 
-When a new key replaces an old key, the new key's KeyStartGenerate be less than or equal to the old key's KeyStopGenerate (§3)
+When a new key replaces an old key, the KeyStartGenerate time for the new key MUST be less than or equal to the KeyStopGenerate time of the old key. (§3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -203,7 +203,7 @@ No test carries RFC7166-4.1-2, so no unit is bound to it.
 
 ### [`RFC7166-4.1-3`](#rfc7166-4.1-3)
 
-Increment the 64-bit cryptographic sequence number for every OSPFv3 packet sent (§4.1)
+The 64-bit sequence number MUST be incremented for every OSPFv3 packet sent by the OSPFv3 router. (§4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -211,7 +211,7 @@ No test carries RFC7166-4.1-3, so no unit is bound to it.
 
 ### [`RFC7166-4.1-4`](#rfc7166-4.1-4)
 
-On reception, require the sequence number to be greater than that of the last accepted OSPFv3 packet of the same packet type from the sending neighbor (§4.1)
+Upon reception, the sequence number MUST be greater than the sequence number in the last accepted OSPFv3 packet of the same OSPFv3 packet type from the sending OSPFv3 neighbor. (§4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -219,7 +219,7 @@ No test carries RFC7166-4.1-4, so no unit is bound to it.
 
 ### [`RFC7166-4.1-5`](#rfc7166-4.1-5)
 
-Use available mechanisms to preserve the sequence number's strictly increasing property for the router's deployed life, including cold restarts (§4.1)
+OSPFv3 routers implementing this specification MUST use available mechanisms to preserve the sequence number's strictly increasing property for the deployed life of the OSPFv3 router (including cold restarts). (§4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -227,7 +227,7 @@ No test carries RFC7166-4.1-5, so no unit is bound to it.
 
 ### [`RFC7166-4.1.1-1`](#rfc7166-4.1.1-1)
 
-Reset all keys before the 64-bit sequence number can wrap, to avoid replay attacks (§4.1.1)
+If by some chance the OSPFv3 router is deployed long enough that there is a possibility that the 64-bit sequence number may wrap, all keys, independent of their key distribution mechanism, MUST be reset to avoid the possibility of replay attacks. (§4.1.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -235,7 +235,7 @@ No test carries RFC7166-4.1.1-1, so no unit is bound to it.
 
 ### [`RFC7166-4.2-3`](#rfc7166-4.2-3)
 
-Omit OSPFv3 header checksum verification for received packets that include an Authentication Trailer (§4.2)
+o For received OSPFv3 packets including an OSPFv3 Authentication Trailer, OSPFv3 header checksum verification MUST be omitted. (§4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -243,7 +243,7 @@ No test carries RFC7166-4.2-3, so no unit is bound to it.
 
 ### [`RFC7166-4.2-4`](#rfc7166-4.2-4)
 
-Omit LLS data block checksum verification for received packets that include an Authentication Trailer (§4.2)
+o For received OSPFv3 packets including an LLS data block and OSPFv3 Authentication Trailer, LLS data block checksum verification MUST be omitted. (§4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -259,7 +259,7 @@ No test carries RFC7166-4.3-1, so no unit is bound to it.
 
 ### [`RFC7166-4.3-4`](#rfc7166-4.3-4)
 
-Use HMAC-SHA-256 as the default authentication algorithm (§4.3)
+Implementations of this specification MUST use HMAC-SHA-256 as the default authentication algorithm. (§4.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -275,7 +275,7 @@ No test carries RFC7166-4.4-1, so no unit is bound to it.
 
 ### [`RFC7166-4.6-1`](#rfc7166-4.6-1)
 
-Minimally support examining the L-bit in the OSPFv3 Options and using the LLS data block length to access the Authentication Trailer (§4.6)
+Due to the placement of the AT following the LLS data block and the fact that the LLS data block is included in the Cryptographic Authentication computation, OSPFv3 routers supporting this specification MUST minimally support examining the L-bit in the OSPFv3 options and using the length in the LLS data block to access the AT. (§4.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -299,7 +299,7 @@ No test carries RFC7166-4.6-5, so no unit is bound to it.
 
 ### [`RFC7166-4.6-6`](#rfc7166-4.6-6)
 
-After successful authentication, store the 64-bit cryptographic sequence number for each OSPFv3 packet type received from the neighbor (§4.6)
+After the OSPFv3 packet has been successfully authenticated, implementations MUST store the 64-bit cryptographic sequence number for each OSPFv3 packet type received from the neighbor. (§4.6)
 
 Audit verdict: not audited: no reader has judged these tests
 

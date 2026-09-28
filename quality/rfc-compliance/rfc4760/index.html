@@ -120,7 +120,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>33.3%</strong><b>2 of 6 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>9.1%</strong><b>2 of 22 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>13.6%</strong><b>3 of 22 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -226,7 +226,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>2</td>
+<td>3</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4760.md</code></td>
@@ -303,7 +303,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> MPReachNLRI.WriteTo writes the Reserved octet as 0 unconditionally, so there is no non-zero form to reject (internal/core/bgp/attribute/mpnlri.go:182)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-2">RFC4760-3-2</code></td><td colspan="3"><span class="rfc-subject">If Next Hop is allowed to be from more than one Network Layer protocol, encoding of the Next Hop MUST provide a way to determine its Network Layer protocol (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-2">RFC4760-3-2</code></td><td colspan="3"><span class="rfc-subject">If the Next Hop is allowed to be from more than one Network Layer protocol, the encoding of the Next Hop MUST provide a way to determine its Network Layer protocol. (Section 3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14)</td>
@@ -318,7 +318,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L498" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestParseMPReachNLRI_InvalidNextHopLength</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-3">RFC4760-3-3</code></td><td colspan="3"><span class="rfc-subject">An UPDATE message carrying MP_REACH_NLRI MUST also carry the ORIGIN and AS_PATH attributes (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-3">RFC4760-3-3</code></td><td colspan="3"><span class="rfc-subject">An UPDATE message that carries the MP_REACH_NLRI MUST also carry the ORIGIN and the AS_PATH attributes (both in EBGP and in IBGP exchanges). (Section 3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14)</td>
@@ -327,7 +327,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L88" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760MPReachRequiresOriginAndASPath</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-4">RFC4760-3-4</code></td><td colspan="3"><span class="rfc-subject">In IBGP exchanges, an UPDATE with MP_REACH_NLRI MUST also carry the LOCAL_PREF attribute (Section 3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-3-4">RFC4760-3-4</code></td><td colspan="3"><span class="rfc-subject">Moreover, in IBGP exchanges such a message MUST also carry the LOCAL_PREF attribute. (Section 3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3 - Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14)</td>
@@ -349,7 +349,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4760_mp_reach_test.go#L244" title="internal/component/bgp/message/rfc4760_mp_reach_test.go" target="_blank" rel="noopener"><code>TestRFC4760IncorrectMPAttributeResetsTheSession</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-8-1">RFC4760-8-1</code></td><td colspan="3"><span class="rfc-subject">For bi-directional exchange of routing information for a particular AFI/SAFI, each speaker MUST advertise the capability to support that AFI/SAFI via Capability Advertisement (Section 8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4760-8-1">RFC4760-8-1</code></td><td colspan="3"><span class="rfc-subject">To have a bi-directional exchange of routing information for a particular &lt;AFI, SAFI&gt; between a pair of BGP speakers, each such speaker MUST advertise to the other (via the Capability Advertisement mechanism) the capability to support that particular &lt;AFI, SAFI&gt; route. (Section 8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8 - Use of BGP Capability Advertisement</td>
@@ -492,7 +492,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 </table>
 </div>
 <h3><a href="#rfc4760-3-2"><code>RFC4760-3-2</code></a></h3>
-<p>If Next Hop is allowed to be from more than one Network Layer protocol, encoding of the Next Hop MUST provide a way to determine its Network Layer protocol (Section 3)</p>
+<p>If the Next Hop is allowed to be from more than one Network Layer protocol, the encoding of the Next Hop MUST provide a way to determine its Network Layer protocol. (Section 3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -501,7 +501,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_rib_routes_nexthop_test.go#L50" title="internal/component/bgp/reactor/peer_rib_routes_nexthop_test.go" target="_blank" rel="noopener"><code>TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/commit_nexthop_test.go#L69" title="internal/component/bgp/rib/commit_nexthop_test.go" target="_blank" rel="noopener"><code>TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm</code></a></td>
@@ -542,7 +542,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 </table>
 </div>
 <h3><a href="#rfc4760-3-3"><code>RFC4760-3-3</code></a></h3>
-<p>An UPDATE message carrying MP_REACH_NLRI MUST also carry the ORIGIN and AS_PATH attributes (Section 3)</p>
+<p>An UPDATE message that carries the MP_REACH_NLRI MUST also carry the ORIGIN and the AS_PATH attributes (both in EBGP and in IBGP exchanges). (Section 3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -562,7 +562,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 </table>
 </div>
 <h3><a href="#rfc4760-3-4"><code>RFC4760-3-4</code></a></h3>
-<p>In IBGP exchanges, an UPDATE with MP_REACH_NLRI MUST also carry the LOCAL_PREF attribute (Section 3)</p>
+<p>Moreover, in IBGP exchanges such a message MUST also carry the LOCAL_PREF attribute. (Section 3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -622,7 +622,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
 </table>
 </div>
 <h3><a href="#rfc4760-8-1"><code>RFC4760-8-1</code></a></h3>
-<p>For bi-directional exchange of routing information for a particular AFI/SAFI, each speaker MUST advertise the capability to support that AFI/SAFI via Capability Advertisement (Section 8)</p>
+<p>To have a bi-directional exchange of routing information for a particular &lt;AFI, SAFI&gt; between a pair of BGP speakers, each such speaker MUST advertise to the other (via the Capability Advertisement mechanism) the capability to support that particular &lt;AFI, SAFI&gt; route. (Section 8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -829,7 +829,7 @@ RFC 7606 MP attribute ordering tradeoff is tracked under RFC 7606.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

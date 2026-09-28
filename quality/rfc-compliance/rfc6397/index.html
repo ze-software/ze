@@ -287,7 +287,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6397-4.1-1">RFC6397-4.1-1</code></td><td colspan="3"><span class="rfc-subject">Collector Latitude and Collector Longitude must not be a mix of WGS84 coordinates and NAN values (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6397-4.1-1">RFC6397-4.1-1</code></td><td colspan="3"><span class="rfc-subject">The Collector Latitude and Collector Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.1</td>
@@ -296,7 +296,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not implement the RFC 6397 MRT geo-location extension. Its MRT writer emits only standard RFC 6396 records -- TABLE_DUMP_V2 with a PEER_INDEX_TABLE and RIB entries (internal/plugins/mrt/dump.go:187 writePeerIndexTable, dump.go:200 TypeTableDumpV2/TDV2PeerIndexTable) -- and has no GEO_PEER_TABLE / Collector-Latitude / Collector-Longitude / WGS84 code path (grep for geo-location/latitude/longitude/WGS84 across internal/plugins/mrt/ finds nothing), so Ze never emits Collector coordinates that could be mixed with NAN.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6397-4.1-2">RFC6397-4.1-2</code></td><td colspan="3"><span class="rfc-subject">Peer Latitude and Peer Longitude must not be a mix of WGS84 coordinates and NAN values for a single peer (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6397-4.1-2">RFC6397-4.1-2</code></td><td colspan="3"><span class="rfc-subject">The Peer Latitude and Peer Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values for a single peer. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.1</td>
@@ -305,7 +305,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze emits no GEO_PEER_TABLE and no Peer-Latitude / Peer-Longitude fields (it writes only the standard RFC 6396 PEER_INDEX_TABLE, internal/plugins/mrt/dump.go:187), so there are no per-peer coordinates that could be mixed with NAN.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6397-4.1-3">RFC6397-4.1-3</code></td><td colspan="3"><span class="rfc-subject">Order of Peer Entries in GEO_PEER_TABLE must match the order and number as existing in the PEER_INDEX_TABLE (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6397-4.1-3">RFC6397-4.1-3</code></td><td colspan="3"><span class="rfc-subject">The order of the Peer Entries in the GEO_PEER_TABLE MUST match the order and number as existing in the PEER_INDEX_TABLE. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -314,7 +314,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze emits no GEO_PEER_TABLE record at all (only the standard RFC 6396 PEER_INDEX_TABLE and RIB entries, internal/plugins/mrt/dump.go:187,200), so there is no GEO_PEER_TABLE ordering to keep consistent with the PEER_INDEX_TABLE.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6397-6-1">RFC6397-6-1</code></td><td colspan="3"><span class="rfc-subject">Location information from a location object with more restrictive privacy rules must not be included in an MRT geo-location record unless non-technical measures are in place (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6397-6-1">RFC6397-6-1</code></td><td colspan="3"><span class="rfc-subject">Location information derived from a location object with more restrictive privacy rules MUST NOT be included in an MRT geo-location record unless there are non-technical measures in place that enforce and communicate the constraints on the use of the location information in the MRT geo-location format (e.g., contractual agreements between peers). (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6</td>
@@ -341,19 +341,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc6397-4.1-1"><code>RFC6397-4.1-1</code></a> Collector Latitude and Collector Longitude must not be a mix of WGS84 coordinates and NAN values (§4.1)</td>
+<tr><td><a href="#rfc6397-4.1-1"><code>RFC6397-4.1-1</code></a> The Collector Latitude and Collector Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values. (§4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 6397 MRT geo-location extension. Its MRT writer emits only standard RFC 6396 records -- TABLE_DUMP_V2 with a PEER_INDEX_TABLE and RIB entries (internal/plugins/mrt/dump.go:187 writePeerIndexTable, dump.go:200 TypeTableDumpV2/TDV2PeerIndexTable) -- and has no GEO_PEER_TABLE / Collector-Latitude / Collector-Longitude / WGS84 code path (grep for geo-location/latitude/longitude/WGS84 across internal/plugins/mrt/ finds nothing), so Ze never emits Collector coordinates that could be mixed with NAN.</td>
 </tr>
-<tr><td><a href="#rfc6397-4.1-2"><code>RFC6397-4.1-2</code></a> Peer Latitude and Peer Longitude must not be a mix of WGS84 coordinates and NAN values for a single peer (§4.1)</td>
+<tr><td><a href="#rfc6397-4.1-2"><code>RFC6397-4.1-2</code></a> The Peer Latitude and Peer Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values for a single peer. (§4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Ze emits no GEO_PEER_TABLE and no Peer-Latitude / Peer-Longitude fields (it writes only the standard RFC 6396 PEER_INDEX_TABLE, internal/plugins/mrt/dump.go:187), so there are no per-peer coordinates that could be mixed with NAN.</td>
 </tr>
-<tr><td><a href="#rfc6397-4.1-3"><code>RFC6397-4.1-3</code></a> Order of Peer Entries in GEO_PEER_TABLE must match the order and number as existing in the PEER_INDEX_TABLE (§4.1)</td>
+<tr><td><a href="#rfc6397-4.1-3"><code>RFC6397-4.1-3</code></a> The order of the Peer Entries in the GEO_PEER_TABLE MUST match the order and number as existing in the PEER_INDEX_TABLE. (§4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Ze emits no GEO_PEER_TABLE record at all (only the standard RFC 6396 PEER_INDEX_TABLE and RIB entries, internal/plugins/mrt/dump.go:187,200), so there is no GEO_PEER_TABLE ordering to keep consistent with the PEER_INDEX_TABLE.</td>
 </tr>
-<tr><td><a href="#rfc6397-6-1"><code>RFC6397-6-1</code></a> Location information from a location object with more restrictive privacy rules must not be included in an MRT geo-location record unless non-technical measures are in place (§6)</td>
+<tr><td><a href="#rfc6397-6-1"><code>RFC6397-6-1</code></a> Location information derived from a location object with more restrictive privacy rules MUST NOT be included in an MRT geo-location record unless there are non-technical measures in place that enforce and communicate the constraints on the use of the location information in the MRT geo-location format (e.g., contractual agreements between peers). (§6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Ze generates no MRT geo-location records (it has no RFC 6397 GEO_PEER_TABLE / location-object code path in internal/plugins/mrt/), so there is no location information for it to include or filter on privacy grounds.</td>
 </tr>
@@ -364,19 +364,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc6397-4.1-1"><code>RFC6397-4.1-1</code></a></h3>
-<p>Collector Latitude and Collector Longitude must not be a mix of WGS84 coordinates and NAN values (§4.1)</p>
+<p>The Collector Latitude and Collector Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6397-4.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6397-4.1-2"><code>RFC6397-4.1-2</code></a></h3>
-<p>Peer Latitude and Peer Longitude must not be a mix of WGS84 coordinates and NAN values for a single peer (§4.1)</p>
+<p>The Peer Latitude and Peer Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values for a single peer. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6397-4.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc6397-4.1-3"><code>RFC6397-4.1-3</code></a></h3>
-<p>Order of Peer Entries in GEO_PEER_TABLE must match the order and number as existing in the PEER_INDEX_TABLE (§4.1)</p>
+<p>The order of the Peer Entries in the GEO_PEER_TABLE MUST match the order and number as existing in the PEER_INDEX_TABLE. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6397-4.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc6397-6-1"><code>RFC6397-6-1</code></a></h3>
-<p>Location information from a location object with more restrictive privacy rules must not be included in an MRT geo-location record unless non-technical measures are in place (§6)</p>
+<p>Location information derived from a location object with more restrictive privacy rules MUST NOT be included in an MRT geo-location record unless there are non-technical measures in place that enforce and communicate the constraints on the use of the location information in the MRT geo-location format (e.g., contractual agreements between peers). (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6397-6-1, so no unit is bound to it.</p>
 </section>
@@ -551,7 +551,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

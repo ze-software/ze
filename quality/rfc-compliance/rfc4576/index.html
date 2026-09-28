@@ -287,7 +287,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4576-4-1">RFC4576-4-1</code></td><td colspan="3"><span class="rfc-subject">&#34;When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set.&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4576-4-1">RFC4576-4-1</code></td><td colspan="3"><span class="rfc-subject">When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -296,7 +296,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not run OSPF as a BGP/MPLS-VPN PE-CE protocol -- it has no L3VPN OSPF code path (no VPN OSPF route redistribution, no sham links, no PE-CE OSPF; grep for sham-link / PE-CE / vpn-ospf / domain-id across internal/plugins/ospf/ finds nothing). Ze runs OSPF only as a plain IGP, so it never originates a type 3/5/7 LSA &#34;from a PE to a CE&#34; and has no code path that would set the RFC 4576 DN bit.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4576-4-2">RFC4576-4-2</code></td><td colspan="3"><span class="rfc-subject">&#34;The DN bit MUST be clear in all other LSA types.&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4576-4-2">RFC4576-4-2</code></td><td colspan="3"><span class="rfc-subject">The DN bit MUST be clear in all other LSA types. +-------------------------------------+ | DN | * | DC | EA | N/P | MC | E | * | +-------------------------------------+ (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -305,7 +305,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze is not an MPLS-VPN PE and originates no LSAs in a VPN PE-CE context, so it never sets the DN bit on any LSA type; the &#34;DN bit clear in all other LSA types&#34; transmission rule governs a PE role Ze does not implement.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4576-4-3">RFC4576-4-3</code></td><td colspan="3"><span class="rfc-subject">&#34;The DN bit MUST be ignored in all other LSA types.&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4576-4-3">RFC4576-4-3</code></td><td colspan="3"><span class="rfc-subject">The DN bit MUST be ignored in all other LSA types. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -314,7 +314,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> This governs a VPN PE&#39;s receive processing of the DN bit. Ze runs plain (non-VPN) OSPF with no PE-CE role: its OSPFv3 prefix codec merely decodes the DN bit as a field (internal/plugins/ospf/v3/types/prefix.go:68 Down()) and Ze performs no VPN loop-prevention that acts on it, so the PE-CE DN-bit handling this requirement defines has no applicable code path.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4576-4-4">RFC4576-4-4</code></td><td colspan="3"><span class="rfc-subject">&#34;When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation.&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4576-4-4">RFC4576-4-4</code></td><td colspan="3"><span class="rfc-subject">When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4</td>
@@ -332,19 +332,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc4576-4-1"><code>RFC4576-4-1</code></a> &#34;When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set.&#34; (§4)</td>
+<tr><td><a href="#rfc4576-4-1"><code>RFC4576-4-1</code></a> When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set. (§4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Ze does not run OSPF as a BGP/MPLS-VPN PE-CE protocol -- it has no L3VPN OSPF code path (no VPN OSPF route redistribution, no sham links, no PE-CE OSPF; grep for sham-link / PE-CE / vpn-ospf / domain-id across internal/plugins/ospf/ finds nothing). Ze runs OSPF only as a plain IGP, so it never originates a type 3/5/7 LSA &#34;from a PE to a CE&#34; and has no code path that would set the RFC 4576 DN bit.</td>
 </tr>
-<tr><td><a href="#rfc4576-4-2"><code>RFC4576-4-2</code></a> &#34;The DN bit MUST be clear in all other LSA types.&#34; (§4)</td>
+<tr><td><a href="#rfc4576-4-2"><code>RFC4576-4-2</code></a> The DN bit MUST be clear in all other LSA types. +-------------------------------------+ | DN | * | DC | EA | N/P | MC | E | * | +-------------------------------------+ (§4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Ze is not an MPLS-VPN PE and originates no LSAs in a VPN PE-CE context, so it never sets the DN bit on any LSA type; the &#34;DN bit clear in all other LSA types&#34; transmission rule governs a PE role Ze does not implement.</td>
 </tr>
-<tr><td><a href="#rfc4576-4-3"><code>RFC4576-4-3</code></a> &#34;The DN bit MUST be ignored in all other LSA types.&#34; (§4)</td>
+<tr><td><a href="#rfc4576-4-3"><code>RFC4576-4-3</code></a> The DN bit MUST be ignored in all other LSA types. (§4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: This governs a VPN PE&#39;s receive processing of the DN bit. Ze runs plain (non-VPN) OSPF with no PE-CE role: its OSPFv3 prefix codec merely decodes the DN bit as a field (internal/plugins/ospf/v3/types/prefix.go:68 Down()) and Ze performs no VPN loop-prevention that acts on it, so the PE-CE DN-bit handling this requirement defines has no applicable code path.</td>
 </tr>
-<tr><td><a href="#rfc4576-4-4"><code>RFC4576-4-4</code></a> &#34;When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation.&#34; (§4)</td>
+<tr><td><a href="#rfc4576-4-4"><code>RFC4576-4-4</code></a> When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation. (§4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: This governs a VPN PE ignoring a CE&#39;s DN-bit-set LSA during OSPF route calculation. Ze is not an MPLS-VPN PE and runs no OSPF PE-CE / VPN OSPF route calculation, so there is no code path in which a PE would consume a CE&#39;s DN-bit-set LSA.</td>
 </tr>
@@ -355,19 +355,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc4576-4-1"><code>RFC4576-4-1</code></a></h3>
-<p>&#34;When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set.&#34; (§4)</p>
+<p>When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4576-4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4576-4-2"><code>RFC4576-4-2</code></a></h3>
-<p>&#34;The DN bit MUST be clear in all other LSA types.&#34; (§4)</p>
+<p>The DN bit MUST be clear in all other LSA types. +-------------------------------------+ | DN | * | DC | EA | N/P | MC | E | * | +-------------------------------------+ (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4576-4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4576-4-3"><code>RFC4576-4-3</code></a></h3>
-<p>&#34;The DN bit MUST be ignored in all other LSA types.&#34; (§4)</p>
+<p>The DN bit MUST be ignored in all other LSA types. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4576-4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4576-4-4"><code>RFC4576-4-4</code></a></h3>
-<p>&#34;When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation.&#34; (§4)</p>
+<p>When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4576-4-4, so no unit is bound to it.</p>
 </section>
@@ -500,7 +500,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

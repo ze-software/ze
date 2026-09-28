@@ -318,7 +318,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-3-1">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1</code></td><td colspan="3"><span class="rfc-subject">&#34;If an implementation intends to send a single IPv6 Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 16 and include only the IPv6 Link-Local address in the Next Hop field&#34; (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-3-1">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1</code></td><td colspan="3"><span class="rfc-subject">If an implementation intends to send a single IPv6 Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 16 and include only the IPv6 Link-Local address in the Next Hop field. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -327,7 +327,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go#L118" title="internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNextHopWithAGlobalIsNotSentAlone</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-3-2">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2</code></td><td colspan="3"><span class="rfc-subject">&#34;If an implementation intends to send both a IPv6 Global and Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 32 and include both the IPv6 Global and Link-Local addresses in the Next Hop field&#34; (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-3-2">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2</code></td><td colspan="3"><span class="rfc-subject">If an implementation intends to send both a IPv6 Global and Link- Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 32 and include both the IPv6 Global and Link-Local addresses in the Next Hop field. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -336,7 +336,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L61" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalSingleAddressKeepsSixteenOctets</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-1">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1</code></td><td colspan="3"><span class="rfc-subject">&#34;If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-1">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1</code></td><td colspan="3"><span class="rfc-subject">If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -345,7 +345,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L83" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAdvertised</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-2">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2</code></td><td colspan="3"><span class="rfc-subject">&#34;If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-2">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2</code></td><td colspan="3"><span class="rfc-subject">If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4</td>
@@ -354,7 +354,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L84" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalIncludedForPeerOneHopAway</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-3">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3</code></td><td colspan="3"><span class="rfc-subject">&#34;If the route is directly connected to the speaker, or if the interface address of the router through which the announced network is reachable for the speaker is the internal peer&#39;s address, the next hop MUST include its own Link-Local IPv6 address&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-3">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3</code></td><td colspan="3"><span class="rfc-subject">If the route is directly connected to the speaker, or if the interface address of the router through which the announced network is reachable for the speaker is the internal peer&#39;s address, the next hop MUST include its own Link- Local IPv6 address. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -363,7 +363,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_test.go#L150" title="internal/component/bgp/reactor/rfc_draft_linklocal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-4">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4</code></td><td colspan="3"><span class="rfc-subject">&#34;If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-4">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4</code></td><td colspan="3"><span class="rfc-subject">If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4</td>
@@ -372,7 +372,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go#L105" title="internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-5">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5</code></td><td colspan="3"><span class="rfc-subject">&#34;A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-5">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5</code></td><td colspan="3"><span class="rfc-subject">A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4</td>
@@ -381,7 +381,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L201" title="internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-6">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6</code></td><td colspan="3"><span class="rfc-subject">&#34;For all other clients, the RR MUST either rewrite the next hop to its own address (next-hop-self) or consider the route ineligible for advertisement to that specific peer&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-6">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6</code></td><td colspan="3"><span class="rfc-subject">For all other clients, the RR MUST either rewrite the next hop to its own address (next-hop-self) or consider the route ineligible for advertisement to that specific peer. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -390,7 +390,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go#L258" title="internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-7">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7</code></td><td colspan="3"><span class="rfc-subject">&#34;If no next hops are included, the route MUST NOT be announced (treat-as-withdraw)&#34; (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-4-7">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7</code></td><td colspan="3"><span class="rfc-subject">If no next hops are included, the route MUST NOT be announced (treat-as- withdraw). (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4</td>
@@ -462,7 +462,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-5-1">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1</code></td><td colspan="3"><span class="rfc-subject">&#34;When this combination has not been negotiated, a sender MUST follow the rules in Section 3 of [RFC8950] and encode the Next Hop as 32 octets&#34; (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-idr-linklocal-capability-5-1">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1</code></td><td colspan="3"><span class="rfc-subject">When this combination has not been negotiated, a sender MUST follow the rules in Section 3 of [RFC8950] and encode the Next Hop as 32 octets. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -545,7 +545,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#draft-ietf-idr-linklocal-capability-3-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1</code></a></h3>
-<p>&#34;If an implementation intends to send a single IPv6 Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 16 and include only the IPv6 Link-Local address in the Next Hop field&#34; (§3)</p>
+<p>If an implementation intends to send a single IPv6 Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 16 and include only the IPv6 Link-Local address in the Next Hop field. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -565,7 +565,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-3-2"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2</code></a></h3>
-<p>&#34;If an implementation intends to send both a IPv6 Global and Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 32 and include both the IPv6 Global and Link-Local addresses in the Next Hop field&#34; (§3)</p>
+<p>If an implementation intends to send both a IPv6 Global and Link- Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 32 and include both the IPv6 Global and Link-Local addresses in the Next Hop field. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -585,7 +585,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-4-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1</code></a></h3>
-<p>&#34;If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer&#34; (§4)</p>
+<p>If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -605,7 +605,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-4-2"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2</code></a></h3>
-<p>&#34;If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop&#34; (§4)</p>
+<p>If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -625,7 +625,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-4-3"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3</code></a></h3>
-<p>&#34;If the route is directly connected to the speaker, or if the interface address of the router through which the announced network is reachable for the speaker is the internal peer&#39;s address, the next hop MUST include its own Link-Local IPv6 address&#34; (§4)</p>
+<p>If the route is directly connected to the speaker, or if the interface address of the router through which the announced network is reachable for the speaker is the internal peer&#39;s address, the next hop MUST include its own Link- Local IPv6 address. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -645,7 +645,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-4-4"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4</code></a></h3>
-<p>&#34;If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker&#34; (§4)</p>
+<p>If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -665,7 +665,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-4-5"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5</code></a></h3>
-<p>&#34;A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser&#34; (§4)</p>
+<p>A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -685,7 +685,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-4-6"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6</code></a></h3>
-<p>&#34;For all other clients, the RR MUST either rewrite the next hop to its own address (next-hop-self) or consider the route ineligible for advertisement to that specific peer&#34; (§4)</p>
+<p>For all other clients, the RR MUST either rewrite the next hop to its own address (next-hop-self) or consider the route ineligible for advertisement to that specific peer. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -705,7 +705,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-4-7"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7</code></a></h3>
-<p>&#34;If no next hops are included, the route MUST NOT be announced (treat-as-withdraw)&#34; (§4)</p>
+<p>If no next hops are included, the route MUST NOT be announced (treat-as- withdraw). (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -765,7 +765,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-5-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1</code></a></h3>
-<p>&#34;When this combination has not been negotiated, a sender MUST follow the rules in Section 3 of [RFC8950] and encode the Next Hop as 32 octets&#34; (§5)</p>
+<p>When this combination has not been negotiated, a sender MUST follow the rules in Section 3 of [RFC8950] and encode the Next Hop as 32 octets. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -972,7 +972,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

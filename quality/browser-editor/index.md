@@ -11,9 +11,9 @@ A `.wb` file is a short browser script. The runner starts Ze, opens an isolated 
 Use `.wb` when navigation, form behavior, HTMX replacement, visible copy, page title, URL, or accessibility-visible elements are the contract. Use a Go unit test for pure handler logic and use `.ci` for simple HTTP status checks.
 
 ```
-bin/ze-test web --list
-bin/ze-test web -p config -v
-./le functional web-test
+./le test web --list
+./le test web -p config -v
+./le test functional web-test
 ```
 
 ### Browser syntax
@@ -36,9 +36,9 @@ Prefer `id=` for stable controls and `text=` when the visible label is the contr
 An `.et` file is a replay script for the interactive configuration editor. The runner creates a temporary config root, starts the editor model, sends key and text input, and checks the prompt, context, completions, dirty state, validation messages, and persisted files. It is headless, which makes it fast, but it still exercises the editor input model rather than a single parser function.
 
 ```
-bin/ze-test editor --list
-bin/ze-test editor -p completion -v
-./le functional editor-test
+./le test editor --list
+./le test editor -p completion -v
+./le test functional editor-test
 ```
 
 ### Editor syntax
@@ -62,9 +62,9 @@ Use editor tests for completion, validation, path context, commit and discard be
 Both runners emit per-step trace records. The human output shows action and expectation lines with source locations. The machine output emits `VERIFY STEP` JSON so `./le verify current mode full` can group failures without scraping prose.
 
 ```
-bin/ze-test web config-menu -v
-bin/ze-test editor completion-basic -v
-ZE_TEST_KEEP_TMP=1 bin/ze-test editor completion-basic -v
+./le test web config-menu -v
+./le test editor completion-basic -v
+ZE_TEST_KEEP_TMP=1 ./le test editor completion-basic -v
 ```
 
 For web failures, read the snapshot before changing selectors. For editor failures, read the prompt, context, and buffered text before changing parser code. Most flaky UI tests come from checking too early; prefer an observable wait such as URL, element text, validation state, or command completion.

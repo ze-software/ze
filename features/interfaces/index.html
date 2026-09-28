@@ -951,7 +951,7 @@ up/down, bridge, mirror, ...), the DHCP client socket binding, and the
 routing/protocol consumers all act on the bound kernel device. The dispatch
 layer performs this translation for the by-name backend ops and leaves
 <code>GetInterface</code> and <code>ListInterfaces</code> raw because the resolver is built on them.
-<code>./le iface-resolution check</code> keeps new consumers from resolving the kernel
+<code>./le arch iface-resolution check</code> keeps new consumers from resolving the kernel
 directly instead of through the resolver.</p>
 <p>The <strong>config apply path</strong> resolves separately, and on purpose. It takes ONE interface
 listing per apply and binds every ethernet entry from it, so each logical name resolves
@@ -973,7 +973,7 @@ to the capture port's kernel device.</p>
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
 <!-- source: internal/component/iface/dispatch.go -- ResolveDevice translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->
-<!-- source: internal/le/ifaceresolution/ifaceresolution.go -- Answer -->
+<!-- source: internal/le/arch/ifaceresolution/ifaceresolution.go -- Answer -->
 <p>A MAC address validator (<code>ze:validate "mac-address"</code>) provides format checking (colon-separated
 hex octets) and live OS autocomplete. The <code>CompleteFn</code> calls <code>DiscoverInterfaces</code> on each
 tab press, returning MAC addresses from currently active OS interfaces. The <code>os-name</code>
@@ -1014,6 +1014,14 @@ untouched, as is the VPP backend, which deletes exactly the requested address.</
 </ul>
 <!-- source: internal/plugins/iface/netlink/addr_primary.go -- ensureDeleteIsolated, flushedByDelete -->
 <!-- source: internal/plugins/iface/netlink/manage_linux.go -- RemoveAddress delegates to removeAddressGuarded -->
+<ul>
+<li><strong>Point-to-point address removal.</strong> A local CIDR identifies the address to remove.
+The netlink backend reads the installed address and retains its peer metadata for deletion.
+Linux matches both <code>IFA_LOCAL</code> and <code>IFA_ADDRESS</code>, so rebuilding the request from the local
+CIDR alone cannot remove an address whose peer differs. The primary/secondary guard
+still runs before deletion. Removing the address also removes its kernel connected route.</li>
+</ul>
+<!-- source: internal/plugins/iface/netlink/addr_primary_linux.go -- netlinkAddrRemover.List, netlinkAddrRemover.Delete -->
 <ul>
 <li><strong>Virtual interface state.</strong> Dummy/bridge/veth report <code>OperUnknown</code> not <code>OperUp</code>;
 monitor checks <code>IFF_UP</code> flag as fallback.</li>
@@ -1773,51 +1781,51 @@ fail-closed (exact-or-reject).</p>
 <tr>
 <td><code>interface/created</code></td>
 <td>First RTM_NEWLINK for an index</td>
-<td>name, type, index, mtu, managed</td>
-</tr>
-<tr>
-<td><code>interface/deleted</code></td>
-<td>RTM_DELLINK</td>
-<td>name, type, index, mtu, managed</td>
+<td>name, unit, type, index, mtu</td>
 </tr>
 <tr>
 <td><code>interface/up</code></td>
 <td>OperUp or OperUnknown+IFF_UP</td>
-<td>name, index</td>
+<td>name, unit, index</td>
 </tr>
 <tr>
 <td><code>interface/down</code></td>
-<td>Other oper states</td>
-<td>name, index</td>
+<td>Other oper states or RTM_DELLINK</td>
+<td>name, unit, index; deletion also carries type and mtu</td>
 </tr>
 <tr>
-<td><code>interface/addr/added</code></td>
+<td><code>interface/addr-added</code></td>
 <td>RTM_NEWADDR (DAD complete)</td>
-<td>name, unit, index, address, prefix-length, family, managed</td>
+<td>name, unit, index, address, prefix-length, family, origin</td>
 </tr>
 <tr>
-<td><code>interface/addr/removed</code></td>
+<td><code>interface/addr-removed</code></td>
 <td>RTM_DELADDR</td>
-<td>name, unit, index, address, prefix-length, family, managed</td>
+<td>name, unit, index, address, prefix-length, family, origin</td>
 </tr>
 <tr>
-<td><code>interface/dhcp/lease-acquired</code></td>
+<td><code>interface/dhcp-acquired</code></td>
 <td>DHCPv4 ACK</td>
 <td>name, unit, address, prefix-length, router, dns, lease-time</td>
 </tr>
 <tr>
-<td><code>interface/dhcp/lease-renewed</code></td>
+<td><code>interface/dhcp-renewed</code></td>
 <td>Renewal success</td>
 <td>name, unit, address, prefix-length, router, dns, lease-time</td>
 </tr>
 <tr>
-<td><code>interface/dhcp/lease-expired</code></td>
+<td><code>interface/dhcp-expired</code></td>
 <td>Lease timeout</td>
 <td>name, unit, address, prefix-length, router, dns, lease-time</td>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/iface/iface.go — Topic* constants, *Payload structs -->
+<!-- source: internal/core/iface/events/events.go -- interface event names -->
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- event payloads -->
+<p>Each RTM_NEWLINK also emits the current <code>up</code> or <code>down</code> state, including the first
+update that emits <code>created</code>. An interface can exist before the monitor starts,
+so its first observed update can already be a link failure.</p>
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- handleLinkUpdate -->
 <h2 id="compound-commands-auto-ensure-parent">Compound Commands (Auto-Ensure Parent)</h2>
 <p>When a command creates a sub-resource (VLAN unit, address) on an interface
 that may not exist yet, the compound form auto-creates the parent:</p>
@@ -2191,6 +2199,35 @@ falls back to a per-interface baseline-delta model: the current values
 become a baseline and <code>GetStats</code> / <code>ListInterfaces</code> / <code>GetInterface</code>
 subtract the baseline before returning, so the operator sees
 "since last clear" values.</p>
+<p>Raw snapshots also carry <code>counter-generation</code>, an opaque process-local
+continuity token. The Linux backend reads counters and link lifecycle events
+on one socket subscribed to <code>RTNLGRP_LINK</code>, so a delete and recreate at the same
+ifIndex changes the token even if the replacement's counters have already
+overtaken the previous values. Renames and ordinary down/up transitions preserve
+it. Decreases in exported raw 64-bit counters change it; truncation to a 32-bit
+wire counter does not.</p>
+<!-- source: internal/component/iface/iface.go -- InterfaceInfo.CounterGeneration -->
+<!-- source: internal/plugins/iface/netlink/show_linux.go -- ListInterfaces, GetInterface -->
+<!-- source: internal/plugins/iface/netlink/counter_linux.go -- counterSource.consume, counterStatsDecreased -->
+<p>Socket errors discard the incomplete snapshot and invalidate notification
+history. The next successful read assigns fresh tokens rather than treating
+possibly replaced interfaces as continuous. Backends without this metadata
+report zero. Display-counter clearing only changes the baseline, not raw
+continuity.</p>
+<!-- source: internal/plugins/iface/netlink/counter_linux.go -- counterSource.snapshot, counterSource.invalidate -->
+<!-- source: internal/component/iface/counters.go -- ResetCounters -->
+<p>The backend owns this subscribed socket. <code>Close</code> stops its monitor, waits for
+any bounded counter read, closes the socket and rejects later reads. The iface
+component calls <code>Close</code> when replacing or shutting down its backend; direct
+backend users must do the same.</p>
+<!-- source: internal/plugins/iface/netlink/backend_linux.go -- netlinkBackend.Close -->
+<!-- source: internal/plugins/iface/netlink/counter_linux.go -- counterSource.close -->
+<p>Linux requires statistics to persist “across routine operations like bringing
+the interface down and up” (<a href="https://docs.kernel.org/networking/statistics.html" target="_blank" rel="noopener">networking statistics documentation</a>).
+Its generic statistics API provides no driver-reset epoch. A driver reset whose
+new counters exceed the previous sample before the next read cannot be inferred
+from these values; the token does not claim to detect it.</p>
+<!-- source: internal/plugins/iface/netlink/counter_linux.go -- counterStatsDecreased -->
 <h3 id="netlink-linux-default">Netlink (Linux, default)</h3>
 <p>Pure netlink via <code>vishvananda/netlink</code>, with WireGuard peer/key
 operations via <code>golang.zx2c4.com/wireguard/wgctrl</code>. Every method is
@@ -2268,7 +2305,7 @@ exact-or-reject.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

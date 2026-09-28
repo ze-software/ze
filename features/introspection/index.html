@@ -47,10 +47,10 @@
 <!-- source: internal/component/config/yang/cli/main.go -- ze schema subcommands -->
 <!-- source: internal/plugins/env/env.go -- ze env subcommands -->
 <!-- source: cmd/ze/help_ai.go -- ze help ai output -->
-<!-- source: internal/le/inventory/inventory.go -- Answer -->
-<!-- source: internal/le/command/list/commandlist.go -- Answer -->
-<!-- source: internal/le/docvalid/actions.go -- Answer -->
-<!-- source: internal/le/docvalid/actions.go -- Answer -->
+<!-- source: internal/le/repo/inventory/inventory.go -- Answer -->
+<!-- source: internal/le/cli/list/commandlist.go -- Answer -->
+<!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
+<!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Feature</span>
     <h1 id="self-documenting-system">Self-Documenting System</h1>
@@ -139,7 +139,7 @@ unregistered access (<code>env.MustRegister()</code>).</p>
 </tr>
 </tbody>
 </table>
-<p>An in-tree plugin's declarations are in reach of both catalogs. <code>ze help command --json</code> and <code>./le command list</code> read the compiled command tree in their own
+<p>An in-tree plugin's declarations are in reach of both catalogs. <code>ze help command --json</code> and <code>./le cli list</code> read the compiled command tree in their own
 process and start no plugin, but a registered plugin puts the same declarations
 on its <code>registry.Registration</code>: <code>Commands</code> for what each answer holds and
 <code>Pipes</code> for the aliases it puts on its commands. So both catalogs name every
@@ -218,19 +218,19 @@ that runs more than one command holds the plugin as its own child.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>./le inventory</code></td>
+<td><code>./le repo inventory</code></td>
 <td>Reports plugins, YANG modules, RPCs, families, tests, and packages</td>
 </tr>
 <tr>
-<td><code>./le command list</code></td>
+<td><code>./le cli list</code></td>
 <td>Reads every CLI command from the compiled registries</td>
 </tr>
 <tr>
-<td><code>./le docvalid command-contract</code></td>
+<td><code>./le doc yang-contract command-contract</code></td>
 <td>Cross-checks YANG commands and handlers</td>
 </tr>
 <tr>
-<td><code>./le docvalid doc-drift</code></td>
+<td><code>./le doc yang-contract doc-drift</code></td>
 <td>Detects documentation drift</td>
 </tr>
 </tbody>
@@ -240,7 +240,7 @@ registers from and every YANG file beside it. Both are DERIVED, so no plugin
 declares either: the directory is the package the plugin's engine function was
 compiled in, and the file list is the directory holding the module the
 registration carries. The public plugin catalog publishes both.</p>
-<!-- source: internal/le/inventory/plugins.go -- pluginPackageDir, pluginYANGFiles -->
+<!-- source: internal/le/repo/inventory/plugins.go -- pluginPackageDir, pluginYANGFiles -->
 <h2 id="design-principle">Design Principle</h2>
 <p>The self-documenting property emerges from the registration architecture:</p>
 <ul>
@@ -290,7 +290,7 @@ completion, schema discovery, inventory, and environment variable listing. No ma
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

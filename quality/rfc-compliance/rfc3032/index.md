@@ -100,23 +100,23 @@ No tracked gap in current source anchors.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC3032-1-1` | When top labels use different encoding (e.g., ATM), this encoding MUST be used for additional label stack entries (S1) | MUST | 1 - Introduction | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze has no ATM/Frame-Relay MPLS top-label path so the condition never arises, and the on-wire shim for additional entries is built by the kernel/VPP dataplane; ze's only shim encoder is the 3-octet BGP NLRI (internal/core/bgp/nlri/helpers.go:61), which carries no TTL |
-| `RFC3032-2.2-1` | Network layer protocol MUST be inferable from the label value at bottom of stack and/or inspection of the network layer header (S2.2) | MUST | 2.2 - Determining the Network Layer Protocol | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** disposition-time protocol identification when the stack empties is performed by the kernel AF_MPLS route (loopback re-injection into the IP path) or VPP dataplane, not by any ze control-plane function (internal/plugins/fib/kernel/mplsentry_linux.go:44) |
+| `RFC3032-1-1` | When the label stack has additional entries, however, the encoding technique described in this document MUST be used for the additional label stack entries. (S1) | MUST | 1 - Introduction | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze has no ATM/Frame-Relay MPLS top-label path so the condition never arises, and the on-wire shim for additional entries is built by the kernel/VPP dataplane; ze's only shim encoder is the 3-octet BGP NLRI (internal/core/bgp/nlri/helpers.go:61), which carries no TTL |
+| `RFC3032-2.2-1` | This means that the identity of the network layer protocol must be inferable from the value of the label which is popped from the bottom of the stack, possibly along with the contents of the network layer header itself. (S2.2) | MUST | 2.2 - Determining the Network Layer Protocol | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** disposition-time protocol identification when the stack empties is performed by the kernel AF_MPLS route (loopback re-injection into the IP path) or VPP dataplane, not by any ze control-plane function (internal/plugins/fib/kernel/mplsentry_linux.go:44) |
 | `RFC3032-2.2-2` | When the first label is pushed, it MUST be used ONLY for packets of a particular network layer, OR ONLY for a specified set distinguishable by header inspection (S2.2) | MUST | 2.2 - Determining the Network Layer Protocol | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze binds every label to a single FEC within one address family by construction, but the operative used-only-for-one-protocol forwarding disposition is realized by the kernel's per-in-label AF_MPLS entry, with no dedicated ze guard (internal/plugins/fib/kernel/mplsentry.go:69) |
-| `RFC3032-2.2-3` | If a packet cannot be forwarded and its network layer protocol cannot be identified or no protocol-dependent error rules exist, the packet MUST be silently discarded (S2.2) | MUST | 2.2 - Determining the Network Layer Protocol | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the discard-on-unidentifiable-protocol decision is a forwarding-plane action of the kernel/VPP MPLS datapath; ze forwards no MPLS packets in-process |
+| `RFC3032-2.2-3` | If a packet cannot be forwarded for some reason (e.g., it exceeds the data link MTU), and either its network layer protocol cannot be identified, or there are no specified protocol-dependent rules for handling the error condition, then the packet MUST be silently discarded. (S2.2) | MUST | 2.2 - Determining the Network Layer Protocol | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the discard-on-unidentifiable-protocol decision is a forwarding-plane action of the kernel/VPP MPLS datapath; ze forwards no MPLS packets in-process |
 | `RFC3032-2.4.2-1` | If outgoing TTL is 0, the labeled packet MUST NOT be further forwarded (S2.4.2) | MUST | 2.4.2 - Protocol-independent rules | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** TTL decrement and TTL-zero discard are per-packet forwarding operations performed by the kernel AF_MPLS path or VPP dataplane; no TTL logic exists in any ze MPLS Go path (internal/plugins/fib/kernel/) |
 | `RFC3032-2.4.2-2` | When TTL=0, the label stack MUST NOT be stripped off and the packet forwarded as unlabeled (S2.4.2) | MUST NOT | 2.4.2 - Protocol-independent rules | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the TTL-expiry no-strip-and-forward decision is the same forwarding action executed by the kernel/VPP dataplane, not by ze's control plane |
-| `RFC3032-2.4.2-3` | When forwarding, the TTL field of the top label stack entry MUST be set to the outgoing TTL value (S2.4.2) | MUST | 2.4.2 - Protocol-independent rules | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** rewriting the shim TTL on a swapped/forwarded packet is a dataplane write done by the kernel/VPP; ze passes only label values (and a static VPP route TTL), never per-packet TTL (internal/plugins/fib/vpp/mpls.go:75) |
-| `RFC3032-2.4.3-1` | When an IP packet is first labeled, the label TTL field MUST be set to the value of the IP TTL field (S2.4.3) | MUST | 2.4.3 - IP-dependent rules | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** copying IP TTL into the imposed shim at ingress is a dataplane operation of the kernel/VPP push path; ze's push programming carries no TTL propagation (internal/plugins/fib/kernel/mplsentry.go:88) |
-| `RFC3032-3.3-1` | A labeled packet that is not "too big" MUST be transmitted without fragmentation (S3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** MTU comparison and non-fragmentation of a not-too-big labeled packet are forwarding-plane behaviors of the kernel/VPP; ze has no labeled-packet transmit path |
-| `RFC3032-3.3-2` | A labeled IP datagram whose size exceeds the True Maximum Frame Payload Size MUST be considered "too big" (S3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the too-big MTU determination on forwarded labeled datagrams is a dataplane classification made by the kernel/VPP, not by ze |
+| `RFC3032-2.4.2-3` | When a labeled packet is forwarded, the TTL field of the label stack entry at the top of the label stack MUST be set to the outgoing TTL value. (S2.4.2) | MUST | 2.4.2 - Protocol-independent rules | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** rewriting the shim TTL on a swapped/forwarded packet is a dataplane write done by the kernel/VPP; ze passes only label values (and a static VPP route TTL), never per-packet TTL (internal/plugins/fib/vpp/mpls.go:75) |
+| `RFC3032-2.4.3-1` | When an IP packet is first labeled, the TTL field of the label stack entry MUST BE set to the value of the IP TTL field. (S2.4.3) | MUST | 2.4.3 - IP-dependent rules | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** copying IP TTL into the imposed shim at ingress is a dataplane operation of the kernel/VPP push path; ze's push programming carries no TTL propagation (internal/plugins/fib/kernel/mplsentry.go:88) |
+| `RFC3032-3.3-1` | A labeled IP datagram which is not "too big" MUST be transmitted without fragmentation. (S3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** MTU comparison and non-fragmentation of a not-too-big labeled packet are forwarding-plane behaviors of the kernel/VPP; ze has no labeled-packet transmit path |
+| `RFC3032-3.3-2` | A labeled IP datagram whose size exceeds the True Maximum Frame Payload Size of the data link over which it is to be forwarded MUST be considered to be "too big". (S3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the too-big MTU determination on forwarded labeled datagrams is a dataplane classification made by the kernel/VPP, not by ze |
 | `RFC3032-3.4-1` | If a labeled IPv4 datagram is too big and has the DF bit set, the LSR MUST execute the strip/fragment/ICMP algorithm (S3.4) | MUST | 3.4 - Processing Labeled IPv4 Datagrams which are Too Big | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** strip-labels/fragment/emit-ICMP for a too-big DF-set IPv4 datagram is entirely the kernel/VPP IPv4 forwarding path; ze neither fragments nor originates ICMP for forwarded packets |
 | `RFC3032-3.4-2` | Each IPv4 fragment MUST be at least N bytes less than the Effective Maximum Frame Payload Size (S3.4) | MUST | 3.4 - Processing Labeled IPv4 Datagrams which are Too Big | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** fragment sizing during labeled-packet forwarding is a dataplane computation performed by the kernel/VPP; ze has no fragmentation code |
 | `RFC3032-3.4-3` | If the DF bit is set and packet is too big, the datagram MUST NOT be forwarded (S3.4) | MUST NOT | 3.4 - Processing Labeled IPv4 Datagrams which are Too Big | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the DF-set too-big drop decision is a forwarding-plane action of the kernel/VPP datapath |
 | `RFC3032-3.5-1` | To process a labeled IPv6 datagram that is too big, the LSR MUST execute the specified algorithm (S3.5) | MUST | 3.5 - Processing Labeled IPv6 Datagrams which are Too Big | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the IPv6 too-big strip/ICMP-Packet-Too-Big/fragment algorithm is the kernel/VPP IPv6 forwarding path; ze runs no such path |
 | `RFC3032-3.5-2` | Each IPv6 fragment MUST be at least N bytes less than the Effective Maximum Frame Payload Size (S3.5) | MUST | 3.5 - Processing Labeled IPv6 Datagrams which are Too Big | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** IPv6 fragment sizing during forwarding is a dataplane computation of the kernel/VPP, absent from ze |
-| `RFC3032-3.6-1` | The tunnel transmitting endpoint MUST be able to determine the MTU of the tunnel as a whole (S3.6) | MUST | 3.6 - Implications with respect to Path MTU Discovery | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** LSP-tunnel MTU/PMTU determination is a forwarding-plane concern of the kernel/VPP tunnel ingress; ze's RSVP-TE/LDP signaling sets up the LSP but runs no in-process tunnel MTU discovery |
-| `RFC3032-3.6-2` | The tunnel transmitting endpoint MUST send ICMP Destination Unreachable when a DF-set packet exceeds tunnel MTU (S3.6) | MUST | 3.6 - Implications with respect to Path MTU Discovery | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** generating ICMP Destination Unreachable for oversized DF-set packets entering a tunnel is a kernel/VPP forwarding-plane action; ze originates no such ICMP |
+| `RFC3032-3.6-1` | - The LSR at the transmitting end of the tunnel MUST be able to determine the MTU of the tunnel as a whole. (S3.6) | MUST | 3.6 - Implications with respect to Path MTU Discovery | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** LSP-tunnel MTU/PMTU determination is a forwarding-plane concern of the kernel/VPP tunnel ingress; ze's RSVP-TE/LDP signaling sets up the LSP but runs no in-process tunnel MTU discovery |
+| `RFC3032-3.6-2` | - Any time the transmitting endpoint of the tunnel needs to send a packet into the tunnel, and that packet has the DF bit set, and it exceeds the tunnel MTU, the transmitting endpoint of the tunnel MUST send the ICMP Destination Unreachable message to the source, with code "Fragmentation Required and DF Set", and the Next-Hop MTU Field set as described above. (S3.6) | MUST | 3.6 - Implications with respect to Path MTU Discovery | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** generating ICMP Destination Unreachable for oversized DF-set packets entering a tunnel is a kernel/VPP forwarding-plane action; ze originates no such ICMP |
 | `RFC3032-2.4.3-2` | When the last label is popped (stack empty), the IP TTL field SHOULD be replaced with the outgoing TTL value (S2.4.3) | SHOULD | 2.4.3 - IP-dependent rules | **positive:** no positive test. **negative:** no negative test |
 | `RFC3032-3.2-1` | LSR SHOULD support a "Maximum Initially Labeled IP Datagram Size" configuration parameter (S3.2) | SHOULD | 3.2 - Maximum Initially Labeled IP Datagram Size | **positive:** no positive test. **negative:** no negative test |
 | `RFC3032-2.4.2-4` | When outgoing TTL is 0, the packet MAY be simply discarded or passed to the network layer for error processing depending on the label value (S2.4.2) | MAY | 2.4.2 - Protocol-independent rules | **positive:** no positive test. **negative:** no negative test |
@@ -128,23 +128,23 @@ No tracked gap in current source anchors.
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC3032-1-1`](#rfc3032-1-1) When top labels use different encoding (e.g., ATM), this encoding MUST be used for additional label stack entries (S1) | no test | no test carries this requirement id; annotated {not-applicable}: ze has no ATM/Frame-Relay MPLS top-label path so the condition never arises, and the on-wire shim for additional entries is built by the kernel/VPP dataplane; ze's only shim encoder is the 3-octet BGP NLRI (internal/core/bgp/nlri/helpers.go:61), which carries no TTL |
-| [`RFC3032-2.2-1`](#rfc3032-2.2-1) Network layer protocol MUST be inferable from the label value at bottom of stack and/or inspection of the network layer header (S2.2) | no test | no test carries this requirement id; annotated {not-applicable}: disposition-time protocol identification when the stack empties is performed by the kernel AF_MPLS route (loopback re-injection into the IP path) or VPP dataplane, not by any ze control-plane function (internal/plugins/fib/kernel/mplsentry_linux.go:44) |
+| [`RFC3032-1-1`](#rfc3032-1-1) When the label stack has additional entries, however, the encoding technique described in this document MUST be used for the additional label stack entries. (S1) | no test | no test carries this requirement id; annotated {not-applicable}: ze has no ATM/Frame-Relay MPLS top-label path so the condition never arises, and the on-wire shim for additional entries is built by the kernel/VPP dataplane; ze's only shim encoder is the 3-octet BGP NLRI (internal/core/bgp/nlri/helpers.go:61), which carries no TTL |
+| [`RFC3032-2.2-1`](#rfc3032-2.2-1) This means that the identity of the network layer protocol must be inferable from the value of the label which is popped from the bottom of the stack, possibly along with the contents of the network layer header itself. (S2.2) | no test | no test carries this requirement id; annotated {not-applicable}: disposition-time protocol identification when the stack empties is performed by the kernel AF_MPLS route (loopback re-injection into the IP path) or VPP dataplane, not by any ze control-plane function (internal/plugins/fib/kernel/mplsentry_linux.go:44) |
 | [`RFC3032-2.2-2`](#rfc3032-2.2-2) When the first label is pushed, it MUST be used ONLY for packets of a particular network layer, OR ONLY for a specified set distinguishable by header inspection (S2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze binds every label to a single FEC within one address family by construction, but the operative used-only-for-one-protocol forwarding disposition is realized by the kernel's per-in-label AF_MPLS entry, with no dedicated ze guard (internal/plugins/fib/kernel/mplsentry.go:69) |
-| [`RFC3032-2.2-3`](#rfc3032-2.2-3) If a packet cannot be forwarded and its network layer protocol cannot be identified or no protocol-dependent error rules exist, the packet MUST be silently discarded (S2.2) | no test | no test carries this requirement id; annotated {not-applicable}: the discard-on-unidentifiable-protocol decision is a forwarding-plane action of the kernel/VPP MPLS datapath; ze forwards no MPLS packets in-process |
+| [`RFC3032-2.2-3`](#rfc3032-2.2-3) If a packet cannot be forwarded for some reason (e.g., it exceeds the data link MTU), and either its network layer protocol cannot be identified, or there are no specified protocol-dependent rules for handling the error condition, then the packet MUST be silently discarded. (S2.2) | no test | no test carries this requirement id; annotated {not-applicable}: the discard-on-unidentifiable-protocol decision is a forwarding-plane action of the kernel/VPP MPLS datapath; ze forwards no MPLS packets in-process |
 | [`RFC3032-2.4.2-1`](#rfc3032-2.4.2-1) If outgoing TTL is 0, the labeled packet MUST NOT be further forwarded (S2.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: TTL decrement and TTL-zero discard are per-packet forwarding operations performed by the kernel AF_MPLS path or VPP dataplane; no TTL logic exists in any ze MPLS Go path (internal/plugins/fib/kernel/) |
 | [`RFC3032-2.4.2-2`](#rfc3032-2.4.2-2) When TTL=0, the label stack MUST NOT be stripped off and the packet forwarded as unlabeled (S2.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: the TTL-expiry no-strip-and-forward decision is the same forwarding action executed by the kernel/VPP dataplane, not by ze's control plane |
-| [`RFC3032-2.4.2-3`](#rfc3032-2.4.2-3) When forwarding, the TTL field of the top label stack entry MUST be set to the outgoing TTL value (S2.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: rewriting the shim TTL on a swapped/forwarded packet is a dataplane write done by the kernel/VPP; ze passes only label values (and a static VPP route TTL), never per-packet TTL (internal/plugins/fib/vpp/mpls.go:75) |
-| [`RFC3032-2.4.3-1`](#rfc3032-2.4.3-1) When an IP packet is first labeled, the label TTL field MUST be set to the value of the IP TTL field (S2.4.3) | no test | no test carries this requirement id; annotated {not-applicable}: copying IP TTL into the imposed shim at ingress is a dataplane operation of the kernel/VPP push path; ze's push programming carries no TTL propagation (internal/plugins/fib/kernel/mplsentry.go:88) |
-| [`RFC3032-3.3-1`](#rfc3032-3.3-1) A labeled packet that is not "too big" MUST be transmitted without fragmentation (S3.3) | no test | no test carries this requirement id; annotated {not-applicable}: MTU comparison and non-fragmentation of a not-too-big labeled packet are forwarding-plane behaviors of the kernel/VPP; ze has no labeled-packet transmit path |
-| [`RFC3032-3.3-2`](#rfc3032-3.3-2) A labeled IP datagram whose size exceeds the True Maximum Frame Payload Size MUST be considered "too big" (S3.3) | no test | no test carries this requirement id; annotated {not-applicable}: the too-big MTU determination on forwarded labeled datagrams is a dataplane classification made by the kernel/VPP, not by ze |
+| [`RFC3032-2.4.2-3`](#rfc3032-2.4.2-3) When a labeled packet is forwarded, the TTL field of the label stack entry at the top of the label stack MUST be set to the outgoing TTL value. (S2.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: rewriting the shim TTL on a swapped/forwarded packet is a dataplane write done by the kernel/VPP; ze passes only label values (and a static VPP route TTL), never per-packet TTL (internal/plugins/fib/vpp/mpls.go:75) |
+| [`RFC3032-2.4.3-1`](#rfc3032-2.4.3-1) When an IP packet is first labeled, the TTL field of the label stack entry MUST BE set to the value of the IP TTL field. (S2.4.3) | no test | no test carries this requirement id; annotated {not-applicable}: copying IP TTL into the imposed shim at ingress is a dataplane operation of the kernel/VPP push path; ze's push programming carries no TTL propagation (internal/plugins/fib/kernel/mplsentry.go:88) |
+| [`RFC3032-3.3-1`](#rfc3032-3.3-1) A labeled IP datagram which is not "too big" MUST be transmitted without fragmentation. (S3.3) | no test | no test carries this requirement id; annotated {not-applicable}: MTU comparison and non-fragmentation of a not-too-big labeled packet are forwarding-plane behaviors of the kernel/VPP; ze has no labeled-packet transmit path |
+| [`RFC3032-3.3-2`](#rfc3032-3.3-2) A labeled IP datagram whose size exceeds the True Maximum Frame Payload Size of the data link over which it is to be forwarded MUST be considered to be "too big". (S3.3) | no test | no test carries this requirement id; annotated {not-applicable}: the too-big MTU determination on forwarded labeled datagrams is a dataplane classification made by the kernel/VPP, not by ze |
 | [`RFC3032-3.4-1`](#rfc3032-3.4-1) If a labeled IPv4 datagram is too big and has the DF bit set, the LSR MUST execute the strip/fragment/ICMP algorithm (S3.4) | no test | no test carries this requirement id; annotated {not-applicable}: strip-labels/fragment/emit-ICMP for a too-big DF-set IPv4 datagram is entirely the kernel/VPP IPv4 forwarding path; ze neither fragments nor originates ICMP for forwarded packets |
 | [`RFC3032-3.4-2`](#rfc3032-3.4-2) Each IPv4 fragment MUST be at least N bytes less than the Effective Maximum Frame Payload Size (S3.4) | no test | no test carries this requirement id; annotated {not-applicable}: fragment sizing during labeled-packet forwarding is a dataplane computation performed by the kernel/VPP; ze has no fragmentation code |
 | [`RFC3032-3.4-3`](#rfc3032-3.4-3) If the DF bit is set and packet is too big, the datagram MUST NOT be forwarded (S3.4) | no test | no test carries this requirement id; annotated {not-applicable}: the DF-set too-big drop decision is a forwarding-plane action of the kernel/VPP datapath |
 | [`RFC3032-3.5-1`](#rfc3032-3.5-1) To process a labeled IPv6 datagram that is too big, the LSR MUST execute the specified algorithm (S3.5) | no test | no test carries this requirement id; annotated {not-applicable}: the IPv6 too-big strip/ICMP-Packet-Too-Big/fragment algorithm is the kernel/VPP IPv6 forwarding path; ze runs no such path |
 | [`RFC3032-3.5-2`](#rfc3032-3.5-2) Each IPv6 fragment MUST be at least N bytes less than the Effective Maximum Frame Payload Size (S3.5) | no test | no test carries this requirement id; annotated {not-applicable}: IPv6 fragment sizing during forwarding is a dataplane computation of the kernel/VPP, absent from ze |
-| [`RFC3032-3.6-1`](#rfc3032-3.6-1) The tunnel transmitting endpoint MUST be able to determine the MTU of the tunnel as a whole (S3.6) | no test | no test carries this requirement id; annotated {not-applicable}: LSP-tunnel MTU/PMTU determination is a forwarding-plane concern of the kernel/VPP tunnel ingress; ze's RSVP-TE/LDP signaling sets up the LSP but runs no in-process tunnel MTU discovery |
-| [`RFC3032-3.6-2`](#rfc3032-3.6-2) The tunnel transmitting endpoint MUST send ICMP Destination Unreachable when a DF-set packet exceeds tunnel MTU (S3.6) | no test | no test carries this requirement id; annotated {not-applicable}: generating ICMP Destination Unreachable for oversized DF-set packets entering a tunnel is a kernel/VPP forwarding-plane action; ze originates no such ICMP |
+| [`RFC3032-3.6-1`](#rfc3032-3.6-1) - The LSR at the transmitting end of the tunnel MUST be able to determine the MTU of the tunnel as a whole. (S3.6) | no test | no test carries this requirement id; annotated {not-applicable}: LSP-tunnel MTU/PMTU determination is a forwarding-plane concern of the kernel/VPP tunnel ingress; ze's RSVP-TE/LDP signaling sets up the LSP but runs no in-process tunnel MTU discovery |
+| [`RFC3032-3.6-2`](#rfc3032-3.6-2) - Any time the transmitting endpoint of the tunnel needs to send a packet into the tunnel, and that packet has the DF bit set, and it exceeds the tunnel MTU, the transmitting endpoint of the tunnel MUST send the ICMP Destination Unreachable message to the source, with code "Fragmentation Required and DF Set", and the Next-Hop MTU Field set as described above. (S3.6) | no test | no test carries this requirement id; annotated {not-applicable}: generating ICMP Destination Unreachable for oversized DF-set packets entering a tunnel is a kernel/VPP forwarding-plane action; ze originates no such ICMP |
 
 ## Proof state
 
@@ -152,7 +152,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC3032-1-1`](#rfc3032-1-1)
 
-When top labels use different encoding (e.g., ATM), this encoding MUST be used for additional label stack entries (S1)
+When the label stack has additional entries, however, the encoding technique described in this document MUST be used for the additional label stack entries. (S1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -160,7 +160,7 @@ No test carries RFC3032-1-1, so no unit is bound to it.
 
 ### [`RFC3032-2.2-1`](#rfc3032-2.2-1)
 
-Network layer protocol MUST be inferable from the label value at bottom of stack and/or inspection of the network layer header (S2.2)
+This means that the identity of the network layer protocol must be inferable from the value of the label which is popped from the bottom of the stack, possibly along with the contents of the network layer header itself. (S2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -176,7 +176,7 @@ No test carries RFC3032-2.2-2, so no unit is bound to it.
 
 ### [`RFC3032-2.2-3`](#rfc3032-2.2-3)
 
-If a packet cannot be forwarded and its network layer protocol cannot be identified or no protocol-dependent error rules exist, the packet MUST be silently discarded (S2.2)
+If a packet cannot be forwarded for some reason (e.g., it exceeds the data link MTU), and either its network layer protocol cannot be identified, or there are no specified protocol-dependent rules for handling the error condition, then the packet MUST be silently discarded. (S2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -200,7 +200,7 @@ No test carries RFC3032-2.4.2-2, so no unit is bound to it.
 
 ### [`RFC3032-2.4.2-3`](#rfc3032-2.4.2-3)
 
-When forwarding, the TTL field of the top label stack entry MUST be set to the outgoing TTL value (S2.4.2)
+When a labeled packet is forwarded, the TTL field of the label stack entry at the top of the label stack MUST be set to the outgoing TTL value. (S2.4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -208,7 +208,7 @@ No test carries RFC3032-2.4.2-3, so no unit is bound to it.
 
 ### [`RFC3032-2.4.3-1`](#rfc3032-2.4.3-1)
 
-When an IP packet is first labeled, the label TTL field MUST be set to the value of the IP TTL field (S2.4.3)
+When an IP packet is first labeled, the TTL field of the label stack entry MUST BE set to the value of the IP TTL field. (S2.4.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -216,7 +216,7 @@ No test carries RFC3032-2.4.3-1, so no unit is bound to it.
 
 ### [`RFC3032-3.3-1`](#rfc3032-3.3-1)
 
-A labeled packet that is not "too big" MUST be transmitted without fragmentation (S3.3)
+A labeled IP datagram which is not "too big" MUST be transmitted without fragmentation. (S3.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -224,7 +224,7 @@ No test carries RFC3032-3.3-1, so no unit is bound to it.
 
 ### [`RFC3032-3.3-2`](#rfc3032-3.3-2)
 
-A labeled IP datagram whose size exceeds the True Maximum Frame Payload Size MUST be considered "too big" (S3.3)
+A labeled IP datagram whose size exceeds the True Maximum Frame Payload Size of the data link over which it is to be forwarded MUST be considered to be "too big". (S3.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -272,7 +272,7 @@ No test carries RFC3032-3.5-2, so no unit is bound to it.
 
 ### [`RFC3032-3.6-1`](#rfc3032-3.6-1)
 
-The tunnel transmitting endpoint MUST be able to determine the MTU of the tunnel as a whole (S3.6)
+- The LSR at the transmitting end of the tunnel MUST be able to determine the MTU of the tunnel as a whole. (S3.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -280,7 +280,7 @@ No test carries RFC3032-3.6-1, so no unit is bound to it.
 
 ### [`RFC3032-3.6-2`](#rfc3032-3.6-2)
 
-The tunnel transmitting endpoint MUST send ICMP Destination Unreachable when a DF-set packet exceeds tunnel MTU (S3.6)
+- Any time the transmitting endpoint of the tunnel needs to send a packet into the tunnel, and that packet has the DF bit set, and it exceeds the tunnel MTU, the transmitting endpoint of the tunnel MUST send the ICMP Destination Unreachable message to the source, with code "Fragmentation Required and DF Set", and the Next-Hop MTU Field set as described above. (S3.6)
 
 Audit verdict: not audited: no reader has judged these tests
 

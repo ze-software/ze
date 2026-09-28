@@ -303,13 +303,13 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <td>SHOULD NOT</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7947-x-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L440" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L444" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_relay_test.go#L222" title="internal/component/bgp/reactor/reactor_api_relay_test.go" target="_blank" rel="noopener"><code>TestRelayStoredRouteRSClientPreservesASPath</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L318" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSEBGPPrepend</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L322" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSEBGPPrepend</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_relay_test.go#L258" title="internal/component/bgp/reactor/reactor_api_relay_test.go" target="_blank" rel="noopener"><code>TestRelayStoredRoutePlainEBGPPrependsLocalAS</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L4" title="test/plugin/bgp-rs-relay-aspath-transparency.ci" target="_blank" rel="noopener"><code>bgp-rs-relay-aspath-transparency.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L8" title="test/plugin/bgp-rs-relay-aspath-transparency.ci" target="_blank" rel="noopener"><code>bgp-rs-relay-aspath-transparency.ci</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L900" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRouteServerASPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L898" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRouteServerASPath</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7947-x-2">RFC7947-x-2</code></td><td colspan="3"><span class="rfc-subject">Route server must not rewrite NEXT_HOP (Key Requirements)</span></td></tr>
@@ -317,7 +317,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <td>MUST NOT</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7947-x-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L445" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L449" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> NEXT_HOP transparency is not RS-specific -- every forwarded route preserves it by default (nhModeNone, internal/component/bgp/reactor/peer_forward_facts.go:147), so unlike x-1&#39;s AS-path prepend there is no &#34;confined&#34; negative where a comparable non-RS peer rewrites NEXT_HOP; the only rewrite is an explicit per-peer next-hop-self/explicit override, which exercises the override feature rather than the RS-transparency MUST-NOT. The positive is proven byte-identical in TestReactorForwardRSTransparent</p></td>
 </tr>
@@ -327,7 +327,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7947-x-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L372" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardKeepsMEDForRouteServerClient</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L447" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L451" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L11" title="test/plugin/med-not-propagated-across-as.ci" target="_blank" rel="noopener"><code>med-not-propagated-across-as.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L15" title="test/plugin/med-not-propagated-across-as.ci" target="_blank" rel="noopener"><code>med-not-propagated-across-as.ci</code></a></span></div>
 </div></td>
@@ -337,8 +337,8 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7947-x-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L241" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSFallback</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L153" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSBasic</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L245" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSFallback</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L157" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSBasic</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7947-x-5">RFC7947-x-5</code></td><td colspan="3"><span class="rfc-subject">Route server should mitigate path hiding (e.g., multi-RIB per client or add-path) (Key Requirements)</span></td></tr>
@@ -364,8 +364,8 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <td>SHOULD NOT</td>
 <td>2.2 - Attribute Transparency</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7947-2.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L451" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L322" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSEBGPPrepend</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L455" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L326" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSEBGPPrepend</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7947-2.2.2.2-1">RFC7947-2.2.2.2-1</code></td><td colspan="3"><span class="rfc-subject">A route server client BGP implementation that has implemented the RFC 4271 Section 6.3 leftmost-AS check MUST allow that check to be disabled, so an UPDATE whose leftmost AS in AS_PATH is not the AS of the route server that sent it is accepted (S2.2.2.2)</span></td></tr>
@@ -394,7 +394,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L318" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSEBGPPrepend</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L322" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSEBGPPrepend</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -409,7 +409,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L440" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L444" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -419,7 +419,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L900" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRouteServerASPath</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L898" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRouteServerASPath</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -439,7 +439,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L445" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L449" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -464,7 +464,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L447" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L451" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -484,12 +484,12 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L153" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSBasic</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L157" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSBasic</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L241" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSFallback</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L245" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSFallback</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -504,12 +504,12 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L322" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSEBGPPrepend</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L326" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSEBGPPrepend</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L451" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L455" title="internal/component/bgp/reactor/forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -773,7 +773,7 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

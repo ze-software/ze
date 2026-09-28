@@ -7997,6 +7997,105 @@
     ]
   },
   {
+    "path": "request bgp adj-rib-in disable-validation",
+    "short-help": "Remove RPKI gating without changing independent route authorization.",
+    "mode": "daemon",
+    "usage": "request bgp adj-rib-in disable-validation",
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
     "path": "request bgp adj-rib-in enable-validation",
     "short-help": "Turn the validation gate on, so each new route waits in the pending state.",
     "mode": "daemon",
@@ -10180,6 +10279,312 @@
       {
         "text": "archive",
         "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "request data backup",
+    "short-help": "Write a backup of the whole store to a file on the daemon's host.",
+    "description": "Copies every key of the store into one blob artifact while the daemon runs. A\ncommit that lands meanwhile is in the backup whole or not at all. The file holds\ncredentials and private keys and is written 0600.",
+    "mode": "daemon",
+    "wire-method": "ze-data:backup",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Absolute artifact path",
+        "description": "Absolute path of the artifact. A relative path, a '..' element, a symlink, and\nevery name the store owns in its folder are refused, each naming the rule it\nbroke."
+      },
+      {
+        "name": "spare",
+        "type": "uint",
+        "short-help": "Spare capacity percent (0-100)",
+        "description": "Spare capacity in percent that each key and data slot carries. An artifact is\nnormally copied whole, so the default is 0."
+      },
+      {
+        "name": "force",
+        "type": "flag",
+        "short-help": "Replace an existing file",
+        "description": "Replace an existing file at path. It never lifts a refusal of a name the store\nowns."
+      }
+    ],
+    "usage": "request data backup <path> [spare <spare>] [force]",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "data",
+        "kind": "keyword"
+      },
+      {
+        "text": "backup",
+        "kind": "keyword"
+      },
+      {
+        "text": "path",
+        "kind": "value"
+      },
+      {
+        "text": "spare",
+        "kind": "option"
+      },
+      {
+        "text": "force",
+        "kind": "flag"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "request data restore",
+    "short-help": "Restore a config from a backup file on the daemon's host.",
+    "description": "Stages the artifact's config as the candidate and runs the same reload a SIGHUP\nruns. The config becomes active only when the reload accepts it; a refused\nconfig leaves the active config and its pointers untouched. Nothing else in the\nstore changes. With client, a hub writes the config it serves to that managed\nclient instead, as a new version, and pushes config-changed to the client; the\nhub does not reload its own config.",
+    "mode": "daemon",
+    "wire-method": "ze-data:restore",
+    "args": [
+      {
+        "name": "path",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Absolute artifact path",
+        "description": "Absolute path of the artifact, checked before it is read by the same rules as a\nbackup path."
+      },
+      {
+        "name": "config",
+        "type": "flag",
+        "short-help": "Restore the config only",
+        "description": "Restore the artifact's config only. A full restore replaces the whole store\nand runs offline with ze data restore."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "short-help": "Config name inside the artifact",
+        "description": "The config to take from an artifact that holds several. Without it, the\nartifact's only config, or the config named like this device, is taken."
+      },
+      {
+        "name": "client",
+        "type": "string",
+        "short-help": "Managed client whose served config is restored",
+        "description": "The managed client whose served config (client-<name>.conf) the restore\nwrites. The daemon MUST be a hub with a client entry of this name. Without it,\nthe restore replaces this daemon's own config through the reload."
+      }
+    ],
+    "usage": "request data restore <path> [config] [name <name>] [client <client>]",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "data",
+        "kind": "keyword"
+      },
+      {
+        "text": "restore",
+        "kind": "keyword"
+      },
+      {
+        "text": "path",
+        "kind": "value"
+      },
+      {
+        "text": "config",
+        "kind": "flag"
+      },
+      {
+        "text": "name",
+        "kind": "option"
+      },
+      {
+        "text": "client",
+        "kind": "option"
       }
     ],
     "operators": [

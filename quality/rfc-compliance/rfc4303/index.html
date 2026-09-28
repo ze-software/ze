@@ -301,7 +301,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L112" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecESPRequiresIntegrity</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2-1">RFC4303-2-1</code></td><td colspan="3"><span class="rfc-subject">The outer protocol header that precedes the ESP header SHALL carry the value 50 in its Protocol or Next Header field (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2-1">RFC4303-2-1</code></td><td colspan="3"><span class="rfc-subject">The (outer) protocol header (IPv4, IPv6, or Extension) that immediately precedes the ESP header SHALL contain the value 50 in its Protocol (IPv4) or Next Header (IPv6, Extension) field (see IANA web page at http://www.iana.org/assignments/protocol-numbers). (§2)</span></td></tr>
 <tr><td></td>
 <td>SHALL</td>
 <td>2 - Packet format</td>
@@ -310,7 +310,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L367" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAProtocolNumber</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.1-1">RFC4303-2.1-1</code></td><td colspan="3"><span class="rfc-subject">SPI value 0 MUST NOT appear on the wire (reserved for local use) (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.1-1">RFC4303-2.1-1</code></td><td colspan="3"><span class="rfc-subject">The SPI value of zero (0) is reserved for local, implementation-specific use and MUST NOT be sent on the wire. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.1 - Security Parameters Index</td>
@@ -321,7 +321,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L186" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecSPIBoundary</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.1-2">RFC4303-2.1-2</code></td><td colspan="3"><span class="rfc-subject">Whether source and destination address matching is required to map inbound traffic to an SA MUST be set by manual SA configuration or by SA management protocol negotiation (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.1-2">RFC4303-2.1-2</code></td><td colspan="3"><span class="rfc-subject">The indication of whether source and destination address matching is required to map inbound IPsec traffic to SAs MUST be set either as a side effect of manual SA configuration or via negotiation using an SA management protocol, e.g., IKE or Group Domain of Interpretation (GDOI) [RFC3547]. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1 - Security Parameters Index</td>
@@ -330,7 +330,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L398" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAAddressMatchIndication</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.2-1">RFC4303-2.2-1</code></td><td colspan="3"><span class="rfc-subject">Sequence Number MUST be incremented for every transmitted packet (§2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-2.2-1">RFC4303-2.2-1</code></td><td colspan="3"><span class="rfc-subject">For a unicast SA or a single-sender multicast SA, the sender MUST increment this field for every transmitted packet. (§2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.2 - Sequence Number</td>
@@ -429,7 +429,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze projects a 64-packet anti-replay window on IKE child SAs (ReplayWin=64) to the kernel state, which exceeds the minimum at the SA-parameter level, while the sliding-window check itself runs in the kernel (internal/component/ike/engine/child.go:62, :377, :444, internal/component/ike/dataplane/xfrm_linux.go:132-133)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-3.4.3-2">RFC4303-3.4.3-2</code></td><td colspan="3"><span class="rfc-subject">Anti-replay MUST NOT be enabled unless the ESP integrity service is also enabled (§3.4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4303-3.4.3-2">RFC4303-3.4.3-2</code></td><td colspan="3"><span class="rfc-subject">This service MUST NOT be enabled unless the ESP integrity service also is enabled for the SA, because otherwise the Sequence Number field has not been integrity protected. (§3.4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.4.3 - Sequence Number verification, the anti-replay section</td>
@@ -528,7 +528,7 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc4303-2.2-1"><code>RFC4303-2.2-1</code></a> Sequence Number MUST be incremented for every transmitted packet (§2.2)</td>
+<tr><td><a href="#rfc4303-2.2-1"><code>RFC4303-2.2-1</code></a> For a unicast SA or a single-sender multicast SA, the sender MUST increment this field for every transmitted packet. (§2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the per-SA sequence counter is kernel XFRM/ESP per-packet state; ze installs the SA but never touches sequence numbers (internal/component/ike/dataplane/dataplane.go:80-108 has no sequence field)</td>
 </tr>
@@ -611,7 +611,7 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc4303-2-1"><code>RFC4303-2-1</code></a></h3>
-<p>The outer protocol header that precedes the ESP header SHALL carry the value 50 in its Protocol or Next Header field (§2)</p>
+<p>The (outer) protocol header (IPv4, IPv6, or Extension) that immediately precedes the ESP header SHALL contain the value 50 in its Protocol (IPv4) or Next Header (IPv6, Extension) field (see IANA web page at http://www.iana.org/assignments/protocol-numbers). (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -631,7 +631,7 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc4303-2.1-1"><code>RFC4303-2.1-1</code></a></h3>
-<p>SPI value 0 MUST NOT appear on the wire (reserved for local use) (§2.1)</p>
+<p>The SPI value of zero (0) is reserved for local, implementation-specific use and MUST NOT be sent on the wire. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -661,7 +661,7 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc4303-2.1-2"><code>RFC4303-2.1-2</code></a></h3>
-<p>Whether source and destination address matching is required to map inbound traffic to an SA MUST be set by manual SA configuration or by SA management protocol negotiation (§2.1)</p>
+<p>The indication of whether source and destination address matching is required to map inbound IPsec traffic to SAs MUST be set either as a side effect of manual SA configuration or via negotiation using an SA management protocol, e.g., IKE or Group Domain of Interpretation (GDOI) [RFC3547]. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -681,7 +681,7 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc4303-2.2-1"><code>RFC4303-2.2-1</code></a></h3>
-<p>Sequence Number MUST be incremented for every transmitted packet (§2.2)</p>
+<p>For a unicast SA or a single-sender multicast SA, the sender MUST increment this field for every transmitted packet. (§2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4303-2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4303-2.2-2"><code>RFC4303-2.2-2</code></a></h3>
@@ -752,7 +752,7 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc4303-3.4.3-2"><code>RFC4303-3.4.3-2</code></a></h3>
-<p>Anti-replay MUST NOT be enabled unless the ESP integrity service is also enabled (§3.4.3)</p>
+<p>This service MUST NOT be enabled unless the ESP integrity service also is enabled for the SA, because otherwise the Sequence Number field has not been integrity protected. (§3.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1347,7 +1347,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

@@ -307,7 +307,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L192" title="internal/core/network/md5_rfc2385_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2385KeyOnOneEndOnlyCarriesNoSession</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-2.0-2">RFC2385-2.0-2</code></td><td colspan="3"><span class="rfc-subject">Upon receiving a signed segment, the receiver must validate it by calculating its own digest from the same data using its own key and comparing the two digests (§2.0)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-2.0-2">RFC2385-2.0-2</code></td><td colspan="3"><span class="rfc-subject">Upon receiving a signed segment, the receiver must validate it by calculating its own digest from the same data (using its own key) and comparing the two digest. (§2.0)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.0 - Proposal</td>
@@ -316,7 +316,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L153" title="internal/core/network/md5_rfc2385_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2385MismatchedKeyIsDroppedWithNoResponse</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-2.0-3">RFC2385-2.0-3</code></td><td colspan="3"><span class="rfc-subject">A failing comparison must result in the segment being dropped, and must not produce any response back to the sender (§2.0)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-2.0-3">RFC2385-2.0-3</code></td><td colspan="3"><span class="rfc-subject">A failing comparison must result in the segment being dropped and must not produce any response back to the sender. (§2.0)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.0 - Proposal</td>
@@ -325,7 +325,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L82" title="internal/core/network/md5_rfc2385_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2385MatchingKeysCarryASignedSession</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-2.0-4">RFC2385-2.0-4</code></td><td colspan="3"><span class="rfc-subject">The absence of the option in the SYN,ACK segment must not cause the sender to disable its sending of signatures (§2.0)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-2.0-4">RFC2385-2.0-4</code></td><td colspan="3"><span class="rfc-subject">Unlike other TCP extensions (e.g., the Window Scale option [RFC1323]), the absence of the option in the SYN,ACK segment must not cause the sender to disable its sending of signatures. (§2.0)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>2.0 - Proposal</td>
@@ -334,7 +334,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze holds no code path that stops signing: the key is installed from the peer&#39;s settings on every dial attempt and is never cleared by anything the remote host does or fails to do, so there is no rejecting branch a negative test could reach</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-2.0-5">RFC2385-2.0-5</code></td><td colspan="3"><span class="rfc-subject">The sending of signatures must be under the complete control of the application, not at the mercy of the remote host not understanding the option (§2.0)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-2.0-5">RFC2385-2.0-5</code></td><td colspan="3"><span class="rfc-subject">More importantly, the sending of signatures must be under the complete control of the application, not at the mercy of the remote host not understanding the option. (§2.0)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.0 - Proposal</td>
@@ -361,7 +361,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/md5_rfc2385_linux_test.go#L162" title="internal/core/network/md5_rfc2385_linux_test.go" target="_blank" rel="noopener"><code>TestRFC2385MismatchedKeyIsDroppedWithNoResponse</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-4.3-1">RFC2385-4.3-1</code></td><td colspan="3"><span class="rfc-subject">The size of the MD5 option must be factored into the MSS offered to the other side during connection negotiation (§4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-4.3-1">RFC2385-4.3-1</code></td><td colspan="3"><span class="rfc-subject">As with other options that are added to every segment, the size of the MD5 option must be factored into the MSS offered to the other side during connection negotiation. (§4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3 - TCP Header Size</td>
@@ -370,7 +370,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the MSS is chosen by the kernel that signs the segments, and ze holds no code that lowers, rejects or recomputes an MSS, so there is no rejecting branch a negative test could reach</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-4.3-2">RFC2385-4.3-2</code></td><td colspan="3"><span class="rfc-subject">The total size of the TCP header plus its options must be less than or equal to 60 bytes, leaving 40 bytes for options (§4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2385-4.3-2">RFC2385-4.3-2</code></td><td colspan="3"><span class="rfc-subject">This means that the total size of the header plus option must be less than or equal to 60 bytes -- this leaves 40 bytes for options. (§4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3 - TCP Header Size</td>
@@ -418,7 +418,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc2385-2.0-2"><code>RFC2385-2.0-2</code></a></h3>
-<p>Upon receiving a signed segment, the receiver must validate it by calculating its own digest from the same data using its own key and comparing the two digests (§2.0)</p>
+<p>Upon receiving a signed segment, the receiver must validate it by calculating its own digest from the same data (using its own key) and comparing the two digest. (§2.0)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -438,7 +438,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc2385-2.0-3"><code>RFC2385-2.0-3</code></a></h3>
-<p>A failing comparison must result in the segment being dropped, and must not produce any response back to the sender (§2.0)</p>
+<p>A failing comparison must result in the segment being dropped and must not produce any response back to the sender. (§2.0)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -458,7 +458,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc2385-2.0-4"><code>RFC2385-2.0-4</code></a></h3>
-<p>The absence of the option in the SYN,ACK segment must not cause the sender to disable its sending of signatures (§2.0)</p>
+<p>Unlike other TCP extensions (e.g., the Window Scale option [RFC1323]), the absence of the option in the SYN,ACK segment must not cause the sender to disable its sending of signatures. (§2.0)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -473,7 +473,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc2385-2.0-5"><code>RFC2385-2.0-5</code></a></h3>
-<p>The sending of signatures must be under the complete control of the application, not at the mercy of the remote host not understanding the option (§2.0)</p>
+<p>More importantly, the sending of signatures must be under the complete control of the application, not at the mercy of the remote host not understanding the option. (§2.0)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -533,7 +533,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc2385-4.3-1"><code>RFC2385-4.3-1</code></a></h3>
-<p>The size of the MD5 option must be factored into the MSS offered to the other side during connection negotiation (§4.3)</p>
+<p>As with other options that are added to every segment, the size of the MD5 option must be factored into the MSS offered to the other side during connection negotiation. (§4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -548,7 +548,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc2385-4.3-2"><code>RFC2385-4.3-2</code></a></h3>
-<p>The total size of the TCP header plus its options must be less than or equal to 60 bytes, leaving 40 bytes for options (§4.3)</p>
+<p>This means that the total size of the header plus option must be less than or equal to 60 bytes -- this leaves 40 bytes for options. (§4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -727,7 +727,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

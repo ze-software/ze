@@ -10,10 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 13.3% | 2 of 15 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 40.0% | 6 of 15 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 15 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 45.5% | 5 of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 54.5% | 6 of 11 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 0.0% | 0 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 0.0% | 0 of 18 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -21,21 +22,13 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 15 | of 19 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 15 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 15 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 15 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 15 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 11 | of 19 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| No test at all | 46.7% | 7 of 15 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-
-The 7 shares marked as a part above are the whole of the 15 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -46,7 +39,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -60,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Public status | Partial |
 | Enrolment | Enrolled |
 | Requirements | 19 |
-| Gated MUST-level | 15 |
+| Gated MUST-level | 11 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 4 |
-| Gated with no test | 3 |
+| Declared gaps | 0 |
+| Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 12 |
-| Tagged units | 12 |
+| Test tags | 18 |
+| Tagged units | 18 |
 | Recorded audit verdicts | 0 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc5575.md` |
@@ -75,7 +68,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: BGP Flowspec (obsoleted by RFC 8955): 8 single-polarity positive (capability/family/component-ordering/reserved-bits) + 4 gap (Section 6 validation unimplemented, same root cause as RFC8956-5-1)
+Enrolled: BGP Flowspec (obsoleted by RFC 8955): 8 single-polarity positive (capability/family/component-ordering/reserved-bits) + 4 rollup onto the RFC 8955 Section 6 validation rows that restate them
 
 ## What the public ledger says
 
@@ -89,45 +82,45 @@ Enrolled: BGP Flowspec (obsoleted by RFC 8955): 8 single-polarity positive (capa
 
 **What the ledger says remains**
 
-Four Section 6 validation MUSTs unmet (same root cause as RFC8956-5-1): 6-1 no eBGP AS_PATH leftmost-neighbor enforcement; 6-2 no feasibility validation against the unicast RIB; 6-3 no flow-spec-vs-best-match originator comparison; 6-4 no more-specific/different-neighbor-AS check.
+RFC 8955 and RFC 9117 supply the current validation rules. The native codec, retained-route feasibility and revalidation, first-AS comparison against covering unicast reachability, originator/local-controller authorization, and more-specific-AS guard have source changes and regression carriers awaiting integration validation. The global firewall installs selected SAFI 133 rules only; VPN FlowSpec remains a BGP propagation feature.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 2 | one part of the gated population |
-| Annotated instead of tested | 10 | one part of the gated population |
+| Positive and negative tests | 5 | one part of the gated population |
+| Annotated instead of tested | 6 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 3 | one part of the gated population |
+| No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **15** | every gated MUST falls in exactly one bucket above |
+| Derived from other rows | 4 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
+| **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (2):** [`RFC5575-4-3`](#rfc5575-4-3), [`RFC5575-4-4`](#rfc5575-4-4)
+**Positive and negative tests (5):** [`RFC5575-4-3`](#rfc5575-4-3), [`RFC5575-4-4`](#rfc5575-4-4), [`RFC5575-4-8`](#rfc5575-4-8), [`RFC5575-5.1-1`](#rfc5575-5.1-1), [`RFC5575-8-1`](#rfc5575-8-1)
 
-**Annotated instead of tested (10):** [`RFC5575-4-1`](#rfc5575-4-1), [`RFC5575-4-2`](#rfc5575-4-2), [`RFC5575-6-1`](#rfc5575-6-1), [`RFC5575-6-2`](#rfc5575-6-2), [`RFC5575-6-3`](#rfc5575-6-3), [`RFC5575-6-4`](#rfc5575-6-4), [`RFC5575-4-5`](#rfc5575-4-5), [`RFC5575-4-6`](#rfc5575-4-6), [`RFC5575-4-7`](#rfc5575-4-7), [`RFC5575-7-1`](#rfc5575-7-1)
+**Annotated instead of tested (6):** [`RFC5575-4-1`](#rfc5575-4-1), [`RFC5575-4-2`](#rfc5575-4-2), [`RFC5575-4-5`](#rfc5575-4-5), [`RFC5575-4-6`](#rfc5575-4-6), [`RFC5575-4-7`](#rfc5575-4-7), [`RFC5575-7-1`](#rfc5575-7-1)
 
-**No test and no annotation (3):** [`RFC5575-4-8`](#rfc5575-4-8), [`RFC5575-5.1-1`](#rfc5575-5.1-1), [`RFC5575-8-1`](#rfc5575-8-1)
+**Derived from other rows (4):** [`RFC5575-6-1`](#rfc5575-6-1), [`RFC5575-6-2`](#rfc5575-6-2), [`RFC5575-6-3`](#rfc5575-6-3), [`RFC5575-6-4`](#rfc5575-6-4)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5575-4-1` | Implementations wishing to exchange flow specification rules MUST use BGP Capability Advertisement to exchange the Multiprotocol Extension Capability Code (Code 1) (§4) | MUST | 4 | **positive:** `unit/verify` [`TestIPv4FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L845). **negative:** no negative test. **{single-polarity}:** the flowspec plugin unconditionally maps its declared ipv4/flow family to a Multiprotocol (Code 1) capability during OPEN, and there is no wrong input the negotiation path rejects (internal/component/bgp/plugins/nlri/flowspec/register.go:19-22, types.go:47) |
-| `RFC5575-4-2` | The (AFI, SAFI) pair in the Multiprotocol Extension Capability MUST match the application using this NLRI-type (§4) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecIPv4Basic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L420). **positive:** `unit/verify` [`TestFlowSpecVPNFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L646). **negative:** no negative test. **{single-polarity}:** the (AFI 1, SAFI 133/134) assignment is a family-registration constant, not an input guard, so only the positive assignment is assertable (internal/component/bgp/plugins/nlri/flowspec/types.go:47-49, encode.go:79-95) |
-| `RFC5575-4-3` | Flow specification component types MUST appear in strictly ascending numeric order (§4) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1226). **positive:** `unit/verify` [`TestFlowSpecJoinsRepeatedTypeIntoOneComponent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1269). **negative:** `unit/verify` [`TestParseFlowSpecRefusesRepeatedComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1306) |
+| `RFC5575-4-1` | Implementations wishing to exchange flow specification rules MUST use BGP's Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) as defined in RFC 4760 [RFC4760]. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestIPv4FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L845). **negative:** no negative test. **{single-polarity}:** the flowspec plugin unconditionally maps its declared ipv4/flow family to a Multiprotocol (Code 1) capability during OPEN, and there is no wrong input the negotiation path rejects (internal/component/bgp/plugins/nlri/flowspec/register.go:19-22, types.go:47) |
+| `RFC5575-4-2` | The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be the same as the one used to identify a particular application that uses this NLRI-type. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecIPv4Basic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L420). **positive:** `unit/verify` [`TestFlowSpecVPNFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L646). **negative:** no negative test. **{single-polarity}:** the (AFI 1, SAFI 133/134) assignment is a family-registration constant, not an input guard, so only the positive assignment is assertable (internal/component/bgp/plugins/nlri/flowspec/types.go:47-49, encode.go:79-95) |
+| `RFC5575-4-3` | Flow specification components must follow strict type ordering. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1226). **positive:** `unit/verify` [`TestFlowSpecJoinsRepeatedTypeIntoOneComponent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1269). **negative:** `unit/verify` [`TestParseFlowSpecRefusesRepeatedComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1306) |
 | `RFC5575-4-4` | A present component MUST precede any component of higher numeric type value (§4) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1227). **negative:** `unit/verify` [`TestParseFlowSpecRefusesDescendingComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1334) |
-| `RFC5575-6-1` | BGP implementations MUST enforce that the AS_PATH attribute of a route received via eBGP contains the neighboring AS in the left-most position (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze runs no eBGP leftmost-neighbor-AS enforcement; the only AS_PATH ingress guard is RFC 4271 Section 9 loop detection and firstASInPath is used solely for MED neighbor comparison (internal/component/bgp/reactor/filter/loop_metrics.go:31, internal/component/bgp/plugins/rib/bestpath.go:544) |
-| `RFC5575-6-2` | Flow specification MUST be validated against unicast routing (feasibility check) (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze decodes a received flowspec NLRI and lowers it to the firewall with no feasibility validation against the unicast RIB, the same absence disclosed for RFC8956-5-1 (internal/component/bgp/plugins/nlri/flowspec/types.go:351, internal/plugins/flowspec-firewall/translate.go:166) |
-| `RFC5575-6-3` | Originator matching MUST be performed: the originator of the flow spec must match the originator of the best-match unicast route for the destination prefix (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no code compares a flowspec's originator against the best-match unicast route's originator; this is part of the absent Section 6 validation procedure (internal/component/bgp/plugins/nlri/flowspec/) |
-| `RFC5575-6-4` | There must be no more-specific unicast routes from a different neighboring AS than the best-match route (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no code walks more-specific unicast routes to compare neighboring AS, because the Section 6 validation procedure is unimplemented (internal/component/bgp/plugins/nlri/flowspec/) |
+| `RFC5575-6-1` | BGP implementations MUST also enforce that the AS_PATH attribute of a route received via the External Border Gateway Protocol (eBGP) contains the neighboring AS in the left-most position of the AS_PATH attribute. (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{rollup}:** RFC8955-6-2; RFC 5575 is obsoleted and this sentence is restated by RFC 8955 Section 6, later replaced by RFC 9117 Section 4.2, so the row holds exactly when RFC8955-6-2 does. **derived:** met |
+| `RFC5575-6-2` | Flow specification MUST be validated against unicast routing (feasibility check) (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{rollup}:** RFC8955-6-1; RFC 5575 is obsoleted and RFC 8955 Section 6 restates the feasibility check as its validation procedure, so the row holds exactly when RFC8955-6-1 does. **derived:** met |
+| `RFC5575-6-3` | Originator matching MUST be performed: the originator of the flow spec must match the originator of the best-match unicast route for the destination prefix (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{rollup}:** RFC8955-6-1; RFC 5575 is obsoleted and originator matching is condition (b) of the RFC 8955 Section 6 procedure, so the row holds exactly when RFC8955-6-1 does. **derived:** met |
+| `RFC5575-6-4` | There must be no more-specific unicast routes from a different neighboring AS than the best-match route (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{rollup}:** RFC8955-6-1; RFC 5575 is obsoleted and the more-specific-route rule is condition (c) of the RFC 8955 Section 6 procedure, so the row holds exactly when RFC8955-6-1 does. **derived:** met |
 | `RFC5575-4-5` | Reserved bits in numeric operator format (bit 4) must be 0 (§4, Numeric Operator) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecNumericOperatorReservedBitZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1421). **negative:** no negative test. **{single-polarity}:** the numeric operator byte is built as lenCode<<4 OR'd with only the comparison bits, so reserved bit 4 is never set on encode and decode ignores reserved bits (internal/component/bgp/plugins/nlri/flowspec/types_numeric.go:247-257) |
 | `RFC5575-4-6` | Reserved bits in bitmask operator format (bits 4-5) must be 0 (§4, Bitmask Operator) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecBitmaskOperatorReservedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1449). **negative:** no negative test. **{single-polarity}:** bitmask components encode through the same operator builder using only match/not plus the len field, so reserved bits 4-5 are never set on encode (internal/component/bgp/plugins/nlri/flowspec/types_numeric.go:247-257) |
 | `RFC5575-4-7` | Reserved bits in Fragment bitmask (bits 0-3) must be zero (§4, Type 12) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecFragmentReservedHighNibbleZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1478). **negative:** no negative test. **{single-polarity}:** the Fragment value is assembled from the four low-nibble flag constants, so the reserved high-nibble bits are never set on encode (internal/component/bgp/plugins/nlri/flowspec/types.go:201-206) |
 | `RFC5575-7-1` | Reserved bytes in Traffic-Marking extended community (bytes 2-6) must be zero (§7) | MUST | 7 | **positive:** `unit/verify` [`TestFlowSpecTrafficMarkingReservedBytesZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1510). **negative:** no negative test. **{single-polarity}:** the traffic-marking community is emitted with literal zero reserved bytes and only the trailing DSCP octet varies (internal/component/bgp/plugins/nlri/flowspec/encode.go:124-127) |
-| `RFC5575-4-8` | "Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt" (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5575-5.1-1` | "This ordering function must be such that it must not depend on the arrival order of the flow specification's rules and must be constant in the network" (§5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5575-8-1` | "The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification" (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5575-4-8` | Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L16). **negative:** `unit/verify` [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L17) |
+| `RFC5575-5.1-1` | This ordering function must be such that it must not depend on the arrival order of the flow specification's rules and must be constant in the network. (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestFlowSpecPrecedenceFromWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L13). **negative:** `unit/verify` [`TestFlowSpecPrecedenceFromWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L14) |
+| `RFC5575-8-1` | The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification. (§8) | MUST | 8 | **positive:** `unit/verify` [`TestFlowSpecVPNUpdateCountsRouteDistinguisher`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L35). **negative:** `unit/verify` [`TestFlowSpecVPNUpdateCountsRouteDistinguisher`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L36) |
 | `RFC5575-3-1` | Standard BGP policy mechanisms (UPDATE filtering by NLRI prefix and community matching) SHOULD apply to flow specification NLRI (§3) | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5575-9-1` | Implementations SHOULD provide a mechanism to log the packet header of filtered traffic (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5575-9-2` | Implementations SHOULD provide a mechanism to count the number of matches for a given flow specification rule (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
@@ -137,13 +130,10 @@ Four Section 6 validation MUSTs unmet (same root cause as RFC8956-5-1): 6-1 no e
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC5575-6-1`](#rfc5575-6-1) BGP implementations MUST enforce that the AS_PATH attribute of a route received via eBGP contains the neighboring AS in the left-most position (§6) | {gap}, no test | ze runs no eBGP leftmost-neighbor-AS enforcement; the only AS_PATH ingress guard is RFC 4271 Section 9 loop detection and firstASInPath is used solely for MED neighbor comparison (internal/component/bgp/reactor/filter/loop_metrics.go:31, internal/component/bgp/plugins/rib/bestpath.go:544) |
-| [`RFC5575-6-2`](#rfc5575-6-2) Flow specification MUST be validated against unicast routing (feasibility check) (§6) | {gap}, no test | ze decodes a received flowspec NLRI and lowers it to the firewall with no feasibility validation against the unicast RIB, the same absence disclosed for RFC8956-5-1 (internal/component/bgp/plugins/nlri/flowspec/types.go:351, internal/plugins/flowspec-firewall/translate.go:166) |
-| [`RFC5575-6-3`](#rfc5575-6-3) Originator matching MUST be performed: the originator of the flow spec must match the originator of the best-match unicast route for the destination prefix (§6) | {gap}, no test | no code compares a flowspec's originator against the best-match unicast route's originator; this is part of the absent Section 6 validation procedure (internal/component/bgp/plugins/nlri/flowspec/) |
-| [`RFC5575-6-4`](#rfc5575-6-4) There must be no more-specific unicast routes from a different neighboring AS than the best-match route (§6) | {gap}, no test | no code walks more-specific unicast routes to compare neighboring AS, because the Section 6 validation procedure is unimplemented (internal/component/bgp/plugins/nlri/flowspec/) |
-| [`RFC5575-4-8`](#rfc5575-4-8) "Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt" (§4) | no test | no test carries this requirement id |
-| [`RFC5575-5.1-1`](#rfc5575-5.1-1) "This ordering function must be such that it must not depend on the arrival order of the flow specification's rules and must be constant in the network" (§5.1) | no test | no test carries this requirement id |
-| [`RFC5575-8-1`](#rfc5575-8-1) "The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification" (§8) | no test | no test carries this requirement id |
+| [`RFC5575-6-1`](#rfc5575-6-1) BGP implementations MUST also enforce that the AS_PATH attribute of a route received via the External Border Gateway Protocol (eBGP) contains the neighboring AS in the left-most position of the AS_PATH attribute. (§6) | no test | no test carries this requirement id; annotated {rollup}: RFC8955-6-2; RFC 5575 is obsoleted and this sentence is restated by RFC 8955 Section 6, later replaced by RFC 9117 Section 4.2, so the row holds exactly when RFC8955-6-2 does |
+| [`RFC5575-6-2`](#rfc5575-6-2) Flow specification MUST be validated against unicast routing (feasibility check) (§6) | no test | no test carries this requirement id; annotated {rollup}: RFC8955-6-1; RFC 5575 is obsoleted and RFC 8955 Section 6 restates the feasibility check as its validation procedure, so the row holds exactly when RFC8955-6-1 does |
+| [`RFC5575-6-3`](#rfc5575-6-3) Originator matching MUST be performed: the originator of the flow spec must match the originator of the best-match unicast route for the destination prefix (§6) | no test | no test carries this requirement id; annotated {rollup}: RFC8955-6-1; RFC 5575 is obsoleted and originator matching is condition (b) of the RFC 8955 Section 6 procedure, so the row holds exactly when RFC8955-6-1 does |
+| [`RFC5575-6-4`](#rfc5575-6-4) There must be no more-specific unicast routes from a different neighboring AS than the best-match route (§6) | no test | no test carries this requirement id; annotated {rollup}: RFC8955-6-1; RFC 5575 is obsoleted and the more-specific-route rule is condition (c) of the RFC 8955 Section 6 procedure, so the row holds exactly when RFC8955-6-1 does |
 
 ## Proof state
 
@@ -151,7 +141,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC5575-4-1`](#rfc5575-4-1)
 
-Implementations wishing to exchange flow specification rules MUST use BGP Capability Advertisement to exchange the Multiprotocol Extension Capability Code (Code 1) (§4)
+Implementations wishing to exchange flow specification rules MUST use BGP's Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) as defined in RFC 4760 [RFC4760]. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -161,7 +151,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5575-4-2`](#rfc5575-4-2)
 
-The (AFI, SAFI) pair in the Multiprotocol Extension Capability MUST match the application using this NLRI-type (§4)
+The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be the same as the one used to identify a particular application that uses this NLRI-type. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -172,7 +162,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5575-4-3`](#rfc5575-4-3)
 
-Flow specification component types MUST appear in strictly ascending numeric order (§4)
+Flow specification components must follow strict type ordering. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -195,7 +185,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5575-6-1`](#rfc5575-6-1)
 
-BGP implementations MUST enforce that the AS_PATH attribute of a route received via eBGP contains the neighboring AS in the left-most position (§6)
+BGP implementations MUST also enforce that the AS_PATH attribute of a route received via the External Border Gateway Protocol (eBGP) contains the neighboring AS in the left-most position of the AS_PATH attribute. (§6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -267,27 +257,36 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5575-4-8`](#rfc5575-4-8)
 
-"Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt" (§4)
+Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5575-4-8, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L17) | unit/verify | unproven |
+| positive | [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L16) | unit/verify | unproven |
 
 ### [`RFC5575-5.1-1`](#rfc5575-5.1-1)
 
-"This ordering function must be such that it must not depend on the arrival order of the flow specification's rules and must be constant in the network" (§5.1)
+This ordering function must be such that it must not depend on the arrival order of the flow specification's rules and must be constant in the network. (§5.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5575-5.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestFlowSpecPrecedenceFromWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L14) | unit/verify | unproven |
+| positive | [`TestFlowSpecPrecedenceFromWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go#L13) | unit/verify | unproven |
 
 ### [`RFC5575-8-1`](#rfc5575-8-1)
 
-"The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification" (§8)
+The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification. (§8)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5575-8-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestFlowSpecVPNUpdateCountsRouteDistinguisher`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L36) | unit/verify | unproven |
+| positive | [`TestFlowSpecVPNUpdateCountsRouteDistinguisher`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L35) | unit/verify | unproven |
 
 ## Extraction sign-off
 
@@ -343,18 +342,21 @@ RFC 5575 is obsoleted by RFC 8955.
 
 | Requirement | Disposition | Now stated at | Reason |
 |---|---|---|---|
-| [`RFC5575-4-1`](#rfc5575-4-1) Implementations wishing to exchange flow specification rules MUST use BGP Capability Advertisement to exchange the Multiprotocol Extension Capability Code (Code 1) (§4) | restated | RFC8955-4-1 | RFC 8955 Section 4 keeps the sentence, that implementations wishing to exchange Flow Specification MUST use BGP's Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) |
-| [`RFC5575-4-2`](#rfc5575-4-2) The (AFI, SAFI) pair in the Multiprotocol Extension Capability MUST match the application using this NLRI-type (§4) | restated | RFC8955-4-2 | RFC 8955 Section 4 makes the pair explicit rather than leaving it to the application: (AFI 1, SAFI 133) for IPv4 Flow Specification and (AFI 1, SAFI 134) for VPNv4 Flow Specification |
-| [`RFC5575-4-3`](#rfc5575-4-3) Flow specification component types MUST appear in strictly ascending numeric order (§4) | restated | RFC8955-4.2-1 | the NLRI value encoding moved from Section 4 to Section 4.2, which keeps the strict type ordering by increasing numerical order |
+| [`RFC5575-4-1`](#rfc5575-4-1) Implementations wishing to exchange flow specification rules MUST use BGP's Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) as defined in RFC 4760 [RFC4760]. (§4) | restated | RFC8955-4-1 | RFC 8955 Section 4 keeps the sentence, that implementations wishing to exchange Flow Specification MUST use BGP's Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) |
+| [`RFC5575-4-2`](#rfc5575-4-2) The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be the same as the one used to identify a particular application that uses this NLRI-type. (§4) | restated | RFC8955-4-2 | RFC 8955 Section 4 makes the pair explicit rather than leaving it to the application: (AFI 1, SAFI 133) for IPv4 Flow Specification and (AFI 1, SAFI 134) for VPNv4 Flow Specification |
+| [`RFC5575-4-3`](#rfc5575-4-3) Flow specification components must follow strict type ordering. (§4) | restated | RFC8955-4.2-1 | the NLRI value encoding moved from Section 4 to Section 4.2, which keeps the strict type ordering by increasing numerical order |
 | [`RFC5575-4-4`](#rfc5575-4-4) A present component MUST precede any component of higher numeric type value (§4) | restated | RFC8955-4.2-2 | RFC 8955 Section 4.2 keeps the rule that a component, if present, MUST precede any component of higher numeric type value |
-| [`RFC5575-6-1`](#rfc5575-6-1) BGP implementations MUST enforce that the AS_PATH attribute of a route received via eBGP contains the neighboring AS in the left-most position (§6) | restated | RFC8955-6-2 | RFC 8955 Section 6 keeps the eBGP leftmost-AS enforcement in the same words, and keeps the reason, that the rule is optional in the BGP specification and necessary here for security |
+| [`RFC5575-6-1`](#rfc5575-6-1) BGP implementations MUST also enforce that the AS_PATH attribute of a route received via the External Border Gateway Protocol (eBGP) contains the neighboring AS in the left-most position of the AS_PATH attribute. (§6) | restated | RFC8955-6-2 | RFC 8955 Section 6 restates this rule, and RFC 9117 Section 4.2 subsequently replaces it with comparison against the first AS of the best-match unicast route |
 | [`RFC5575-6-2`](#rfc5575-6-2) Flow specification MUST be validated against unicast routing (feasibility check) (§6) | restated | RFC8955-6-1 | RFC 8955 Section 6 keeps the feasibility rule and scopes it, adding that it applies in the absence of explicit configuration and that SAFI 133 validates against SAFI 1 while SAFI 134 validates against SAFI 128 |
-| [`RFC5575-6-3`](#rfc5575-6-3) Originator matching MUST be performed: the originator of the flow spec must match the originator of the best-match unicast route for the destination prefix (§6) | restated | RFC8955-6-1 | originator matching is condition (b) of the RFC 8955 Section 6 list, in the same words, and RFC 8955 states the three conditions as one feasibility rule rather than three. Condition (b) is moot when condition (a) is relaxed by explicit configuration |
-| [`RFC5575-6-4`](#rfc5575-6-4) There must be no more-specific unicast routes from a different neighboring AS than the best-match route (§6) | restated | RFC8955-6-1 | the more-specific-route rule is condition (c) of the RFC 8955 Section 6 list, in the same words, and RFC 8955 states the three conditions as one feasibility rule rather than three. Condition (c) is moot when condition (a) is relaxed by explicit configuration |
+| [`RFC5575-6-3`](#rfc5575-6-3) Originator matching MUST be performed: the originator of the flow spec must match the originator of the best-match unicast route for the destination prefix (§6) | restated | RFC8955-6-1 | originator matching is condition (b) of RFC 8955 Section 6; RFC 9117 Section 4.1 adds the local-domain controller alternative |
+| [`RFC5575-6-4`](#rfc5575-6-4) There must be no more-specific unicast routes from a different neighboring AS than the best-match route (§6) | restated | RFC8955-6-1 | the more-specific-route rule is condition (c) of RFC 8955 Section 6 |
 | [`RFC5575-4-5`](#rfc5575-4-5) Reserved bits in numeric operator format (bit 4) must be 0 (§4, Numeric Operator) | restated | RFC8955-4.2.1.1-3 | RFC 8955 Section 4.2.1.1 keeps the numeric operator reserved bit at 0 on encoding and adds the receive half, that it MUST be ignored during decoding |
 | [`RFC5575-4-6`](#rfc5575-4-6) Reserved bits in bitmask operator format (bits 4-5) must be 0 (§4, Bitmask Operator) | restated | RFC8955-4.2.1.2-1 | RFC 8955 Section 4.2.1.2 keeps the bitmask operator reserved bits at 0 on encoding and adds the receive half, that they MUST be ignored during decoding |
 | [`RFC5575-4-7`](#rfc5575-4-7) Reserved bits in Fragment bitmask (bits 0-3) must be zero (§4, Type 12) | restated | RFC8955-4.2.2.12-2 | RFC 8955 Section 4.2.2.12 keeps the Fragment bitmask reserved bits at 0 on encoding and adds the receive half, that they MUST be ignored during decoding |
 | [`RFC5575-7-1`](#rfc5575-7-1) Reserved bytes in Traffic-Marking extended community (bytes 2-6) must be zero (§7) | restated | RFC8955-7.5-1 | the traffic-marking action moved from Section 7 to Section 7.5, which keeps the reserved bits at 0 on encoding and adds the receive half, that they MUST be ignored during decoding |
+| [`RFC5575-4-8`](#rfc5575-4-8) Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt. (§4) | restated | RFC8955-4-3 | RFC 8955 §4 splits the sentence into "Length of the Next-Hop Network Address MUST be set to 0" (RFC8955-4-3) and "Network Address of the Next-Hop field MUST be ignored" (RFC8955-4-4) |
+| [`RFC5575-5.1-1`](#rfc5575-5.1-1) This ordering function must be such that it must not depend on the arrival order of the flow specification's rules and must be constant in the network. (§5.1) | restated | RFC8955-5.1-1 | RFC 8955 §5.1 keeps the ordering function that "does not depend on the arrival order of the Flow Specification via BGP" |
+| [`RFC5575-8-1`](#rfc5575-8-1) The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification. (§8) | restated | RFC8955-8-2 | RFC 8955 §8 keeps "The NLRI length field shall include both the 8 octets of the Route Distinguisher as well as the subsequent Flow Specification NLRI value" |
 | [`RFC5575-3-1`](#rfc5575-3-1) Standard BGP policy mechanisms (UPDATE filtering by NLRI prefix and community matching) SHOULD apply to flow specification NLRI (§3) | unextracted | §3 | RFC 8955 Section 3 states the obligation with a lowercase keyword, that standard BGP policy mechanisms such as UPDATE filtering by NLRI prefix and community matching must apply to the Flow specification defined NLRI-type. rfc/short/rfc8955.md declares no row for it |
 | [`RFC5575-9-1`](#rfc5575-9-1) Implementations SHOULD provide a mechanism to log the packet header of filtered traffic (§9) | restated | RFC8955-9-1 | RFC 8955 Section 9 keeps the SHOULD to provide a mechanism to log the packet header of filtered traffic |
 | [`RFC5575-9-2`](#rfc5575-9-2) Implementations SHOULD provide a mechanism to count the number of matches for a given flow specification rule (§9) | restated | RFC8955-9-2 | RFC 8955 Section 9 keeps the SHOULD to provide a mechanism to count the number of matches for a given Flow Specification rule |

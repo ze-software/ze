@@ -363,7 +363,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L151" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-5.2.4-1">RFC9568-5.2.4-1</code></td><td colspan="3"><span class="rfc-subject">Use Priority 255 for the VRRP Router that owns the Virtual Router&#39;s IPvX address(es) (§5.2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-5.2.4-1">RFC9568-5.2.4-1</code></td><td colspan="3"><span class="rfc-subject">The priority value for the VRRP Router that owns the IPvX address associated with the Virtual Router MUST be 255 (decimal). (§5.2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2.4</td>
@@ -373,7 +373,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L775" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestOwnerAutoDetection</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-5.2.4-2">RFC9568-5.2.4-2</code></td><td colspan="3"><span class="rfc-subject">Use Priority values 1-254 for VRRP Routers backing up a Virtual Router (§5.2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-5.2.4-2">RFC9568-5.2.4-2</code></td><td colspan="3"><span class="rfc-subject">VRRP Routers backing up a Virtual Router MUST use priority values between 1-254 (decimal). (§5.2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2.4</td>
@@ -383,7 +383,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L320" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestBoundaryPriority</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-5.2.5-1">RFC9568-5.2.5-1</code></td><td colspan="3"><span class="rfc-subject">Ignore a received VRRP advertisement whose IPvX Addr Count is 0 (§5.2.5, erratum 8299)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-5.2.5-1">RFC9568-5.2.5-1</code></td><td colspan="3"><span class="rfc-subject">If the received count is 0, the VRRP advertisement MUST be ignored. (§5.2.5, erratum 8299)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2.5</td>
@@ -392,7 +392,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L544" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-5.2.6-1">RFC9568-5.2.6-1</code></td><td colspan="3"><span class="rfc-subject">Set the Reserve field to zero on transmission and ignore it on reception (§5.2.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-5.2.6-1">RFC9568-5.2.6-1</code></td><td colspan="3"><span class="rfc-subject">The Reserve field MUST be set to zero on transmission and ignored on reception. (§5.2.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2.6</td>
@@ -401,7 +401,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L638" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV3ReserveIgnoredOnReceive</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-5.2.9-1">RFC9568-5.2.9-1</code></td><td colspan="3"><span class="rfc-subject">Send the IPv6 link-local address associated with the Virtual Router as the first address in the list (§5.2.9, §6.1, erratum 8300)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-5.2.9-1">RFC9568-5.2.9-1</code></td><td colspan="3"><span class="rfc-subject">For IPv6, the first address MUST be the IPv6 link-local address associated with the Virtual Router. (§5.2.9, §6.1, erratum 8300)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.2.9</td>
@@ -421,7 +421,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L549" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestValidateVIPFamilyMatchesGroupFamily</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.1-1">RFC9568-6.1-1</code></td><td colspan="3"><span class="rfc-subject">Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements when Accept_Mode is False (§6.1, §6.4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.1-1">RFC9568-6.1-1</code></td><td colspan="3"><span class="rfc-subject">Note: IPv6 Neighbor Solicitations and Neighbor Advertisements MUST NOT be dropped when Accept_Mode is False. (§6.1, §6.4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.1</td>
@@ -430,7 +430,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L111" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.2-1">RFC9568-6.4.2-1</code></td><td colspan="3"><span class="rfc-subject">Backup: never respond to ARP requests for the IPv4 address(es) associated with the Virtual Router (§6.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.2-1">RFC9568-6.4.2-1</code></td><td colspan="3"><span class="rfc-subject">- It MUST NOT respond to ARP requests for the IPv4 address(es) associated with the Virtual Router. (§6.4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.4.2</td>
@@ -439,7 +439,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L368" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.2-2">RFC9568-6.4.2-2</code></td><td colspan="3"><span class="rfc-subject">Backup: never respond to ND Neighbor Solicitations for the IPv6 address(es) associated with the Virtual Router (§6.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.2-2">RFC9568-6.4.2-2</code></td><td colspan="3"><span class="rfc-subject">- It MUST NOT respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the Virtual Router. (§6.4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.4.2</td>
@@ -448,7 +448,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L649" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.2-3">RFC9568-6.4.2-3</code></td><td colspan="3"><span class="rfc-subject">Backup: never send ND Router Advertisements for the Virtual Router (§6.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.2-3">RFC9568-6.4.2-3</code></td><td colspan="3"><span class="rfc-subject">- It MUST NOT send ND Router Advertisement messages for the Virtual Router. (§6.4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.4.2</td>
@@ -457,7 +457,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze emits no ND Router Advertisement in any state -- the only ICMPv6 message the plugin builds is the unsolicited Neighbor Advertisement, type 136 at internal/plugins/vrrp/transport/na.go:25,58, and a grep for a type-134 or router-advertisement builder over internal/plugins/vrrp returns nothing, so a Backup has no path that could send one. The absent Active-side emission is the gap tracked at RFC9568-6.4.3-4</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.2-4">RFC9568-6.4.2-4</code></td><td colspan="3"><span class="rfc-subject">Backup: discard packets with a destination link-layer MAC address equal to the Virtual Router MAC address (§6.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.2-4">RFC9568-6.4.2-4</code></td><td colspan="3"><span class="rfc-subject">* It MUST discard packets with a destination link-layer MAC address equal to the Virtual Router MAC address. (§6.4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.4.2</td>
@@ -466,7 +466,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L370" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.2-5">RFC9568-6.4.2-5</code></td><td colspan="3"><span class="rfc-subject">Backup: never accept packets addressed to the IPvX address(es) associated with the Virtual Router (§6.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.2-5">RFC9568-6.4.2-5</code></td><td colspan="3"><span class="rfc-subject">* It MUST NOT accept packets addressed to the IPvX address(es) associated with the Virtual Router. (§6.4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.4.2</td>
@@ -520,16 +520,16 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L123" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.3-1">RFC9568-6.4.3-1</code></td><td colspan="3"><span class="rfc-subject">Active: respond to ARP requests for the Virtual Router IPv4 address(es), answering with the Virtual Router MAC address (§6.4.3, §8.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.3-1">RFC9568-6.4.3-1</code></td><td colspan="3"><span class="rfc-subject">- It MUST respond to ARP requests for the IPv4 address(es) associated with the Virtual Router. (§6.4.3, §8.1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-6.4.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L63" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L124" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L71" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L133" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.3-2">RFC9568-6.4.3-2</code></td><td colspan="3"><span class="rfc-subject">Active (IPv6): be a member of the Solicited-Node multicast address for the Virtual Router IPv6 address(es) (§6.4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.3-2">RFC9568-6.4.3-2</code></td><td colspan="3"><span class="rfc-subject">- It MUST be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the Virtual Router. (§6.4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.4.3</td>
@@ -538,7 +538,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the membership is the kernel&#39;s automatic consequence of the address install ze performs on promotion (doInstallVIPs internal/plugins/vrrp/instance.go:369 registers the VIP on the virtual-MAC macvlan), so there is no ze input that installs the address yet skips the join, and the not-a-member case is the Backup requirement RFC9568-6.4.2-2</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.3-3">RFC9568-6.4.3-3</code></td><td colspan="3"><span class="rfc-subject">Active (IPv6): respond to ND Neighbor Solicitations, with the Router Flag set, for the Virtual Router IPv6 address(es), answering with the Virtual Router MAC address (§6.4.3, §8.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.3-3">RFC9568-6.4.3-3</code></td><td colspan="3"><span class="rfc-subject">- It MUST respond to ND Neighbor Solicitation messages (with the Router Flag (R) set) for the IPv6 address(es) associated with the Virtual Router. (§6.4.3, §8.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.4.3</td>
@@ -556,7 +556,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze runs IPv6 Virtual Routers but sends no Router Advertisement for them -- the announcer&#39;s only IPv6 frame is the unsolicited Neighbor Advertisement, icmpv6TypeNA 136 at internal/plugins/vrrp/transport/na.go:25 built by BuildNA na.go:56 and selected by frameBuilder internal/plugins/vrrp/transport/transport.go:511, and no RA builder or RA socket exists in the plugin</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.3-5">RFC9568-6.4.3-5</code></td><td colspan="3"><span class="rfc-subject">Active: forward packets with a destination link-layer MAC address equal to the Virtual Router MAC address (§6.4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.3-5">RFC9568-6.4.3-5</code></td><td colspan="3"><span class="rfc-subject">* It MUST forward packets with a destination link-layer MAC address equal to the Virtual Router MAC address. (§6.4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.4.3</td>
@@ -565,7 +565,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L329" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceStartupNonOwnerGoesBackup</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.3-6">RFC9568-6.4.3-6</code></td><td colspan="3"><span class="rfc-subject">Active: accept packets addressed to the Virtual Router IPvX address(es) if the IPvX address owner or if Accept_Mode is True (§6.4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-6.4.3-6">RFC9568-6.4.3-6</code></td><td colspan="3"><span class="rfc-subject">* It MUST accept packets addressed to the IPvX address(es) associated with the Virtual Router if it is the IPvX address owner or if Accept_Mode is True. (§6.4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.4.3</td>
@@ -633,7 +633,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L141" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-7.1-1">RFC9568-7.1-1</code></td><td colspan="3"><span class="rfc-subject">Rx: verify the VRRP version is 3 (§7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-7.1-1">RFC9568-7.1-1</code></td><td colspan="3"><span class="rfc-subject">* It MUST verify that the VRRP version is 3. (§7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1</td>
@@ -642,7 +642,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L610" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-7.1-2">RFC9568-7.1-2</code></td><td colspan="3"><span class="rfc-subject">Rx: verify the VRRP packet type is 1 (ADVERTISEMENT) (§7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-7.1-2">RFC9568-7.1-2</code></td><td colspan="3"><span class="rfc-subject">* It MUST verify that the VRRP packet type is 1 (ADVERTISEMENT). (§7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1</td>
@@ -651,7 +651,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L153" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-7.1-3">RFC9568-7.1-3</code></td><td colspan="3"><span class="rfc-subject">Rx: verify the received packet contains the complete VRRP packet, including fixed fields and the IPvX address list (§7.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-7.1-3">RFC9568-7.1-3</code></td><td colspan="3"><span class="rfc-subject">* It MUST verify that the received packet contains the complete VRRP packet (including fixed fields and the IPvX address). (§7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1</td>
@@ -733,7 +733,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> buildIPv4Header writes protocol 112 at internal/plugins/vrrp/transport/transport.go:563 and SendAdvert targets 224.0.0.18 / ff02::12 at internal/plugins/vrrp/transport/backend_linux.go:242,256, all constants with no input that changes them</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-7.4-1">RFC9568-7.4-1</code></td><td colspan="3"><span class="rfc-subject">Never use the Virtual Router MAC as the Net_Iface parameter in RFC 7217 / RFC 8981 interface identifier derivation (§7.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-7.4-1">RFC9568-7.4-1</code></td><td colspan="3"><span class="rfc-subject">The Virtual Router MAC MUST NOT be used for the Net_Iface parameter used in the Interface Identifier (IID) derivation algorithms in [RFC7217] and [RFC8981]. (§7.4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>7.4</td>
@@ -742,16 +742,16 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze derives no interface identifiers -- a grep for 7217, 8981, addr_gen_mode or stable-privacy over internal/plugins/vrrp returns nothing, and the only IPv6 knob the plugin writes on a virtual-MAC device is accept_dad (internal/plugins/vrrp/dataplane_linux.go:135), so no ze code feeds the Virtual Router MAC into an IID derivation</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.1.2-1">RFC9568-8.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Active: never answer ARP requests for virtual addresses with the physical MAC address (§8.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.1.2-1">RFC9568-8.1.2-1</code></td><td colspan="3"><span class="rfc-subject">The Active Router MUST NOT respond with its physical MAC address in the ARP response. (§8.1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>8.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9568-8.1.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L65" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L126" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L73" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L135" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.1.2-2">RFC9568-8.1.2-2</code></td><td colspan="3"><span class="rfc-subject">Delay gratuitous ARP at system boot until both the IPv4 address and the Virtual Router MAC address are configured (§8.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.1.2-2">RFC9568-8.1.2-2</code></td><td colspan="3"><span class="rfc-subject">* At system boot, when initializing interfaces for VRRP operation, gratuitous ARP messages MUST be delayed until both the IPv4 address and the Virtual Router MAC address are configured. (§8.1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.1.2</td>
@@ -760,7 +760,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L699" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.1.3-1">RFC9568-8.1.3-1</code></td><td colspan="3"><span class="rfc-subject">Advertise the Virtual Router MAC address in Proxy ARP messages for VRRP-protected addresses (§8.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.1.3-1">RFC9568-8.1.3-1</code></td><td colspan="3"><span class="rfc-subject">If Proxy ARP is to be used on a VRRP Router, then the VRRP Router MUST advertise the Virtual Router MAC address in the Proxy ARP message. (§8.1.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.1.3</td>
@@ -769,7 +769,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze performs no proxy ARP for virtual addresses -- a grep for proxy_arp over internal/plugins/vrrp returns nothing, and the per-group virtual-MAC macvlan answers ARP for the VIP directly (createMacvlan internal/plugins/vrrp/register.go:329 plus the sole-responder sysctl recipe internal/plugins/vrrp/dataplane_linux.go:64,73)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.2.2-1">RFC9568-8.2.2-1</code></td><td colspan="3"><span class="rfc-subject">Active: never answer ND Neighbor Solicitations for virtual addresses with the physical MAC address (§8.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.2.2-1">RFC9568-8.2.2-1</code></td><td colspan="3"><span class="rfc-subject">The Active Router MUST NOT respond with its physical MAC address. (§8.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>8.2.2</td>
@@ -778,7 +778,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the virtual address is installed only on the virtual-MAC macvlan (doInstallVIPs internal/plugins/vrrp/instance.go:369 passing in.dev, the macvlan created with the vMAC at internal/plugins/vrrp/register.go:329-341) and never on the parent that carries the physical MAC, so no input yields a physical-MAC answer; answering nothing at all is the Backup requirement RFC9568-6.4.2-2</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.2.2-2">RFC9568-8.2.2-2</code></td><td colspan="3"><span class="rfc-subject">Active: include the Virtual Router MAC in the source link-layer address option of Neighbor Solicitations it sends for hosts (when the option is present) (§8.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.2.2-2">RFC9568-8.2.2-2</code></td><td colspan="3"><span class="rfc-subject">When an Active Router sends an ND Neighbor Solicitation message for a host&#39;s IPv6 address, the Active Router MUST include the Virtual Router MAC address for the Virtual Router if it sends a source link- layer address option in the Neighbor Solicitation message. (§8.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.2.2</td>
@@ -787,7 +787,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze builds no Neighbor Solicitation -- the plugin&#39;s only ICMPv6 builder is BuildNA, type 136, internal/plugins/vrrp/transport/na.go:25,56, and no type-135 builder or NS send path exists anywhere under internal/plugins/vrrp</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.2.2-3">RFC9568-8.2.2-3</code></td><td colspan="3"><span class="rfc-subject">Active: never use the physical MAC address in that source link-layer address option (§8.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.2.2-3">RFC9568-8.2.2-3</code></td><td colspan="3"><span class="rfc-subject">It MUST NOT use its physical MAC address in the source link-layer address option. (§8.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>8.2.2</td>
@@ -796,7 +796,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze builds no Neighbor Solicitation, so no source link-layer address option is authored by the plugin -- its only ICMPv6 builder is BuildNA, type 136, internal/plugins/vrrp/transport/na.go:25,56</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.2.2-4">RFC9568-8.2.2-4</code></td><td colspan="3"><span class="rfc-subject">Delay all ND Router Advertisements, Neighbor Advertisements, and Neighbor Solicitations at boot until both the IPv6 address and the Virtual Router MAC address are configured (§8.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.2.2-4">RFC9568-8.2.2-4</code></td><td colspan="3"><span class="rfc-subject">* At system boot, when initializing interfaces for VRRP operation, all ND Router Advertisements, ND Neighbor Advertisements, and ND Neighbor Solicitation messages MUST be delayed until both the IPv6 address and the Virtual Router MAC address are configured. (§8.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.2.2</td>
@@ -805,7 +805,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L702" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceDelaysAnnounceUntilParentUsable</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.2.3-1">RFC9568-8.2.3-1</code></td><td colspan="3"><span class="rfc-subject">Configure Backup Routers to send the same Router Advertisement options as the address owner (§8.2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.2.3-1">RFC9568-8.2.3-1</code></td><td colspan="3"><span class="rfc-subject">The Backup Routers MUST be configured to send the same Router Advertisement options as the address owner. (§8.2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.2.3</td>
@@ -823,7 +823,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze implements no VRRPv2/VRRPv3 dual mode -- a group runs exactly one version (parseVersion internal/plugins/vrrp/groups.go:429 admits 2 or 3, doSendAdvert internal/plugins/vrrp/instance.go:350 encodes that single spec.Version), and the receive ladder discards any advert whose wire version differs from the group&#39;s at internal/plugins/vrrp/packet/validate.go:149, so no dual-send path exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.4.2-2">RFC9568-8.4.2-2</code></td><td colspan="3"><span class="rfc-subject">Interop mode, Backup: time out based on the rate advertised by the Active Router (§8.4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.4.2-2">RFC9568-8.4.2-2</code></td><td colspan="3"><span class="rfc-subject">When a Virtual Router is configured this way and is the Backup Router, it MUST time out based on the rate advertised by the Active Router. (§8.4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.4.2</td>
@@ -895,7 +895,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.1.2-5">RFC9568-8.1.2-5</code></td><td colspan="3"><span class="rfc-subject">Use an IPv4 address known to belong to a specific router for direct access (e.g., SSH) (§8.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9568-8.1.2-5">RFC9568-8.1.2-5</code></td><td colspan="3"><span class="rfc-subject">* When, for example, Secure Shell (SSH) access to a particular VRRP Router is required, an IPv4 address known to belong to that router SHOULD be used. (§8.1.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>8.1.2</td>
@@ -1092,11 +1092,11 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the VRRP plugin forwards no IPv6 datagram -- instance.onPacket internal/plugins/vrrp/instance.go:453 consumes every received advert into the state machine, and the v6 tx socket sets IPV6_MULTICAST_LOOP 0 at internal/plugins/vrrp/transport/backend_linux.go:193</td>
 </tr>
-<tr><td><a href="#rfc9568-6.4.2-3"><code>RFC9568-6.4.2-3</code></a> Backup: never send ND Router Advertisements for the Virtual Router (§6.4.2)</td>
+<tr><td><a href="#rfc9568-6.4.2-3"><code>RFC9568-6.4.2-3</code></a> - It MUST NOT send ND Router Advertisement messages for the Virtual Router. (§6.4.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze emits no ND Router Advertisement in any state -- the only ICMPv6 message the plugin builds is the unsolicited Neighbor Advertisement, type 136 at internal/plugins/vrrp/transport/na.go:25,58, and a grep for a type-134 or router-advertisement builder over internal/plugins/vrrp returns nothing, so a Backup has no path that could send one. The absent Active-side emission is the gap tracked at RFC9568-6.4.3-4</td>
 </tr>
-<tr><td><a href="#rfc9568-6.4.3-3"><code>RFC9568-6.4.3-3</code></a> Active (IPv6): respond to ND Neighbor Solicitations, with the Router Flag set, for the Virtual Router IPv6 address(es), answering with the Virtual Router MAC address (§6.4.3, §8.2.2)</td>
+<tr><td><a href="#rfc9568-6.4.3-3"><code>RFC9568-6.4.3-3</code></a> - It MUST respond to ND Neighbor Solicitation messages (with the Router Flag (R) set) for the IPv6 address(es) associated with the Virtual Router. (§6.4.3, §8.2.2)</td>
 <td>{gap}, no test</td>
 <td>ze answers the solicitation from the virtual-MAC macvlan that holds the VIP (doInstallVIPs internal/plugins/vrrp/instance.go:369), but nothing makes that reply carry the Router flag: the only R-bit producer in the plugin is the UNSOLICITED announcement builder, naFlags internal/plugins/vrrp/transport/na.go:30 used by BuildNA na.go:64, and the solicited reply is left to the kernel while applyDataplaneSysctls internal/plugins/vrrp/dataplane_linux.go:125 sets only accept_dad on the IPv6 macvlan and never a forwarding knob, so the R flag depends on host state ze does not manage</td>
 </tr>
@@ -1104,23 +1104,23 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>{gap}, no test</td>
 <td>ze runs IPv6 Virtual Routers but sends no Router Advertisement for them -- the announcer&#39;s only IPv6 frame is the unsolicited Neighbor Advertisement, icmpv6TypeNA 136 at internal/plugins/vrrp/transport/na.go:25 built by BuildNA na.go:56 and selected by frameBuilder internal/plugins/vrrp/transport/transport.go:511, and no RA builder or RA socket exists in the plugin</td>
 </tr>
-<tr><td><a href="#rfc9568-7.4-1"><code>RFC9568-7.4-1</code></a> Never use the Virtual Router MAC as the Net_Iface parameter in RFC 7217 / RFC 8981 interface identifier derivation (§7.4)</td>
+<tr><td><a href="#rfc9568-7.4-1"><code>RFC9568-7.4-1</code></a> The Virtual Router MAC MUST NOT be used for the Net_Iface parameter used in the Interface Identifier (IID) derivation algorithms in [RFC7217] and [RFC8981]. (§7.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze derives no interface identifiers -- a grep for 7217, 8981, addr_gen_mode or stable-privacy over internal/plugins/vrrp returns nothing, and the only IPv6 knob the plugin writes on a virtual-MAC device is accept_dad (internal/plugins/vrrp/dataplane_linux.go:135), so no ze code feeds the Virtual Router MAC into an IID derivation</td>
 </tr>
-<tr><td><a href="#rfc9568-8.1.3-1"><code>RFC9568-8.1.3-1</code></a> Advertise the Virtual Router MAC address in Proxy ARP messages for VRRP-protected addresses (§8.1.3)</td>
+<tr><td><a href="#rfc9568-8.1.3-1"><code>RFC9568-8.1.3-1</code></a> If Proxy ARP is to be used on a VRRP Router, then the VRRP Router MUST advertise the Virtual Router MAC address in the Proxy ARP message. (§8.1.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze performs no proxy ARP for virtual addresses -- a grep for proxy_arp over internal/plugins/vrrp returns nothing, and the per-group virtual-MAC macvlan answers ARP for the VIP directly (createMacvlan internal/plugins/vrrp/register.go:329 plus the sole-responder sysctl recipe internal/plugins/vrrp/dataplane_linux.go:64,73)</td>
 </tr>
-<tr><td><a href="#rfc9568-8.2.2-2"><code>RFC9568-8.2.2-2</code></a> Active: include the Virtual Router MAC in the source link-layer address option of Neighbor Solicitations it sends for hosts (when the option is present) (§8.2.2)</td>
+<tr><td><a href="#rfc9568-8.2.2-2"><code>RFC9568-8.2.2-2</code></a> When an Active Router sends an ND Neighbor Solicitation message for a host&#39;s IPv6 address, the Active Router MUST include the Virtual Router MAC address for the Virtual Router if it sends a source link- layer address option in the Neighbor Solicitation message. (§8.2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no Neighbor Solicitation -- the plugin&#39;s only ICMPv6 builder is BuildNA, type 136, internal/plugins/vrrp/transport/na.go:25,56, and no type-135 builder or NS send path exists anywhere under internal/plugins/vrrp</td>
 </tr>
-<tr><td><a href="#rfc9568-8.2.2-3"><code>RFC9568-8.2.2-3</code></a> Active: never use the physical MAC address in that source link-layer address option (§8.2.2)</td>
+<tr><td><a href="#rfc9568-8.2.2-3"><code>RFC9568-8.2.2-3</code></a> It MUST NOT use its physical MAC address in the source link-layer address option. (§8.2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no Neighbor Solicitation, so no source link-layer address option is authored by the plugin -- its only ICMPv6 builder is BuildNA, type 136, internal/plugins/vrrp/transport/na.go:25,56</td>
 </tr>
-<tr><td><a href="#rfc9568-8.2.3-1"><code>RFC9568-8.2.3-1</code></a> Configure Backup Routers to send the same Router Advertisement options as the address owner (§8.2.3)</td>
+<tr><td><a href="#rfc9568-8.2.3-1"><code>RFC9568-8.2.3-1</code></a> The Backup Routers MUST be configured to send the same Router Advertisement options as the address owner. (§8.2.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this governs the Router Advertisement option set, and ze offers no RA surface for a Virtual Router at all -- the vrrp YANG group has no RA leaf (applyGroupLeaves internal/plugins/vrrp/groups.go:355 accepts vrid, virtual-address, priority, preempt, preempt-delay-seconds, advertise-interval-milliseconds, accept-mode and version only) and the plugin builds no RA. The absent Active-side emission is the gap tracked at RFC9568-6.4.3-4</td>
 </tr>
@@ -1128,7 +1128,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze implements no VRRPv2/VRRPv3 dual mode -- a group runs exactly one version (parseVersion internal/plugins/vrrp/groups.go:429 admits 2 or 3, doSendAdvert internal/plugins/vrrp/instance.go:350 encodes that single spec.Version), and the receive ladder discards any advert whose wire version differs from the group&#39;s at internal/plugins/vrrp/packet/validate.go:149, so no dual-send path exists</td>
 </tr>
-<tr><td><a href="#rfc9568-8.4.2-2"><code>RFC9568-8.4.2-2</code></a> Interop mode, Backup: time out based on the rate advertised by the Active Router (§8.4.2)</td>
+<tr><td><a href="#rfc9568-8.4.2-2"><code>RFC9568-8.4.2-2</code></a> When a Virtual Router is configured this way and is the Backup Router, it MUST time out based on the rate advertised by the Active Router. (§8.4.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this requirement is scoped to the Section 8.4.2 interop mode, which ze does not implement -- one version per group (parseVersion internal/plugins/vrrp/groups.go:429) and a version-mismatch discard at internal/plugins/vrrp/packet/validate.go:149 mean a VRRPv2 Active Router is never heard by a v3 group at all. Native v3 interval adoption is the separate RFC9568-6.4.2-9</td>
 </tr>
@@ -1241,7 +1241,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-5.2.4-1"><code>RFC9568-5.2.4-1</code></a></h3>
-<p>Use Priority 255 for the VRRP Router that owns the Virtual Router&#39;s IPvX address(es) (§5.2.4)</p>
+<p>The priority value for the VRRP Router that owns the IPvX address associated with the Virtual Router MUST be 255 (decimal). (§5.2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1266,7 +1266,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-5.2.4-2"><code>RFC9568-5.2.4-2</code></a></h3>
-<p>Use Priority values 1-254 for VRRP Routers backing up a Virtual Router (§5.2.4)</p>
+<p>VRRP Routers backing up a Virtual Router MUST use priority values between 1-254 (decimal). (§5.2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1291,7 +1291,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-5.2.5-1"><code>RFC9568-5.2.5-1</code></a></h3>
-<p>Ignore a received VRRP advertisement whose IPvX Addr Count is 0 (§5.2.5, erratum 8299)</p>
+<p>If the received count is 0, the VRRP advertisement MUST be ignored. (§5.2.5, erratum 8299)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1311,7 +1311,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-5.2.6-1"><code>RFC9568-5.2.6-1</code></a></h3>
-<p>Set the Reserve field to zero on transmission and ignore it on reception (§5.2.6)</p>
+<p>The Reserve field MUST be set to zero on transmission and ignored on reception. (§5.2.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1331,7 +1331,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-5.2.9-1"><code>RFC9568-5.2.9-1</code></a></h3>
-<p>Send the IPv6 link-local address associated with the Virtual Router as the first address in the list (§5.2.9, §6.1, erratum 8300)</p>
+<p>For IPv6, the first address MUST be the IPv6 link-local address associated with the Virtual Router. (§5.2.9, §6.1, erratum 8300)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1381,7 +1381,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-6.1-1"><code>RFC9568-6.1-1</code></a></h3>
-<p>Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements when Accept_Mode is False (§6.1, §6.4.3)</p>
+<p>Note: IPv6 Neighbor Solicitations and Neighbor Advertisements MUST NOT be dropped when Accept_Mode is False. (§6.1, §6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1401,7 +1401,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-6.4.2-1"><code>RFC9568-6.4.2-1</code></a></h3>
-<p>Backup: never respond to ARP requests for the IPv4 address(es) associated with the Virtual Router (§6.4.2)</p>
+<p>- It MUST NOT respond to ARP requests for the IPv4 address(es) associated with the Virtual Router. (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1421,7 +1421,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-6.4.2-2"><code>RFC9568-6.4.2-2</code></a></h3>
-<p>Backup: never respond to ND Neighbor Solicitations for the IPv6 address(es) associated with the Virtual Router (§6.4.2)</p>
+<p>- It MUST NOT respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the Virtual Router. (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1441,11 +1441,11 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-6.4.2-3"><code>RFC9568-6.4.2-3</code></a></h3>
-<p>Backup: never send ND Router Advertisements for the Virtual Router (§6.4.2)</p>
+<p>- It MUST NOT send ND Router Advertisement messages for the Virtual Router. (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9568-6.4.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9568-6.4.2-4"><code>RFC9568-6.4.2-4</code></a></h3>
-<p>Backup: discard packets with a destination link-layer MAC address equal to the Virtual Router MAC address (§6.4.2)</p>
+<p>* It MUST discard packets with a destination link-layer MAC address equal to the Virtual Router MAC address. (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1465,7 +1465,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-6.4.2-5"><code>RFC9568-6.4.2-5</code></a></h3>
-<p>Backup: never accept packets addressed to the IPvX address(es) associated with the Virtual Router (§6.4.2)</p>
+<p>* It MUST NOT accept packets addressed to the IPvX address(es) associated with the Virtual Router. (§6.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1585,19 +1585,19 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-6.4.3-1"><code>RFC9568-6.4.3-1</code></a></h3>
-<p>Active: respond to ARP requests for the Virtual Router IPv4 address(es), answering with the Virtual Router MAC address (§6.4.3, §8.1.2)</p>
+<p>- It MUST respond to ARP requests for the IPv4 address(es) associated with the Virtual Router. (§6.4.3, §8.1.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L124" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L133" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L63" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L71" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1605,7 +1605,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-6.4.3-2"><code>RFC9568-6.4.3-2</code></a></h3>
-<p>Active (IPv6): be a member of the Solicited-Node multicast address for the Virtual Router IPv6 address(es) (§6.4.3)</p>
+<p>- It MUST be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the Virtual Router. (§6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1620,7 +1620,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-6.4.3-3"><code>RFC9568-6.4.3-3</code></a></h3>
-<p>Active (IPv6): respond to ND Neighbor Solicitations, with the Router Flag set, for the Virtual Router IPv6 address(es), answering with the Virtual Router MAC address (§6.4.3, §8.2.2)</p>
+<p>- It MUST respond to ND Neighbor Solicitation messages (with the Router Flag (R) set) for the IPv6 address(es) associated with the Virtual Router. (§6.4.3, §8.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9568-6.4.3-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9568-6.4.3-4"><code>RFC9568-6.4.3-4</code></a></h3>
@@ -1628,7 +1628,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9568-6.4.3-4, so no unit is bound to it.</p>
 <h3><a href="#rfc9568-6.4.3-5"><code>RFC9568-6.4.3-5</code></a></h3>
-<p>Active: forward packets with a destination link-layer MAC address equal to the Virtual Router MAC address (§6.4.3)</p>
+<p>* It MUST forward packets with a destination link-layer MAC address equal to the Virtual Router MAC address. (§6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1648,7 +1648,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-6.4.3-6"><code>RFC9568-6.4.3-6</code></a></h3>
-<p>Active: accept packets addressed to the Virtual Router IPvX address(es) if the IPvX address owner or if Accept_Mode is True (§6.4.3)</p>
+<p>* It MUST accept packets addressed to the IPvX address(es) associated with the Virtual Router if it is the IPvX address owner or if Accept_Mode is True. (§6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1813,7 +1813,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-7.1-1"><code>RFC9568-7.1-1</code></a></h3>
-<p>Rx: verify the VRRP version is 3 (§7.1)</p>
+<p>* It MUST verify that the VRRP version is 3. (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1833,7 +1833,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-7.1-2"><code>RFC9568-7.1-2</code></a></h3>
-<p>Rx: verify the VRRP packet type is 1 (ADVERTISEMENT) (§7.1)</p>
+<p>* It MUST verify that the VRRP packet type is 1 (ADVERTISEMENT). (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1853,7 +1853,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-7.1-3"><code>RFC9568-7.1-3</code></a></h3>
-<p>Rx: verify the received packet contains the complete VRRP packet, including fixed fields and the IPvX address list (§7.1)</p>
+<p>* It MUST verify that the received packet contains the complete VRRP packet (including fixed fields and the IPvX address). (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2023,23 +2023,23 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-7.4-1"><code>RFC9568-7.4-1</code></a></h3>
-<p>Never use the Virtual Router MAC as the Net_Iface parameter in RFC 7217 / RFC 8981 interface identifier derivation (§7.4)</p>
+<p>The Virtual Router MAC MUST NOT be used for the Net_Iface parameter used in the Interface Identifier (IID) derivation algorithms in [RFC7217] and [RFC8981]. (§7.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9568-7.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9568-8.1.2-1"><code>RFC9568-8.1.2-1</code></a></h3>
-<p>Active: never answer ARP requests for virtual addresses with the physical MAC address (§8.1.2)</p>
+<p>The Active Router MUST NOT respond with its physical MAC address in the ARP response. (§8.1.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L126" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L135" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L65" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L73" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneApplyIPv4SetsRecipe</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2047,7 +2047,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-8.1.2-2"><code>RFC9568-8.1.2-2</code></a></h3>
-<p>Delay gratuitous ARP at system boot until both the IPv4 address and the Virtual Router MAC address are configured (§8.1.2)</p>
+<p>* At system boot, when initializing interfaces for VRRP operation, gratuitous ARP messages MUST be delayed until both the IPv4 address and the Virtual Router MAC address are configured. (§8.1.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2067,11 +2067,11 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-8.1.3-1"><code>RFC9568-8.1.3-1</code></a></h3>
-<p>Advertise the Virtual Router MAC address in Proxy ARP messages for VRRP-protected addresses (§8.1.3)</p>
+<p>If Proxy ARP is to be used on a VRRP Router, then the VRRP Router MUST advertise the Virtual Router MAC address in the Proxy ARP message. (§8.1.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9568-8.1.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9568-8.2.2-1"><code>RFC9568-8.2.2-1</code></a></h3>
-<p>Active: never answer ND Neighbor Solicitations for virtual addresses with the physical MAC address (§8.2.2)</p>
+<p>The Active Router MUST NOT respond with its physical MAC address. (§8.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2086,15 +2086,15 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-8.2.2-2"><code>RFC9568-8.2.2-2</code></a></h3>
-<p>Active: include the Virtual Router MAC in the source link-layer address option of Neighbor Solicitations it sends for hosts (when the option is present) (§8.2.2)</p>
+<p>When an Active Router sends an ND Neighbor Solicitation message for a host&#39;s IPv6 address, the Active Router MUST include the Virtual Router MAC address for the Virtual Router if it sends a source link- layer address option in the Neighbor Solicitation message. (§8.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9568-8.2.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9568-8.2.2-3"><code>RFC9568-8.2.2-3</code></a></h3>
-<p>Active: never use the physical MAC address in that source link-layer address option (§8.2.2)</p>
+<p>It MUST NOT use its physical MAC address in the source link-layer address option. (§8.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9568-8.2.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9568-8.2.2-4"><code>RFC9568-8.2.2-4</code></a></h3>
-<p>Delay all ND Router Advertisements, Neighbor Advertisements, and Neighbor Solicitations at boot until both the IPv6 address and the Virtual Router MAC address are configured (§8.2.2)</p>
+<p>* At system boot, when initializing interfaces for VRRP operation, all ND Router Advertisements, ND Neighbor Advertisements, and ND Neighbor Solicitation messages MUST be delayed until both the IPv6 address and the Virtual Router MAC address are configured. (§8.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2114,7 +2114,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 </table>
 </div>
 <h3><a href="#rfc9568-8.2.3-1"><code>RFC9568-8.2.3-1</code></a></h3>
-<p>Configure Backup Routers to send the same Router Advertisement options as the address owner (§8.2.3)</p>
+<p>The Backup Routers MUST be configured to send the same Router Advertisement options as the address owner. (§8.2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9568-8.2.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9568-8.4.2-1"><code>RFC9568-8.4.2-1</code></a></h3>
@@ -2122,7 +2122,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9568-8.4.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9568-8.4.2-2"><code>RFC9568-8.4.2-2</code></a></h3>
-<p>Interop mode, Backup: time out based on the rate advertised by the Active Router (§8.4.2)</p>
+<p>When a Virtual Router is configured this way and is the Backup Router, it MUST time out based on the rate advertised by the Active Router. (§8.4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9568-8.4.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9568-8.4.2-3"><code>RFC9568-8.4.2-3</code></a></h3>
@@ -2770,7 +2770,7 @@ Default version. Advert encode/decode, the RFC 9568 Section 6.4 state machine (B
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

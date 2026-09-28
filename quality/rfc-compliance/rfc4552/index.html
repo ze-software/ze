@@ -325,7 +325,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> an esp interface always installs an SA with Proto=ProtoESP (ipsecProtoNumber, ipsec_install.go); &#34;supporting ESP&#34; has no reject path of its own</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-3-4">RFC4552-3-4</code></td><td colspan="3"><span class="rfc-subject">When OSPFv3 authentication is enabled, OSPFv3 packets that are not protected with AH or ESP MUST be silently discarded (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-3-4">RFC4552-3-4</code></td><td colspan="3"><span class="rfc-subject">o OSPFv3 packets that are not protected with AH or ESP MUST be silently discarded. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -334,7 +334,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies installs the inbound require-policy (SADirIn, transport mode, upper-protocol 89, scoped to the arrival ifindex), and Linux XFRM discards an OSPFv3 packet that arrives on that interface without the required AH or ESP transform. Ze only samples the resulting counters (readXfrmDropsPlatform, ipsec_drops_linux.go)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-3-5">RFC4552-3-5</code></td><td colspan="3"><span class="rfc-subject">When OSPFv3 authentication is enabled, OSPFv3 packets that fail the authentication checks MUST be silently discarded (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-3-5">RFC4552-3-5</code></td><td colspan="3"><span class="rfc-subject">o OSPFv3 packets that fail the authentication checks MUST be silently discarded. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -352,7 +352,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L88" title="internal/plugins/ospf/config_ipsec_test.go" target="_blank" rel="noopener"><code>TestIPsecAHWithEncryptionRejected</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-4-3">RFC4552-4-3</code></td><td colspan="3"><span class="rfc-subject">When OSPFv3 confidentiality is enabled, OSPFv3 packets that are not protected with ESP MUST be silently discarded (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-4-3">RFC4552-4-3</code></td><td colspan="3"><span class="rfc-subject">o OSPFv3 packets that are not protected with ESP MUST be silently discarded. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -361,7 +361,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies installs the inbound require-policy on a confidentiality-enabled interface, and Linux XFRM discards an OSPFv3 packet that arrives there without the required ESP transform</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-4-4">RFC4552-4-4</code></td><td colspan="3"><span class="rfc-subject">When OSPFv3 confidentiality is enabled, OSPFv3 packets that fail the confidentiality checks MUST be silently discarded (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-4-4">RFC4552-4-4</code></td><td colspan="3"><span class="rfc-subject">o OSPFv3 packets that fail the confidentiality checks MUST be silently discarded. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -379,7 +379,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> every installed policy is transport mode (buildIPsecPolicies Mode=ModeTransport, ipsec_install.go); there is no non-transport policy to reject</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-2">RFC4552-6-2</code></td><td colspan="3"><span class="rfc-subject">The implementation MUST support multiple SPDs with an SPD selection function that chooses a specific SPD based on interface (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-2">RFC4552-6-2</code></td><td colspan="3"><span class="rfc-subject">Multiple Security Policy Databases (SPDs) The implementation MUST support multiple SPDs with an SPD selection function that provides an ability to choose a specific SPD based on interface. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -397,7 +397,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> every policy carries source, destination, upper-protocol 89, and direction selectors (buildIPsecPolicies, ipsec_install.go); a selector set is emitted, never rejected</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-4">RFC4552-6-4</code></td><td colspan="3"><span class="rfc-subject">The implementation MUST be able to tag inbound packets with the ID of the (physical or virtual) interface via which they arrived (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-4">RFC4552-6-4</code></td><td colspan="3"><span class="rfc-subject">Interface ID tagging The implementation MUST be able to tag the inbound packets with the ID of the interface (physical or virtual) via which it arrived. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -442,7 +442,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the transport-mode ESP SA and asks for no UDP encapsulation, so xfrmStateFromParams writes no Encap, and Linux XFRM carries every ESP packet directly in IP</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-11">RFC4552-6-11</code></td><td colspan="3"><span class="rfc-subject">The IPsec implementation MUST support the establishment and maintenance of multiple SAs with the same selectors between a given sender and receiver (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-6-11">RFC4552-6-11</code></td><td colspan="3"><span class="rfc-subject">Different SAs for different Differentiated Services Code Points (DSCPs) As per [N3], the IPsec implementation MUST support the establishment and maintenance of multiple SAs with the same selectors between a given sender and receiver. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -451,7 +451,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams writes each state with its own SPI, and Linux XFRM keys the SAD by destination, SPI and protocol, so several SAs carrying one selector set coexist between a given sender and receiver</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-7-1">RFC4552-7-1</code></td><td colspan="3"><span class="rfc-subject">The implementations MUST use manually configured keys with the same SA parameters (SPI, keys, etc.) for both inbound and outbound SAs (§7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-7-1">RFC4552-7-1</code></td><td colspan="3"><span class="rfc-subject">Therefore, the implementations MUST use manually configured keys with the same SA parameters (Security Parameter Index (SPI), keys, etc.) for both inbound and outbound SAs (as shown in Figure 3). (§7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7</td>
@@ -469,7 +469,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> OSPFv3 virtual-link IPsec is unimplemented; the installer consumes only configured-interface IPsec blocks (setConfig over cfg.Interfaces, ipsec_install.go) and no virtual link ever installs an SA. Disclosed in docs/features/rfc-status.md RFC 4552 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-9-2">RFC4552-9-2</code></td><td colspan="3"><span class="rfc-subject">Routers that implement this specification MUST change the way source and destination addresses are chosen for packets exchanged over virtual links when IPsec is enabled (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-9-2">RFC4552-9-2</code></td><td colspan="3"><span class="rfc-subject">Hence, routers that implement this specification MUST change the way the source and destination addresses are chosen for packets exchanged over virtual links when IPsec is enabled. (§9)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>9</td>
@@ -478,7 +478,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze never enables IPsec on a virtual link, so it does not switch virtual-link source/destination selection when IPsec is on; the endpoints stay RFC 5340 §2.9 routed globals (v6ResolveVirtualEndpointLocked, virtuallink_v6.go:28-35). Disclosed in docs/features/rfc-status.md RFC 4552 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-9-3">RFC4552-9-3</code></td><td colspan="3"><span class="rfc-subject">The first IPv6 address with the &#34;LA-bit&#34; set in prefixes advertised in intra-area-prefix-LSAs in the transit area MUST be used as the source address for packets exchanged over the virtual link (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-9-3">RFC4552-9-3</code></td><td colspan="3"><span class="rfc-subject">The first IPv6 address with the &#34;LA-bit&#34; set in the list of prefixes advertised in intra-area-prefix-LSAs in the transit area MUST be used as the source address for packets exchanged over the virtual link. (§9)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>9</td>
@@ -487,7 +487,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> virtual-link IPsec is unimplemented, so the RFC 4552 §9 rule of using the first LA-bit intra-area-prefix address as the source is not applied; ze selects the source from RFC 5340 routed globals (v6RouterGlobalAddr, virtuallink_v6.go:42-81). Disclosed in docs/features/rfc-status.md RFC 4552 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-9-4">RFC4552-9-4</code></td><td colspan="3"><span class="rfc-subject">The first IPv6 address with the &#34;LA-bit&#34; set in prefixes received in intra-area-prefix-LSAs from the virtual neighbor in the transit area MUST be used as the destination address for packets exchanged over the virtual link (§9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-9-4">RFC4552-9-4</code></td><td colspan="3"><span class="rfc-subject">The first IPv6 address with the &#34;LA-bit&#34; set in the list of prefixes received in intra-area-prefix-LSAs from the virtual neighbor in the transit area MUST be used as the destination address for packets exchanged over the virtual link. (§9)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>9</td>
@@ -496,7 +496,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the matching destination rule (first LA-bit intra-area-prefix address of the virtual neighbor) is likewise unapplied because virtual-link IPsec is unimplemented (virtuallink_v6.go:28-35). Disclosed in docs/features/rfc-status.md RFC 4552 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-1">RFC4552-11-1</code></td><td colspan="3"><span class="rfc-subject">The IPsec protection barrier MUST be around the OSPF protocol so that all inbound and outbound OSPF traffic goes through IPsec processing (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-1">RFC4552-11-1</code></td><td colspan="3"><span class="rfc-subject">The IPsec protection barrier MUST be around the OSPF protocol. (§11)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>11</td>
@@ -505,7 +505,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the out/in/fwd proto-89 policies put the IPsec barrier around all OSPF traffic on the interface (buildIPsecPolicies, ipsec_install.go); the barrier is installed, never rejected</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-2">RFC4552-11-2</code></td><td colspan="3"><span class="rfc-subject">The SPD selection function MUST return an SPD with the bypass rule for all interfaces that have OSPFv3 authentication/confidentiality disabled (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-2">RFC4552-11-2</code></td><td colspan="3"><span class="rfc-subject">The SPD selection function MUST return an SPD with the following rule for all the interfaces that have OSPFv3 authentication/confidentiality disabled. (§11)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>11</td>
@@ -514,7 +514,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a disabled interface installs no require-policy (setConfig adds only interfaces with an IPsec block, ipsec_install.go), so its OSPF is bypassed by the kernel default; the bypass has no reject path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-3">RFC4552-11-3</code></td><td colspan="3"><span class="rfc-subject">The SPD selection function MUST return an SPD with the protect rules for all interfaces that have OSPFv3 authentication/confidentiality enabled (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-3">RFC4552-11-3</code></td><td colspan="3"><span class="rfc-subject">No. source destination protocol action 1 any any OSPF bypass The SPD selection function MUST return an SPD with the following rules for all the interfaces that have OSPFv3 authentication/confidentiality enabled. (§11)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>11</td>
@@ -523,7 +523,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> an enabled interface installs the out/in/fwd protect (require) policies (installLocked, ipsec_install.go); the protect rules are installed, never rejected</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-4">RFC4552-11-4</code></td><td colspan="3"><span class="rfc-subject">The virtual-link SPD rules MUST be installed in the SPD for the interfaces that are connected to the transit area for the virtual link (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-11-4">RFC4552-11-4</code></td><td colspan="3"><span class="rfc-subject">These rules MUST be installed in the SPD for the interfaces that are connected to the transit area for the virtual link. (§11)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>11</td>
@@ -613,7 +613,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-2-3">RFC4552-2-3</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY also support tunnel mode SA to provide required IPsec security to OSPFv3 packets (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4552-2-3">RFC4552-2-3</code></td><td colspan="3"><span class="rfc-subject">They MAY also support tunnel mode SA to provide required IPsec security to OSPFv3 packets. (§2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2</td>
@@ -649,19 +649,19 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc4552-3-4"><code>RFC4552-3-4</code></a> When OSPFv3 authentication is enabled, OSPFv3 packets that are not protected with AH or ESP MUST be silently discarded (§3)</td>
+<tr><td><a href="#rfc4552-3-4"><code>RFC4552-3-4</code></a> o OSPFv3 packets that are not protected with AH or ESP MUST be silently discarded. (§3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies installs the inbound require-policy (SADirIn, transport mode, upper-protocol 89, scoped to the arrival ifindex), and Linux XFRM discards an OSPFv3 packet that arrives on that interface without the required AH or ESP transform. Ze only samples the resulting counters (readXfrmDropsPlatform, ipsec_drops_linux.go)</td>
 </tr>
-<tr><td><a href="#rfc4552-3-5"><code>RFC4552-3-5</code></a> When OSPFv3 authentication is enabled, OSPFv3 packets that fail the authentication checks MUST be silently discarded (§3)</td>
+<tr><td><a href="#rfc4552-3-5"><code>RFC4552-3-5</code></a> o OSPFv3 packets that fail the authentication checks MUST be silently discarded. (§3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs the integrity transform and its truncation length, and Linux XFRM discards a packet whose ICV does not verify. Ze holds no verifying branch of its own and reads only the XfrmInIntegFailures/XfrmInStateProtoError counters</td>
 </tr>
-<tr><td><a href="#rfc4552-4-3"><code>RFC4552-4-3</code></a> When OSPFv3 confidentiality is enabled, OSPFv3 packets that are not protected with ESP MUST be silently discarded (§4)</td>
+<tr><td><a href="#rfc4552-4-3"><code>RFC4552-4-3</code></a> o OSPFv3 packets that are not protected with ESP MUST be silently discarded. (§4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies installs the inbound require-policy on a confidentiality-enabled interface, and Linux XFRM discards an OSPFv3 packet that arrives there without the required ESP transform</td>
 </tr>
-<tr><td><a href="#rfc4552-4-4"><code>RFC4552-4-4</code></a> When OSPFv3 confidentiality is enabled, OSPFv3 packets that fail the confidentiality checks MUST be silently discarded (§4)</td>
+<tr><td><a href="#rfc4552-4-4"><code>RFC4552-4-4</code></a> o OSPFv3 packets that fail the confidentiality checks MUST be silently discarded. (§4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs the ESP encryption transform beside the integrity one, and Linux XFRM discards a packet whose decryption or integrity check fails</td>
 </tr>
@@ -673,7 +673,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the transport-mode ESP SA and asks for no UDP encapsulation, so xfrmStateFromParams writes no Encap, and Linux XFRM carries every ESP packet directly in IP</td>
 </tr>
-<tr><td><a href="#rfc4552-6-11"><code>RFC4552-6-11</code></a> The IPsec implementation MUST support the establishment and maintenance of multiple SAs with the same selectors between a given sender and receiver (§6)</td>
+<tr><td><a href="#rfc4552-6-11"><code>RFC4552-6-11</code></a> Different SAs for different Differentiated Services Code Points (DSCPs) As per [N3], the IPsec implementation MUST support the establishment and maintenance of multiple SAs with the same selectors between a given sender and receiver. (§6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams writes each state with its own SPI, and Linux XFRM keys the SAD by destination, SPI and protocol, so several SAs carrying one selector set coexist between a given sender and receiver</td>
 </tr>
@@ -681,19 +681,19 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <td>{gap}, no test</td>
 <td>OSPFv3 virtual-link IPsec is unimplemented; the installer consumes only configured-interface IPsec blocks (setConfig over cfg.Interfaces, ipsec_install.go) and no virtual link ever installs an SA. Disclosed in docs/features/rfc-status.md RFC 4552 row</td>
 </tr>
-<tr><td><a href="#rfc4552-9-2"><code>RFC4552-9-2</code></a> Routers that implement this specification MUST change the way source and destination addresses are chosen for packets exchanged over virtual links when IPsec is enabled (§9)</td>
+<tr><td><a href="#rfc4552-9-2"><code>RFC4552-9-2</code></a> Hence, routers that implement this specification MUST change the way the source and destination addresses are chosen for packets exchanged over virtual links when IPsec is enabled. (§9)</td>
 <td>{gap}, no test</td>
 <td>ze never enables IPsec on a virtual link, so it does not switch virtual-link source/destination selection when IPsec is on; the endpoints stay RFC 5340 §2.9 routed globals (v6ResolveVirtualEndpointLocked, virtuallink_v6.go:28-35). Disclosed in docs/features/rfc-status.md RFC 4552 row</td>
 </tr>
-<tr><td><a href="#rfc4552-9-3"><code>RFC4552-9-3</code></a> The first IPv6 address with the &#34;LA-bit&#34; set in prefixes advertised in intra-area-prefix-LSAs in the transit area MUST be used as the source address for packets exchanged over the virtual link (§9)</td>
+<tr><td><a href="#rfc4552-9-3"><code>RFC4552-9-3</code></a> The first IPv6 address with the &#34;LA-bit&#34; set in the list of prefixes advertised in intra-area-prefix-LSAs in the transit area MUST be used as the source address for packets exchanged over the virtual link. (§9)</td>
 <td>{gap}, no test</td>
 <td>virtual-link IPsec is unimplemented, so the RFC 4552 §9 rule of using the first LA-bit intra-area-prefix address as the source is not applied; ze selects the source from RFC 5340 routed globals (v6RouterGlobalAddr, virtuallink_v6.go:42-81). Disclosed in docs/features/rfc-status.md RFC 4552 row</td>
 </tr>
-<tr><td><a href="#rfc4552-9-4"><code>RFC4552-9-4</code></a> The first IPv6 address with the &#34;LA-bit&#34; set in prefixes received in intra-area-prefix-LSAs from the virtual neighbor in the transit area MUST be used as the destination address for packets exchanged over the virtual link (§9)</td>
+<tr><td><a href="#rfc4552-9-4"><code>RFC4552-9-4</code></a> The first IPv6 address with the &#34;LA-bit&#34; set in the list of prefixes received in intra-area-prefix-LSAs from the virtual neighbor in the transit area MUST be used as the destination address for packets exchanged over the virtual link. (§9)</td>
 <td>{gap}, no test</td>
 <td>the matching destination rule (first LA-bit intra-area-prefix address of the virtual neighbor) is likewise unapplied because virtual-link IPsec is unimplemented (virtuallink_v6.go:28-35). Disclosed in docs/features/rfc-status.md RFC 4552 row</td>
 </tr>
-<tr><td><a href="#rfc4552-11-4"><code>RFC4552-11-4</code></a> The virtual-link SPD rules MUST be installed in the SPD for the interfaces that are connected to the transit area for the virtual link (§11)</td>
+<tr><td><a href="#rfc4552-11-4"><code>RFC4552-11-4</code></a> These rules MUST be installed in the SPD for the interfaces that are connected to the transit area for the virtual link. (§11)</td>
 <td>{gap}, no test</td>
 <td>no virtual-link SPD rules are installed on transit-area interfaces because virtual-link IPsec is unimplemented (ipsec_install.go installs only configured-interface policies). Disclosed in docs/features/rfc-status.md RFC 4552 row</td>
 </tr>
@@ -754,11 +754,11 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 </table>
 </div>
 <h3><a href="#rfc4552-3-4"><code>RFC4552-3-4</code></a></h3>
-<p>When OSPFv3 authentication is enabled, OSPFv3 packets that are not protected with AH or ESP MUST be silently discarded (§3)</p>
+<p>o OSPFv3 packets that are not protected with AH or ESP MUST be silently discarded. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4552-3-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4552-3-5"><code>RFC4552-3-5</code></a></h3>
-<p>When OSPFv3 authentication is enabled, OSPFv3 packets that fail the authentication checks MUST be silently discarded (§3)</p>
+<p>o OSPFv3 packets that fail the authentication checks MUST be silently discarded. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4552-3-5, so no unit is bound to it.</p>
 <h3><a href="#rfc4552-4-2"><code>RFC4552-4-2</code></a></h3>
@@ -782,11 +782,11 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 </table>
 </div>
 <h3><a href="#rfc4552-4-3"><code>RFC4552-4-3</code></a></h3>
-<p>When OSPFv3 confidentiality is enabled, OSPFv3 packets that are not protected with ESP MUST be silently discarded (§4)</p>
+<p>o OSPFv3 packets that are not protected with ESP MUST be silently discarded. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4552-4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4552-4-4"><code>RFC4552-4-4</code></a></h3>
-<p>When OSPFv3 confidentiality is enabled, OSPFv3 packets that fail the confidentiality checks MUST be silently discarded (§4)</p>
+<p>o OSPFv3 packets that fail the confidentiality checks MUST be silently discarded. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4552-4-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4552-6-1"><code>RFC4552-6-1</code></a></h3>
@@ -805,7 +805,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 </table>
 </div>
 <h3><a href="#rfc4552-6-2"><code>RFC4552-6-2</code></a></h3>
-<p>The implementation MUST support multiple SPDs with an SPD selection function that chooses a specific SPD based on interface (§6)</p>
+<p>Multiple Security Policy Databases (SPDs) The implementation MUST support multiple SPDs with an SPD selection function that provides an ability to choose a specific SPD based on interface. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -835,7 +835,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 </table>
 </div>
 <h3><a href="#rfc4552-6-4"><code>RFC4552-6-4</code></a></h3>
-<p>The implementation MUST be able to tag inbound packets with the ID of the (physical or virtual) interface via which they arrived (§6)</p>
+<p>Interface ID tagging The implementation MUST be able to tag the inbound packets with the ID of the interface (physical or virtual) via which it arrived. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -893,11 +893,11 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4552-6-9, so no unit is bound to it.</p>
 <h3><a href="#rfc4552-6-11"><code>RFC4552-6-11</code></a></h3>
-<p>The IPsec implementation MUST support the establishment and maintenance of multiple SAs with the same selectors between a given sender and receiver (§6)</p>
+<p>Different SAs for different Differentiated Services Code Points (DSCPs) As per [N3], the IPsec implementation MUST support the establishment and maintenance of multiple SAs with the same selectors between a given sender and receiver. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4552-6-11, so no unit is bound to it.</p>
 <h3><a href="#rfc4552-7-1"><code>RFC4552-7-1</code></a></h3>
-<p>The implementations MUST use manually configured keys with the same SA parameters (SPI, keys, etc.) for both inbound and outbound SAs (§7)</p>
+<p>Therefore, the implementations MUST use manually configured keys with the same SA parameters (Security Parameter Index (SPI), keys, etc.) for both inbound and outbound SAs (as shown in Figure 3). (§7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -916,19 +916,19 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4552-9-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4552-9-2"><code>RFC4552-9-2</code></a></h3>
-<p>Routers that implement this specification MUST change the way source and destination addresses are chosen for packets exchanged over virtual links when IPsec is enabled (§9)</p>
+<p>Hence, routers that implement this specification MUST change the way the source and destination addresses are chosen for packets exchanged over virtual links when IPsec is enabled. (§9)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4552-9-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4552-9-3"><code>RFC4552-9-3</code></a></h3>
-<p>The first IPv6 address with the &#34;LA-bit&#34; set in prefixes advertised in intra-area-prefix-LSAs in the transit area MUST be used as the source address for packets exchanged over the virtual link (§9)</p>
+<p>The first IPv6 address with the &#34;LA-bit&#34; set in the list of prefixes advertised in intra-area-prefix-LSAs in the transit area MUST be used as the source address for packets exchanged over the virtual link. (§9)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4552-9-3, so no unit is bound to it.</p>
 <h3><a href="#rfc4552-9-4"><code>RFC4552-9-4</code></a></h3>
-<p>The first IPv6 address with the &#34;LA-bit&#34; set in prefixes received in intra-area-prefix-LSAs from the virtual neighbor in the transit area MUST be used as the destination address for packets exchanged over the virtual link (§9)</p>
+<p>The first IPv6 address with the &#34;LA-bit&#34; set in the list of prefixes received in intra-area-prefix-LSAs from the virtual neighbor in the transit area MUST be used as the destination address for packets exchanged over the virtual link. (§9)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4552-9-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4552-11-1"><code>RFC4552-11-1</code></a></h3>
-<p>The IPsec protection barrier MUST be around the OSPF protocol so that all inbound and outbound OSPF traffic goes through IPsec processing (§11)</p>
+<p>The IPsec protection barrier MUST be around the OSPF protocol. (§11)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -943,7 +943,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 </table>
 </div>
 <h3><a href="#rfc4552-11-2"><code>RFC4552-11-2</code></a></h3>
-<p>The SPD selection function MUST return an SPD with the bypass rule for all interfaces that have OSPFv3 authentication/confidentiality disabled (§11)</p>
+<p>The SPD selection function MUST return an SPD with the following rule for all the interfaces that have OSPFv3 authentication/confidentiality disabled. (§11)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -958,7 +958,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 </table>
 </div>
 <h3><a href="#rfc4552-11-3"><code>RFC4552-11-3</code></a></h3>
-<p>The SPD selection function MUST return an SPD with the protect rules for all interfaces that have OSPFv3 authentication/confidentiality enabled (§11)</p>
+<p>No. source destination protocol action 1 any any OSPF bypass The SPD selection function MUST return an SPD with the following rules for all the interfaces that have OSPFv3 authentication/confidentiality enabled. (§11)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -973,7 +973,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
 </table>
 </div>
 <h3><a href="#rfc4552-11-4"><code>RFC4552-11-4</code></a></h3>
-<p>The virtual-link SPD rules MUST be installed in the SPD for the interfaces that are connected to the transit area for the virtual link (§11)</p>
+<p>These rules MUST be installed in the SPD for the interfaces that are connected to the transit area for the virtual link. (§11)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4552-11-4, so no unit is bound to it.</p>
 <h3><a href="#rfc4552-12-1"><code>RFC4552-12-1</code></a></h3>
@@ -1261,7 +1261,7 @@ Manual AH and ESP IPsec on configured OSPFv3 interfaces: config validation, SA a
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

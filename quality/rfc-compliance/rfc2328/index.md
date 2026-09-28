@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 47.1% | 24 of 51 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 98.0% | 50 of 51 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 51 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 51 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 59 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 39.6% | 44 of 111 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -33,7 +33,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 52.9% | 27 of 51 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 2.0% | 1 of 51 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 7 shares marked as a part above are the whole of the 51 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -63,12 +63,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 51 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 1 |
-| Gated with no test | 26 |
+| Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 61 |
-| Tagged units | 59 |
+| Test tags | 113 |
+| Tagged units | 111 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 44 |
 | Summary | `rfc/short/rfc2328.md` |
 | Requirement shard | `rfc/requirements/rfc2328.md` |
 | RFC text | `rfc/full/rfc2328.txt` |
@@ -87,25 +87,23 @@ Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 
 
 **What the ledger says remains**
 
-The MUST gap recorded for [`RFC2328-13.3-2`](#rfc2328-13.3-2) stands: the InfTransDelay increment of LS age is applied on retransmission ([`internal/plugins/ospf/lsdb/flooding.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding.go)) and on a direct database-copy reply ([`internal/plugins/ospf/lsdb/flooding.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding.go)), but the normal flood path copies the LSA with transmit delay 0 (`floodExcept` -> `entry.LSA(d.now())` -> `Raw(now, 0)`, [`internal/plugins/ospf/lsdb/flooding.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding.go) and [`internal/plugins/ospf/lsdb/entry.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/entry.go)), so a first-flooded LSA carries an unincremented age. The extraction walk of 2026-09-21 added 26 MUST rows the checklist did not carry ([`RFC2328-3.6-1`](#rfc2328-3.6-1), 4.4-1 to 4.4-3, 8.1-1, 8.2-1 to 8.2-3, 9.1-1, 9.5.1-1, 10.5-1, 10.6-1, 12.1.6-1, 12.2-1, 12.4-1, 12.4.1-1, 12.4.3-1, 13-5 to 13-7, 13.3-3, 15-2, 16.1-3, A.1-1, A.1-2, A.4.4-1); each states an obligation RFC 2328 writes and none carries a tagged test yet, so they are untested MUSTs on this ledger. The feature also remains pre-production pending hardening and deployment evidence.
+The [`RFC2328-13.3-2`](#rfc2328-13.3-2) normal-flood InfTransDelay gap remains recorded below. The 2026-09-21 extraction added obligations that require current positive/negative coverage and discrimination. New IP-envelope, source-address, classless-route and virtual-link carriers have been added; current runner proof and deployment evidence remain pending.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 24 | one part of the gated population |
+| Positive and negative tests | 50 | one part of the gated population |
 | Annotated instead of tested | 1 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 26 | one part of the gated population |
+| No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **51** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (24):** [`RFC2328-A.3.1-1`](#rfc2328-a.3.1-1), [`RFC2328-A.3.1-2`](#rfc2328-a.3.1-2), [`RFC2328-12.1.7-1`](#rfc2328-12.1.7-1), [`RFC2328-13-1`](#rfc2328-13-1), [`RFC2328-13-2`](#rfc2328-13-2), [`RFC2328-13-3`](#rfc2328-13-3), [`RFC2328-13.1-1`](#rfc2328-13.1-1), [`RFC2328-13-4`](#rfc2328-13-4), [`RFC2328-13.3-1`](#rfc2328-13.3-1), [`RFC2328-14-1`](#rfc2328-14-1), [`RFC2328-14-2`](#rfc2328-14-2), [`RFC2328-13.5-1`](#rfc2328-13.5-1), [`RFC2328-13.4-1`](#rfc2328-13.4-1), [`RFC2328-16.1-1`](#rfc2328-16.1-1), [`RFC2328-16.4-1`](#rfc2328-16.4-1), [`RFC2328-16.2-1`](#rfc2328-16.2-1), [`RFC2328-16.2-2`](#rfc2328-16.2-2), [`RFC2328-D.2-1`](#rfc2328-d.2-1), [`RFC2328-D.3-1`](#rfc2328-d.3-1), [`RFC2328-D.3-2`](#rfc2328-d.3-2), [`RFC2328-A.3.3-1`](#rfc2328-a.3.3-1), [`RFC2328-10.1-1`](#rfc2328-10.1-1), [`RFC2328-10.2-1`](#rfc2328-10.2-1), [`RFC2328-C.3-1`](#rfc2328-c.3-1)
+**Positive and negative tests (50):** [`RFC2328-A.3.1-1`](#rfc2328-a.3.1-1), [`RFC2328-A.3.1-2`](#rfc2328-a.3.1-2), [`RFC2328-12.1.7-1`](#rfc2328-12.1.7-1), [`RFC2328-13-1`](#rfc2328-13-1), [`RFC2328-13-2`](#rfc2328-13-2), [`RFC2328-13-3`](#rfc2328-13-3), [`RFC2328-13.1-1`](#rfc2328-13.1-1), [`RFC2328-13-4`](#rfc2328-13-4), [`RFC2328-13.3-1`](#rfc2328-13.3-1), [`RFC2328-14-1`](#rfc2328-14-1), [`RFC2328-14-2`](#rfc2328-14-2), [`RFC2328-13.5-1`](#rfc2328-13.5-1), [`RFC2328-13.4-1`](#rfc2328-13.4-1), [`RFC2328-16.1-1`](#rfc2328-16.1-1), [`RFC2328-16.4-1`](#rfc2328-16.4-1), [`RFC2328-16.2-1`](#rfc2328-16.2-1), [`RFC2328-16.2-2`](#rfc2328-16.2-2), [`RFC2328-D.2-1`](#rfc2328-d.2-1), [`RFC2328-D.3-1`](#rfc2328-d.3-1), [`RFC2328-D.3-2`](#rfc2328-d.3-2), [`RFC2328-A.3.3-1`](#rfc2328-a.3.3-1), [`RFC2328-10.1-1`](#rfc2328-10.1-1), [`RFC2328-10.2-1`](#rfc2328-10.2-1), [`RFC2328-C.3-1`](#rfc2328-c.3-1), [`RFC2328-3.6-1`](#rfc2328-3.6-1), [`RFC2328-4.4-1`](#rfc2328-4.4-1), [`RFC2328-4.4-2`](#rfc2328-4.4-2), [`RFC2328-4.4-3`](#rfc2328-4.4-3), [`RFC2328-8.1-1`](#rfc2328-8.1-1), [`RFC2328-8.2-1`](#rfc2328-8.2-1), [`RFC2328-8.2-2`](#rfc2328-8.2-2), [`RFC2328-8.2-3`](#rfc2328-8.2-3), [`RFC2328-9.1-1`](#rfc2328-9.1-1), [`RFC2328-9.5.1-1`](#rfc2328-9.5.1-1), [`RFC2328-10.5-1`](#rfc2328-10.5-1), [`RFC2328-10.6-1`](#rfc2328-10.6-1), [`RFC2328-12.1.6-1`](#rfc2328-12.1.6-1), [`RFC2328-12.2-1`](#rfc2328-12.2-1), [`RFC2328-12.4-1`](#rfc2328-12.4-1), [`RFC2328-12.4.1-1`](#rfc2328-12.4.1-1), [`RFC2328-12.4.3-1`](#rfc2328-12.4.3-1), [`RFC2328-13-5`](#rfc2328-13-5), [`RFC2328-13-6`](#rfc2328-13-6), [`RFC2328-13-7`](#rfc2328-13-7), [`RFC2328-13.3-3`](#rfc2328-13.3-3), [`RFC2328-15-2`](#rfc2328-15-2), [`RFC2328-16.1-3`](#rfc2328-16.1-3), [`RFC2328-A.1-1`](#rfc2328-a.1-1), [`RFC2328-A.1-2`](#rfc2328-a.1-2), [`RFC2328-A.4.4-1`](#rfc2328-a.4.4-1)
 
 **Annotated instead of tested (1):** [`RFC2328-13.3-2`](#rfc2328-13.3-2)
-
-**No test and no annotation (26):** [`RFC2328-3.6-1`](#rfc2328-3.6-1), [`RFC2328-4.4-1`](#rfc2328-4.4-1), [`RFC2328-4.4-2`](#rfc2328-4.4-2), [`RFC2328-4.4-3`](#rfc2328-4.4-3), [`RFC2328-8.1-1`](#rfc2328-8.1-1), [`RFC2328-8.2-1`](#rfc2328-8.2-1), [`RFC2328-8.2-2`](#rfc2328-8.2-2), [`RFC2328-8.2-3`](#rfc2328-8.2-3), [`RFC2328-9.1-1`](#rfc2328-9.1-1), [`RFC2328-9.5.1-1`](#rfc2328-9.5.1-1), [`RFC2328-10.5-1`](#rfc2328-10.5-1), [`RFC2328-10.6-1`](#rfc2328-10.6-1), [`RFC2328-12.1.6-1`](#rfc2328-12.1.6-1), [`RFC2328-12.2-1`](#rfc2328-12.2-1), [`RFC2328-12.4-1`](#rfc2328-12.4-1), [`RFC2328-12.4.1-1`](#rfc2328-12.4.1-1), [`RFC2328-12.4.3-1`](#rfc2328-12.4.3-1), [`RFC2328-13-5`](#rfc2328-13-5), [`RFC2328-13-6`](#rfc2328-13-6), [`RFC2328-13-7`](#rfc2328-13-7), [`RFC2328-13.3-3`](#rfc2328-13.3-3), [`RFC2328-15-2`](#rfc2328-15-2), [`RFC2328-16.1-3`](#rfc2328-16.1-3), [`RFC2328-A.1-1`](#rfc2328-a.1-1), [`RFC2328-A.1-2`](#rfc2328-a.1-2), [`RFC2328-A.4.4-1`](#rfc2328-a.4.4-1)
 
 ## Requirements
 
@@ -129,39 +127,39 @@ The MUST gap recorded for [`RFC2328-13.3-2`](#rfc2328-13.3-2) stands: the InfTra
 | `RFC2328-16.4-1` | Prefer intra-area and inter-area paths over AS-external paths; prefer Type 1 external over Type 2; among Type 2 prefer the smallest type-2 metric (§16.4) | MUST | 16.4 | **positive:** `unit/verify` [`TestOSPFRouteTablePreference`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/route_test.go#L8). **negative:** `unit/verify` [`TestOSPFExternalE1PreferredOverE2`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_test.go#L83) |
 | `RFC2328-16.2-1` | As an ABR, examine only backbone summary-LSAs when computing inter-area routes (§16.2) | MUST | 16.2 | **positive:** `unit/verify` [`TestOSPFInterAreaRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/interarea_test.go#L43). **negative:** `unit/verify` [`TestOSPFABRBackboneOnlyAcceptance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/interarea_test.go#L74) |
 | `RFC2328-16.2-2` | Skip a summary-LSA or AS-external-LSA whose cost is LSInfinity, whose LS age is MaxAge, or that is self-originated, during the routing calculation (§16.2, §16.4) | MUST | 16.2 | **positive:** `unit/verify` [`TestOSPFInterAreaRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/interarea_test.go#L44). **negative:** `unit/verify` [`TestOSPFExternalLSInfinityDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_test.go#L61). **negative:** `unit/verify` [`TestOSPFInterAreaLSInfinityDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/interarea_test.go#L137). **negative:** `unit/verify` [`TestRFC2328ExternalSkipsMaxAgeAndSelf`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_test.go#L43). **negative:** `unit/verify` [`TestRFC2328InterAreaSkipsMaxAgeAndSelfSummary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_test.go#L20) |
-| `RFC2328-D.2-1` | Discard a packet whose Simple-password (AuType 1) authentication field does not match the configured 64-bit password (§D.2, §D.5) | MUST | D.2 | **positive:** `unit/verify` [`TestRFC2328SimplePasswordMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L94). **negative:** `unit/verify` [`TestRFC2328SimplePasswordMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L98) |
-| `RFC2328-D.3-1` | For Cryptographic auth (AuType 2), set the header checksum to 0, append the message digest (16 bytes for MD5), and exclude the digest from the OSPF header packet length while including it in the IP length (§D.3, §D.4.3) | MUST | D.3 | **positive:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L46). **negative:** `unit/verify` [`TestOSPFAuthCryptoRejectsExtraTrailerBytes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L214) |
-| `RFC2328-D.3-2` | Treat the crypto sequence number as non-decreasing, reset it to 0 when the neighbor goes Down, and set it to a received packet's value when accepted as authentic (§D.3) | MUST | D.3 | **positive:** `unit/verify` [`TestNeighborDownResetsCryptoSeq`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L202). **positive:** `unit/verify` [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L115). **negative:** `unit/verify` [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L116) |
+| `RFC2328-D.2-1` | Discard a packet whose Simple-password (AuType 1) authentication field does not match the configured 64-bit password (§D.2, §D.5) | MUST | D.2 | **positive:** `unit/verify` [`TestRFC2328SimplePasswordMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L95). **negative:** `unit/verify` [`TestRFC2328SimplePasswordMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L99) |
+| `RFC2328-D.3-1` | For Cryptographic auth (AuType 2), set the header checksum to 0, append the message digest (16 bytes for MD5), and exclude the digest from the OSPF header packet length while including it in the IP length (§D.3, §D.4.3) | MUST | D.3 | **positive:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L47). **negative:** `unit/verify` [`TestOSPFAuthCryptoRejectsExtraTrailerBytes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L219) |
+| `RFC2328-D.3-2` | Treat the crypto sequence number as non-decreasing, reset it to 0 when the neighbor goes Down, and set it to a received packet's value when accepted as authentic (§D.3) | MUST | D.3 | **positive:** `unit/verify` [`TestNeighborDownResetsCryptoSeq`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L203). **positive:** `unit/verify` [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L116). **negative:** `unit/verify` [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L117) |
 | `RFC2328-A.3.3-1` | Set Interface MTU to 0 in Database Description packets sent over virtual links (§A.3.3) | MUST | A.3.3 | **positive:** `unit/verify` [`TestRFC2328VirtualInterfaceHasNoMTU`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L32). **positive:** `unit/verify` [`TestRFC2328VirtualLinkDBDescCarriesZeroMTU`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L58). **negative:** `unit/verify` [`TestRFC2328VirtualLinkDBDescCarriesZeroMTU`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L63) |
-| `RFC2328-10.1-1` | Allow only one Database Description packet outstanding per adjacency at a time (§10.1, §10.3) | MUST | 10.1 | **positive:** `unit/verify` [`TestOSPFDDRetransmit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L363). **negative:** `unit/verify` [`TestOSPFDuplicateDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L431) |
-| `RFC2328-10.2-1` | Generate the BadLSReq event and restart the Database Exchange when an LS Request names an LSA not in the database (§10.2, §13) | MUST | 10.2 | **positive:** `unit/verify` [`TestOSPFBadLSReqRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L566). **negative:** `unit/verify` [`TestOSPFValidLSReqSendsLSUpdate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L721). **negative:** `unit/verify` [`TestRFC2328KnownLSRequestDoesNotRestartExchange`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L121) |
+| `RFC2328-10.1-1` | Allow only one Database Description packet outstanding per adjacency at a time (§10.1, §10.3) | MUST | 10.1 | **positive:** `unit/verify` [`TestOSPFDDRetransmit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L527). **negative:** `unit/verify` [`TestOSPFDuplicateDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L595) |
+| `RFC2328-10.2-1` | Generate the BadLSReq event and restart the Database Exchange when an LS Request names an LSA not in the database (§10.2, §13) | MUST | 10.2 | **positive:** `unit/verify` [`TestOSPFBadLSReqRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L734). **negative:** `unit/verify` [`TestOSPFValidLSReqSendsLSUpdate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L905). **negative:** `unit/verify` [`TestRFC2328KnownLSRequestDoesNotRestartExchange`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L121) |
 | `RFC2328-C.3-1` | Use a positive Interface output cost (greater than 0) (§C.3) | MUST | C.3 | **positive:** `unit/verify` [`TestInterfaceCostAndTransmitDelayBoundary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_interface_validate_test.go#L16). **negative:** `unit/verify` [`TestInterfaceCostAndTransmitDelayBoundary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_interface_validate_test.go#L17) |
-| `RFC2328-3.6-1` | One or more of a stub area's area border routers advertise a default route into the stub area via summary-LSAs (§3.6) | MUST | 3.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-4.4-1` | Support receiving and sending IP multicast datagrams, with the appropriate lower-level protocol support (§4.4) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-4.4-2` | The router's IP support includes variable-length subnetting (dividing one class A, B or C network into subnets of various sizes) and IP supernetting (aggregating contiguous class A, B and C networks into supernets) (§4.4) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-4.4-3` | Lower-level protocols pass indications to OSPF as the network interface goes up and down (§4.4) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-8.1-1` | Assign at least one IP address to the router, for use as the IP source address of packets sent over unnumbered point-to-point networks and virtual links (§8.1) | MUST | 8.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-8.2-1` | Accept a received packet only when it passes the IP-level tests of Section 8.2: a correct IP checksum, IP protocol OSPF (89), and an IP destination equal to the receiving interface's address or to AllSPFRouters or AllDRouters (§8.2) | MUST | 8.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-8.2-2` | Verify the OSPF header against the receiving interface: the Area ID matches the interface's area, or names the backbone, in which case the receiving router is an area border router, the source router is the other endpoint of a configured virtual link, and the receiving interface attaches to that link's Transit area (§8.2) | MUST | 8.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-8.2-3` | Authenticate every received OSPF packet and discard one whose AuType does not match the AuType configured for the associated area; accept a packet of any type other than Hello only from an active neighbor, because all other types are sent and received only on adjacencies (§8.2, §D.4) | MUST | 8.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-9.1-1` | A router that becomes Designated Router for an attached network originates a network-LSA for that network (§9.1, §12.4.2) | MUST | 9.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-9.5.1-1` | Send Hello packets on an NBMA network per Section 9.5.1: a Designated-Router-eligible router sends periodic Hellos to every other eligible neighbor; the Designated Router or Backup Designated Router also sends periodic Hellos to all other neighbors; a router that is not eligible sends periodic Hellos to the Designated Router and Backup Designated Router and replies with a Hello to an eligible neighbor's Hello; the interface state is at least Waiting before any Hello is sent out the NBMA interface (§9.5.1) | MUST | 9.5.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-10.5-1` | On receiving a Hello, check the Network Mask, HelloInterval and RouterDeadInterval against the values configured for the receiving interface and reject the packet on a mismatch; declare bidirectional communication only when the router itself is listed in the neighbor's Hello (§10.5, §9.5) | MUST | 10.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-10.6-1` | Process Database Description packets in sequence; as slave, reply to each one with a Database Description packet, repeat the last packet sent in answer to a duplicate, and keep it for RouterDeadInterval seconds after the last reply (§10.6, §10.8) | MUST | 10.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-12.1.6-1` | Before the LS sequence number wraps past MaxSequenceNumber, flush the current instance from the routing domain by premature aging, and originate the new instance at InitialSequenceNumber only after that flood is acknowledged by all adjacent neighbors (§12.1.6, §14.1) | MUST | 12.1.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-12.2-1` | Provide a database lookup of an individual LSA on LS type, Link State ID and Advertising Router, and a lookup of a network-LSA on Link State ID alone (§12.2, §16.1) | MUST | 12.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-12.4-1` | When a destination advertised in a summary-LSA or an AS-external-LSA becomes unreachable, or is no longer advertisable to an area, flush that LSA from the routing domain by setting its LS age to MaxAge and reflooding it (§12.4, §12.4.3, §12.4.4, §16.7) | MUST | 12.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-12.4.1-1` | Describe all of the router's links to an area in a single router-LSA, as the total collection of that router's interfaces to the area (§12.4.1, §A.4.2) | MUST | 12.4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-12.4.3-1` | As an area border router, originate summary-LSAs into a newly attached area for all pertinent intra-area and inter-area routes in the routing table, condensing that information as the configured area address ranges require (§12.4.3, §12.4) | MUST | 12.4.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-13-5` | Remove an LSA deleted or replaced in the database from all neighbors' Link state retransmission lists (§13, §12.2) | MUST | 13 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-13-6` | When an installed LSA's contents differ from the previous instance, recalculate the affected routing table: the entire table for a router-LSA or a network-LSA, the destination's best route for a summary-LSA or an AS-external-LSA (§13, §16.5, §16.6) | MUST | 13 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-13-7` | Discard, without acknowledging it, a received LSA whose database copy was received via flooding and installed less than MinLSArrival seconds ago (§13, §B) | MUST | 13 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-13.3-3` | On non-broadcast networks send Link State Update packets, and delayed Link State Acknowledgments, as separate unicasts to each adjacent neighbor in state Exchange or greater (§13.3, §13.5) | MUST | 13.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-15-2` | Take a virtual link's cost and next hop from the Transit area's routing table entry for the other endpoint, and originate a new backbone router-LSA when that cost changes while a virtual adjacency is fully established (§15, §16.7) | MUST | 15 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-16.1-3` | When several vertices are equally close to the root, add network vertices to the shortest-path tree before router vertices, so that all equal-cost paths are found (§16.1) | MUST | 16.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-A.1-1` | Set the IP TTL to 1 on OSPF packets sent to the AllSPFRouters and AllDRouters multicast addresses, so that they travel one hop only (§A.1) | MUST | A.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-A.1-2` | As Designated Router or Backup Designated Router, be prepared to receive packets addressed to AllDRouters (224.0.0.6) (§A.1) | MUST | A.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2328-A.4.4-1` | Set the Network Mask field to 0 in a Type 4 summary-LSA, where the field is not meaningful (§A.4.4) | MUST | A.4.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2328-3.6-1` | One or more of the stub area's area border routers must advertise a default route into the stub area via summary-LSAs. (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC2328StubAreaGetsDefaultSummary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_abr_summary_test.go#L34). **negative:** `unit/verify` [`TestRFC2328NormalAreaGetsNoDefaultSummary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_abr_summary_test.go#L53) |
+| `RFC2328-4.4-1` | Support for receiving and sending IP multicast datagrams, along with the appropriate lower-level protocol support, is required. (§4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestOSPFMulticastMembershipInstalled`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L76). **negative:** `unit/verify` [`TestOSPFMulticastMembershipRefusesForeignGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L97) |
+| `RFC2328-4.4-2` | The router's IP support includes variable-length subnetting (dividing one class A, B or C network into subnets of various sizes) and IP supernetting (aggregating contiguous class A, B and C networks into supernets) (§4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestRFC2328ClasslessPrefixesReachIPRIB`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_classless_test.go#L34). **negative:** `unit/verify` [`TestRFC2328ClasslessWithdrawalPreservesOverlaps`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_classless_test.go#L51) |
+| `RFC2328-4.4-3` | Indications must be passed from these protocols to OSPF as the network interface goes up and down. (§4.4) | MUST | 4.4 | **positive:** `unit/verify` [`TestOSPFTransportPassesLinkIndicationsToOSPF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_link_test.go#L8). **negative:** `unit/verify` [`TestOSPFTransportPassesNoIndicationForNonOSPFInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_link_test.go#L45) |
+| `RFC2328-8.1-1` | Assign at least one IP address to the router, for use as the IP source address of packets sent over unnumbered point-to-point networks and virtual links (§8.1) | MUST | 8.1 | **positive:** `unit/verify` [`TestResolveOSPFInterfaceUsesIfaceResolverOSName`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/backend_linux_test.go#L17). **negative:** `unit/verify` [`TestOSPFRefusesInterfaceWithoutIPv4Source`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/backend_linux_test.go#L101) |
+| `RFC2328-8.2-1` | Accept a received packet only when it passes the IP-level tests of Section 8.2: a correct IP checksum, IP protocol OSPF (89), and an IP destination equal to the receiving interface's address or to AllSPFRouters or AllDRouters (§8.2) | MUST | 8.2 | **positive:** `unit/verify` [`TestOSPFReceiveAcceptsValidIPv4Envelope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/backend_linux_test.go#L130). **negative:** `unit/verify` [`TestOSPFReceiveRejectsInvalidIPv4Envelope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/backend_linux_test.go#L151) |
+| `RFC2328-8.2-2` | Verify the OSPF header against the receiving interface: the Area ID matches the interface's area, or names the backbone, in which case the receiving router is an area border router, the source router is the other endpoint of a configured virtual link, and the receiving interface attaches to that link's Transit area (§8.2) | MUST | 8.2 | **positive:** `unit/verify` [`TestOSPFReceiveAcceptsMatchingAreaID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_receive_test.go#L49). **negative:** `unit/verify` [`TestOSPFReceiveDropsMismatchedAreaID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_receive_test.go#L65) |
+| `RFC2328-8.2-3` | Authenticate every received OSPF packet and discard one whose AuType does not match the AuType configured for the associated area; accept a packet of any type other than Hello only from an active neighbor, because all other types are sent and received only on adjacencies (§8.2, §D.4) | MUST | 8.2 | **positive:** `unit/verify` [`TestOSPFReceiveAcceptsMatchingAuType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_receive_test.go#L82). **negative:** `unit/verify` [`TestOSPFReceiveDropsMismatchedAuType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_receive_test.go#L104) |
+| `RFC2328-9.1-1` | The router must also originate a network-LSA for the network node. (§9.1, §12.4.2) | MUST | 9.1 | **positive:** `unit/verify` [`TestRFC2328DROriginatesNetworkLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L384). **negative:** `unit/verify` [`TestRFC2328NonDROriginatesNoNetworkLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L404) |
+| `RFC2328-9.5.1-1` | Send Hello packets on an NBMA network per Section 9.5.1: a Designated-Router-eligible router sends periodic Hellos to every other eligible neighbor; the Designated Router or Backup Designated Router also sends periodic Hellos to all other neighbors; a router that is not eligible sends periodic Hellos to the Designated Router and Backup Designated Router and replies with a Hello to an eligible neighbor's Hello; the interface state is at least Waiting before any Hello is sent out the NBMA interface (§9.5.1) | MUST | 9.5.1 | **positive:** `unit/verify` [`TestOSPFNBMAEligibleRouterHellosEveryEligibleNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_dr_test.go#L75). **negative:** `unit/verify` [`TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_dr_test.go#L92) |
+| `RFC2328-10.5-1` | On receiving a Hello, check the Network Mask, HelloInterval and RouterDeadInterval against the values configured for the receiving interface and reject the packet on a mismatch; declare bidirectional communication only when the router itself is listed in the neighbor's Hello (§10.5, §9.5) | MUST | 10.5 | **positive:** `unit/verify` [`TestRFC2328HelloMatchingParametersAndTwoWay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_hello_test.go#L16). **negative:** `unit/verify` [`TestRFC2328HelloMismatchRejectedAndNoTwoWayUnlisted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_hello_test.go#L35) |
+| `RFC2328-10.6-1` | Process Database Description packets in sequence; as slave, reply to each one with a Database Description packet, repeat the last packet sent in answer to a duplicate, and keep it for RouterDeadInterval seconds after the last reply (§10.6, §10.8) | MUST | 10.6 | **positive:** `unit/verify` [`TestRFC2328SlaveRepliesAndRepeatsOnDuplicate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go#L30). **negative:** `unit/verify` [`TestRFC2328SlaveRefusesOutOfSequenceDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go#L62) |
+| `RFC2328-12.1.6-1` | Before the LS sequence number wraps past MaxSequenceNumber, flush the current instance from the routing domain by premature aging, and originate the new instance at InitialSequenceNumber only after that flood is acknowledged by all adjacent neighbors (§12.1.6, §14.1) | MUST | 12.1.6 | **positive:** `unit/verify` [`TestRFC2328SequenceWrapRestartsAfterAck`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L217). **negative:** `unit/verify` [`TestRFC2328SequenceWrapWaitsForAck`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L194) |
+| `RFC2328-12.2-1` | Provide a database lookup of an individual LSA on LS type, Link State ID and Advertising Router, and a lookup of a network-LSA on Link State ID alone (§12.2, §16.1) | MUST | 12.2 | **positive:** `unit/verify` [`TestRFC2328LookupByTriple`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L160). **negative:** `unit/verify` [`TestRFC2328LookupNeedsFullTriple`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L174) |
+| `RFC2328-12.4-1` | When a destination advertised in a summary-LSA or an AS-external-LSA becomes unreachable, or is no longer advertisable to an area, flush that LSA from the routing domain by setting its LS age to MaxAge and reflooding it (§12.4, §12.4.3, §12.4.4, §16.7) | MUST | 12.4 | **positive:** `unit/verify` [`TestRFC2328WithdrawnSummaryFlushedAtMaxAge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L249). **negative:** `unit/verify` [`TestRFC2328AdvertisedSummaryNotFlushed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L286) |
+| `RFC2328-12.4.1-1` | Describe all of the router's links to an area in a single router-LSA, as the total collection of that router's interfaces to the area (§12.4.1, §A.4.2) | MUST | 12.4.1 | **positive:** `unit/verify` [`TestRFC2328SingleRouterLSACarriesEveryLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L318). **negative:** `unit/verify` [`TestRFC2328RouterLSAExcludesOtherAreaLinks`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L350) |
+| `RFC2328-12.4.3-1` | As an area border router, originate summary-LSAs into a newly attached area for all pertinent intra-area and inter-area routes in the routing table, condensing that information as the configured area address ranges require (§12.4.3, §12.4) | MUST | 12.4.3 | **positive:** `unit/verify` [`TestRFC2328ABRSummarizesAndCondenses`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_abr_summary_test.go#L67). **negative:** `unit/verify` [`TestRFC2328ABRComponentNeverEscapesRange`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_abr_summary_test.go#L101) |
+| `RFC2328-13-5` | Remove an LSA deleted or replaced in the database from all neighbors' Link state retransmission lists (§13, §12.2) | MUST | 13 | **positive:** `unit/verify` [`TestRFC2328ReplacedInstanceLeavesRetransmitLists`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L110). **negative:** `unit/verify` [`TestRFC2328DuplicateKeepsOtherRetransmitLists`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L144) |
+| `RFC2328-13-6` | When an installed LSA's contents differ from the previous instance, recalculate the affected routing table: the entire table for a router-LSA or a network-LSA, the destination's best route for a summary-LSA or an AS-external-LSA (§13, §16.5, §16.6) | MUST | 13 | **positive:** `unit/verify` [`TestSPFRecalculatesEveryAreaOnOneAreaChange`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_recalc_test.go#L14). **negative:** `unit/verify` [`TestSPFRecalculationBoundedToConfiguredAreas`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_recalc_test.go#L47) |
+| `RFC2328-13-7` | Discard, without acknowledging it, a received LSA whose database copy was received via flooding and installed less than MinLSArrival seconds ago (§13, §B) | MUST | 13 | **positive:** `unit/verify` [`TestRFC2328MinLSArrivalElapsedAccepts`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L79). **negative:** `unit/verify` [`TestRFC2328MinLSArrivalDiscardsWithoutAck`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L44) |
+| `RFC2328-13.3-3` | On non-broadcast networks send Link State Update packets, and delayed Link State Acknowledgments, as separate unicasts to each adjacent neighbor in state Exchange or greater (§13.3, §13.5) | MUST | 13.3 | **positive:** `unit/verify` [`TestRFC2328NBMAUnicastsToEachAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L430). **negative:** `unit/verify` [`TestRFC2328NBMANeverMulticastsNorReachesTwoWay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L464) |
+| `RFC2328-15-2` | Take a virtual link's cost and next hop from the Transit area's routing table entry for the other endpoint, and originate a new backbone router-LSA when that cost changes while a virtual adjacency is fully established (§15, §16.7) | MUST | 15 | **positive:** `unit/verify` [`TestRFC2328VirtualCostChangeReoriginatesBackbone`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_route_test.go#L67). **negative:** `unit/verify` [`TestRFC2328VirtualUnusablePathWithdrawsBackboneLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_route_test.go#L98) |
+| `RFC2328-16.1-3` | Note that when there is a choice of vertices closest to the root, network vertices must be chosen before router vertices in order to necessarily find all equal-cost paths. (§16.1) | MUST | 16.1 | **positive:** `unit/verify` [`TestRFC2328EqualDistanceNetworkVertexFirst`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_tiebreak_test.go#L10). **negative:** `unit/verify` [`TestRFC2328CloserRouterVertexBeforeFartherNetwork`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_tiebreak_test.go#L25) |
+| `RFC2328-A.1-1` | Set the IP TTL to 1 on OSPF packets sent to the AllSPFRouters and AllDRouters multicast addresses, so that they travel one hop only (§A.1) | MUST | A.1 | **positive:** `unit/verify` [`TestOSPFSocketTTLIsOne`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L30). **negative:** `unit/verify` [`TestOSPFSocketTTLFailureIsAnError`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L58) |
+| `RFC2328-A.1-2` | As Designated Router or Backup Designated Router, be prepared to receive packets addressed to AllDRouters (224.0.0.6) (§A.1) | MUST | A.1 | **positive:** `unit/verify` [`TestOSPFElectedBDRJoinsAllDRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_dr_test.go#L29). **negative:** `unit/verify` [`TestOSPFDROtherDoesNotJoinAllDRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_dr_test.go#L46) |
+| `RFC2328-A.4.4-1` | Set the Network Mask field to 0 in a Type 4 summary-LSA, where the field is not meaningful (§A.4.4) | MUST | A.4.4 | **positive:** `unit/verify` [`TestRFC2328Type4SummaryMaskIsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L490). **negative:** `unit/verify` [`TestRFC2328Type3SummaryKeepsMask`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L509) |
 | `RFC2328-A.2-1` | Reset (clear) unrecognized Options bits when sending Hellos / DD packets and when originating LSAs (§A.2) | SHOULD | A.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2328-A.2-2` | Ignore unrecognized Options bits on receipt and process the packet/LSA normally (§A.2) | SHOULD | A.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2328-9.5-1` | Set the E-bit in Hello Options iff the attached area can process AS-external-LSAs (not a stub); a mismatch causes Hello rejection (§9.5, §10.5) | SHOULD | 9.5 | **positive:** no positive test. **negative:** no negative test |
@@ -181,32 +179,6 @@ The MUST gap recorded for [`RFC2328-13.3-2`](#rfc2328-13.3-2) stands: the InfTra
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC2328-13.3-2`](#rfc2328-13.3-2) Increment an LSA's LS age by InfTransDelay (which MUST be > 0) when copying it into an outgoing Link State Update, capped at MaxAge (§13.3, §13.6, §14) | {gap}, no test | the InfTransDelay bump is applied on the retransmit path (RetransmitTick, lsdb/flooding.go:545) and on a direct database-copy reply (sendDirectLSUpdate, lsdb/flooding.go:745; sendDirectLinkLSUpdate, lsdb/link_scope.go:349), but NOT on the normal flood: floodExcept builds the outgoing copy with `entry.LSA(d.now())` (lsdb/flooding.go:351), and Entry.LSA calls `e.Raw(now, 0)` with transmitDelay 0 (lsdb/entry.go:62-68, 75-85), so the first flooded copy carries the unincremented LS age. The MaxAge cap itself is present wherever the bump is applied (LSAge.Add, types/lsage.go:54-63). Disclosed in docs/features/rfc-status.md RFC 2328 row |
-| [`RFC2328-3.6-1`](#rfc2328-3.6-1) One or more of a stub area's area border routers advertise a default route into the stub area via summary-LSAs (§3.6) | no test | no test carries this requirement id |
-| [`RFC2328-4.4-1`](#rfc2328-4.4-1) Support receiving and sending IP multicast datagrams, with the appropriate lower-level protocol support (§4.4) | no test | no test carries this requirement id |
-| [`RFC2328-4.4-2`](#rfc2328-4.4-2) The router's IP support includes variable-length subnetting (dividing one class A, B or C network into subnets of various sizes) and IP supernetting (aggregating contiguous class A, B and C networks into supernets) (§4.4) | no test | no test carries this requirement id |
-| [`RFC2328-4.4-3`](#rfc2328-4.4-3) Lower-level protocols pass indications to OSPF as the network interface goes up and down (§4.4) | no test | no test carries this requirement id |
-| [`RFC2328-8.1-1`](#rfc2328-8.1-1) Assign at least one IP address to the router, for use as the IP source address of packets sent over unnumbered point-to-point networks and virtual links (§8.1) | no test | no test carries this requirement id |
-| [`RFC2328-8.2-1`](#rfc2328-8.2-1) Accept a received packet only when it passes the IP-level tests of Section 8.2: a correct IP checksum, IP protocol OSPF (89), and an IP destination equal to the receiving interface's address or to AllSPFRouters or AllDRouters (§8.2) | no test | no test carries this requirement id |
-| [`RFC2328-8.2-2`](#rfc2328-8.2-2) Verify the OSPF header against the receiving interface: the Area ID matches the interface's area, or names the backbone, in which case the receiving router is an area border router, the source router is the other endpoint of a configured virtual link, and the receiving interface attaches to that link's Transit area (§8.2) | no test | no test carries this requirement id |
-| [`RFC2328-8.2-3`](#rfc2328-8.2-3) Authenticate every received OSPF packet and discard one whose AuType does not match the AuType configured for the associated area; accept a packet of any type other than Hello only from an active neighbor, because all other types are sent and received only on adjacencies (§8.2, §D.4) | no test | no test carries this requirement id |
-| [`RFC2328-9.1-1`](#rfc2328-9.1-1) A router that becomes Designated Router for an attached network originates a network-LSA for that network (§9.1, §12.4.2) | no test | no test carries this requirement id |
-| [`RFC2328-9.5.1-1`](#rfc2328-9.5.1-1) Send Hello packets on an NBMA network per Section 9.5.1: a Designated-Router-eligible router sends periodic Hellos to every other eligible neighbor; the Designated Router or Backup Designated Router also sends periodic Hellos to all other neighbors; a router that is not eligible sends periodic Hellos to the Designated Router and Backup Designated Router and replies with a Hello to an eligible neighbor's Hello; the interface state is at least Waiting before any Hello is sent out the NBMA interface (§9.5.1) | no test | no test carries this requirement id |
-| [`RFC2328-10.5-1`](#rfc2328-10.5-1) On receiving a Hello, check the Network Mask, HelloInterval and RouterDeadInterval against the values configured for the receiving interface and reject the packet on a mismatch; declare bidirectional communication only when the router itself is listed in the neighbor's Hello (§10.5, §9.5) | no test | no test carries this requirement id |
-| [`RFC2328-10.6-1`](#rfc2328-10.6-1) Process Database Description packets in sequence; as slave, reply to each one with a Database Description packet, repeat the last packet sent in answer to a duplicate, and keep it for RouterDeadInterval seconds after the last reply (§10.6, §10.8) | no test | no test carries this requirement id |
-| [`RFC2328-12.1.6-1`](#rfc2328-12.1.6-1) Before the LS sequence number wraps past MaxSequenceNumber, flush the current instance from the routing domain by premature aging, and originate the new instance at InitialSequenceNumber only after that flood is acknowledged by all adjacent neighbors (§12.1.6, §14.1) | no test | no test carries this requirement id |
-| [`RFC2328-12.2-1`](#rfc2328-12.2-1) Provide a database lookup of an individual LSA on LS type, Link State ID and Advertising Router, and a lookup of a network-LSA on Link State ID alone (§12.2, §16.1) | no test | no test carries this requirement id |
-| [`RFC2328-12.4-1`](#rfc2328-12.4-1) When a destination advertised in a summary-LSA or an AS-external-LSA becomes unreachable, or is no longer advertisable to an area, flush that LSA from the routing domain by setting its LS age to MaxAge and reflooding it (§12.4, §12.4.3, §12.4.4, §16.7) | no test | no test carries this requirement id |
-| [`RFC2328-12.4.1-1`](#rfc2328-12.4.1-1) Describe all of the router's links to an area in a single router-LSA, as the total collection of that router's interfaces to the area (§12.4.1, §A.4.2) | no test | no test carries this requirement id |
-| [`RFC2328-12.4.3-1`](#rfc2328-12.4.3-1) As an area border router, originate summary-LSAs into a newly attached area for all pertinent intra-area and inter-area routes in the routing table, condensing that information as the configured area address ranges require (§12.4.3, §12.4) | no test | no test carries this requirement id |
-| [`RFC2328-13-5`](#rfc2328-13-5) Remove an LSA deleted or replaced in the database from all neighbors' Link state retransmission lists (§13, §12.2) | no test | no test carries this requirement id |
-| [`RFC2328-13-6`](#rfc2328-13-6) When an installed LSA's contents differ from the previous instance, recalculate the affected routing table: the entire table for a router-LSA or a network-LSA, the destination's best route for a summary-LSA or an AS-external-LSA (§13, §16.5, §16.6) | no test | no test carries this requirement id |
-| [`RFC2328-13-7`](#rfc2328-13-7) Discard, without acknowledging it, a received LSA whose database copy was received via flooding and installed less than MinLSArrival seconds ago (§13, §B) | no test | no test carries this requirement id |
-| [`RFC2328-13.3-3`](#rfc2328-13.3-3) On non-broadcast networks send Link State Update packets, and delayed Link State Acknowledgments, as separate unicasts to each adjacent neighbor in state Exchange or greater (§13.3, §13.5) | no test | no test carries this requirement id |
-| [`RFC2328-15-2`](#rfc2328-15-2) Take a virtual link's cost and next hop from the Transit area's routing table entry for the other endpoint, and originate a new backbone router-LSA when that cost changes while a virtual adjacency is fully established (§15, §16.7) | no test | no test carries this requirement id |
-| [`RFC2328-16.1-3`](#rfc2328-16.1-3) When several vertices are equally close to the root, add network vertices to the shortest-path tree before router vertices, so that all equal-cost paths are found (§16.1) | no test | no test carries this requirement id |
-| [`RFC2328-A.1-1`](#rfc2328-a.1-1) Set the IP TTL to 1 on OSPF packets sent to the AllSPFRouters and AllDRouters multicast addresses, so that they travel one hop only (§A.1) | no test | no test carries this requirement id |
-| [`RFC2328-A.1-2`](#rfc2328-a.1-2) As Designated Router or Backup Designated Router, be prepared to receive packets addressed to AllDRouters (224.0.0.6) (§A.1) | no test | no test carries this requirement id |
-| [`RFC2328-A.4.4-1`](#rfc2328-a.4.4-1) Set the Network Mask field to 0 in a Type 4 summary-LSA, where the field is not meaningful (§A.4.4) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -423,8 +395,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2328SimplePasswordMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L98) | unit/verify | unproven |
-| positive | [`TestRFC2328SimplePasswordMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L94) | unit/verify | unproven |
+| negative | [`TestRFC2328SimplePasswordMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L99) | unit/verify | unproven |
+| positive | [`TestRFC2328SimplePasswordMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L95) | unit/verify | unproven |
 
 ### [`RFC2328-D.3-1`](#rfc2328-d.3-1)
 
@@ -434,8 +406,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFAuthCryptoRejectsExtraTrailerBytes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L214) | unit/verify | unproven |
-| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L46) | unit/verify | unproven |
+| negative | [`TestOSPFAuthCryptoRejectsExtraTrailerBytes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L219) | unit/verify | unproven |
+| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L47) | unit/verify | unproven |
 
 ### [`RFC2328-D.3-2`](#rfc2328-d.3-2)
 
@@ -445,9 +417,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L116) | unit/verify | unproven |
-| positive | [`TestNeighborDownResetsCryptoSeq`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L202) | unit/verify | unproven |
-| positive | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L115) | unit/verify | unproven |
+| negative | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L117) | unit/verify | unproven |
+| positive | [`TestNeighborDownResetsCryptoSeq`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L203) | unit/verify | unproven |
+| positive | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L116) | unit/verify | unproven |
 
 ### [`RFC2328-A.3.3-1`](#rfc2328-a.3.3-1)
 
@@ -469,8 +441,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFDuplicateDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L431) | unit/verify | unproven |
-| positive | [`TestOSPFDDRetransmit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L363) | unit/verify | unproven |
+| negative | [`TestOSPFDuplicateDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L595) | unit/verify | unproven |
+| positive | [`TestOSPFDDRetransmit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L527) | unit/verify | unproven |
 
 ### [`RFC2328-10.2-1`](#rfc2328-10.2-1)
 
@@ -480,9 +452,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOSPFValidLSReqSendsLSUpdate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L721) | unit/verify | unproven |
+| negative | [`TestOSPFValidLSReqSendsLSUpdate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L905) | unit/verify | unproven |
 | negative | [`TestRFC2328KnownLSRequestDoesNotRestartExchange`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L121) | unit/verify | unproven |
-| positive | [`TestOSPFBadLSReqRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L566) | unit/verify | unproven |
+| positive | [`TestOSPFBadLSReqRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L734) | unit/verify | unproven |
 
 ### [`RFC2328-C.3-1`](#rfc2328-c.3-1)
 
@@ -497,19 +469,25 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2328-3.6-1`](#rfc2328-3.6-1)
 
-One or more of a stub area's area border routers advertise a default route into the stub area via summary-LSAs (§3.6)
+One or more of the stub area's area border routers must advertise a default route into the stub area via summary-LSAs. (§3.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-3.6-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2328NormalAreaGetsNoDefaultSummary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_abr_summary_test.go#L53) | unit/verify | revert, verified |
+| positive | [`TestRFC2328StubAreaGetsDefaultSummary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_abr_summary_test.go#L34) | unit/verify | revert, verified |
 
 ### [`RFC2328-4.4-1`](#rfc2328-4.4-1)
 
-Support receiving and sending IP multicast datagrams, with the appropriate lower-level protocol support (§4.4)
+Support for receiving and sending IP multicast datagrams, along with the appropriate lower-level protocol support, is required. (§4.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-4.4-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestOSPFMulticastMembershipRefusesForeignGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L97) | unit/verify | revert, verified |
+| positive | [`TestOSPFMulticastMembershipInstalled`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L76) | unit/verify | revert, verified |
 
 ### [`RFC2328-4.4-2`](#rfc2328-4.4-2)
 
@@ -517,15 +495,21 @@ The router's IP support includes variable-length subnetting (dividing one class 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-4.4-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2328ClasslessWithdrawalPreservesOverlaps`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_classless_test.go#L51) | unit/verify | unproven |
+| positive | [`TestRFC2328ClasslessPrefixesReachIPRIB`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_classless_test.go#L34) | unit/verify | unproven |
 
 ### [`RFC2328-4.4-3`](#rfc2328-4.4-3)
 
-Lower-level protocols pass indications to OSPF as the network interface goes up and down (§4.4)
+Indications must be passed from these protocols to OSPF as the network interface goes up and down. (§4.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-4.4-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestOSPFTransportPassesNoIndicationForNonOSPFInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_link_test.go#L45) | unit/verify | revert, verified |
+| positive | [`TestOSPFTransportPassesLinkIndicationsToOSPF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_link_test.go#L8) | unit/verify | revert, verified |
 
 ### [`RFC2328-8.1-1`](#rfc2328-8.1-1)
 
@@ -533,7 +517,10 @@ Assign at least one IP address to the router, for use as the IP source address o
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-8.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestOSPFRefusesInterfaceWithoutIPv4Source`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/backend_linux_test.go#L101) | unit/verify | unproven |
+| positive | [`TestResolveOSPFInterfaceUsesIfaceResolverOSName`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/backend_linux_test.go#L17) | unit/verify | unproven |
 
 ### [`RFC2328-8.2-1`](#rfc2328-8.2-1)
 
@@ -541,7 +528,10 @@ Accept a received packet only when it passes the IP-level tests of Section 8.2: 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-8.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestOSPFReceiveRejectsInvalidIPv4Envelope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/backend_linux_test.go#L151) | unit/verify | unproven |
+| positive | [`TestOSPFReceiveAcceptsValidIPv4Envelope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/backend_linux_test.go#L130) | unit/verify | unproven |
 
 ### [`RFC2328-8.2-2`](#rfc2328-8.2-2)
 
@@ -549,7 +539,10 @@ Verify the OSPF header against the receiving interface: the Area ID matches the 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-8.2-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestOSPFReceiveDropsMismatchedAreaID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_receive_test.go#L65) | unit/verify | revert, verified |
+| positive | [`TestOSPFReceiveAcceptsMatchingAreaID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_receive_test.go#L49) | unit/verify | revert, verified |
 
 ### [`RFC2328-8.2-3`](#rfc2328-8.2-3)
 
@@ -557,15 +550,21 @@ Authenticate every received OSPF packet and discard one whose AuType does not ma
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-8.2-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestOSPFReceiveDropsMismatchedAuType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_receive_test.go#L104) | unit/verify | revert, verified |
+| positive | [`TestOSPFReceiveAcceptsMatchingAuType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_receive_test.go#L82) | unit/verify | revert, verified |
 
 ### [`RFC2328-9.1-1`](#rfc2328-9.1-1)
 
-A router that becomes Designated Router for an attached network originates a network-LSA for that network (§9.1, §12.4.2)
+The router must also originate a network-LSA for the network node. (§9.1, §12.4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-9.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2328NonDROriginatesNoNetworkLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L404) | unit/verify | revert, verified |
+| positive | [`TestRFC2328DROriginatesNetworkLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L384) | unit/verify | revert, verified |
 
 ### [`RFC2328-9.5.1-1`](#rfc2328-9.5.1-1)
 
@@ -573,7 +572,10 @@ Send Hello packets on an NBMA network per Section 9.5.1: a Designated-Router-eli
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-9.5.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_dr_test.go#L92) | unit/verify | revert, verified |
+| positive | [`TestOSPFNBMAEligibleRouterHellosEveryEligibleNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_dr_test.go#L75) | unit/verify | revert, verified |
 
 ### [`RFC2328-10.5-1`](#rfc2328-10.5-1)
 
@@ -581,7 +583,10 @@ On receiving a Hello, check the Network Mask, HelloInterval and RouterDeadInterv
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-10.5-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2328HelloMismatchRejectedAndNoTwoWayUnlisted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_hello_test.go#L35) | unit/verify | revert, verified |
+| positive | [`TestRFC2328HelloMatchingParametersAndTwoWay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_hello_test.go#L16) | unit/verify | revert, verified |
 
 ### [`RFC2328-10.6-1`](#rfc2328-10.6-1)
 
@@ -589,7 +594,10 @@ Process Database Description packets in sequence; as slave, reply to each one wi
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-10.6-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2328SlaveRefusesOutOfSequenceDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go#L62) | unit/verify | revert, verified |
+| positive | [`TestRFC2328SlaveRepliesAndRepeatsOnDuplicate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go#L30) | unit/verify | revert, verified |
 
 ### [`RFC2328-12.1.6-1`](#rfc2328-12.1.6-1)
 
@@ -597,7 +605,10 @@ Before the LS sequence number wraps past MaxSequenceNumber, flush the current in
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-12.1.6-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2328SequenceWrapWaitsForAck`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L194) | unit/verify | revert, verified |
+| positive | [`TestRFC2328SequenceWrapRestartsAfterAck`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L217) | unit/verify | revert, verified |
 
 ### [`RFC2328-12.2-1`](#rfc2328-12.2-1)
 
@@ -605,7 +616,10 @@ Provide a database lookup of an individual LSA on LS type, Link State ID and Adv
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-12.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2328LookupNeedsFullTriple`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L174) | unit/verify | revert, verified |
+| positive | [`TestRFC2328LookupByTriple`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L160) | unit/verify | revert, verified |
 
 ### [`RFC2328-12.4-1`](#rfc2328-12.4-1)
 
@@ -613,7 +627,10 @@ When a destination advertised in a summary-LSA or an AS-external-LSA becomes unr
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-12.4-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2328AdvertisedSummaryNotFlushed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L286) | unit/verify | revert, verified |
+| positive | [`TestRFC2328WithdrawnSummaryFlushedAtMaxAge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L249) | unit/verify | revert, verified |
 
 ### [`RFC2328-12.4.1-1`](#rfc2328-12.4.1-1)
 
@@ -621,7 +638,10 @@ Describe all of the router's links to an area in a single router-LSA, as the tot
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-12.4.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2328RouterLSAExcludesOtherAreaLinks`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L350) | unit/verify | revert, verified |
+| positive | [`TestRFC2328SingleRouterLSACarriesEveryLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L318) | unit/verify | revert, verified |
 
 ### [`RFC2328-12.4.3-1`](#rfc2328-12.4.3-1)
 
@@ -629,7 +649,10 @@ As an area border router, originate summary-LSAs into a newly attached area for 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-12.4.3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2328ABRComponentNeverEscapesRange`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_abr_summary_test.go#L101) | unit/verify | revert, verified |
+| positive | [`TestRFC2328ABRSummarizesAndCondenses`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_abr_summary_test.go#L67) | unit/verify | revert, verified |
 
 ### [`RFC2328-13-5`](#rfc2328-13-5)
 
@@ -637,7 +660,10 @@ Remove an LSA deleted or replaced in the database from all neighbors' Link state
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-13-5, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2328DuplicateKeepsOtherRetransmitLists`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L144) | unit/verify | revert, verified |
+| positive | [`TestRFC2328ReplacedInstanceLeavesRetransmitLists`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L110) | unit/verify | revert, verified |
 
 ### [`RFC2328-13-6`](#rfc2328-13-6)
 
@@ -645,7 +671,10 @@ When an installed LSA's contents differ from the previous instance, recalculate 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-13-6, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSPFRecalculationBoundedToConfiguredAreas`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_recalc_test.go#L47) | unit/verify | revert, verified |
+| positive | [`TestSPFRecalculatesEveryAreaOnOneAreaChange`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_recalc_test.go#L14) | unit/verify | revert, verified |
 
 ### [`RFC2328-13-7`](#rfc2328-13-7)
 
@@ -653,7 +682,10 @@ Discard, without acknowledging it, a received LSA whose database copy was receiv
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-13-7, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2328MinLSArrivalDiscardsWithoutAck`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L44) | unit/verify | revert, verified |
+| positive | [`TestRFC2328MinLSArrivalElapsedAccepts`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L79) | unit/verify | revert, verified |
 
 ### [`RFC2328-13.3-3`](#rfc2328-13.3-3)
 
@@ -661,7 +693,10 @@ On non-broadcast networks send Link State Update packets, and delayed Link State
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-13.3-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2328NBMANeverMulticastsNorReachesTwoWay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L464) | unit/verify | revert, verified |
+| positive | [`TestRFC2328NBMAUnicastsToEachAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L430) | unit/verify | revert, verified |
 
 ### [`RFC2328-15-2`](#rfc2328-15-2)
 
@@ -669,15 +704,21 @@ Take a virtual link's cost and next hop from the Transit area's routing table en
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-15-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2328VirtualUnusablePathWithdrawsBackboneLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_route_test.go#L98) | unit/verify | unproven |
+| positive | [`TestRFC2328VirtualCostChangeReoriginatesBackbone`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_route_test.go#L67) | unit/verify | unproven |
 
 ### [`RFC2328-16.1-3`](#rfc2328-16.1-3)
 
-When several vertices are equally close to the root, add network vertices to the shortest-path tree before router vertices, so that all equal-cost paths are found (§16.1)
+Note that when there is a choice of vertices closest to the root, network vertices must be chosen before router vertices in order to necessarily find all equal-cost paths. (§16.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-16.1-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2328CloserRouterVertexBeforeFartherNetwork`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_tiebreak_test.go#L25) | unit/verify | revert, verified |
+| positive | [`TestRFC2328EqualDistanceNetworkVertexFirst`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_tiebreak_test.go#L10) | unit/verify | revert, verified |
 
 ### [`RFC2328-A.1-1`](#rfc2328-a.1-1)
 
@@ -685,7 +726,10 @@ Set the IP TTL to 1 on OSPF packets sent to the AllSPFRouters and AllDRouters mu
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-A.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestOSPFSocketTTLFailureIsAnError`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L58) | unit/verify | revert, verified |
+| positive | [`TestOSPFSocketTTLIsOne`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L30) | unit/verify | revert, verified |
 
 ### [`RFC2328-A.1-2`](#rfc2328-a.1-2)
 
@@ -693,7 +737,10 @@ As Designated Router or Backup Designated Router, be prepared to receive packets
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-A.1-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestOSPFDROtherDoesNotJoinAllDRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_dr_test.go#L46) | unit/verify | revert, verified |
+| positive | [`TestOSPFElectedBDRJoinsAllDRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_dr_test.go#L29) | unit/verify | revert, verified |
 
 ### [`RFC2328-A.4.4-1`](#rfc2328-a.4.4-1)
 
@@ -701,7 +748,10 @@ Set the Network Mask field to 0 in a Type 4 summary-LSA, where the field is not 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC2328-A.4.4-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC2328Type3SummaryKeepsMask`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L509) | unit/verify | revert, verified |
+| positive | [`TestRFC2328Type4SummaryMaskIsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L490) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

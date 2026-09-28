@@ -112,82 +112,82 @@ Fourteen MUST gaps, gated in [`rfc/short/rfc5880.md`](https://github.com/ze-soft
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC5880-4.1-1` | Version field must be 1 (§4.1, §6.8.6) | MUST | 4.1 - Generic BFD Control Packet Format | **positive:** `unit/verify` [`TestRFC5880VersionOneAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L44). **negative:** `unit/verify` [`TestRFC5880VersionNotOneDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L64) |
-| `RFC5880-4.1-2` | Multipoint (M) bit must be zero on both transmit and receipt (§4.1) | MUST | 4.1 - Generic BFD Control Packet Format | **positive:** `unit/verify` [`TestRFC5880MultipointZeroAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L80). **negative:** `unit/verify` [`TestRFC5880MultipointSetDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L96) |
+| `RFC5880-4.1-2` | It MUST be zero on both transmit and receipt. (§4.1) | MUST | 4.1 - Generic BFD Control Packet Format | **positive:** `unit/verify` [`TestRFC5880MultipointZeroAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L80). **negative:** `unit/verify` [`TestRFC5880MultipointSetDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L96) |
 | `RFC5880-6.3-1` | My Discriminator must be nonzero and unique across all BFD sessions on the system (§6.3) | MUST | 6.3 - Demultiplexing and the Discriminator Fields | **positive:** `unit/verify` [`TestRFC5880DiscriminatorsAreNonZeroAndUnique`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L62). **negative:** `unit/verify` [`TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L90) |
-| `RFC5880-6.8.1-1` | bfd.SessionState must be initialized to Down (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880InitStatesAreDown`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L73). **negative:** no negative test. **{single-polarity}:** Init assigns bfd.SessionState = Down unconditionally (internal/component/bfd/session/session.go:246) before any packet can be exchanged, so no non-conformant input exists to reject |
-| `RFC5880-6.8.1-2` | bfd.RemoteSessionState must be initialized to Down (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880InitStatesAreDown`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L76). **negative:** no negative test. **{single-polarity}:** Init assigns bfd.RemoteSessionState = Down unconditionally (internal/component/bfd/session/session.go:247), so there is no non-conformant input to reject |
-| `RFC5880-6.8.1-3` | bfd.LocalDiscr must be unique across all BFD sessions on the system, and nonzero (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880DiscriminatorsAreNonZeroAndUnique`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L67). **negative:** `unit/verify` [`TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L95) |
-| `RFC5880-6.8.1-4` | bfd.RemoteDiscr must be initialized to zero (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880InitVariableDefaults`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L88). **negative:** `unit/verify` [`TestRFC5880InitVariablesAreNotConstants`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L113) |
-| `RFC5880-6.8.1-5` | bfd.RemoteDiscr must be set to zero if no valid packet received for one Detection Time (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880RemoteDiscrClearedOnDetectionExpiry`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L153). **negative:** `unit/verify` [`TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L180) |
-| `RFC5880-6.8.1-6` | bfd.LocalDiag must be initialized to zero (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880InitVariableDefaults`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L90). **negative:** `unit/verify` [`TestRFC5880InitVariablesAreNotConstants`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L116) |
-| `RFC5880-6.8.1-7` | bfd.DesiredMinTxInterval must be initialized to at least 1,000,000 microseconds (§6.8.1, §6.8.3) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880SlowStartFloorWhileNotUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L208). **negative:** `unit/verify` [`TestRFC5880SlowStartFloorLiftedWhenUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L228) |
+| `RFC5880-6.8.1-1` | This variable MUST be initialized to Down. (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880InitStatesAreDown`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L73). **negative:** no negative test. **{single-polarity}:** Init assigns bfd.SessionState = Down unconditionally (internal/component/bfd/session/session.go:246) before any packet can be exchanged, so no non-conformant input exists to reject |
+| `RFC5880-6.8.1-2` | This variable MUST be initialized to Down. (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880InitStatesAreDown`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L76). **negative:** no negative test. **{single-polarity}:** Init assigns bfd.RemoteSessionState = Down unconditionally (internal/component/bfd/session/session.go:247), so there is no non-conformant input to reject |
+| `RFC5880-6.8.1-3` | It MUST be unique across all BFD sessions on this system, and nonzero. (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880DiscriminatorsAreNonZeroAndUnique`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L67). **negative:** `unit/verify` [`TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L95) |
+| `RFC5880-6.8.1-4` | This MUST be initialized to zero. (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880InitVariableDefaults`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L88). **negative:** `unit/verify` [`TestRFC5880InitVariablesAreNotConstants`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L113) |
+| `RFC5880-6.8.1-5` | If a period of a Detection Time passes without the receipt of a valid, authenticated BFD packet from the remote system, this variable MUST be set to zero. (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880RemoteDiscrClearedOnDetectionExpiry`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L153). **negative:** `unit/verify` [`TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L180) |
+| `RFC5880-6.8.1-6` | This MUST be initialized to zero (No Diagnostic). bfd.DesiredMinTxInterval (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880InitVariableDefaults`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L90). **negative:** `unit/verify` [`TestRFC5880InitVariablesAreNotConstants`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L116) |
+| `RFC5880-6.8.1-7` | This MUST be initialized to a value of at least one second (1,000,000 microseconds) according to the rules described in section 6.8.3. (§6.8.1, §6.8.3) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880SlowStartFloorWhileNotUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L208). **negative:** `unit/verify` [`TestRFC5880SlowStartFloorLiftedWhenUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L228) |
 | `RFC5880-6.8.1-8` | bfd.RemoteMinRxInterval must be initialized to 1 (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880InitVariableDefaults`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L92). **negative:** `unit/verify` [`TestRFC5880InitVariablesAreNotConstants`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L118) |
-| `RFC5880-6.8.1-9` | bfd.RemoteDemandMode must be initialized to zero (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880InitVariableDefaults`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L94). **negative:** `unit/verify` [`TestRFC5880InitVariablesAreNotConstants`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L121) |
-| `RFC5880-6.8.1-10` | bfd.DetectMult must be a nonzero integer (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880DetectMultConfiguredValue`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L248). **negative:** `unit/verify` [`TestRFC5880DetectMultZeroRequestSubstituted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L259) |
-| `RFC5880-6.8.1-11` | bfd.XmitAuthSeq must be initialized to a random 32-bit value (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** no positive test. **negative:** no negative test. **{gap}:** SetAuth seeds bfd.XmitAuthSeq from the persister or leaves the Vars zero value (internal/component/bfd/session/auth.go:36) and Init never randomizes it (internal/component/bfd/session/session.go:245-259), so the initial transmit sequence is 0 rather than a random 32-bit value |
-| `RFC5880-6.8.1-12` | bfd.AuthSeqKnown must be initialized to zero (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880AuthSeqKnownStartsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L418). **negative:** `unit/verify` [`TestRFC5880AuthSeqKnownSetAfterFirstPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L436) |
-| `RFC5880-6.8.1-13` | bfd.AuthSeqKnown must be set to zero after no packets received for twice the Detection Time (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** no positive test. **negative:** no negative test. **{gap}:** bfd.AuthSeqKnown is SeqState.initialized, which only Advance sets (internal/component/bfd/auth/meticulous.go:63-66) and nothing ever clears; CheckDetection clears the detection deadline alone (internal/component/bfd/session/timers.go:82), so the flag survives twice the Detection Time of silence |
-| `RFC5880-6.8.1-14` | Session state must be preserved for at least one Detection Time after last valid packet (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880StatePreservedForOneDetectionTime`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L283). **negative:** `unit/verify` [`TestRFC5880DetectionExpiryDownDiagOne`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L308) |
-| `RFC5880-6.1-1` | Active role system must send BFD Control packets regardless of whether packets have been received (§6.1) | MUST | 6.1 - Overview | **positive:** `unit/verify` [`TestRFC5880ActiveRoleTransmitsWithoutReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L361). **negative:** `unit/verify` [`TestRFC5880PassiveRoleTransmitsAfterReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L410) |
-| `RFC5880-6.1-2` | Passive role system must not begin sending BFD packets until it has received one (§6.1) | MUST NOT | 6.1 - Overview | **positive:** `unit/verify` [`TestRFC5880PassiveRoleSilentUntilReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L386). **negative:** `unit/verify` [`TestRFC5880PassiveRoleTransmitsAfterReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L415) |
-| `RFC5880-6.1-3` | At least one system must take the Active role (§6.1) | MUST | 6.1 - Overview | **positive:** `unit/verify` [`TestRFC5880ActiveRoleTransmitsWithoutReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L366). **negative:** `unit/verify` [`TestRFC5880PassiveRoleSilentUntilReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L394) |
-| `RFC5880-6.8.3-1` | When session state is not Up, bfd.DesiredMinTxInterval must be at least 1,000,000 microseconds (§6.8.3) | MUST | 6.8.3 - Timer Manipulation | **positive:** `unit/verify` [`TestRFC5880SlowStartFloorWhileNotUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L213). **negative:** `unit/verify` [`TestRFC5880SlowStartFloorLiftedWhenUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L232) |
-| `RFC5880-6.8.3-2` | If bfd.DesiredMinTxInterval or bfd.RequiredMinRxInterval changes, a Poll Sequence must be initiated (§6.8.3) | MUST | 6.8.3 - Timer Manipulation | **positive:** `unit/verify` [`TestRFC5880PollInitiatedOnIntervalChange`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L436). **negative:** `unit/verify` [`TestRFC5880NoPollWhenIntervalsUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L470) |
-| `RFC5880-6.8.3-3` | If bfd.DesiredMinTxInterval is increased while Up, the actual TX interval must not change until the Poll Sequence terminates (§6.8.3) | MUST NOT | 6.8.3 - Timer Manipulation | **positive:** no positive test. **negative:** no negative test. **{gap}:** ApplyEchoSlowdown raises bfd.DesiredMinTxInterval while the session is Up (internal/component/bfd/session/timers.go:235) and TransmitInterval returns the raised value on the very next call (internal/component/bfd/session/timers.go:44), so the longer interval takes effect before the Poll Sequence terminates |
-| `RFC5880-6.8.3-4` | If bfd.RequiredMinRxInterval is reduced while Up, the previous value must be used for detection time until the Poll terminates (§6.8.3) | MUST | 6.8.3 - Timer Manipulation | **positive:** no positive test. **negative:** no negative test. **{gap}:** revertEchoSlowdownLocked reduces bfd.RequiredMinRxInterval while Up (internal/component/bfd/session/timers.go:249) and DetectionInterval immediately uses the reduced value (internal/component/bfd/session/timers.go:29); no previous value is retained until the Poll Sequence terminates |
+| `RFC5880-6.8.1-9` | This variable MUST be initialized to zero. (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880InitVariableDefaults`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L94). **negative:** `unit/verify` [`TestRFC5880InitVariablesAreNotConstants`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L121) |
+| `RFC5880-6.8.1-10` | This variable MUST be a nonzero integer, and is otherwise outside the scope of this specification. (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880DetectMultConfiguredValue`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L248). **negative:** `unit/verify` [`TestRFC5880DetectMultZeroRequestSubstituted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L259) |
+| `RFC5880-6.8.1-11` | This variable MUST be initialized to a random 32-bit value. (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** no positive test. **negative:** no negative test. **{gap}:** SetAuth seeds bfd.XmitAuthSeq from the persister or leaves the Vars zero value (internal/component/bfd/session/auth.go:36) and Init never randomizes it (internal/component/bfd/session/session.go:245-259), so the initial transmit sequence is 0 rather than a random 32-bit value |
+| `RFC5880-6.8.1-12` | This variable MUST be initialized to zero. (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880AuthSeqKnownStartsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L418). **negative:** `unit/verify` [`TestRFC5880AuthSeqKnownSetAfterFirstPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L436) |
+| `RFC5880-6.8.1-13` | This variable MUST be set to zero after no packets have been received on this session for at least twice the Detection Time. (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** no positive test. **negative:** no negative test. **{gap}:** bfd.AuthSeqKnown is SeqState.initialized, which only Advance sets (internal/component/bfd/auth/meticulous.go:63-66) and nothing ever clears; CheckDetection clears the detection deadline alone (internal/component/bfd/session/timers.go:82), so the flag survives twice the Detection Time of silence |
+| `RFC5880-6.8.1-14` | Once session state is created, and at least one BFD Control packet is received from the remote end, it MUST be preserved for at least one Detection Time (see section 6.8.4) subsequent to the receipt of the last BFD Control packet, regardless of the session state. (§6.8.1) | MUST | 6.8.1 - State Variables | **positive:** `unit/verify` [`TestRFC5880StatePreservedForOneDetectionTime`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L283). **negative:** `unit/verify` [`TestRFC5880DetectionExpiryDownDiagOne`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L308) |
+| `RFC5880-6.1-1` | A system taking the Active role MUST send BFD Control packets for a particular session, regardless of whether it has received any BFD packets for that session. (§6.1) | MUST | 6.1 - Overview | **positive:** `unit/verify` [`TestRFC5880ActiveRoleTransmitsWithoutReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L361). **negative:** `unit/verify` [`TestRFC5880PassiveRoleTransmitsAfterReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L410) |
+| `RFC5880-6.1-2` | A system taking the Passive role MUST NOT begin sending BFD packets for a particular session until it has received a BFD packet for that session, and thus has learned the remote system's discriminator value. (§6.1) | MUST NOT | 6.1 - Overview | **positive:** `unit/verify` [`TestRFC5880PassiveRoleSilentUntilReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L386). **negative:** `unit/verify` [`TestRFC5880PassiveRoleTransmitsAfterReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L415) |
+| `RFC5880-6.1-3` | At least one system MUST take the Active role (possibly both). (§6.1) | MUST | 6.1 - Overview | **positive:** `unit/verify` [`TestRFC5880ActiveRoleTransmitsWithoutReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L366). **negative:** `unit/verify` [`TestRFC5880PassiveRoleSilentUntilReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L394) |
+| `RFC5880-6.8.3-1` | When bfd.SessionState is not Up, the system MUST set bfd.DesiredMinTxInterval to a value of not less than one second (1,000,000 microseconds). (§6.8.3) | MUST | 6.8.3 - Timer Manipulation | **positive:** `unit/verify` [`TestRFC5880SlowStartFloorWhileNotUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L213). **negative:** `unit/verify` [`TestRFC5880SlowStartFloorLiftedWhenUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L232) |
+| `RFC5880-6.8.3-2` | If either bfd.DesiredMinTxInterval is changed or bfd.RequiredMinRxInterval is changed, a Poll Sequence MUST be initiated (see section 6.5). (§6.8.3) | MUST | 6.8.3 - Timer Manipulation | **positive:** `unit/verify` [`TestRFC5880PollInitiatedOnIntervalChange`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L436). **negative:** `unit/verify` [`TestRFC5880NoPollWhenIntervalsUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L470) |
+| `RFC5880-6.8.3-3` | If bfd.DesiredMinTxInterval is increased and bfd.SessionState is Up, the actual transmission interval used MUST NOT change until the Poll Sequence described above has terminated. (§6.8.3) | MUST NOT | 6.8.3 - Timer Manipulation | **positive:** no positive test. **negative:** no negative test. **{gap}:** ApplyEchoSlowdown raises bfd.DesiredMinTxInterval while the session is Up (internal/component/bfd/session/timers.go:235) and TransmitInterval returns the raised value on the very next call (internal/component/bfd/session/timers.go:44), so the longer interval takes effect before the Poll Sequence terminates |
+| `RFC5880-6.8.3-4` | If bfd.RequiredMinRxInterval is reduced and bfd.SessionState is Up, the previous value of bfd.RequiredMinRxInterval MUST be used when calculating the Detection Time for the remote system until the Poll Sequence described above has terminated. (§6.8.3) | MUST | 6.8.3 - Timer Manipulation | **positive:** no positive test. **negative:** no negative test. **{gap}:** revertEchoSlowdownLocked reduces bfd.RequiredMinRxInterval while Up (internal/component/bfd/session/timers.go:249) and DetectionInterval immediately uses the reduced value (internal/component/bfd/session/timers.go:29); no previous value is retained until the Poll Sequence terminates |
 | `RFC5880-6.8.3-5` | If local system reduces TX interval due to bfd.RemoteMinRxInterval being reduced, it must honor the new interval immediately (§6.8.3) | MUST | 6.8.3 - Timer Manipulation | **positive:** `unit/verify` [`TestRFC5880RemoteMinRxReductionHonoredImmediately`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L497). **negative:** `unit/verify` [`TestRFC5880TransmitIntervalFlooredByLocalDesired`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L533) |
 | `RFC5880-6.8.3-6` | Multiple parameter changes requiring Poll Sequence must be communicated in a single packet, or a round-trip must elapse, or an F=0 packet must be received before starting another Poll (§6.8.3) | MUST | 6.8.3 - Timer Manipulation | **positive:** `unit/verify` [`TestRFC5880PollInitiatedOnIntervalChange`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L441). **negative:** no negative test. **{single-polarity}:** onStateChange applies both interval changes and raises exactly one Poll (internal/component/bfd/session/fsm.go:139-144), so ze always takes the single-packet option and no overlapping second Poll Sequence exists to reject |
-| `RFC5880-6.5-1` | A BFD Control packet must not have both Poll (P) and Final (F) bits set (§6.5) | MUST NOT | 6.5 - The Poll Sequence | **positive:** `unit/verify` [`TestRFC5880PollPacketHasNoFinalBit`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L567). **negative:** `unit/verify` [`TestRFC5880FinalReplyClearsPollBit`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L586) |
-| `RFC5880-6.5-2` | If periodic Control packets are being sent, Poll Sequence must be performed by setting P bit on scheduled transmissions; additional packets must not be sent (§6.5) | MUST | 6.5 - The Poll Sequence | **positive:** `unit/verify` [`TestRFC5880PollPacketHasNoFinalBit`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L571). **negative:** `unit/verify` [`TestRFC5880FinalReplyClearsPollBit`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L590) |
+| `RFC5880-6.5-1` | A BFD Control packet MUST NOT have both the Poll (P) and Final (F) bits set. (§6.5) | MUST NOT | 6.5 - The Poll Sequence | **positive:** `unit/verify` [`TestRFC5880PollPacketHasNoFinalBit`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L567). **negative:** `unit/verify` [`TestRFC5880FinalReplyClearsPollBit`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L586) |
+| `RFC5880-6.5-2` | If periodic BFD Control packets are already being sent (the remote system is not in Demand mode), the Poll Sequence MUST be performed by setting the Poll (P) bit on those scheduled periodic transmissions; additional packets MUST NOT be sent. (§6.5) | MUST | 6.5 - The Poll Sequence | **positive:** `unit/verify` [`TestRFC5880PollPacketHasNoFinalBit`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L571). **negative:** `unit/verify` [`TestRFC5880FinalReplyClearsPollBit`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L590) |
 | `RFC5880-6.6-1` | Demand (D) bit must not be set unless bfd.DemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up (§6.6, §6.8.7) | MUST NOT | 6.6 - Demand mode | **positive:** `unit/verify` [`TestRFC5880DemandBitSetWhenAllConditionsHold`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L652). **negative:** `unit/verify` [`TestRFC5880DemandBitClearWhenAnyConditionFails`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L666) |
-| `RFC5880-6.6-2` | When the D bit value is to be changed, a Poll Sequence must be initiated (§6.6) | MUST | 6.6 - Demand mode | **positive:** no positive test. **negative:** no negative test. **{gap}:** bfd.DemandMode has no writer in production code -- it is declared at internal/component/bfd/session/session.go:58 and read only by canSetDemand (internal/component/bfd/session/fsm.go:247) -- so no D-bit change path exists and none initiates a Poll Sequence |
-| `RFC5880-6.6-3` | If Demand mode is active on either system, a Poll Sequence must be initiated whenever next packet contents would differ (except P/F bits) (§6.6) | MUST | 6.6 - Demand mode | **positive:** no positive test. **negative:** no negative test. **{gap}:** bfd.RemoteDemandMode is stored by Receive (internal/component/bfd/session/fsm.go:58) and read nowhere, and bfd.DemandMode has no writer (internal/component/bfd/session/session.go:58), so no code path starts a Poll when packet contents would change while Demand mode is active |
-| `RFC5880-6.7-1` | Implementations supporting authentication must support both types of SHA1 authentication (§6.7) | MUST | 6.7 - Authentication | **positive:** `unit/verify` [`TestRFC5880BothSHA1VariantsSupported`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L48). **negative:** `unit/verify` [`TestRFC5880UnsupportedAuthTypesRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L67) |
-| `RFC5880-4.2-1` | Simple Password must be 1 to 16 bytes in length (§4.2, §6.7.2) | MUST | 4.2 - Simple Password Authentication Section Format | **positive:** `unit/verify` [`TestRFC5880SimplePasswordManagementAcceptsASCIIStrings`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_test.go#L101). **positive:** `unit/verify` [`TestRFC5880SimplePasswordSectionHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L589). **negative:** `unit/verify` [`auth/TestRFC5880SimplePasswordLengthOutOfRangeRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L744). **negative:** `unit/verify` [`bfd/TestRFC5880SimplePasswordLengthOutOfRangeRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_test.go#L128) |
+| `RFC5880-6.6-2` | When the transmitted value of the Demand (D) bit is to be changed, the transmitting system MUST initiate a Poll Sequence in conjunction with changing the bit in order to ensure that both systems are aware of the change. (§6.6) | MUST | 6.6 - Demand mode | **positive:** no positive test. **negative:** no negative test. **{gap}:** bfd.DemandMode has no writer in production code -- it is declared at internal/component/bfd/session/session.go:58 and read only by canSetDemand (internal/component/bfd/session/fsm.go:247) -- so no D-bit change path exists and none initiates a Poll Sequence |
+| `RFC5880-6.6-3` | If Demand mode is active on either or both systems, a Poll Sequence MUST be initiated whenever the contents of the next BFD Control packet to be sent would be different than the contents of the previous packet, with the exception of the Poll (P) and Final (F) bits. (§6.6) | MUST | 6.6 - Demand mode | **positive:** no positive test. **negative:** no negative test. **{gap}:** bfd.RemoteDemandMode is stored by Receive (internal/component/bfd/session/fsm.go:58) and read nowhere, and bfd.DemandMode has no writer (internal/component/bfd/session/session.go:58), so no code path starts a Poll when packet contents would change while Demand mode is active |
+| `RFC5880-6.7-1` | Implementations supporting authentication MUST support both types of SHA1 authentication. (§6.7) | MUST | 6.7 - Authentication | **positive:** `unit/verify` [`TestRFC5880BothSHA1VariantsSupported`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L48). **negative:** `unit/verify` [`TestRFC5880UnsupportedAuthTypesRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L67) |
+| `RFC5880-4.2-1` | The password is a binary string, and MUST be from 1 to 16 bytes in length. (§4.2, §6.7.2) | MUST | 4.2 - Simple Password Authentication Section Format | **positive:** `unit/verify` [`TestRFC5880SimplePasswordManagementAcceptsASCIIStrings`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_test.go#L101). **positive:** `unit/verify` [`TestRFC5880SimplePasswordSectionHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L589). **negative:** `unit/verify` [`auth/TestRFC5880SimplePasswordLengthOutOfRangeRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L744). **negative:** `unit/verify` [`bfd/TestRFC5880SimplePasswordLengthOutOfRangeRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_test.go#L128) |
 | `RFC5880-6.7.2-1` | Simple Password management interface must accept ASCII strings (§6.7.2) | MUST | 6.7.2 - Simple Password Authentication | **positive:** `unit/verify` [`TestRFC5880SimplePasswordManagementAcceptsASCIIStrings`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_test.go#L96). **negative:** `unit/verify` [`bfd/TestRFC5880SimplePasswordLengthOutOfRangeRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_test.go#L132) |
 | `RFC5880-6.7.2-8` | Simple Password Auth Type must be set to 1, Auth Len must be set to the proper length of 4 to 19 bytes (§6.7.2) | MUST | 6.7.2 - Simple Password Authentication | **positive:** `unit/verify` [`TestRFC5880SimplePasswordSectionHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L584). **negative:** `unit/verify` [`TestRFC5880SimplePasswordRejectsForeignSectionShape`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L610) |
 | `RFC5880-6.7.3-1` | Keyed MD5 Auth Type must be set to 2 or 3, Auth Len must be 24 (§6.7.3) | MUST | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** `unit/verify` [`TestRFC5880KeyedMD5SectionHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L83). **negative:** `unit/verify` [`TestRFC5880KeyedMD5RejectsForeignSectionShape`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L110) |
 | `RFC5880-6.7.3-2` | Keyed MD5 Auth Key/Digest: MD5 digest must be calculated over entire BFD Control packet (§6.7.3) | MUST | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** `unit/verify` [`TestRFC5880DigestCoversWholePacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L179). **negative:** `unit/verify` [`TestRFC5880DigestRejectsMandatorySectionTamper`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L198) |
 | `RFC5880-6.7.3-3` | Keyed MD5: secret key must not be carried in the packet (§6.7.3) | MUST NOT | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** `unit/verify` [`TestRFC5880SecretKeyNotCarriedInPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L222). **negative:** no negative test. **{single-polarity}:** Sign overwrites the key scratch with the computed digest before the packet is handed to the transport (internal/component/bfd/auth/sha1.go:85-87), so no key-bearing packet is ever emitted for a receiver to reject |
-| `RFC5880-6.7.3-4` | Meticulous Keyed MD5: bfd.XmitAuthSeq must be incremented for each packet (§6.7.3) | MUST | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** `unit/verify` [`TestRFC5880MeticulousSequenceIncrementsPerPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L287). **negative:** `unit/verify` [`TestRFC5880MeticulousRejectsUnincrementedSequence`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L536) |
+| `RFC5880-6.7.3-4` | For Meticulous Keyed MD5, bfd.XmitAuthSeq MUST be incremented in a circular fashion (when treated as an unsigned 32-bit value). (§6.7.3) | MUST | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** `unit/verify` [`TestRFC5880MeticulousSequenceIncrementsPerPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L287). **negative:** `unit/verify` [`TestRFC5880MeticulousRejectsUnincrementedSequence`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L536) |
 | `RFC5880-6.7.4-1` | Keyed SHA1 Auth Type must be set to 4 or 5, Auth Len must be 28 (§6.7.4) | MUST | 6.7.4 - Keyed SHA1 and Meticulous Keyed SHA1 Authentication | **positive:** `unit/verify` [`TestRFC5880KeyedSHA1SectionHeader`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L135). **negative:** `unit/verify` [`TestRFC5880KeyedSHA1RejectsForeignSectionShape`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L156) |
 | `RFC5880-6.7.4-2` | SHA1 hash must be calculated over entire BFD Control packet (§6.7.4) | MUST | 6.7.4 - Keyed SHA1 and Meticulous Keyed SHA1 Authentication | **positive:** `unit/verify` [`TestRFC5880DigestCoversWholePacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L185). **negative:** `unit/verify` [`TestRFC5880DigestRejectsMandatorySectionTamper`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L203) |
 | `RFC5880-6.7.4-3` | Keyed SHA1: secret key must not be carried in the packet (§6.7.4) | MUST NOT | 6.7.4 - Keyed SHA1 and Meticulous Keyed SHA1 Authentication | **positive:** `unit/verify` [`TestRFC5880SecretKeyNotCarriedInPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L226). **negative:** no negative test. **{single-polarity}:** the SHA1 signer shares that producer with a 20-byte digest slot (internal/component/bfd/auth/sha1.go:85-87,193-195), so no key-bearing packet is emitted |
-| `RFC5880-6.7.4-4` | Meticulous Keyed SHA1: bfd.XmitAuthSeq must be incremented for each packet (§6.7.4) | MUST | 6.7.4 - Keyed SHA1 and Meticulous Keyed SHA1 Authentication | **positive:** `unit/verify` [`TestRFC5880MeticulousSequenceIncrementsPerPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L293). **negative:** `unit/verify` [`TestRFC5880MeticulousRejectsUnincrementedSequence`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L541) |
+| `RFC5880-6.7.4-4` | For Meticulous Keyed SHA1, bfd.XmitAuthSeq MUST be incremented in a circular fashion (when treated as an unsigned 32-bit value). (§6.7.4) | MUST | 6.7.4 - Keyed SHA1 and Meticulous Keyed SHA1 Authentication | **positive:** `unit/verify` [`TestRFC5880MeticulousSequenceIncrementsPerPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L293). **negative:** `unit/verify` [`TestRFC5880MeticulousRejectsUnincrementedSequence`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L541) |
 | `RFC5880-6.7.4-5` | SHA1 key management interface must accept ASCII strings (§6.7.4) | MUST | 6.7.4 - Keyed SHA1 and Meticulous Keyed SHA1 Authentication | **positive:** `unit/verify` [`TestRFC5880KeyManagementAcceptsASCIIStrings`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_test.go#L31). **negative:** `unit/verify` [`TestRFC5880KeyManagementRejectsIncompleteConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_test.go#L70) |
 | `RFC5880-6.8.6-1` | Reception: discard if Version != 1 (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880VersionOneAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L48). **negative:** `unit/verify` [`TestRFC5880VersionNotOneDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L66) |
 | `RFC5880-6.8.6-2` | Reception: discard if Length < 24 (A=0) or < 26 (A=1) (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880LengthMinimumAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L108). **negative:** `unit/verify` [`TestRFC5880LengthBelowMinimumDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L128) |
-| `RFC5880-6.8.6-3` | Reception: discard if Length > encapsulating payload (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880LengthEqualsPayloadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L148). **negative:** `unit/verify` [`TestRFC5880LengthOverPayloadDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L163) |
+| `RFC5880-6.8.6-3` | If the Length field is greater than the payload of the encapsulating protocol, the packet MUST be discarded. (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880LengthEqualsPayloadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L148). **negative:** `unit/verify` [`TestRFC5880LengthOverPayloadDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L163) |
 | `RFC5880-6.8.6-4` | Reception: discard if Detect Mult == 0 (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880DetectMultNonZeroAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L174). **negative:** `unit/verify` [`TestRFC5880DetectMultZeroDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L190) |
-| `RFC5880-6.8.6-5` | Reception: discard if M bit is nonzero (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880MultipointZeroAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L84). **negative:** `unit/verify` [`TestRFC5880MultipointSetDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L99) |
+| `RFC5880-6.8.6-5` | If the Multipoint (M) bit is nonzero, the packet MUST be discarded. (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880MultipointZeroAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L84). **negative:** `unit/verify` [`TestRFC5880MultipointSetDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L99) |
 | `RFC5880-6.8.6-6` | Reception: discard if My Discriminator == 0 (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880MyDiscriminatorNonZeroAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L200). **negative:** `unit/verify` [`TestRFC5880MyDiscriminatorZeroDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L214) |
-| `RFC5880-6.8.6-7` | Reception: if Your Discriminator nonzero, use it to select session; discard if no session found (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880YourDiscriminatorSelectsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L124). **negative:** `unit/verify` [`TestRFC5880UnknownYourDiscriminatorDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L140) |
-| `RFC5880-6.8.6-8` | Reception: if Your Discriminator zero and State is not Down or AdminDown, discard (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L724). **negative:** `unit/verify` [`TestRFC5880ZeroYourDiscriminatorDiscardedWhenLive`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L699) |
+| `RFC5880-6.8.6-7` | If the Your Discriminator field is nonzero, it MUST be used to select the session with which this BFD packet is associated. (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880YourDiscriminatorSelectsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L124). **negative:** `unit/verify` [`TestRFC5880UnknownYourDiscriminatorDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L140) |
+| `RFC5880-6.8.6-8` | If the Your Discriminator field is zero and the State field is not Down or AdminDown, the packet MUST be discarded. (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L724). **negative:** `unit/verify` [`TestRFC5880ZeroYourDiscriminatorDiscardedWhenLive`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L699) |
 | `RFC5880-6.8.6-9` | Reception: if A=1 and bfd.AuthType is zero, discard (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880UnauthenticatedSessionAcceptsUnauthenticatedPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L746). **negative:** `unit/verify` [`TestRFC5880UnauthenticatedSessionDiscardsAuthenticatedPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L761) |
 | `RFC5880-6.8.6-10` | Reception: if A=0 and bfd.AuthType is nonzero, discard (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880AuthenticatedSessionAcceptsAuthenticatedPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L778). **negative:** `unit/verify` [`TestRFC5880AuthenticatedSessionDiscardsUnauthenticatedPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L796) |
 | `RFC5880-6.8.6-11` | Reception: if A=1, authenticate per §6.7 (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880AuthenticatedPacketVerifiedAndDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L241). **negative:** `unit/verify` [`TestRFC5880UnauthenticPacketDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L258) |
 | `RFC5880-6.8.6-12` | Reception: if Required Min Echo RX Interval == 0, cease Echo transmission (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880EchoCeasesWhenPeerAdvertisesZero`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L812). **negative:** `unit/verify` [`TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L849) |
 | `RFC5880-6.8.6-13` | Reception: if Poll in flight and F=1 received, terminate the Poll Sequence (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880FinalTerminatesPoll`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L610). **negative:** `unit/verify` [`TestRFC5880NonFinalDoesNotTerminatePoll`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L630) |
-| `RFC5880-6.8.6-14` | Reception: if remote Demand mode active (D=1, both Up), cease periodic Control packet transmission (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** no positive test. **negative:** no negative test. **{gap}:** tick transmits whenever the periodic deadline has passed and never consults the remote Demand state (internal/component/bfd/engine/loop.go:192-201), so periodic Control packets continue after the peer sets D=1 |
-| `RFC5880-6.8.6-15` | Reception: if remote Demand mode not active, send periodic Control packets (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880PeriodicTransmitWhenRemoteDemandInactive`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L368). **negative:** `unit/verify` [`TestRFC5880NoPeriodicTransmitWhileAdminDown`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L403) |
+| `RFC5880-6.8.6-14` | If bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up, Demand mode is active on the remote system and the local system MUST cease the periodic transmission of BFD Control packets (see section 6.8.7). (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** no positive test. **negative:** no negative test. **{gap}:** tick transmits whenever the periodic deadline has passed and never consults the remote Demand state (internal/component/bfd/engine/loop.go:192-201), so periodic Control packets continue after the peer sets D=1 |
+| `RFC5880-6.8.6-15` | If bfd.RemoteDemandMode is 0, or bfd.SessionState is not Up, or bfd.RemoteSessionState is not Up, Demand mode is not active on the remote system and the local system MUST send periodic BFD Control packets (see section 6.8.7). (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880PeriodicTransmitWhenRemoteDemandInactive`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L368). **negative:** `unit/verify` [`TestRFC5880NoPeriodicTransmitWhileAdminDown`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L403) |
 | `RFC5880-6.8.6-16` | Reception: if P=1, send Final packet immediately (§6.8.6, §6.8.7) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880PollAnsweredWithImmediateFinal`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L322). **negative:** `unit/verify` [`TestRFC5880NonPollProducesNoImmediateReply`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L352) |
-| `RFC5880-6.8.6-18` | Reception: if Your Discriminator zero, select the session on a combination of other fields, which can include source addressing information, My Discriminator, and the ingress interface (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestFirstPacketMatchesWhatTheTransportSurfaces`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L363). **positive:** `unit/verify` [`TestRFC5881FirstPacketMatchesByTuple`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L135). **negative:** `unit/verify` [`TestRFC5881FirstPacketWrongSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L158) |
-| `RFC5880-6.8.7-1` | Transmission: must not transmit at interval less than max(bfd.DesiredMinTxInterval, bfd.RemoteMinRxInterval) less jitter (§6.8.7) | MUST NOT | 6.8.7 - Transmitting BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880TransmitDeadlineUsesNegotiatedInterval`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L1015). **negative:** `unit/verify` [`TestRFC5880TransmitDeadlineClampsBadJitter`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L1045) |
+| `RFC5880-6.8.6-18` | If the Your Discriminator field is zero, the session MUST be selected based on some combination of other fields, possibly including source addressing information, the My Discriminator field, and the interface over which the packet was received. (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestFirstPacketMatchesWhatTheTransportSurfaces`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L363). **positive:** `unit/verify` [`TestRFC5881FirstPacketMatchesByTuple`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L135). **negative:** `unit/verify` [`TestRFC5881FirstPacketWrongSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L158) |
+| `RFC5880-6.8.7-1` | With the exceptions listed in the remainder of this section, a system MUST NOT transmit BFD Control packets at an interval less than the larger of bfd.DesiredMinTxInterval and bfd.RemoteMinRxInterval, less applied jitter (see below). (§6.8.7) | MUST NOT | 6.8.7 - Transmitting BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880TransmitDeadlineUsesNegotiatedInterval`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L1015). **negative:** `unit/verify` [`TestRFC5880TransmitDeadlineClampsBadJitter`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L1045) |
 | `RFC5880-6.8.7-2` | Transmission: periodic TX must be jittered by 0-25% per packet (§6.8.7) | MUST | 6.8.7 - Transmitting BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880JitterIsAppliedPerPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L422). **negative:** `unit/verify` [`TestRFC5880JitterStaysWithinBand`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L450) |
 | `RFC5880-6.8.7-3` | Transmission: if bfd.DetectMult == 1, interval must be 75-90% of negotiated interval (§6.8.7) | MUST | 6.8.7 - Transmitting BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880JitterDetectMultOneWindow`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L470). **negative:** `unit/verify` [`TestRFC5880JitterFloorOnlyForDetectMultOne`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L488) |
-| `RFC5880-6.8.7-4` | Transmission: TX interval must be recalculated whenever bfd.DesiredMinTxInterval or bfd.RemoteMinRxInterval changes (§6.8.7) | MUST | 6.8.7 - Transmitting BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880RemoteMinRxReductionHonoredImmediately`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L504). **negative:** `unit/verify` [`TestRFC5880TransmitIntervalFlooredByLocalDesired`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L538) |
-| `RFC5880-6.8.7-5` | Transmission: must not transmit if bfd.RemoteDiscr is zero and system is Passive (§6.8.7) | MUST NOT | 6.8.7 - Transmitting BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880PassiveRoleSilentUntilReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L391). **negative:** `unit/verify` [`TestRFC5880ActiveRoleTransmitsWithoutReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L369) |
-| `RFC5880-6.8.7-6` | Transmission: must not periodically transmit if bfd.RemoteMinRxInterval is zero (§6.8.7) | MUST NOT | 6.8.7 - Transmitting BFD Control Packets | **positive:** no positive test. **negative:** no negative test. **{gap}:** TransmitInterval substitutes the slow-start interval when the negotiated maximum is zero (internal/component/bfd/session/timers.go:45-47) and tick carries no bfd.RemoteMinRxInterval == 0 suppression (internal/component/bfd/engine/loop.go:192-201), so periodic transmission continues |
-| `RFC5880-6.8.7-7` | Transmission: must not periodically transmit if remote Demand mode active and no Poll in flight (§6.8.7) | MUST NOT | 6.8.7 - Transmitting BFD Control Packets | **positive:** no positive test. **negative:** no negative test. **{gap}:** the same tick producer (internal/component/bfd/engine/loop.go:192-201) has no remote-Demand suppression, so periodic transmission continues while the remote Demand mode is active with no Poll in flight |
-| `RFC5880-6.8.7-8` | If rate limiting Final packets, advertised Desired Min TX Interval must be >= rate-limit interval (§6.8.7) | MUST | 6.8.7 - Transmitting BFD Control Packets | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze does not rate-limit Final packets -- handleInbound sends the Final unconditionally on every received Poll (internal/component/bfd/engine/loop.go:140-142) and no rate limiter exists on that path, so the conditional advertised-interval floor never applies |
+| `RFC5880-6.8.7-4` | The transmit interval MUST be recalculated whenever bfd.DesiredMinTxInterval changes, or whenever bfd.RemoteMinRxInterval changes, and is equal to the greater of those two values. (§6.8.7) | MUST | 6.8.7 - Transmitting BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880RemoteMinRxReductionHonoredImmediately`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L504). **negative:** `unit/verify` [`TestRFC5880TransmitIntervalFlooredByLocalDesired`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L538) |
+| `RFC5880-6.8.7-5` | A system MUST NOT transmit BFD Control packets if bfd.RemoteDiscr is zero and the system is taking the Passive role. (§6.8.7) | MUST NOT | 6.8.7 - Transmitting BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880PassiveRoleSilentUntilReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L391). **negative:** `unit/verify` [`TestRFC5880ActiveRoleTransmitsWithoutReception`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L369) |
+| `RFC5880-6.8.7-6` | A system MUST NOT periodically transmit BFD Control packets if bfd.RemoteMinRxInterval is zero. (§6.8.7) | MUST NOT | 6.8.7 - Transmitting BFD Control Packets | **positive:** no positive test. **negative:** no negative test. **{gap}:** TransmitInterval substitutes the slow-start interval when the negotiated maximum is zero (internal/component/bfd/session/timers.go:45-47) and tick carries no bfd.RemoteMinRxInterval == 0 suppression (internal/component/bfd/engine/loop.go:192-201), so periodic transmission continues |
+| `RFC5880-6.8.7-7` | A system MUST NOT periodically transmit BFD Control packets if Demand mode is active on the remote system (bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up) and a Poll Sequence is not being transmitted. (§6.8.7) | MUST NOT | 6.8.7 - Transmitting BFD Control Packets | **positive:** no positive test. **negative:** no negative test. **{gap}:** the same tick producer (internal/component/bfd/engine/loop.go:192-201) has no remote-Demand suppression, so periodic transmission continues while the remote Demand mode is active with no Poll in flight |
+| `RFC5880-6.8.7-8` | If rate limiting is in effect, the advertised value of Desired Min TX Interval MUST be greater than or equal to the interval between transmitted packets imposed by the rate limiting function. (§6.8.7) | MUST | 6.8.7 - Transmitting BFD Control Packets | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze does not rate-limit Final packets -- handleInbound sends the Final unconditionally on every received Poll (internal/component/bfd/engine/loop.go:140-142) and no rate limiter exists on that path, so the conditional advertised-interval floor never applies |
 | `RFC5880-6.8.4-1` | Detection time expired while Init or Up: set bfd.SessionState to Down, bfd.LocalDiag to 1 (§6.8.4) | MUST | 6.8.4 - Calculating the Detection Time | **positive:** `unit/verify` [`TestRFC5880DetectionExpiryDownDiagOne`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L312). **negative:** `unit/verify` [`TestRFC5880DetectionExpiryIgnoredWhenDown`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L333) |
 | `RFC5880-6.8.5-1` | Echo function failure: set bfd.SessionState to Down, bfd.LocalDiag to 2 (§6.8.5) | MUST | 6.8.5 - Detecting Failures with the Echo Function | **positive:** `unit/verify` [`TestRFC5880EchoMissDetectedAndReported`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L943). **negative:** `unit/verify` [`TestRFC5880EchoReturnClearsMissAndFailIsScoped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L979) |
-| `RFC5880-6.8.15-1` | Forwarding plane reset: set bfd.LocalDiag to 4, bfd.SessionState to Down (§6.8.15) | MUST | 6.8.15 - Forwarding Plane Reset | **positive:** no positive test. **negative:** no negative test. **{gap}:** packet.DiagForwardingPlaneReset (internal/component/bfd/packet/diag.go:21) has no producer, and the only external state-forcing entry points are AdminDown and AdminEnable (internal/component/bfd/session/fsm.go:180,192), which move the session to AdminDown or Down carrying the caller's diagnostic and are never called with code 4 |
+| `RFC5880-6.8.15-1` | When the forwarding plane in the local system is reset for some reason, such that the remote system can no longer rely on the local forwarding state, the local system MUST set bfd.LocalDiag to 4 (Forwarding Plane Reset), and set bfd.SessionState to Down. (§6.8.15) | MUST | 6.8.15 - Forwarding Plane Reset | **positive:** no positive test. **negative:** no negative test. **{gap}:** packet.DiagForwardingPlaneReset (internal/component/bfd/packet/diag.go:21) has no producer, and the only external state-forcing entry points are AdminDown and AdminEnable (internal/component/bfd/session/fsm.go:180,192), which move the session to AdminDown or Down carrying the caller's diagnostic and are never called with code 4 |
 | `RFC5880-6.8.16-1` | Administrative control: follow the enable/disable procedure (§6.8.16) | MUST | 6.8.16 - Administrative Control | **positive:** `unit/verify` [`TestRFC5880AdministrativeDisableEnable`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L1071). **negative:** `unit/verify` [`TestRFC5880AdministrativeCallsAreGuarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L1106) |
-| `RFC5880-6.8.8-1` | Echo packets must be demultiplexed to the appropriate session (§6.8.8) | MUST | 6.8.8 - Reception of BFD Echo Packets | **positive:** `unit/verify` [`TestRFC5880EchoDemultiplexedToItsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L589). **negative:** `unit/verify` [`TestRFC5880UnknownEchoDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L626) |
-| `RFC5880-6.8.8-2` | A means of detecting missing Echo packets must be implemented (§6.8.8) | MUST | 6.8.8 - Reception of BFD Echo Packets | **positive:** `unit/verify` [`TestRFC5880EchoMissDetectedAndReported`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L938). **negative:** `unit/verify` [`TestRFC5880EchoReturnClearsMissAndFailIsScoped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L974) |
-| `RFC5880-6.8.9-1` | Echo packets must not be transmitted when bfd.SessionState is not Up (§6.8.9) | MUST NOT | 6.8.9 - Transmission of BFD Echo Packets | **positive:** `unit/verify` [`TestRFC5880EchoTransmittedWhileUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L543). **negative:** `unit/verify` [`TestRFC5880NoEchoTransmittedWhenNotUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L564) |
-| `RFC5880-6.8.9-2` | Echo packets must not be transmitted unless remote Required Min Echo RX Interval is nonzero (§6.8.9) | MUST NOT | 6.8.9 - Transmission of BFD Echo Packets | **positive:** `unit/verify` [`TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L852). **negative:** `unit/verify` [`TestRFC5880EchoNotTransmittedWithoutPeerAdvertisement`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L873) |
+| `RFC5880-6.8.8-1` | A received BFD Echo packet MUST be demultiplexed to the appropriate session for processing. (§6.8.8) | MUST | 6.8.8 - Reception of BFD Echo Packets | **positive:** `unit/verify` [`TestRFC5880EchoDemultiplexedToItsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L589). **negative:** `unit/verify` [`TestRFC5880UnknownEchoDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L626) |
+| `RFC5880-6.8.8-2` | A means of detecting missing Echo packets MUST be implemented, which most likely involves processing of the Echo packets that are received. (§6.8.8) | MUST | 6.8.8 - Reception of BFD Echo Packets | **positive:** `unit/verify` [`TestRFC5880EchoMissDetectedAndReported`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L938). **negative:** `unit/verify` [`TestRFC5880EchoReturnClearsMissAndFailIsScoped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L974) |
+| `RFC5880-6.8.9-1` | BFD Echo packets MUST NOT be transmitted when bfd.SessionState is not Up. (§6.8.9) | MUST NOT | 6.8.9 - Transmission of BFD Echo Packets | **positive:** `unit/verify` [`TestRFC5880EchoTransmittedWhileUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L543). **negative:** `unit/verify` [`TestRFC5880NoEchoTransmittedWhenNotUp`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L564) |
+| `RFC5880-6.8.9-2` | BFD Echo packets MUST NOT be transmitted unless the last BFD Control packet received from the remote system contains a nonzero value in Required Min Echo RX Interval. (§6.8.9) | MUST NOT | 6.8.9 - Transmission of BFD Echo Packets | **positive:** `unit/verify` [`TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L852). **negative:** `unit/verify` [`TestRFC5880EchoNotTransmittedWithoutPeerAdvertisement`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L873) |
 | `RFC5880-6.8.9-3` | Echo packet TX interval must not be less than remote Required Min Echo RX Interval (§6.8.9) | MUST NOT | 6.8.9 - Transmission of BFD Echo Packets | **positive:** `unit/verify` [`TestRFC5880EchoIntervalHonorsPeerFloor`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L896). **negative:** `unit/verify` [`TestRFC5880EchoIntervalNotBelowLocalTarget`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L915) |
 | `RFC5880-7-1` | Multihop: a congestion control mechanism must be implemented (§7) | MUST | 7 - Operational Considerations | **positive:** no positive test. **negative:** no negative test. **{gap}:** the transmit rate is derived solely from TransmitInterval plus jitter (internal/component/bfd/engine/loop.go:197-200) with no congestion-feedback input, and no congestion-control producer exists anywhere under internal/component/bfd |
 | `RFC5880-7-2` | Multihop: when congestion detected, BFD must reduce traffic generated (§7) | MUST | 7 - Operational Considerations | **positive:** no positive test. **negative:** no negative test. **{gap}:** the same rate producer (internal/component/bfd/engine/loop.go:197-200) is the only authority over generated traffic and nothing reduces it in response to detected congestion |
@@ -222,30 +222,30 @@ Fourteen MUST gaps, gated in [`rfc/short/rfc5880.md`](https://github.com/ze-soft
 | `RFC5880-6.7.3-7` | MD5 key management interface MUST accept ASCII strings (§6.7.3) | MUST | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** `unit/verify` [`TestRFC5880KeyManagementAcceptsASCIIStrings`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_test.go#L26). **negative:** `unit/verify` [`TestRFC5880KeyManagementRejectsIncompleteConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5880_test.go#L64) |
 | `RFC5880-6.7.2-3` | Simple Password, MD5, and SHA1 Auth Key ID field MUST be set to the ID of the current authentication key (§6.7.2, §6.7.3, §6.7.4) | MUST | 6.7.2 - Simple Password Authentication | **positive:** `unit/verify` [`TestRFC5880AuthKeyIDIsTheConfiguredKey`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L246). **positive:** `unit/verify` [`TestRFC5880SimplePasswordSectionCarriesPasswordAndKeyID`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L639). **negative:** `unit/verify` [`TestRFC5880AuthKeyIDMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L264) |
 | `RFC5880-6.7.3-8` | Simple Password, MD5, and SHA1 Sequence Number field MUST be set to bfd.XmitAuthSeq (§6.7.3, §6.7.4) | MUST | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** `unit/verify` [`TestRFC5880AuthSequenceFieldIsXmitAuthSeq`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L1140). **negative:** `unit/verify` [`TestRFC5880AuthSequenceFieldFollowsAdvance`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L1163) |
-| `RFC5880-6.7.2-4` | Reception: if Auth Type does not match bfd.AuthType, packet MUST be discarded (§6.7.2, §6.7.3, §6.7.4) | MUST | 6.7.2 - Simple Password Authentication | **positive:** `unit/verify` [`TestRFC5880AuthTypeMatchAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L297). **negative:** `unit/verify` [`TestRFC5880AuthTypeMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L310) |
-| `RFC5880-6.7.2-5` | Reception: if Auth Key ID does not match any configured authentication key, packet MUST be discarded (§6.7.2, §6.7.3, §6.7.4) | MUST | 6.7.2 - Simple Password Authentication | **positive:** `unit/verify` [`TestRFC5880AuthKeyIDMatchAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L285). **positive:** `unit/verify` [`TestRFC5880SimplePasswordMatchingKeyIDAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L729). **negative:** `unit/verify` [`TestRFC5880AuthKeyIDMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L267). **negative:** `unit/verify` [`TestRFC5880SimplePasswordWrongKeyIDDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L712) |
-| `RFC5880-6.7.2-6` | Reception: if Auth Len does not match expected length, packet MUST be discarded (§6.7.2, §6.7.3, §6.7.4) | MUST | 6.7.2 - Simple Password Authentication | **positive:** `unit/verify` [`TestRFC5880AuthLenExpectedAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L326). **negative:** `unit/verify` [`TestRFC5880AuthLenMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L343) |
-| `RFC5880-6.7.2-7` | Reception: if password does not match configured password for Simple Password, packet MUST be discarded (§6.7.2) | MUST | 6.7.2 - Simple Password Authentication | **positive:** `unit/verify` [`TestRFC5880SimplePasswordMatchAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L662). **negative:** `unit/verify` [`TestRFC5880SimplePasswordMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L681) |
+| `RFC5880-6.7.2-4` | If the received BFD Control packet does not contain an Authentication Section, or the Auth Type is not 1 (Simple Password), then the received packet MUST be discarded. (§6.7.2, §6.7.3, §6.7.4) | MUST | 6.7.2 - Simple Password Authentication | **positive:** `unit/verify` [`TestRFC5880AuthTypeMatchAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L297). **negative:** `unit/verify` [`TestRFC5880AuthTypeMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L310) |
+| `RFC5880-6.7.2-5` | If the Auth Key ID field does not match the ID of a configured password, the received packet MUST be discarded. (§6.7.2, §6.7.3, §6.7.4) | MUST | 6.7.2 - Simple Password Authentication | **positive:** `unit/verify` [`TestRFC5880AuthKeyIDMatchAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L285). **positive:** `unit/verify` [`TestRFC5880SimplePasswordMatchingKeyIDAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L729). **negative:** `unit/verify` [`TestRFC5880AuthKeyIDMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L267). **negative:** `unit/verify` [`TestRFC5880SimplePasswordWrongKeyIDDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L712) |
+| `RFC5880-6.7.2-6` | If the Auth Len field is not equal to the length of the password selected by the key ID, plus three, the packet MUST be discarded. (§6.7.2, §6.7.3, §6.7.4) | MUST | 6.7.2 - Simple Password Authentication | **positive:** `unit/verify` [`TestRFC5880AuthLenExpectedAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L326). **negative:** `unit/verify` [`TestRFC5880AuthLenMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L343) |
+| `RFC5880-6.7.2-7` | If the Password field does not match the password selected by the key ID, the packet MUST be discarded. (§6.7.2) | MUST | 6.7.2 - Simple Password Authentication | **positive:** `unit/verify` [`TestRFC5880SimplePasswordMatchAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L662). **negative:** `unit/verify` [`TestRFC5880SimplePasswordMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L681) |
 | `RFC5880-6.7.3-9` | Reception: for Keyed MD5/SHA1, if Sequence Number is less than bfd.RcvAuthSeq (accounting for wrap), packet MUST be discarded (§6.7.3, §6.7.4) | MUST | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** `unit/verify` [`TestRFC5880KeyedSequenceAtOrAboveFloorAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L494). **negative:** `unit/verify` [`TestRFC5880KeyedSequenceBelowFloorDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L514) |
 | `RFC5880-6.7.3-10` | Reception: for Meticulous Keyed MD5/SHA1, if Sequence Number is not exactly bfd.RcvAuthSeq+1 (accounting for wrap), packet MUST be discarded (§6.7.3, §6.7.4) | MUST | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** no positive test. **negative:** no negative test. **{gap}:** SeqState.Check accepts any sequence strictly greater than bfd.RcvAuthSeq for the meticulous variants (internal/component/bfd/auth/meticulous.go:47-51), so a packet whose sequence jumps past RcvAuthSeq+1 is accepted rather than discarded |
-| `RFC5880-6.7.3-11` | Reception: if digest/hash does not match computed value, packet MUST be discarded (§6.7.3, §6.7.4) | MUST | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** `unit/verify` [`TestRFC5880DigestMatchAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L377). **negative:** `unit/verify` [`TestRFC5880DigestMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L390) |
-| `RFC5880-6.7.3-12` | Reception: if bfd.AuthSeqKnown is 0, it MUST be set to 1 and bfd.RcvAuthSeq MUST be set to received Sequence Number (§6.7.3, §6.7.4) | MUST | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** `unit/verify` [`TestRFC5880FirstAuthenticatedPacketSeedsReplayFloor`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L447). **negative:** `unit/verify` [`TestRFC5880ForgedFirstPacketDoesNotSeedReplayFloor`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L471) |
+| `RFC5880-6.7.3-11` | Otherwise (the digest does not match the Auth Key/Digest field), the received packet MUST be discarded. (§6.7.3, §6.7.4) | MUST | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** `unit/verify` [`TestRFC5880DigestMatchAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L377). **negative:** `unit/verify` [`TestRFC5880DigestMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L390) |
+| `RFC5880-6.7.3-12` | Otherwise (bfd.AuthSeqKnown is 0), bfd.AuthSeqKnown MUST be set to 1, and bfd.RcvAuthSeq MUST be set to the value of the received Sequence Number field. (§6.7.3, §6.7.4) | MUST | 6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication | **positive:** `unit/verify` [`TestRFC5880FirstAuthenticatedPacketSeedsReplayFloor`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L447). **negative:** `unit/verify` [`TestRFC5880ForgedFirstPacketDoesNotSeedReplayFloor`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L471) |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC5880-6.8.1-11`](#rfc5880-6.8.1-11) bfd.XmitAuthSeq must be initialized to a random 32-bit value (§6.8.1) | {gap}, no test | SetAuth seeds bfd.XmitAuthSeq from the persister or leaves the Vars zero value (internal/component/bfd/session/auth.go:36) and Init never randomizes it (internal/component/bfd/session/session.go:245-259), so the initial transmit sequence is 0 rather than a random 32-bit value |
-| [`RFC5880-6.8.1-13`](#rfc5880-6.8.1-13) bfd.AuthSeqKnown must be set to zero after no packets received for twice the Detection Time (§6.8.1) | {gap}, no test | bfd.AuthSeqKnown is SeqState.initialized, which only Advance sets (internal/component/bfd/auth/meticulous.go:63-66) and nothing ever clears; CheckDetection clears the detection deadline alone (internal/component/bfd/session/timers.go:82), so the flag survives twice the Detection Time of silence |
-| [`RFC5880-6.8.3-3`](#rfc5880-6.8.3-3) If bfd.DesiredMinTxInterval is increased while Up, the actual TX interval must not change until the Poll Sequence terminates (§6.8.3) | {gap}, no test | ApplyEchoSlowdown raises bfd.DesiredMinTxInterval while the session is Up (internal/component/bfd/session/timers.go:235) and TransmitInterval returns the raised value on the very next call (internal/component/bfd/session/timers.go:44), so the longer interval takes effect before the Poll Sequence terminates |
-| [`RFC5880-6.8.3-4`](#rfc5880-6.8.3-4) If bfd.RequiredMinRxInterval is reduced while Up, the previous value must be used for detection time until the Poll terminates (§6.8.3) | {gap}, no test | revertEchoSlowdownLocked reduces bfd.RequiredMinRxInterval while Up (internal/component/bfd/session/timers.go:249) and DetectionInterval immediately uses the reduced value (internal/component/bfd/session/timers.go:29); no previous value is retained until the Poll Sequence terminates |
-| [`RFC5880-6.6-2`](#rfc5880-6.6-2) When the D bit value is to be changed, a Poll Sequence must be initiated (§6.6) | {gap}, no test | bfd.DemandMode has no writer in production code -- it is declared at internal/component/bfd/session/session.go:58 and read only by canSetDemand (internal/component/bfd/session/fsm.go:247) -- so no D-bit change path exists and none initiates a Poll Sequence |
-| [`RFC5880-6.6-3`](#rfc5880-6.6-3) If Demand mode is active on either system, a Poll Sequence must be initiated whenever next packet contents would differ (except P/F bits) (§6.6) | {gap}, no test | bfd.RemoteDemandMode is stored by Receive (internal/component/bfd/session/fsm.go:58) and read nowhere, and bfd.DemandMode has no writer (internal/component/bfd/session/session.go:58), so no code path starts a Poll when packet contents would change while Demand mode is active |
-| [`RFC5880-6.8.6-14`](#rfc5880-6.8.6-14) Reception: if remote Demand mode active (D=1, both Up), cease periodic Control packet transmission (§6.8.6) | {gap}, no test | tick transmits whenever the periodic deadline has passed and never consults the remote Demand state (internal/component/bfd/engine/loop.go:192-201), so periodic Control packets continue after the peer sets D=1 |
-| [`RFC5880-6.8.7-6`](#rfc5880-6.8.7-6) Transmission: must not periodically transmit if bfd.RemoteMinRxInterval is zero (§6.8.7) | {gap}, no test | TransmitInterval substitutes the slow-start interval when the negotiated maximum is zero (internal/component/bfd/session/timers.go:45-47) and tick carries no bfd.RemoteMinRxInterval == 0 suppression (internal/component/bfd/engine/loop.go:192-201), so periodic transmission continues |
-| [`RFC5880-6.8.7-7`](#rfc5880-6.8.7-7) Transmission: must not periodically transmit if remote Demand mode active and no Poll in flight (§6.8.7) | {gap}, no test | the same tick producer (internal/component/bfd/engine/loop.go:192-201) has no remote-Demand suppression, so periodic transmission continues while the remote Demand mode is active with no Poll in flight |
-| [`RFC5880-6.8.7-8`](#rfc5880-6.8.7-8) If rate limiting Final packets, advertised Desired Min TX Interval must be >= rate-limit interval (§6.8.7) | no test | no test carries this requirement id; annotated {not-applicable}: ze does not rate-limit Final packets -- handleInbound sends the Final unconditionally on every received Poll (internal/component/bfd/engine/loop.go:140-142) and no rate limiter exists on that path, so the conditional advertised-interval floor never applies |
-| [`RFC5880-6.8.15-1`](#rfc5880-6.8.15-1) Forwarding plane reset: set bfd.LocalDiag to 4, bfd.SessionState to Down (§6.8.15) | {gap}, no test | packet.DiagForwardingPlaneReset (internal/component/bfd/packet/diag.go:21) has no producer, and the only external state-forcing entry points are AdminDown and AdminEnable (internal/component/bfd/session/fsm.go:180,192), which move the session to AdminDown or Down carrying the caller's diagnostic and are never called with code 4 |
+| [`RFC5880-6.8.1-11`](#rfc5880-6.8.1-11) This variable MUST be initialized to a random 32-bit value. (§6.8.1) | {gap}, no test | SetAuth seeds bfd.XmitAuthSeq from the persister or leaves the Vars zero value (internal/component/bfd/session/auth.go:36) and Init never randomizes it (internal/component/bfd/session/session.go:245-259), so the initial transmit sequence is 0 rather than a random 32-bit value |
+| [`RFC5880-6.8.1-13`](#rfc5880-6.8.1-13) This variable MUST be set to zero after no packets have been received on this session for at least twice the Detection Time. (§6.8.1) | {gap}, no test | bfd.AuthSeqKnown is SeqState.initialized, which only Advance sets (internal/component/bfd/auth/meticulous.go:63-66) and nothing ever clears; CheckDetection clears the detection deadline alone (internal/component/bfd/session/timers.go:82), so the flag survives twice the Detection Time of silence |
+| [`RFC5880-6.8.3-3`](#rfc5880-6.8.3-3) If bfd.DesiredMinTxInterval is increased and bfd.SessionState is Up, the actual transmission interval used MUST NOT change until the Poll Sequence described above has terminated. (§6.8.3) | {gap}, no test | ApplyEchoSlowdown raises bfd.DesiredMinTxInterval while the session is Up (internal/component/bfd/session/timers.go:235) and TransmitInterval returns the raised value on the very next call (internal/component/bfd/session/timers.go:44), so the longer interval takes effect before the Poll Sequence terminates |
+| [`RFC5880-6.8.3-4`](#rfc5880-6.8.3-4) If bfd.RequiredMinRxInterval is reduced and bfd.SessionState is Up, the previous value of bfd.RequiredMinRxInterval MUST be used when calculating the Detection Time for the remote system until the Poll Sequence described above has terminated. (§6.8.3) | {gap}, no test | revertEchoSlowdownLocked reduces bfd.RequiredMinRxInterval while Up (internal/component/bfd/session/timers.go:249) and DetectionInterval immediately uses the reduced value (internal/component/bfd/session/timers.go:29); no previous value is retained until the Poll Sequence terminates |
+| [`RFC5880-6.6-2`](#rfc5880-6.6-2) When the transmitted value of the Demand (D) bit is to be changed, the transmitting system MUST initiate a Poll Sequence in conjunction with changing the bit in order to ensure that both systems are aware of the change. (§6.6) | {gap}, no test | bfd.DemandMode has no writer in production code -- it is declared at internal/component/bfd/session/session.go:58 and read only by canSetDemand (internal/component/bfd/session/fsm.go:247) -- so no D-bit change path exists and none initiates a Poll Sequence |
+| [`RFC5880-6.6-3`](#rfc5880-6.6-3) If Demand mode is active on either or both systems, a Poll Sequence MUST be initiated whenever the contents of the next BFD Control packet to be sent would be different than the contents of the previous packet, with the exception of the Poll (P) and Final (F) bits. (§6.6) | {gap}, no test | bfd.RemoteDemandMode is stored by Receive (internal/component/bfd/session/fsm.go:58) and read nowhere, and bfd.DemandMode has no writer (internal/component/bfd/session/session.go:58), so no code path starts a Poll when packet contents would change while Demand mode is active |
+| [`RFC5880-6.8.6-14`](#rfc5880-6.8.6-14) If bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up, Demand mode is active on the remote system and the local system MUST cease the periodic transmission of BFD Control packets (see section 6.8.7). (§6.8.6) | {gap}, no test | tick transmits whenever the periodic deadline has passed and never consults the remote Demand state (internal/component/bfd/engine/loop.go:192-201), so periodic Control packets continue after the peer sets D=1 |
+| [`RFC5880-6.8.7-6`](#rfc5880-6.8.7-6) A system MUST NOT periodically transmit BFD Control packets if bfd.RemoteMinRxInterval is zero. (§6.8.7) | {gap}, no test | TransmitInterval substitutes the slow-start interval when the negotiated maximum is zero (internal/component/bfd/session/timers.go:45-47) and tick carries no bfd.RemoteMinRxInterval == 0 suppression (internal/component/bfd/engine/loop.go:192-201), so periodic transmission continues |
+| [`RFC5880-6.8.7-7`](#rfc5880-6.8.7-7) A system MUST NOT periodically transmit BFD Control packets if Demand mode is active on the remote system (bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up) and a Poll Sequence is not being transmitted. (§6.8.7) | {gap}, no test | the same tick producer (internal/component/bfd/engine/loop.go:192-201) has no remote-Demand suppression, so periodic transmission continues while the remote Demand mode is active with no Poll in flight |
+| [`RFC5880-6.8.7-8`](#rfc5880-6.8.7-8) If rate limiting is in effect, the advertised value of Desired Min TX Interval MUST be greater than or equal to the interval between transmitted packets imposed by the rate limiting function. (§6.8.7) | no test | no test carries this requirement id; annotated {not-applicable}: ze does not rate-limit Final packets -- handleInbound sends the Final unconditionally on every received Poll (internal/component/bfd/engine/loop.go:140-142) and no rate limiter exists on that path, so the conditional advertised-interval floor never applies |
+| [`RFC5880-6.8.15-1`](#rfc5880-6.8.15-1) When the forwarding plane in the local system is reset for some reason, such that the remote system can no longer rely on the local forwarding state, the local system MUST set bfd.LocalDiag to 4 (Forwarding Plane Reset), and set bfd.SessionState to Down. (§6.8.15) | {gap}, no test | packet.DiagForwardingPlaneReset (internal/component/bfd/packet/diag.go:21) has no producer, and the only external state-forcing entry points are AdminDown and AdminEnable (internal/component/bfd/session/fsm.go:180,192), which move the session to AdminDown or Down carrying the caller's diagnostic and are never called with code 4 |
 | [`RFC5880-7-1`](#rfc5880-7-1) Multihop: a congestion control mechanism must be implemented (§7) | {gap}, no test | the transmit rate is derived solely from TransmitInterval plus jitter (internal/component/bfd/engine/loop.go:197-200) with no congestion-feedback input, and no congestion-control producer exists anywhere under internal/component/bfd |
 | [`RFC5880-7-2`](#rfc5880-7-2) Multihop: when congestion detected, BFD must reduce traffic generated (§7) | {gap}, no test | the same rate producer (internal/component/bfd/engine/loop.go:197-200) is the only authority over generated traffic and nothing reduces it in response to detected congestion |
 | [`RFC5880-6.8.17-1`](#rfc5880-6.8.17-1) If concatenated path failure diagnostic must be communicated and remote Demand mode is active, a Poll Sequence MUST be initiated (§6.8.17) | {gap}, no test | packet.DiagConcatPathDown (internal/component/bfd/packet/diag.go:23) has no producer and the remote Demand state stored at internal/component/bfd/session/fsm.go:58 is never read, so a concatenated-path failure neither sets the diagnostic nor initiates a Poll Sequence |
@@ -268,7 +268,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-4.1-2`](#rfc5880-4.1-2)
 
-Multipoint (M) bit must be zero on both transmit and receipt (§4.1)
+It MUST be zero on both transmit and receipt. (§4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -290,7 +290,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.1-1`](#rfc5880-6.8.1-1)
 
-bfd.SessionState must be initialized to Down (§6.8.1)
+This variable MUST be initialized to Down. (§6.8.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -300,7 +300,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.1-2`](#rfc5880-6.8.1-2)
 
-bfd.RemoteSessionState must be initialized to Down (§6.8.1)
+This variable MUST be initialized to Down. (§6.8.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -310,7 +310,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.1-3`](#rfc5880-6.8.1-3)
 
-bfd.LocalDiscr must be unique across all BFD sessions on the system, and nonzero (§6.8.1)
+It MUST be unique across all BFD sessions on this system, and nonzero. (§6.8.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -321,7 +321,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.1-4`](#rfc5880-6.8.1-4)
 
-bfd.RemoteDiscr must be initialized to zero (§6.8.1)
+This MUST be initialized to zero. (§6.8.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -332,7 +332,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.1-5`](#rfc5880-6.8.1-5)
 
-bfd.RemoteDiscr must be set to zero if no valid packet received for one Detection Time (§6.8.1)
+If a period of a Detection Time passes without the receipt of a valid, authenticated BFD packet from the remote system, this variable MUST be set to zero. (§6.8.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -343,7 +343,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.1-6`](#rfc5880-6.8.1-6)
 
-bfd.LocalDiag must be initialized to zero (§6.8.1)
+This MUST be initialized to zero (No Diagnostic). bfd.DesiredMinTxInterval (§6.8.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -354,7 +354,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.1-7`](#rfc5880-6.8.1-7)
 
-bfd.DesiredMinTxInterval must be initialized to at least 1,000,000 microseconds (§6.8.1, §6.8.3)
+This MUST be initialized to a value of at least one second (1,000,000 microseconds) according to the rules described in section 6.8.3. (§6.8.1, §6.8.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -376,7 +376,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.1-9`](#rfc5880-6.8.1-9)
 
-bfd.RemoteDemandMode must be initialized to zero (§6.8.1)
+This variable MUST be initialized to zero. (§6.8.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -387,7 +387,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.1-10`](#rfc5880-6.8.1-10)
 
-bfd.DetectMult must be a nonzero integer (§6.8.1)
+This variable MUST be a nonzero integer, and is otherwise outside the scope of this specification. (§6.8.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -398,7 +398,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.1-11`](#rfc5880-6.8.1-11)
 
-bfd.XmitAuthSeq must be initialized to a random 32-bit value (§6.8.1)
+This variable MUST be initialized to a random 32-bit value. (§6.8.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -406,7 +406,7 @@ No test carries RFC5880-6.8.1-11, so no unit is bound to it.
 
 ### [`RFC5880-6.8.1-12`](#rfc5880-6.8.1-12)
 
-bfd.AuthSeqKnown must be initialized to zero (§6.8.1)
+This variable MUST be initialized to zero. (§6.8.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -417,7 +417,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.1-13`](#rfc5880-6.8.1-13)
 
-bfd.AuthSeqKnown must be set to zero after no packets received for twice the Detection Time (§6.8.1)
+This variable MUST be set to zero after no packets have been received on this session for at least twice the Detection Time. (§6.8.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -425,7 +425,7 @@ No test carries RFC5880-6.8.1-13, so no unit is bound to it.
 
 ### [`RFC5880-6.8.1-14`](#rfc5880-6.8.1-14)
 
-Session state must be preserved for at least one Detection Time after last valid packet (§6.8.1)
+Once session state is created, and at least one BFD Control packet is received from the remote end, it MUST be preserved for at least one Detection Time (see section 6.8.4) subsequent to the receipt of the last BFD Control packet, regardless of the session state. (§6.8.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -436,7 +436,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.1-1`](#rfc5880-6.1-1)
 
-Active role system must send BFD Control packets regardless of whether packets have been received (§6.1)
+A system taking the Active role MUST send BFD Control packets for a particular session, regardless of whether it has received any BFD packets for that session. (§6.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -447,7 +447,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.1-2`](#rfc5880-6.1-2)
 
-Passive role system must not begin sending BFD packets until it has received one (§6.1)
+A system taking the Passive role MUST NOT begin sending BFD packets for a particular session until it has received a BFD packet for that session, and thus has learned the remote system's discriminator value. (§6.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -458,7 +458,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.1-3`](#rfc5880-6.1-3)
 
-At least one system must take the Active role (§6.1)
+At least one system MUST take the Active role (possibly both). (§6.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -469,7 +469,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.3-1`](#rfc5880-6.8.3-1)
 
-When session state is not Up, bfd.DesiredMinTxInterval must be at least 1,000,000 microseconds (§6.8.3)
+When bfd.SessionState is not Up, the system MUST set bfd.DesiredMinTxInterval to a value of not less than one second (1,000,000 microseconds). (§6.8.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -480,7 +480,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.3-2`](#rfc5880-6.8.3-2)
 
-If bfd.DesiredMinTxInterval or bfd.RequiredMinRxInterval changes, a Poll Sequence must be initiated (§6.8.3)
+If either bfd.DesiredMinTxInterval is changed or bfd.RequiredMinRxInterval is changed, a Poll Sequence MUST be initiated (see section 6.5). (§6.8.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -491,7 +491,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.3-3`](#rfc5880-6.8.3-3)
 
-If bfd.DesiredMinTxInterval is increased while Up, the actual TX interval must not change until the Poll Sequence terminates (§6.8.3)
+If bfd.DesiredMinTxInterval is increased and bfd.SessionState is Up, the actual transmission interval used MUST NOT change until the Poll Sequence described above has terminated. (§6.8.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -499,7 +499,7 @@ No test carries RFC5880-6.8.3-3, so no unit is bound to it.
 
 ### [`RFC5880-6.8.3-4`](#rfc5880-6.8.3-4)
 
-If bfd.RequiredMinRxInterval is reduced while Up, the previous value must be used for detection time until the Poll terminates (§6.8.3)
+If bfd.RequiredMinRxInterval is reduced and bfd.SessionState is Up, the previous value of bfd.RequiredMinRxInterval MUST be used when calculating the Detection Time for the remote system until the Poll Sequence described above has terminated. (§6.8.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -528,7 +528,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.5-1`](#rfc5880-6.5-1)
 
-A BFD Control packet must not have both Poll (P) and Final (F) bits set (§6.5)
+A BFD Control packet MUST NOT have both the Poll (P) and Final (F) bits set. (§6.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -539,7 +539,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.5-2`](#rfc5880-6.5-2)
 
-If periodic Control packets are being sent, Poll Sequence must be performed by setting P bit on scheduled transmissions; additional packets must not be sent (§6.5)
+If periodic BFD Control packets are already being sent (the remote system is not in Demand mode), the Poll Sequence MUST be performed by setting the Poll (P) bit on those scheduled periodic transmissions; additional packets MUST NOT be sent. (§6.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -561,7 +561,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.6-2`](#rfc5880-6.6-2)
 
-When the D bit value is to be changed, a Poll Sequence must be initiated (§6.6)
+When the transmitted value of the Demand (D) bit is to be changed, the transmitting system MUST initiate a Poll Sequence in conjunction with changing the bit in order to ensure that both systems are aware of the change. (§6.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -569,7 +569,7 @@ No test carries RFC5880-6.6-2, so no unit is bound to it.
 
 ### [`RFC5880-6.6-3`](#rfc5880-6.6-3)
 
-If Demand mode is active on either system, a Poll Sequence must be initiated whenever next packet contents would differ (except P/F bits) (§6.6)
+If Demand mode is active on either or both systems, a Poll Sequence MUST be initiated whenever the contents of the next BFD Control packet to be sent would be different than the contents of the previous packet, with the exception of the Poll (P) and Final (F) bits. (§6.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -577,7 +577,7 @@ No test carries RFC5880-6.6-3, so no unit is bound to it.
 
 ### [`RFC5880-6.7-1`](#rfc5880-6.7-1)
 
-Implementations supporting authentication must support both types of SHA1 authentication (§6.7)
+Implementations supporting authentication MUST support both types of SHA1 authentication. (§6.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -588,7 +588,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-4.2-1`](#rfc5880-4.2-1)
 
-Simple Password must be 1 to 16 bytes in length (§4.2, §6.7.2)
+The password is a binary string, and MUST be from 1 to 16 bytes in length. (§4.2, §6.7.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -655,7 +655,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.7.3-4`](#rfc5880-6.7.3-4)
 
-Meticulous Keyed MD5: bfd.XmitAuthSeq must be incremented for each packet (§6.7.3)
+For Meticulous Keyed MD5, bfd.XmitAuthSeq MUST be incremented in a circular fashion (when treated as an unsigned 32-bit value). (§6.7.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -698,7 +698,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.7.4-4`](#rfc5880-6.7.4-4)
 
-Meticulous Keyed SHA1: bfd.XmitAuthSeq must be incremented for each packet (§6.7.4)
+For Meticulous Keyed SHA1, bfd.XmitAuthSeq MUST be incremented in a circular fashion (when treated as an unsigned 32-bit value). (§6.7.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -742,7 +742,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.6-3`](#rfc5880-6.8.6-3)
 
-Reception: discard if Length > encapsulating payload (§6.8.6)
+If the Length field is greater than the payload of the encapsulating protocol, the packet MUST be discarded. (§6.8.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -764,7 +764,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.6-5`](#rfc5880-6.8.6-5)
 
-Reception: discard if M bit is nonzero (§6.8.6)
+If the Multipoint (M) bit is nonzero, the packet MUST be discarded. (§6.8.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -786,7 +786,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.6-7`](#rfc5880-6.8.6-7)
 
-Reception: if Your Discriminator nonzero, use it to select session; discard if no session found (§6.8.6)
+If the Your Discriminator field is nonzero, it MUST be used to select the session with which this BFD packet is associated. (§6.8.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -797,7 +797,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.6-8`](#rfc5880-6.8.6-8)
 
-Reception: if Your Discriminator zero and State is not Down or AdminDown, discard (§6.8.6)
+If the Your Discriminator field is zero and the State field is not Down or AdminDown, the packet MUST be discarded. (§6.8.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -863,7 +863,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.6-14`](#rfc5880-6.8.6-14)
 
-Reception: if remote Demand mode active (D=1, both Up), cease periodic Control packet transmission (§6.8.6)
+If bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up, Demand mode is active on the remote system and the local system MUST cease the periodic transmission of BFD Control packets (see section 6.8.7). (§6.8.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -871,7 +871,7 @@ No test carries RFC5880-6.8.6-14, so no unit is bound to it.
 
 ### [`RFC5880-6.8.6-15`](#rfc5880-6.8.6-15)
 
-Reception: if remote Demand mode not active, send periodic Control packets (§6.8.6)
+If bfd.RemoteDemandMode is 0, or bfd.SessionState is not Up, or bfd.RemoteSessionState is not Up, Demand mode is not active on the remote system and the local system MUST send periodic BFD Control packets (see section 6.8.7). (§6.8.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -893,7 +893,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.6-18`](#rfc5880-6.8.6-18)
 
-Reception: if Your Discriminator zero, select the session on a combination of other fields, which can include source addressing information, My Discriminator, and the ingress interface (§6.8.6)
+If the Your Discriminator field is zero, the session MUST be selected based on some combination of other fields, possibly including source addressing information, the My Discriminator field, and the interface over which the packet was received. (§6.8.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -905,7 +905,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.7-1`](#rfc5880-6.8.7-1)
 
-Transmission: must not transmit at interval less than max(bfd.DesiredMinTxInterval, bfd.RemoteMinRxInterval) less jitter (§6.8.7)
+With the exceptions listed in the remainder of this section, a system MUST NOT transmit BFD Control packets at an interval less than the larger of bfd.DesiredMinTxInterval and bfd.RemoteMinRxInterval, less applied jitter (see below). (§6.8.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -938,7 +938,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.7-4`](#rfc5880-6.8.7-4)
 
-Transmission: TX interval must be recalculated whenever bfd.DesiredMinTxInterval or bfd.RemoteMinRxInterval changes (§6.8.7)
+The transmit interval MUST be recalculated whenever bfd.DesiredMinTxInterval changes, or whenever bfd.RemoteMinRxInterval changes, and is equal to the greater of those two values. (§6.8.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -949,7 +949,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.7-5`](#rfc5880-6.8.7-5)
 
-Transmission: must not transmit if bfd.RemoteDiscr is zero and system is Passive (§6.8.7)
+A system MUST NOT transmit BFD Control packets if bfd.RemoteDiscr is zero and the system is taking the Passive role. (§6.8.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -960,7 +960,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.7-6`](#rfc5880-6.8.7-6)
 
-Transmission: must not periodically transmit if bfd.RemoteMinRxInterval is zero (§6.8.7)
+A system MUST NOT periodically transmit BFD Control packets if bfd.RemoteMinRxInterval is zero. (§6.8.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -968,7 +968,7 @@ No test carries RFC5880-6.8.7-6, so no unit is bound to it.
 
 ### [`RFC5880-6.8.7-7`](#rfc5880-6.8.7-7)
 
-Transmission: must not periodically transmit if remote Demand mode active and no Poll in flight (§6.8.7)
+A system MUST NOT periodically transmit BFD Control packets if Demand mode is active on the remote system (bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up) and a Poll Sequence is not being transmitted. (§6.8.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -976,7 +976,7 @@ No test carries RFC5880-6.8.7-7, so no unit is bound to it.
 
 ### [`RFC5880-6.8.7-8`](#rfc5880-6.8.7-8)
 
-If rate limiting Final packets, advertised Desired Min TX Interval must be >= rate-limit interval (§6.8.7)
+If rate limiting is in effect, the advertised value of Desired Min TX Interval MUST be greater than or equal to the interval between transmitted packets imposed by the rate limiting function. (§6.8.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1006,7 +1006,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.15-1`](#rfc5880-6.8.15-1)
 
-Forwarding plane reset: set bfd.LocalDiag to 4, bfd.SessionState to Down (§6.8.15)
+When the forwarding plane in the local system is reset for some reason, such that the remote system can no longer rely on the local forwarding state, the local system MUST set bfd.LocalDiag to 4 (Forwarding Plane Reset), and set bfd.SessionState to Down. (§6.8.15)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1025,7 +1025,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.8-1`](#rfc5880-6.8.8-1)
 
-Echo packets must be demultiplexed to the appropriate session (§6.8.8)
+A received BFD Echo packet MUST be demultiplexed to the appropriate session for processing. (§6.8.8)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1036,7 +1036,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.8-2`](#rfc5880-6.8.8-2)
 
-A means of detecting missing Echo packets must be implemented (§6.8.8)
+A means of detecting missing Echo packets MUST be implemented, which most likely involves processing of the Echo packets that are received. (§6.8.8)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1047,7 +1047,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.9-1`](#rfc5880-6.8.9-1)
 
-Echo packets must not be transmitted when bfd.SessionState is not Up (§6.8.9)
+BFD Echo packets MUST NOT be transmitted when bfd.SessionState is not Up. (§6.8.9)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1058,7 +1058,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.8.9-2`](#rfc5880-6.8.9-2)
 
-Echo packets must not be transmitted unless remote Required Min Echo RX Interval is nonzero (§6.8.9)
+BFD Echo packets MUST NOT be transmitted unless the last BFD Control packet received from the remote system contains a nonzero value in Required Min Echo RX Interval. (§6.8.9)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1179,7 +1179,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.7.2-4`](#rfc5880-6.7.2-4)
 
-Reception: if Auth Type does not match bfd.AuthType, packet MUST be discarded (§6.7.2, §6.7.3, §6.7.4)
+If the received BFD Control packet does not contain an Authentication Section, or the Auth Type is not 1 (Simple Password), then the received packet MUST be discarded. (§6.7.2, §6.7.3, §6.7.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1190,7 +1190,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.7.2-5`](#rfc5880-6.7.2-5)
 
-Reception: if Auth Key ID does not match any configured authentication key, packet MUST be discarded (§6.7.2, §6.7.3, §6.7.4)
+If the Auth Key ID field does not match the ID of a configured password, the received packet MUST be discarded. (§6.7.2, §6.7.3, §6.7.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1203,7 +1203,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.7.2-6`](#rfc5880-6.7.2-6)
 
-Reception: if Auth Len does not match expected length, packet MUST be discarded (§6.7.2, §6.7.3, §6.7.4)
+If the Auth Len field is not equal to the length of the password selected by the key ID, plus three, the packet MUST be discarded. (§6.7.2, §6.7.3, §6.7.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1214,7 +1214,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.7.2-7`](#rfc5880-6.7.2-7)
 
-Reception: if password does not match configured password for Simple Password, packet MUST be discarded (§6.7.2)
+If the Password field does not match the password selected by the key ID, the packet MUST be discarded. (§6.7.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1244,7 +1244,7 @@ No test carries RFC5880-6.7.3-10, so no unit is bound to it.
 
 ### [`RFC5880-6.7.3-11`](#rfc5880-6.7.3-11)
 
-Reception: if digest/hash does not match computed value, packet MUST be discarded (§6.7.3, §6.7.4)
+Otherwise (the digest does not match the Auth Key/Digest field), the received packet MUST be discarded. (§6.7.3, §6.7.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -1255,7 +1255,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5880-6.7.3-12`](#rfc5880-6.7.3-12)
 
-Reception: if bfd.AuthSeqKnown is 0, it MUST be set to 1 and bfd.RcvAuthSeq MUST be set to received Sequence Number (§6.7.3, §6.7.4)
+Otherwise (bfd.AuthSeqKnown is 0), bfd.AuthSeqKnown MUST be set to 1, and bfd.RcvAuthSeq MUST be set to the value of the received Sequence Number field. (§6.7.3, §6.7.4)
 
 Audit verdict: not audited: no reader has judged these tests
 

@@ -103,57 +103,57 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC9190-1-1` | Implementations MUST limit the maximum TLS version they use to 1.3, unless later versions are explicitly enabled by the administrator (§1) | MUST | 1 | **positive:** `unit/verify` [`TestEAPTLSCapsBothRolesAtTLS13`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_version_cap_test.go#L51). **negative:** `unit/verify` [`TestEAPTLSVersionCapLeavesTLS12Reachable`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_version_cap_test.go#L110) |
-| `RFC9190-2.1-2` | Early data MUST NOT be used in EAP-TLS (§2.1) | MUST NOT | 2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9190-1-1` | Therefore, implementations MUST limit the maximum TLS version they use to 1.3, unless later versions are explicitly enabled by the administrator. (§1) | MUST | 1 | **positive:** `unit/verify` [`TestEAPTLSCapsBothRolesAtTLS13`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_version_cap_test.go#L51). **negative:** `unit/verify` [`TestEAPTLSVersionCapLeavesTLS12Reachable`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_version_cap_test.go#L110) |
+| `RFC9190-2.1-2` | * Early Data MUST NOT be used in EAP-TLS. (§2.1) | MUST NOT | 2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-2.1-3` | EAP-TLS servers MUST NOT send an "early_data" extension (§2.1) | MUST NOT | 2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-2.1-4` | Clients MUST NOT send an EndOfEarlyData message (§2.1) | MUST NOT | 2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-2.1-5` | Post-handshake authentication MUST NOT be used in EAP-TLS (§2.1) | MUST NOT | 2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-2.1-6` | Clients MUST NOT send a "post_handshake_auth" extension (§2.1) | MUST NOT | 2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-2.1-7` | Servers MUST NOT request post-handshake client authentication (§2.1) | MUST NOT | 2.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-2.1-8` | When EAP-TLS is used with TLS 1.3, the formatting and processing of the TLS handshake SHALL be done as specified in version 1.3 of TLS (§2.1) | SHALL | 2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9190-2.1-8` | When EAP-TLS is used with TLS version 1.3, the formatting and processing of the TLS handshake SHALL be done as specified in version 1.3 of TLS. (§2.1) | SHALL | 2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-2.1.1-1` | The EAP-TLS server MUST authenticate with a certificate (§2.1.1) | MUST | 2.1.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-2.1.1-2` | Pre-Shared Key authentication SHALL NOT be used except for resumption (§2.1.1) | SHALL NOT | 2.1.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-2.1.2-1` | To enable resumption, the EAP-TLS server MUST send one or more post-handshake NewSessionTicket messages in the initial authentication (§2.1.2) | MUST | 2.1.2 | **positive:** `unit/verify` [`TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L105). **negative:** `unit/verify` [`TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L60). **negative:** `unit/verify` [`TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L327) |
-| `RFC9190-2.1.2-2` | EAP-TLS servers MUST respect the 604800 second maximum ticket lifetime when issuing tickets (§2.1.2) | MUST | 2.1.2 | **positive:** `unit/verify` [`TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L110). **negative:** no negative test |
+| `RFC9190-2.1.1-2` | Pre-Shared Key (PSK) authentication SHALL NOT be used except for resumption. (§2.1.1) | SHALL NOT | 2.1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9190-2.1.2-1` | To enable resumption when using EAP-TLS with TLS 1.3, the EAP-TLS server MUST send one or more post-handshake NewSessionTicket messages (each associated with a PSK, a PSK identity, a ticket lifetime, and other parameters) in the initial authentication. (§2.1.2) | MUST | 2.1.2 | **positive:** `unit/verify` [`TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L105). **negative:** `unit/verify` [`TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L60). **negative:** `unit/verify` [`TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L327) |
+| `RFC9190-2.1.2-2` | Note that TLS 1.3 [RFC8446] limits the ticket lifetime to a maximum of 604800 seconds (7 days) and EAP-TLS servers MUST respect this upper limit when issuing tickets. (§2.1.2) | MUST | 2.1.2 | **positive:** `unit/verify` [`TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L110). **negative:** no negative test |
 | `RFC9190-2.1.2-3` | The NewSessionTicket message MUST NOT include an "early_data" extension (§2.1.2) | MUST NOT | 2.1.2 | **positive:** `unit/verify` [`TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L117). **negative:** no negative test |
 | `RFC9190-2.1.2-4` | If the "early_data" extension is received, then it MUST be ignored (§2.1.2) | MUST | 2.1.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-2.1.3-1` | When EAP-TLS is used with TLS 1.3, EAP-TLS SHALL use a resumption mechanism compatible with version 1.3 of TLS (§2.1.3) | SHALL | 2.1.3 | **positive:** `unit/verify` [`TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L121). **negative:** `unit/verify` [`TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L332) |
+| `RFC9190-2.1.3-1` | When EAP-TLS is used with TLS version 1.3, EAP-TLS SHALL use a resumption mechanism compatible with version 1.3 of TLS. (§2.1.3) | SHALL | 2.1.3 | **positive:** `unit/verify` [`TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L121). **negative:** `unit/verify` [`TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L332) |
 | `RFC9190-2.1.3-2` | The "psk_dh_ke" key exchange mode MUST be used for resumption unless the deployment has a local requirement to allow configuration of other mechanisms (§2.1.3) | MUST | 2.1.3 | **positive:** `unit/verify` [`TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L125). **negative:** no negative test |
 | `RFC9190-2.1.4-1` | If the EAP-TLS peer authenticates successfully, the EAP-TLS server MUST send an EAP-Request packet with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS used (§2.1.4) | MUST | 2.1.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-2.1.4-2` | If the EAP-TLS server authenticates successfully, the EAP-TLS peer MUST send an EAP-Response message with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS used (§2.1.4) | MUST | 2.1.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-2.1.4-3` | Whenever an implementation encounters a fatal error condition, it MUST send an appropriate TLS Error alert (§2.1.4) | MUST | 2.1.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-2.1.8-1` | EAP-TLS peer and server implementations supporting TLS 1.3 MUST support anonymous Network Access Identifiers (§2.1.8) | MUST | 2.1.8 | **positive:** `unit/verify` [`TestEAPTLS13AuthenticatorAcceptsAnAnonymousNAI`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L259). **negative:** no negative test |
-| `RFC9190-2.1.8-2` | A client supporting TLS 1.3 MUST NOT send its username or any other permanent identifier in cleartext in the Identity Response, or in any message used instead of the Identity Response (§2.1.8) | MUST NOT | 2.1.8 | **positive:** `unit/verify` [`TestEAPTLS13PeerSendsAnAnonymousNAIAndKeepsTheRealm`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L70). **positive:** `unit/verify` [`TestEAPTLSPeerDropsTheUsernameTheCertificateCarries`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cert_nai_test.go#L373). **negative:** `unit/verify` [`TestEAPMSCHAPv2PeerSendsItsConfiguredIdentity`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L237) |
-| `RFC9190-2.1.8-3` | The NAI MUST be a UTF-8 string as defined by the grammar in Section 2.2 of RFC 7542 (§2.1.8) | MUST | 2.1.8 | **positive:** `unit/verify` [`TestEAPTLSPeerAnonymizesEveryConfiguredIdentity`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L131). **negative:** `unit/verify` [`TestNAIGrammarMatchesRFC7542Section22`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L182) |
-| `RFC9190-2.1.8-4` | When EAP-TLS is used with TLS 1.3, the EAP-TLS peer and EAP-TLS server SHALL follow the certificate_list processing specified by version 1.3 of TLS (§2.1.8) | SHALL | 2.1.8 | **positive:** `unit/verify` [`TestEAPTLS13AuthenticatorTreatsAnEmptyCertificateListAsTerminal`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L362). **negative:** no negative test |
+| `RFC9190-2.1.8-2` | A client supporting TLS 1.3 MUST NOT send its username (or any other permanent identifiers) in cleartext in the Identity Response (or any message used instead of the Identity Response). (§2.1.8) | MUST NOT | 2.1.8 | **positive:** `unit/verify` [`TestEAPTLS13PeerSendsAnAnonymousNAIAndKeepsTheRealm`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L70). **positive:** `unit/verify` [`TestEAPTLSPeerDropsTheUsernameTheCertificateCarries`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cert_nai_test.go#L373). **negative:** `unit/verify` [`TestEAPMSCHAPv2PeerSendsItsConfiguredIdentity`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L237) |
+| `RFC9190-2.1.8-3` | Note that the NAI MUST be a UTF-8 string as defined by the grammar in Section 2.2 of [RFC7542]. (§2.1.8) | MUST | 2.1.8 | **positive:** `unit/verify` [`TestEAPTLSPeerAnonymizesEveryConfiguredIdentity`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L131). **negative:** `unit/verify` [`TestNAIGrammarMatchesRFC7542Section22`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L182) |
+| `RFC9190-2.1.8-4` | When EAP-TLS is used with TLS version 1.3, the EAP-TLS peer and EAP-TLS server SHALL follow the processing specified by version 1.3 of TLS. (§2.1.8) | SHALL | 2.1.8 | **positive:** `unit/verify` [`TestEAPTLS13AuthenticatorTreatsAnEmptyCertificateListAsTerminal`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L362). **negative:** no negative test |
 | `RFC9190-2.1.9-1` | Implementations MUST NOT set the L bit in unfragmented messages (§2.1.9) | MUST NOT | 2.1.9 | **positive:** `unit/verify` [`TestEAPTLSKeepsTheLengthBitOnAFragmentedMessage`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L145). **negative:** `unit/verify` [`TestEAPTLSSetsNoLengthBitOnAnUnfragmentedMessage`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L73) |
 | `RFC9190-2.1.9-2` | Implementations MUST accept unfragmented messages with and without the L bit set (§2.1.9) | MUST | 2.1.9 | **positive:** `unit/verify` [`TestEAPTLSAcceptsAnUnfragmentedMessageWithAndWithoutTheLengthBit`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L202). **negative:** `unit/verify` [`TestEAPTLSRefusesAnUnfragmentedMessageThatContradictsItself`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L244) |
 | `RFC9190-2.2-1` | Unauthenticated information MUST NOT be used for accounting purposes or to give authorization (§2.2) | MUST NOT | 2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-2.3-1` | The Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface (§2.3) | SHALL | 2.3 | **positive:** `unit/verify` [`TestRFC9190MSKIsTheExportUnderTheRFCLabel`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L158). **negative:** no negative test |
+| `RFC9190-2.3-1` | When EAP-TLS is used with TLS version 1.3, the Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface [RFC5705] (for TLS 1.3, this is defined in Section 7.5 of [RFC8446]). (§2.3) | SHALL | 2.3 | **positive:** `unit/verify` [`TestRFC9190MSKIsTheExportUnderTheRFCLabel`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L158). **negative:** no negative test |
 | `RFC9190-2.3-2` | The key derivation MUST use the length values given in the section, 128 octets for Key_Material and 64 octets for Method-Id (§2.3) | MUST | 2.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-2.3-3` | An implementation that intends to use only a part of the TLS-Exporter output MUST ask for the full output and then only use the desired part (§2.3) | MUST | 2.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-2.4-1` | EAP-TLS peers and EAP-TLS servers MUST comply with the compliance requirements defined in Section 9 of RFC 8446 (§2.4) | MUST | 2.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9190-2.3-3` | If an implementation intends to use only a part of the output of the TLS-Exporter function, then it MUST ask for the full output and then only use the desired part. (§2.3) | MUST | 2.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9190-2.4-1` | When EAP-TLS is used with TLS version 1.3, the EAP-TLS peers and EAP- TLS servers MUST comply with the compliance requirements (mandatory- to-implement cipher suites, signature algorithms, key exchange algorithms, extensions, etc.) defined in Section 9 of [RFC8446]. (§2.4) | MUST | 2.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-2.4-2` | In EAP-TLS with TLS 1.3, only cipher suites with confidentiality SHALL be supported (§2.4) | SHALL | 2.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-2.5-1` | The protected success result indication procedure MUST be followed: after processing the client Finished and sending its last handshake message, the server sends an encrypted TLS record with application data 0x00, then sends no further EAP-Request and may only send EAP-Success (§2.5) | MUST | 2.5 | **positive:** `unit/verify` [`TestEAPTLS13ResumedExchangeStillSendsTheSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L369). **positive:** `unit/verify` [`TestEAPTLS13SendsProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L156). **negative:** `unit/verify` [`TestEAPTLS12SendsNoProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L289). **negative:** `unit/verify` [`TestEAPTLS13RefusedClientGetsNoSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L254). **positive:** `interop/nightly` [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L373). **negative:** `interop/nightly` [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L379) |
+| `RFC9190-2.5-1` | The protected success result indication procedure MUST be followed: after processing the client Finished and sending its last handshake message, the server sends an encrypted TLS record with application data 0x00, then sends no further EAP-Request and may only send EAP-Success (§2.5) | MUST | 2.5 | **positive:** `unit/verify` [`TestEAPTLS13ResumedExchangeStillSendsTheSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L369). **positive:** `unit/verify` [`TestEAPTLS13SendsProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L156). **negative:** `unit/verify` [`TestEAPTLS12SendsNoProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L289). **negative:** `unit/verify` [`TestEAPTLS13RefusedClientGetsNoSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L254). **positive:** `interop/nightly` [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L375). **negative:** `interop/nightly` [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L381) |
 | `RFC9190-2.5-2` | The EAP-TLS server MUST NOT send an encrypted TLS record with application data 0x00 before it has successfully processed the client Finished and sent its last handshake message (§2.5) | MUST NOT | 2.5 | **positive:** `unit/verify` [`TestEAPTLS13SendsProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L164). **negative:** `unit/verify` [`TestEAPTLS13RefusedClientGetsNoSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L248) |
-| `RFC9190-5.4-1` | When EAP-TLS is used with TLS 1.3, the revocation status of all the certificates in the certificate chains MUST be checked, except the trust anchor (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestEAPTLS13ExceptsTheTrustAnchorFromRevocation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L264). **positive:** `unit/verify` [`TestEAPTLS13RefusesARevokedClientCertificate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L52). **positive:** `unit/verify` [`TestEAPTLS13RefusesARevokedIntermediate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L162). **positive:** `unit/verify` [`TestEAPTLS13RefusesARevokedServerCertificate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L128). **positive:** `unit/verify` [`TestEAPTLS13RefusesAStaleRevocationList`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L235). **positive:** `unit/verify` [`TestEAPTLS13RefusesAnUncheckableChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L206). **negative:** `unit/verify` [`TestEAPTLS12CompletesWithNoRevocationList`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L323). **negative:** `unit/verify` [`TestEAPTLS13CompletesWithAnUnrevokedChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L297). **negative:** `unit/verify` [`TestEAPTLS13ResumptionStillNeedsARevocationSource`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L209). **positive:** `interop/nightly` [`checkResponderEAPTLS13RevokedClient`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L416) |
-| `RFC9190-5.4-2` | EAP-TLS servers supporting TLS 1.3 MUST implement Certificate Status Requests, that is OCSP stapling (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestEAPTLS13StaplesTheConfiguredOCSPResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L163). **negative:** `unit/verify` [`TestEAPTLS13StaplesNothingWhenTheCertificateCarriesNoResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L198) |
+| `RFC9190-5.4-1` | When EAP-TLS is used with TLS 1.3, the revocation status of all the certificates in the certificate chains MUST be checked (except the trust anchor). (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestEAPTLS13ExceptsTheTrustAnchorFromRevocation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L264). **positive:** `unit/verify` [`TestEAPTLS13RefusesARevokedClientCertificate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L52). **positive:** `unit/verify` [`TestEAPTLS13RefusesARevokedIntermediate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L162). **positive:** `unit/verify` [`TestEAPTLS13RefusesARevokedServerCertificate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L128). **positive:** `unit/verify` [`TestEAPTLS13RefusesAStaleRevocationList`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L235). **positive:** `unit/verify` [`TestEAPTLS13RefusesAnUncheckableChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L206). **negative:** `unit/verify` [`TestEAPTLS12CompletesWithNoRevocationList`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L323). **negative:** `unit/verify` [`TestEAPTLS13CompletesWithAnUnrevokedChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L297). **negative:** `unit/verify` [`TestEAPTLS13ResumptionStillNeedsARevocationSource`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L209). **positive:** `interop/nightly` [`checkResponderEAPTLS13RevokedClient`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L418) |
+| `RFC9190-5.4-2` | EAP-TLS servers supporting TLS 1.3 MUST implement Certificate Status Requests (OCSP stapling) as specified in [RFC6066] and Section 4.4.2.1 of [RFC8446]. (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestEAPTLS13StaplesTheConfiguredOCSPResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L163). **negative:** `unit/verify` [`TestEAPTLS13StaplesNothingWhenTheCertificateCarriesNoResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L198) |
 | `RFC9190-5.4-3` | An EAP-TLS peer using Certificate Status Requests MUST treat a CertificateEntry without a valid CertificateStatus extension as invalid, except the trust anchor, and abort the handshake with an appropriate alert (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestCertificateStatusRefusesAResponseAboutAnotherCertificate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L502). **positive:** `unit/verify` [`TestCertificateStatusRefusesAResponseDatedAhead`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L481). **positive:** `unit/verify` [`TestCertificateStatusRefusesAnExpiredResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L460). **positive:** `unit/verify` [`TestCertificateStatusRefusesAnUndelegatedResponder`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L540). **positive:** `unit/verify` [`TestCertificateStatusRefusesAnUnknownStatus`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L520). **positive:** `unit/verify` [`TestEAPTLS13PeerRefusesARevokedStapledStatus`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L282). **positive:** `unit/verify` [`TestEAPTLS13PeerRefusesAnAuthenticatorThatStaplesNothing`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L221). **positive:** `unit/verify` [`TestEAPTLS13PeerRefusesAnIntermediateItCannotReadTheStatusOf`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L334). **positive:** `unit/verify` [`TestStapledChainStatusRefusesAnEmptyChainSet`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L596). **negative:** `unit/verify` [`TestCertificateStatusAcceptsADelegatedResponder`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L562). **negative:** `unit/verify` [`TestEAPTLS13PeerCompletesWithAValidStapledStatus`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L252). **negative:** `unit/verify` [`TestEAPTLS13PeerWithoutTheStatusLeafAcceptsAnAuthenticatorThatStaplesNothing`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L312). **negative:** `unit/verify` [`TestStapledChainStatusExceptsTheTrustAnchor`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L581) |
 | `RFC9190-5.4-4` | EAP-TLS peer implementations MUST also support checking for certificate revocation after authentication completes and network connectivity is available (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestEAPTLS13PeerKeepsTheChainItAcceptedForTheLaterCheck`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L377). **positive:** `unit/verify` [`TestPostAuthenticationCheckClosesTheSAWhenTheResponderReportsRevoked`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc9190_postauth_test.go#L248). **negative:** `unit/verify` [`TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc9190_postauth_test.go#L278) |
 | `RFC9190-5.4-5` | An EAP peer MUST use a secure transport to verify the revocation status of the server certificate (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestPostAuthenticationCheckRefusesAnInsecureResponderURL`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc9190_postauth_test.go#L323). **negative:** `unit/verify` [`TestPostAuthenticationCheckReadsAnHTTPSResponder`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc9190_postauth_test.go#L348) |
 | `RFC9190-5.6-1` | When peer authentication is not used, EAP-TLS server implementations MUST take care to limit network access appropriately for unauthenticated peers (§5.6) | MUST | 5.6 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-5.6-2` | Implementations MUST use resumption with caution to ensure that a resumed session is not granted more privilege than was intended for the original session (§5.6) | MUST | 5.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-5.6-3` | Authorization and accounting MUST be based on authenticated information such as information in the certificate, or the PSK identity and cached data provisioned for resumption (§5.6) | MUST | 5.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-5.6-4` | The requirements for Network Access Identifiers specified in Section 4 of RFC 7542 still apply and MUST be followed (§5.6) | MUST | 5.6 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-5.7-1` | Authorization during resumption MUST be based on cached data from the initial full handshake (§5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestEAPTLS13ResumptionRefusesARevokedClientChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L227). **negative:** `unit/verify` [`TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L90) |
+| `RFC9190-5.6-3` | Authorization and accounting MUST be based on authenticated information such as information in the certificate or the PSK identity and cached data provisioned for resumption as described in Section 5.7. (§5.6) | MUST | 5.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9190-5.6-4` | Note that the requirements for Network Access Identifiers (NAIs) specified in Section 4 of [RFC7542] still apply and MUST be followed. (§5.6) | MUST | 5.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9190-5.7-1` | Authorization during resumption MUST be based on such cached data. (§5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestEAPTLS13ResumptionRefusesARevokedClientChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L227). **negative:** `unit/verify` [`TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L90) |
 | `RFC9190-5.7-2` | Any security policies for authorization MUST be followed also for resumption (§5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestEAPTLS13PeerRefusesAResumptionItCannotRebuildAChainFor`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L246). **positive:** `unit/verify` [`TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L183). **negative:** `unit/verify` [`TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L261). **negative:** `unit/verify` [`TestEAPTLS13RefusesAResumptionAgainstAReplacedTrustAnchor`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L176) |
 | `RFC9190-5.7-3` | The EAP-TLS server or EAP client MUST cache data during the initial full handshake sufficient to allow authorization decisions to be made during resumption (§5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestEAPTLS13ResumptionRefusesARevokedClientChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L232). **negative:** no negative test |
 | `RFC9190-5.7-4` | If cached data cannot be retrieved securely, resumption MUST NOT be done (§5.7) | MUST NOT | 5.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-5.7-5` | EAP-TLS peers MUST NOT store resumption PSKs or tickets, and associated cached data, for longer than 604800 seconds regardless of the PSK or ticket lifetime (§5.7) | MUST NOT | 5.7 | **positive:** `unit/verify` [`TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L285). **negative:** `unit/verify` [`TestEAPTLS13RefusesATicketPastTheSection57Lifetime`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L119). **negative:** `unit/verify` [`TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L290) |
-| `RFC9190-5.7-6` | If any authorization, accounting, or policy decision was made with information that has changed between the initial full handshake and resumption, and the change may lead to a different decision, that decision MUST be reevaluated (§5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestEAPTLS13RefusesAResumptionWhoseCachedCertificateExpired`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L143). **positive:** `unit/verify` [`TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L188). **negative:** `unit/verify` [`TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L265) |
+| `RFC9190-5.7-5` | As suggested in [RFC8446], EAP-TLS peers MUST NOT store resumption PSKs or tickets (and associated cached data) for longer than 604800 seconds (7 days) regardless of the PSK or ticket lifetime. (§5.7) | MUST NOT | 5.7 | **positive:** `unit/verify` [`TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L285). **negative:** `unit/verify` [`TestEAPTLS13RefusesATicketPastTheSection57Lifetime`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L119). **negative:** `unit/verify` [`TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L290) |
+| `RFC9190-5.7-6` | If any authorization, accounting, or policy decisions were made with information that has changed between the initial full handshake and resumption, and if change may lead to a different decision, such decisions MUST be reevaluated. (§5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestEAPTLS13RefusesAResumptionWhoseCachedCertificateExpired`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L143). **positive:** `unit/verify` [`TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L188). **negative:** `unit/verify` [`TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L265) |
 | `RFC9190-5.8-1` | When anonymous NAIs are not used, privacy-friendly identities MUST be generated in a cryptographically secure way, so that an attacker cannot differentiate two identities belonging to the same user from two identities belonging to different users in the same realm (§5.8) | MUST | 5.8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-5.8-2` | Privacy-friendly usernames MUST NOT include substrings that can be used to relate the identity to a specific user (§5.8) | MUST NOT | 5.8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-5.8-3` | Privacy-friendly usernames MUST NOT be formed by a fixed mapping that stays the same across multiple different authentications (§5.8) | MUST NOT | 5.8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9190-5.8-2` | Note that the privacy-friendly usernames also MUST NOT include substrings that can be used to relate the identity to a specific user. (§5.8) | MUST NOT | 5.8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9190-5.8-3` | Similarly, privacy-friendly usernames MUST NOT be formed by a fixed mapping that stays the same across multiple different authentications. (§5.8) | MUST NOT | 5.8 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-5.10-1` | EAP-TLS implementations MUST mitigate known attacks (§5.10) | MUST | 5.10 | **positive:** `unit/verify` [`TestRFC9190MitigationCarriesNoServerName`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L861). **positive:** `unit/verify` [`TestRFC9190MitigationNegotiatesAnAEADSuite`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L680). **positive:** `unit/verify` [`TestRFC9190MitigationNegotiatesEphemeralKeyExchange`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L616). **positive:** `unit/verify` [`TestRFC9190MitigationNegotiatesTLS12OrAbove`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L432). **positive:** `unit/verify` [`TestRFC9190MitigationOffersExtendedMasterSecret`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L552). **positive:** `unit/verify` [`TestRFC9190MitigationOffersOnlyNullCompression`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L744). **positive:** `unit/verify` [`TestRFC9190MitigationOffersSecureRenegotiationInfo`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L574). **positive:** `unit/verify` [`TestRFC9190MitigationUsesANamedGroup`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L797). **negative:** `unit/verify` [`TestRFC9190MitigationDropsBytesPipelinedBehindTheStart`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L953). **negative:** `unit/verify` [`TestRFC9190MitigationOffersNoFiniteFieldDHGroup`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L831). **negative:** `unit/verify` [`TestRFC9190MitigationOffersNoPostHandshakeAuthentication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L595). **negative:** `unit/verify` [`TestRFC9190MitigationOffersNoRC4Suite`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L715). **negative:** `unit/verify` [`TestRFC9190MitigationOffersNoStaticRSAKeyExchange`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L658). **negative:** `unit/verify` [`TestRFC9190MitigationRefusesACompressingClientHello`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L768). **negative:** `unit/verify` [`TestRFC9190MitigationRefusesAMethodDowngrade`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L899). **negative:** `unit/verify` [`TestRFC9190MitigationRefusesTLS11`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L475) |
 | `RFC9190-2.1-1` | Implementations SHOULD NOT send the KeyUpdate message (§2.1) | SHOULD NOT | 2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9190-2.1.1-3` | The EAP-TLS server SHOULD require the EAP-TLS peer to authenticate with a certificate (§2.1.1) | SHOULD | 2.1.1 | **positive:** no positive test. **negative:** no negative test |
@@ -203,32 +203,32 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC9190-2.1-2`](#rfc9190-2.1-2) Early data MUST NOT be used in EAP-TLS (§2.1) | no test | no test carries this requirement id |
+| [`RFC9190-2.1-2`](#rfc9190-2.1-2) * Early Data MUST NOT be used in EAP-TLS. (§2.1) | no test | no test carries this requirement id |
 | [`RFC9190-2.1-3`](#rfc9190-2.1-3) EAP-TLS servers MUST NOT send an "early_data" extension (§2.1) | no test | no test carries this requirement id |
 | [`RFC9190-2.1-4`](#rfc9190-2.1-4) Clients MUST NOT send an EndOfEarlyData message (§2.1) | no test | no test carries this requirement id |
 | [`RFC9190-2.1-5`](#rfc9190-2.1-5) Post-handshake authentication MUST NOT be used in EAP-TLS (§2.1) | no test | no test carries this requirement id |
 | [`RFC9190-2.1-6`](#rfc9190-2.1-6) Clients MUST NOT send a "post_handshake_auth" extension (§2.1) | no test | no test carries this requirement id |
 | [`RFC9190-2.1-7`](#rfc9190-2.1-7) Servers MUST NOT request post-handshake client authentication (§2.1) | no test | no test carries this requirement id |
-| [`RFC9190-2.1-8`](#rfc9190-2.1-8) When EAP-TLS is used with TLS 1.3, the formatting and processing of the TLS handshake SHALL be done as specified in version 1.3 of TLS (§2.1) | no test | no test carries this requirement id |
+| [`RFC9190-2.1-8`](#rfc9190-2.1-8) When EAP-TLS is used with TLS version 1.3, the formatting and processing of the TLS handshake SHALL be done as specified in version 1.3 of TLS. (§2.1) | no test | no test carries this requirement id |
 | [`RFC9190-2.1.1-1`](#rfc9190-2.1.1-1) The EAP-TLS server MUST authenticate with a certificate (§2.1.1) | no test | no test carries this requirement id |
-| [`RFC9190-2.1.1-2`](#rfc9190-2.1.1-2) Pre-Shared Key authentication SHALL NOT be used except for resumption (§2.1.1) | no test | no test carries this requirement id |
+| [`RFC9190-2.1.1-2`](#rfc9190-2.1.1-2) Pre-Shared Key (PSK) authentication SHALL NOT be used except for resumption. (§2.1.1) | no test | no test carries this requirement id |
 | [`RFC9190-2.1.2-4`](#rfc9190-2.1.2-4) If the "early_data" extension is received, then it MUST be ignored (§2.1.2) | no test | no test carries this requirement id |
 | [`RFC9190-2.1.4-1`](#rfc9190-2.1.4-1) If the EAP-TLS peer authenticates successfully, the EAP-TLS server MUST send an EAP-Request packet with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS used (§2.1.4) | no test | no test carries this requirement id |
 | [`RFC9190-2.1.4-2`](#rfc9190-2.1.4-2) If the EAP-TLS server authenticates successfully, the EAP-TLS peer MUST send an EAP-Response message with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS used (§2.1.4) | no test | no test carries this requirement id |
 | [`RFC9190-2.1.4-3`](#rfc9190-2.1.4-3) Whenever an implementation encounters a fatal error condition, it MUST send an appropriate TLS Error alert (§2.1.4) | no test | no test carries this requirement id |
 | [`RFC9190-2.2-1`](#rfc9190-2.2-1) Unauthenticated information MUST NOT be used for accounting purposes or to give authorization (§2.2) | no test | no test carries this requirement id |
 | [`RFC9190-2.3-2`](#rfc9190-2.3-2) The key derivation MUST use the length values given in the section, 128 octets for Key_Material and 64 octets for Method-Id (§2.3) | no test | no test carries this requirement id |
-| [`RFC9190-2.3-3`](#rfc9190-2.3-3) An implementation that intends to use only a part of the TLS-Exporter output MUST ask for the full output and then only use the desired part (§2.3) | no test | no test carries this requirement id |
-| [`RFC9190-2.4-1`](#rfc9190-2.4-1) EAP-TLS peers and EAP-TLS servers MUST comply with the compliance requirements defined in Section 9 of RFC 8446 (§2.4) | no test | no test carries this requirement id |
+| [`RFC9190-2.3-3`](#rfc9190-2.3-3) If an implementation intends to use only a part of the output of the TLS-Exporter function, then it MUST ask for the full output and then only use the desired part. (§2.3) | no test | no test carries this requirement id |
+| [`RFC9190-2.4-1`](#rfc9190-2.4-1) When EAP-TLS is used with TLS version 1.3, the EAP-TLS peers and EAP- TLS servers MUST comply with the compliance requirements (mandatory- to-implement cipher suites, signature algorithms, key exchange algorithms, extensions, etc.) defined in Section 9 of [RFC8446]. (§2.4) | no test | no test carries this requirement id |
 | [`RFC9190-2.4-2`](#rfc9190-2.4-2) In EAP-TLS with TLS 1.3, only cipher suites with confidentiality SHALL be supported (§2.4) | no test | no test carries this requirement id |
 | [`RFC9190-5.6-1`](#rfc9190-5.6-1) When peer authentication is not used, EAP-TLS server implementations MUST take care to limit network access appropriately for unauthenticated peers (§5.6) | no test | no test carries this requirement id |
 | [`RFC9190-5.6-2`](#rfc9190-5.6-2) Implementations MUST use resumption with caution to ensure that a resumed session is not granted more privilege than was intended for the original session (§5.6) | no test | no test carries this requirement id |
-| [`RFC9190-5.6-3`](#rfc9190-5.6-3) Authorization and accounting MUST be based on authenticated information such as information in the certificate, or the PSK identity and cached data provisioned for resumption (§5.6) | no test | no test carries this requirement id |
-| [`RFC9190-5.6-4`](#rfc9190-5.6-4) The requirements for Network Access Identifiers specified in Section 4 of RFC 7542 still apply and MUST be followed (§5.6) | no test | no test carries this requirement id |
+| [`RFC9190-5.6-3`](#rfc9190-5.6-3) Authorization and accounting MUST be based on authenticated information such as information in the certificate or the PSK identity and cached data provisioned for resumption as described in Section 5.7. (§5.6) | no test | no test carries this requirement id |
+| [`RFC9190-5.6-4`](#rfc9190-5.6-4) Note that the requirements for Network Access Identifiers (NAIs) specified in Section 4 of [RFC7542] still apply and MUST be followed. (§5.6) | no test | no test carries this requirement id |
 | [`RFC9190-5.7-4`](#rfc9190-5.7-4) If cached data cannot be retrieved securely, resumption MUST NOT be done (§5.7) | no test | no test carries this requirement id |
 | [`RFC9190-5.8-1`](#rfc9190-5.8-1) When anonymous NAIs are not used, privacy-friendly identities MUST be generated in a cryptographically secure way, so that an attacker cannot differentiate two identities belonging to the same user from two identities belonging to different users in the same realm (§5.8) | no test | no test carries this requirement id |
-| [`RFC9190-5.8-2`](#rfc9190-5.8-2) Privacy-friendly usernames MUST NOT include substrings that can be used to relate the identity to a specific user (§5.8) | no test | no test carries this requirement id |
-| [`RFC9190-5.8-3`](#rfc9190-5.8-3) Privacy-friendly usernames MUST NOT be formed by a fixed mapping that stays the same across multiple different authentications (§5.8) | no test | no test carries this requirement id |
+| [`RFC9190-5.8-2`](#rfc9190-5.8-2) Note that the privacy-friendly usernames also MUST NOT include substrings that can be used to relate the identity to a specific user. (§5.8) | no test | no test carries this requirement id |
+| [`RFC9190-5.8-3`](#rfc9190-5.8-3) Similarly, privacy-friendly usernames MUST NOT be formed by a fixed mapping that stays the same across multiple different authentications. (§5.8) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -236,7 +236,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC9190-1-1`](#rfc9190-1-1)
 
-Implementations MUST limit the maximum TLS version they use to 1.3, unless later versions are explicitly enabled by the administrator (§1)
+Therefore, implementations MUST limit the maximum TLS version they use to 1.3, unless later versions are explicitly enabled by the administrator. (§1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -247,7 +247,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9190-2.1-2`](#rfc9190-2.1-2)
 
-Early data MUST NOT be used in EAP-TLS (§2.1)
+* Early Data MUST NOT be used in EAP-TLS. (§2.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -295,7 +295,7 @@ No test carries RFC9190-2.1-7, so no unit is bound to it.
 
 ### [`RFC9190-2.1-8`](#rfc9190-2.1-8)
 
-When EAP-TLS is used with TLS 1.3, the formatting and processing of the TLS handshake SHALL be done as specified in version 1.3 of TLS (§2.1)
+When EAP-TLS is used with TLS version 1.3, the formatting and processing of the TLS handshake SHALL be done as specified in version 1.3 of TLS. (§2.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -311,7 +311,7 @@ No test carries RFC9190-2.1.1-1, so no unit is bound to it.
 
 ### [`RFC9190-2.1.1-2`](#rfc9190-2.1.1-2)
 
-Pre-Shared Key authentication SHALL NOT be used except for resumption (§2.1.1)
+Pre-Shared Key (PSK) authentication SHALL NOT be used except for resumption. (§2.1.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -319,7 +319,7 @@ No test carries RFC9190-2.1.1-2, so no unit is bound to it.
 
 ### [`RFC9190-2.1.2-1`](#rfc9190-2.1.2-1)
 
-To enable resumption, the EAP-TLS server MUST send one or more post-handshake NewSessionTicket messages in the initial authentication (§2.1.2)
+To enable resumption when using EAP-TLS with TLS 1.3, the EAP-TLS server MUST send one or more post-handshake NewSessionTicket messages (each associated with a PSK, a PSK identity, a ticket lifetime, and other parameters) in the initial authentication. (§2.1.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -331,7 +331,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9190-2.1.2-2`](#rfc9190-2.1.2-2)
 
-EAP-TLS servers MUST respect the 604800 second maximum ticket lifetime when issuing tickets (§2.1.2)
+Note that TLS 1.3 [RFC8446] limits the ticket lifetime to a maximum of 604800 seconds (7 days) and EAP-TLS servers MUST respect this upper limit when issuing tickets. (§2.1.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -359,7 +359,7 @@ No test carries RFC9190-2.1.2-4, so no unit is bound to it.
 
 ### [`RFC9190-2.1.3-1`](#rfc9190-2.1.3-1)
 
-When EAP-TLS is used with TLS 1.3, EAP-TLS SHALL use a resumption mechanism compatible with version 1.3 of TLS (§2.1.3)
+When EAP-TLS is used with TLS version 1.3, EAP-TLS SHALL use a resumption mechanism compatible with version 1.3 of TLS. (§2.1.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -414,7 +414,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9190-2.1.8-2`](#rfc9190-2.1.8-2)
 
-A client supporting TLS 1.3 MUST NOT send its username or any other permanent identifier in cleartext in the Identity Response, or in any message used instead of the Identity Response (§2.1.8)
+A client supporting TLS 1.3 MUST NOT send its username (or any other permanent identifiers) in cleartext in the Identity Response (or any message used instead of the Identity Response). (§2.1.8)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -426,7 +426,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9190-2.1.8-3`](#rfc9190-2.1.8-3)
 
-The NAI MUST be a UTF-8 string as defined by the grammar in Section 2.2 of RFC 7542 (§2.1.8)
+Note that the NAI MUST be a UTF-8 string as defined by the grammar in Section 2.2 of [RFC7542]. (§2.1.8)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -437,7 +437,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9190-2.1.8-4`](#rfc9190-2.1.8-4)
 
-When EAP-TLS is used with TLS 1.3, the EAP-TLS peer and EAP-TLS server SHALL follow the certificate_list processing specified by version 1.3 of TLS (§2.1.8)
+When EAP-TLS is used with TLS version 1.3, the EAP-TLS peer and EAP-TLS server SHALL follow the processing specified by version 1.3 of TLS. (§2.1.8)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -477,7 +477,7 @@ No test carries RFC9190-2.2-1, so no unit is bound to it.
 
 ### [`RFC9190-2.3-1`](#rfc9190-2.3-1)
 
-The Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface (§2.3)
+When EAP-TLS is used with TLS version 1.3, the Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface [RFC5705] (for TLS 1.3, this is defined in Section 7.5 of [RFC8446]). (§2.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -495,7 +495,7 @@ No test carries RFC9190-2.3-2, so no unit is bound to it.
 
 ### [`RFC9190-2.3-3`](#rfc9190-2.3-3)
 
-An implementation that intends to use only a part of the TLS-Exporter output MUST ask for the full output and then only use the desired part (§2.3)
+If an implementation intends to use only a part of the output of the TLS-Exporter function, then it MUST ask for the full output and then only use the desired part. (§2.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -503,7 +503,7 @@ No test carries RFC9190-2.3-3, so no unit is bound to it.
 
 ### [`RFC9190-2.4-1`](#rfc9190-2.4-1)
 
-EAP-TLS peers and EAP-TLS servers MUST comply with the compliance requirements defined in Section 9 of RFC 8446 (§2.4)
+When EAP-TLS is used with TLS version 1.3, the EAP-TLS peers and EAP- TLS servers MUST comply with the compliance requirements (mandatory- to-implement cipher suites, signature algorithms, key exchange algorithms, extensions, etc.) defined in Section 9 of [RFC8446]. (§2.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -527,10 +527,10 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | negative | [`TestEAPTLS12SendsNoProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L289) | unit/verify | unproven |
 | negative | [`TestEAPTLS13RefusedClientGetsNoSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L254) | unit/verify | unproven |
-| negative | [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L379) | interop/nightly | unproven |
+| negative | [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L381) | interop/nightly | unproven |
 | positive | [`TestEAPTLS13ResumedExchangeStillSendsTheSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L369) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13SendsProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L156) | unit/verify | unproven |
-| positive | [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L373) | interop/nightly | unproven |
+| positive | [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L375) | interop/nightly | unproven |
 
 ### [`RFC9190-2.5-2`](#rfc9190-2.5-2)
 
@@ -545,7 +545,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9190-5.4-1`](#rfc9190-5.4-1)
 
-When EAP-TLS is used with TLS 1.3, the revocation status of all the certificates in the certificate chains MUST be checked, except the trust anchor (§5.4)
+When EAP-TLS is used with TLS 1.3, the revocation status of all the certificates in the certificate chains MUST be checked (except the trust anchor). (§5.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -560,11 +560,11 @@ Audit verdict: not audited: no reader has judged these tests
 | positive | [`TestEAPTLS13RefusesARevokedServerCertificate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L128) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13RefusesAStaleRevocationList`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L235) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13RefusesAnUncheckableChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L206) | unit/verify | revert, verified |
-| positive | [`checkResponderEAPTLS13RevokedClient`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L416) | interop/nightly | unproven |
+| positive | [`checkResponderEAPTLS13RevokedClient`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L418) | interop/nightly | unproven |
 
 ### [`RFC9190-5.4-2`](#rfc9190-5.4-2)
 
-EAP-TLS servers supporting TLS 1.3 MUST implement Certificate Status Requests, that is OCSP stapling (§5.4)
+EAP-TLS servers supporting TLS 1.3 MUST implement Certificate Status Requests (OCSP stapling) as specified in [RFC6066] and Section 4.4.2.1 of [RFC8446]. (§5.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -636,7 +636,7 @@ No test carries RFC9190-5.6-2, so no unit is bound to it.
 
 ### [`RFC9190-5.6-3`](#rfc9190-5.6-3)
 
-Authorization and accounting MUST be based on authenticated information such as information in the certificate, or the PSK identity and cached data provisioned for resumption (§5.6)
+Authorization and accounting MUST be based on authenticated information such as information in the certificate or the PSK identity and cached data provisioned for resumption as described in Section 5.7. (§5.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -644,7 +644,7 @@ No test carries RFC9190-5.6-3, so no unit is bound to it.
 
 ### [`RFC9190-5.6-4`](#rfc9190-5.6-4)
 
-The requirements for Network Access Identifiers specified in Section 4 of RFC 7542 still apply and MUST be followed (§5.6)
+Note that the requirements for Network Access Identifiers (NAIs) specified in Section 4 of [RFC7542] still apply and MUST be followed. (§5.6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -652,7 +652,7 @@ No test carries RFC9190-5.6-4, so no unit is bound to it.
 
 ### [`RFC9190-5.7-1`](#rfc9190-5.7-1)
 
-Authorization during resumption MUST be based on cached data from the initial full handshake (§5.7)
+Authorization during resumption MUST be based on such cached data. (§5.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -694,7 +694,7 @@ No test carries RFC9190-5.7-4, so no unit is bound to it.
 
 ### [`RFC9190-5.7-5`](#rfc9190-5.7-5)
 
-EAP-TLS peers MUST NOT store resumption PSKs or tickets, and associated cached data, for longer than 604800 seconds regardless of the PSK or ticket lifetime (§5.7)
+As suggested in [RFC8446], EAP-TLS peers MUST NOT store resumption PSKs or tickets (and associated cached data) for longer than 604800 seconds (7 days) regardless of the PSK or ticket lifetime. (§5.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -706,7 +706,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC9190-5.7-6`](#rfc9190-5.7-6)
 
-If any authorization, accounting, or policy decision was made with information that has changed between the initial full handshake and resumption, and the change may lead to a different decision, that decision MUST be reevaluated (§5.7)
+If any authorization, accounting, or policy decisions were made with information that has changed between the initial full handshake and resumption, and if change may lead to a different decision, such decisions MUST be reevaluated. (§5.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -726,7 +726,7 @@ No test carries RFC9190-5.8-1, so no unit is bound to it.
 
 ### [`RFC9190-5.8-2`](#rfc9190-5.8-2)
 
-Privacy-friendly usernames MUST NOT include substrings that can be used to relate the identity to a specific user (§5.8)
+Note that the privacy-friendly usernames also MUST NOT include substrings that can be used to relate the identity to a specific user. (§5.8)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -734,7 +734,7 @@ No test carries RFC9190-5.8-2, so no unit is bound to it.
 
 ### [`RFC9190-5.8-3`](#rfc9190-5.8-3)
 
-Privacy-friendly usernames MUST NOT be formed by a fixed mapping that stays the same across multiple different authentications (§5.8)
+Similarly, privacy-friendly usernames MUST NOT be formed by a fixed mapping that stays the same across multiple different authentications. (§5.8)
 
 Audit verdict: not audited: no reader has judged these tests
 

@@ -300,7 +300,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-2.1-1">RFC7166-2.1-1</code></td><td colspan="3"><span class="rfc-subject">OSPFv3 routers set the AT-bit in all OSPFv3 Hello and Database Description packets that contain an Authentication Trailer (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-2.1-1">RFC7166-2.1-1</code></td><td colspan="3"><span class="rfc-subject">OSPFv3 routers MUST set the AT-bit in OSPFv3 Hello and Database Description packets to indicate that all the packets on this link will include an Authentication Trailer. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1 - AT-Bit</td>
@@ -309,7 +309,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> no AT-bit exists in the OSPFv3 Options bitset -- internal/plugins/ospf/v3/types/options.go:14-23 defines only V6/E/N/R/AF, and the Hello/DD encoders internal/plugins/ospf/v3/packet/hello.go:88 and dbdesc.go:73 never set one, so no Authentication Trailer is emitted</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-3-3">RFC7166-3-3</code></td><td colspan="3"><span class="rfc-subject">When a new key replaces an old key, the new key&#39;s KeyStartGenerate be less than or equal to the old key&#39;s KeyStopGenerate (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-3-3">RFC7166-3-3</code></td><td colspan="3"><span class="rfc-subject">When a new key replaces an old key, the KeyStartGenerate time for the new key MUST be less than or equal to the KeyStopGenerate time of the old key. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3 - OSPFv3 Security Association</td>
@@ -336,7 +336,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> no OSPFv3 trailer decoder exists -- the only receive-side auth verify internal/plugins/ospf/auth_wiring.go:56 verifyPacket delegates to internal/plugins/ospf/auth_keystore.go:330 which decodes an OSPFv2 common header, so an OSPFv3 trailer Reserved field is never parsed</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.1-3">RFC7166-4.1-3</code></td><td colspan="3"><span class="rfc-subject">Increment the 64-bit cryptographic sequence number for every OSPFv3 packet sent (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.1-3">RFC7166-4.1-3</code></td><td colspan="3"><span class="rfc-subject">The 64-bit sequence number MUST be incremented for every OSPFv3 packet sent by the OSPFv3 router. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1 - Authentication Trailer fields</td>
@@ -345,7 +345,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the 64-bit ESN counter in internal/plugins/ospf/auth_keystore.go:304-314 feeds the OSPFv2 packet.Sign trailer, not an OSPFv3 trailer; no OSPFv3 Cryptographic Sequence Number field is ever written</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.1-4">RFC7166-4.1-4</code></td><td colspan="3"><span class="rfc-subject">On reception, require the sequence number to be greater than that of the last accepted OSPFv3 packet of the same packet type from the sending neighbor (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.1-4">RFC7166-4.1-4</code></td><td colspan="3"><span class="rfc-subject">Upon reception, the sequence number MUST be greater than the sequence number in the last accepted OSPFv3 packet of the same OSPFv3 packet type from the sending OSPFv3 neighbor. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1 - Authentication Trailer fields</td>
@@ -354,7 +354,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the per-packet-type strictly-greater replay check internal/plugins/ospf/auth_keystore.go:352-361 runs only inside the OSPFv2 verify path; there is no OSPFv3 trailer receive path to which it applies</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.1-5">RFC7166-4.1-5</code></td><td colspan="3"><span class="rfc-subject">Use available mechanisms to preserve the sequence number&#39;s strictly increasing property for the router&#39;s deployed life, including cold restarts (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.1-5">RFC7166-4.1-5</code></td><td colspan="3"><span class="rfc-subject">OSPFv3 routers implementing this specification MUST use available mechanisms to preserve the sequence number&#39;s strictly increasing property for the deployed life of the OSPFv3 router (including cold restarts). (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1 - Authentication Trailer fields</td>
@@ -363,7 +363,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the persisted boot-count mechanism internal/plugins/ospf/auth_keystore.go:115 loadOSPFBootCount seeds the OSPFv2 ESN sequence only; no OSPFv3 trailer sequence is emitted for it to protect</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.1.1-1">RFC7166-4.1.1-1</code></td><td colspan="3"><span class="rfc-subject">Reset all keys before the 64-bit sequence number can wrap, to avoid replay attacks (§4.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.1.1-1">RFC7166-4.1.1-1</code></td><td colspan="3"><span class="rfc-subject">If by some chance the OSPFv3 router is deployed long enough that there is a possibility that the 64-bit sequence number may wrap, all keys, independent of their key distribution mechanism, MUST be reset to avoid the possibility of replay attacks. (§4.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1.1 - Sequence Number Wrap</td>
@@ -372,7 +372,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> no OSPFv3 trailer or its 64-bit sequence exists to wrap -- internal/plugins/ospf/auth_keystore.go:311-314 only bumps bootCount on the OSPFv2 ESN low-word wrap and performs no key reset</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.2-3">RFC7166-4.2-3</code></td><td colspan="3"><span class="rfc-subject">Omit OSPFv3 header checksum verification for received packets that include an Authentication Trailer (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.2-3">RFC7166-4.2-3</code></td><td colspan="3"><span class="rfc-subject">o For received OSPFv3 packets including an OSPFv3 Authentication Trailer, OSPFv3 header checksum verification MUST be omitted. (§4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2 - Checksum handling</td>
@@ -381,7 +381,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the receive path never detects an OSPFv3 Authentication Trailer, so it cannot conditionally omit header-checksum verification; only the transmit-side checksum-omission hook exists at internal/plugins/ospf/v3/packet/checksum.go:165-167 and internal/plugins/ospf/v3/packet/header.go:277-280</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.2-4">RFC7166-4.2-4</code></td><td colspan="3"><span class="rfc-subject">Omit LLS data block checksum verification for received packets that include an Authentication Trailer (§4.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.2-4">RFC7166-4.2-4</code></td><td colspan="3"><span class="rfc-subject">o For received OSPFv3 packets including an LLS data block and OSPFv3 Authentication Trailer, LLS data block checksum verification MUST be omitted. (§4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2 - Checksum handling</td>
@@ -399,7 +399,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the HMAC-SHA-256 primitive exists only for the OSPFv2 trailer at internal/plugins/ospf/packet/auth_verify.go:69 and :120; no OSPFv3 Authentication Trailer wires any algorithm</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.3-4">RFC7166-4.3-4</code></td><td colspan="3"><span class="rfc-subject">Use HMAC-SHA-256 as the default authentication algorithm (§4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.3-4">RFC7166-4.3-4</code></td><td colspan="3"><span class="rfc-subject">Implementations of this specification MUST use HMAC-SHA-256 as the default authentication algorithm. (§4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3 - Cryptographic Authentication algorithms</td>
@@ -417,7 +417,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> only the OSPFv2 Cryptographic Protocol ID 0x0001 is appended, and only for the OSPFv2 AuType-3 trailer at internal/plugins/ospf/packet/auth_verify.go:38 and :195; there is no OSPFv3 Cryptographic Protocol ID constant or OSPFv3 trailer to apply it to</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.6-1">RFC7166-4.6-1</code></td><td colspan="3"><span class="rfc-subject">Minimally support examining the L-bit in the OSPFv3 Options and using the LLS data block length to access the Authentication Trailer (§4.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.6-1">RFC7166-4.6-1</code></td><td colspan="3"><span class="rfc-subject">Due to the placement of the AT following the LLS data block and the fact that the LLS data block is included in the Cryptographic Authentication computation, OSPFv3 routers supporting this specification MUST minimally support examining the L-bit in the OSPFv3 options and using the length in the LLS data block to access the AT. (§4.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.6 - Packet reception</td>
@@ -444,7 +444,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the constant-time digest compare at internal/plugins/ospf/packet/auth_verify.go:242 and :263 verifies the OSPFv2 trailer only; there is no OSPFv3 trailer digest to verify</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.6-6">RFC7166-4.6-6</code></td><td colspan="3"><span class="rfc-subject">After successful authentication, store the 64-bit cryptographic sequence number for each OSPFv3 packet type received from the neighbor (§4.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7166-4.6-6">RFC7166-4.6-6</code></td><td colspan="3"><span class="rfc-subject">After the OSPFv3 packet has been successfully authenticated, implementations MUST store the 64-bit cryptographic sequence number for each OSPFv3 packet type received from the neighbor. (§4.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.6 - Packet reception</td>
@@ -606,11 +606,11 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc7166-2.1-1"><code>RFC7166-2.1-1</code></a> OSPFv3 routers set the AT-bit in all OSPFv3 Hello and Database Description packets that contain an Authentication Trailer (§2.1)</td>
+<tr><td><a href="#rfc7166-2.1-1"><code>RFC7166-2.1-1</code></a> OSPFv3 routers MUST set the AT-bit in OSPFv3 Hello and Database Description packets to indicate that all the packets on this link will include an Authentication Trailer. (§2.1)</td>
 <td>{gap}, no test</td>
 <td>no AT-bit exists in the OSPFv3 Options bitset -- internal/plugins/ospf/v3/types/options.go:14-23 defines only V6/E/N/R/AF, and the Hello/DD encoders internal/plugins/ospf/v3/packet/hello.go:88 and dbdesc.go:73 never set one, so no Authentication Trailer is emitted</td>
 </tr>
-<tr><td><a href="#rfc7166-3-3"><code>RFC7166-3-3</code></a> When a new key replaces an old key, the new key&#39;s KeyStartGenerate be less than or equal to the old key&#39;s KeyStopGenerate (§3)</td>
+<tr><td><a href="#rfc7166-3-3"><code>RFC7166-3-3</code></a> When a new key replaces an old key, the KeyStartGenerate time for the new key MUST be less than or equal to the KeyStopGenerate time of the old key. (§3)</td>
 <td>{gap}, no test</td>
 <td>ze has no OSPFv3 Security Association carrying the RFC 7166 KeyStartAccept/KeyStartGenerate/KeyStopGenerate/KeyStopAccept lifetimes -- the only key model is the OSPFv2 send-lifetime pair in internal/plugins/ospf/auth_keystore.go:29-32, and validateKeyRollover internal/plugins/ospf/config.go:1007 orders OSPFv2 send-lifetimes only</td>
 </tr>
@@ -622,27 +622,27 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <td>{gap}, no test</td>
 <td>no OSPFv3 trailer decoder exists -- the only receive-side auth verify internal/plugins/ospf/auth_wiring.go:56 verifyPacket delegates to internal/plugins/ospf/auth_keystore.go:330 which decodes an OSPFv2 common header, so an OSPFv3 trailer Reserved field is never parsed</td>
 </tr>
-<tr><td><a href="#rfc7166-4.1-3"><code>RFC7166-4.1-3</code></a> Increment the 64-bit cryptographic sequence number for every OSPFv3 packet sent (§4.1)</td>
+<tr><td><a href="#rfc7166-4.1-3"><code>RFC7166-4.1-3</code></a> The 64-bit sequence number MUST be incremented for every OSPFv3 packet sent by the OSPFv3 router. (§4.1)</td>
 <td>{gap}, no test</td>
 <td>the 64-bit ESN counter in internal/plugins/ospf/auth_keystore.go:304-314 feeds the OSPFv2 packet.Sign trailer, not an OSPFv3 trailer; no OSPFv3 Cryptographic Sequence Number field is ever written</td>
 </tr>
-<tr><td><a href="#rfc7166-4.1-4"><code>RFC7166-4.1-4</code></a> On reception, require the sequence number to be greater than that of the last accepted OSPFv3 packet of the same packet type from the sending neighbor (§4.1)</td>
+<tr><td><a href="#rfc7166-4.1-4"><code>RFC7166-4.1-4</code></a> Upon reception, the sequence number MUST be greater than the sequence number in the last accepted OSPFv3 packet of the same OSPFv3 packet type from the sending OSPFv3 neighbor. (§4.1)</td>
 <td>{gap}, no test</td>
 <td>the per-packet-type strictly-greater replay check internal/plugins/ospf/auth_keystore.go:352-361 runs only inside the OSPFv2 verify path; there is no OSPFv3 trailer receive path to which it applies</td>
 </tr>
-<tr><td><a href="#rfc7166-4.1-5"><code>RFC7166-4.1-5</code></a> Use available mechanisms to preserve the sequence number&#39;s strictly increasing property for the router&#39;s deployed life, including cold restarts (§4.1)</td>
+<tr><td><a href="#rfc7166-4.1-5"><code>RFC7166-4.1-5</code></a> OSPFv3 routers implementing this specification MUST use available mechanisms to preserve the sequence number&#39;s strictly increasing property for the deployed life of the OSPFv3 router (including cold restarts). (§4.1)</td>
 <td>{gap}, no test</td>
 <td>the persisted boot-count mechanism internal/plugins/ospf/auth_keystore.go:115 loadOSPFBootCount seeds the OSPFv2 ESN sequence only; no OSPFv3 trailer sequence is emitted for it to protect</td>
 </tr>
-<tr><td><a href="#rfc7166-4.1.1-1"><code>RFC7166-4.1.1-1</code></a> Reset all keys before the 64-bit sequence number can wrap, to avoid replay attacks (§4.1.1)</td>
+<tr><td><a href="#rfc7166-4.1.1-1"><code>RFC7166-4.1.1-1</code></a> If by some chance the OSPFv3 router is deployed long enough that there is a possibility that the 64-bit sequence number may wrap, all keys, independent of their key distribution mechanism, MUST be reset to avoid the possibility of replay attacks. (§4.1.1)</td>
 <td>{gap}, no test</td>
 <td>no OSPFv3 trailer or its 64-bit sequence exists to wrap -- internal/plugins/ospf/auth_keystore.go:311-314 only bumps bootCount on the OSPFv2 ESN low-word wrap and performs no key reset</td>
 </tr>
-<tr><td><a href="#rfc7166-4.2-3"><code>RFC7166-4.2-3</code></a> Omit OSPFv3 header checksum verification for received packets that include an Authentication Trailer (§4.2)</td>
+<tr><td><a href="#rfc7166-4.2-3"><code>RFC7166-4.2-3</code></a> o For received OSPFv3 packets including an OSPFv3 Authentication Trailer, OSPFv3 header checksum verification MUST be omitted. (§4.2)</td>
 <td>{gap}, no test</td>
 <td>the receive path never detects an OSPFv3 Authentication Trailer, so it cannot conditionally omit header-checksum verification; only the transmit-side checksum-omission hook exists at internal/plugins/ospf/v3/packet/checksum.go:165-167 and internal/plugins/ospf/v3/packet/header.go:277-280</td>
 </tr>
-<tr><td><a href="#rfc7166-4.2-4"><code>RFC7166-4.2-4</code></a> Omit LLS data block checksum verification for received packets that include an Authentication Trailer (§4.2)</td>
+<tr><td><a href="#rfc7166-4.2-4"><code>RFC7166-4.2-4</code></a> o For received OSPFv3 packets including an LLS data block and OSPFv3 Authentication Trailer, LLS data block checksum verification MUST be omitted. (§4.2)</td>
 <td>{gap}, no test</td>
 <td>the OSPFv3 codec implements no LLS data block -- there is no LLS type under internal/plugins/ospf/v3/packet/ -- and no trailer receive path, so there is no LLS checksum to conditionally omit</td>
 </tr>
@@ -650,7 +650,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <td>{gap}, no test</td>
 <td>the HMAC-SHA-256 primitive exists only for the OSPFv2 trailer at internal/plugins/ospf/packet/auth_verify.go:69 and :120; no OSPFv3 Authentication Trailer wires any algorithm</td>
 </tr>
-<tr><td><a href="#rfc7166-4.3-4"><code>RFC7166-4.3-4</code></a> Use HMAC-SHA-256 as the default authentication algorithm (§4.3)</td>
+<tr><td><a href="#rfc7166-4.3-4"><code>RFC7166-4.3-4</code></a> Implementations of this specification MUST use HMAC-SHA-256 as the default authentication algorithm. (§4.3)</td>
 <td>{gap}, no test</td>
 <td>no OSPFv3 trailer means no OSPFv3 default algorithm; the OSPFv2 keychain algorithm is operator-selected per key at internal/plugins/ospf/auth_keystore.go:239-252 with no HMAC-SHA-256 default</td>
 </tr>
@@ -658,7 +658,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <td>{gap}, no test</td>
 <td>only the OSPFv2 Cryptographic Protocol ID 0x0001 is appended, and only for the OSPFv2 AuType-3 trailer at internal/plugins/ospf/packet/auth_verify.go:38 and :195; there is no OSPFv3 Cryptographic Protocol ID constant or OSPFv3 trailer to apply it to</td>
 </tr>
-<tr><td><a href="#rfc7166-4.6-1"><code>RFC7166-4.6-1</code></a> Minimally support examining the L-bit in the OSPFv3 Options and using the LLS data block length to access the Authentication Trailer (§4.6)</td>
+<tr><td><a href="#rfc7166-4.6-1"><code>RFC7166-4.6-1</code></a> Due to the placement of the AT following the LLS data block and the fact that the LLS data block is included in the Cryptographic Authentication computation, OSPFv3 routers supporting this specification MUST minimally support examining the L-bit in the OSPFv3 options and using the length in the LLS data block to access the AT. (§4.6)</td>
 <td>{gap}, no test</td>
 <td>the OSPFv3 codec parses no LLS block, defines no L-bit in internal/plugins/ospf/v3/types/options.go:14-23, and defines no trailer, so it cannot locate an Authentication Trailer past an LLS block</td>
 </tr>
@@ -670,7 +670,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <td>{gap}, no test</td>
 <td>the constant-time digest compare at internal/plugins/ospf/packet/auth_verify.go:242 and :263 verifies the OSPFv2 trailer only; there is no OSPFv3 trailer digest to verify</td>
 </tr>
-<tr><td><a href="#rfc7166-4.6-6"><code>RFC7166-4.6-6</code></a> After successful authentication, store the 64-bit cryptographic sequence number for each OSPFv3 packet type received from the neighbor (§4.6)</td>
+<tr><td><a href="#rfc7166-4.6-6"><code>RFC7166-4.6-6</code></a> After the OSPFv3 packet has been successfully authenticated, implementations MUST store the 64-bit cryptographic sequence number for each OSPFv3 packet type received from the neighbor. (§4.6)</td>
 <td>{gap}, no test</td>
 <td>the recvSeq high-water store keyed by packet type at internal/plugins/ospf/auth_keystore.go:352-361 records OSPFv2-trailer sequences only; no OSPFv3 trailer sequence is ever received to store</td>
 </tr>
@@ -681,11 +681,11 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7166-2.1-1"><code>RFC7166-2.1-1</code></a></h3>
-<p>OSPFv3 routers set the AT-bit in all OSPFv3 Hello and Database Description packets that contain an Authentication Trailer (§2.1)</p>
+<p>OSPFv3 routers MUST set the AT-bit in OSPFv3 Hello and Database Description packets to indicate that all the packets on this link will include an Authentication Trailer. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7166-2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7166-3-3"><code>RFC7166-3-3</code></a></h3>
-<p>When a new key replaces an old key, the new key&#39;s KeyStartGenerate be less than or equal to the old key&#39;s KeyStopGenerate (§3)</p>
+<p>When a new key replaces an old key, the KeyStartGenerate time for the new key MUST be less than or equal to the KeyStopGenerate time of the old key. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7166-3-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7166-3-6"><code>RFC7166-3-6</code></a></h3>
@@ -697,27 +697,27 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7166-4.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7166-4.1-3"><code>RFC7166-4.1-3</code></a></h3>
-<p>Increment the 64-bit cryptographic sequence number for every OSPFv3 packet sent (§4.1)</p>
+<p>The 64-bit sequence number MUST be incremented for every OSPFv3 packet sent by the OSPFv3 router. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7166-4.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7166-4.1-4"><code>RFC7166-4.1-4</code></a></h3>
-<p>On reception, require the sequence number to be greater than that of the last accepted OSPFv3 packet of the same packet type from the sending neighbor (§4.1)</p>
+<p>Upon reception, the sequence number MUST be greater than the sequence number in the last accepted OSPFv3 packet of the same OSPFv3 packet type from the sending OSPFv3 neighbor. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7166-4.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc7166-4.1-5"><code>RFC7166-4.1-5</code></a></h3>
-<p>Use available mechanisms to preserve the sequence number&#39;s strictly increasing property for the router&#39;s deployed life, including cold restarts (§4.1)</p>
+<p>OSPFv3 routers implementing this specification MUST use available mechanisms to preserve the sequence number&#39;s strictly increasing property for the deployed life of the OSPFv3 router (including cold restarts). (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7166-4.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc7166-4.1.1-1"><code>RFC7166-4.1.1-1</code></a></h3>
-<p>Reset all keys before the 64-bit sequence number can wrap, to avoid replay attacks (§4.1.1)</p>
+<p>If by some chance the OSPFv3 router is deployed long enough that there is a possibility that the 64-bit sequence number may wrap, all keys, independent of their key distribution mechanism, MUST be reset to avoid the possibility of replay attacks. (§4.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7166-4.1.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7166-4.2-3"><code>RFC7166-4.2-3</code></a></h3>
-<p>Omit OSPFv3 header checksum verification for received packets that include an Authentication Trailer (§4.2)</p>
+<p>o For received OSPFv3 packets including an OSPFv3 Authentication Trailer, OSPFv3 header checksum verification MUST be omitted. (§4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7166-4.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7166-4.2-4"><code>RFC7166-4.2-4</code></a></h3>
-<p>Omit LLS data block checksum verification for received packets that include an Authentication Trailer (§4.2)</p>
+<p>o For received OSPFv3 packets including an LLS data block and OSPFv3 Authentication Trailer, LLS data block checksum verification MUST be omitted. (§4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7166-4.2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc7166-4.3-1"><code>RFC7166-4.3-1</code></a></h3>
@@ -725,7 +725,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7166-4.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7166-4.3-4"><code>RFC7166-4.3-4</code></a></h3>
-<p>Use HMAC-SHA-256 as the default authentication algorithm (§4.3)</p>
+<p>Implementations of this specification MUST use HMAC-SHA-256 as the default authentication algorithm. (§4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7166-4.3-4, so no unit is bound to it.</p>
 <h3><a href="#rfc7166-4.4-1"><code>RFC7166-4.4-1</code></a></h3>
@@ -733,7 +733,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7166-4.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7166-4.6-1"><code>RFC7166-4.6-1</code></a></h3>
-<p>Minimally support examining the L-bit in the OSPFv3 Options and using the LLS data block length to access the Authentication Trailer (§4.6)</p>
+<p>Due to the placement of the AT following the LLS data block and the fact that the LLS data block is included in the Cryptographic Authentication computation, OSPFv3 routers supporting this specification MUST minimally support examining the L-bit in the OSPFv3 options and using the length in the LLS data block to access the AT. (§4.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7166-4.6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7166-4.6-3"><code>RFC7166-4.6-3</code></a></h3>
@@ -745,7 +745,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7166-4.6-5, so no unit is bound to it.</p>
 <h3><a href="#rfc7166-4.6-6"><code>RFC7166-4.6-6</code></a></h3>
-<p>After successful authentication, store the 64-bit cryptographic sequence number for each OSPFv3 packet type received from the neighbor (§4.6)</p>
+<p>After the OSPFv3 packet has been successfully authenticated, implementations MUST store the 64-bit cryptographic sequence number for each OSPFv3 packet type received from the neighbor. (§4.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7166-4.6-6, so no unit is bound to it.</p>
 </section>
@@ -985,7 +985,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

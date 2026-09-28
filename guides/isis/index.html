@@ -54,6 +54,7 @@ user-facing behaviour; the wire format is documented in
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/wire/isis.md" target="_blank" rel="noopener"><code>docs/architecture/wire/isis.md</code></a>.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#routing-capabilities">Routing capabilities</a></li>
 <li><a href="#the-dynamic-hostname">The dynamic hostname</a></li>
 <li><a href="#changing-an-interface-parameter-on-a-running-router">Changing an interface parameter on a running router</a></li>
 <li><a href="#broadcast-lans-dis-election-and-pseudo-nodes">Broadcast LANs: DIS election and pseudo-nodes</a></li>
@@ -81,6 +82,39 @@ the name to its kernel device through the shared iface resolver. See
 </blockquote>
 <!-- source: internal/plugins/isis/circuits.go -- interfaceIPv4/interfaceIPv6LinkLocal via iface.Addresses -->
 <!-- source: internal/plugins/isis/transport/backend_linux.go -- resolveInterface via iface.Resolve -->
+<h2 id="routing-capabilities">Routing capabilities</h2>
+<p>IPv4 Protocols Supported (<code>0xCC</code>) is advertised on every circuit. Enabling
+IPv6 on any enabled interface, including a passive one, adds <code>0x8E</code> to every
+Hello and LSP fragment zero. A commit updates both advertisements even when no
+active circuit changes; individual interfaces still control their addresses
+and prefixes.
+Connected and passive-interface prefixes are refreshed on activation and each
+commit, including interface, family, metric and level changes.
+Point-to-point links send and receive ISO 9542 ISHs as well as IS-IS Hellos.
+An ISH starts discovery but cannot establish or sustain an Up adjacency.</p>
+<p>Ze accepts narrow IPv4 reachability in TLV 128 and TLV 130 and preserves its
+internal or external metric type through SPF and inter-level leaking. Local
+connected and redistributed IPv4 prefixes use wide TLV 135. An adjacent
+router's next-hop address can be on another logical subnet; forwarding retains
+the outgoing interface and marks the gateway on-link. Equal-cost originators
+contribute their capable next hops to the same route. If none of those selected
+next hops can forward an address family, the route is installed as unreachable
+rather than falling through to a default route.
+These rejected routes are withdrawn from redistribution until their selected
+adjacency can forward that address family again.</p>
+<p>The owner decisions recorded on 2026-09-21 are: "Keep standard fragment sets",
+"Keep specific prefixes", and "Do not originate IDRPI". Ze therefore uses one
+standard 256-fragment LSP set per source, leaks specific prefixes without
+manual summaries, and has no IDRPI producer or consumer. RFC 3786 extended-set
+modes and RFC 1195 manual-summary discard routes are not enabled features.</p>
+<p>The same day's TE path-computation decision was "Keep configured routes".
+RSVP-TE follows configured explicit routes and bypasses; no CSPF or TE
+shortest-path consumer is enabled. This leaves the wire requirements for
+any advertised TE information unchanged.</p>
+<!-- source: internal/plugins/isis/config.go -- Config.Protocols -->
+<!-- source: internal/plugins/isis/spf_wiring.go -- ResolveNextHop, ResolveNextHopV6 -->
+<!-- source: internal/plugins/isis/lsdb/origination.go -- maxFragments, fragmentTLVs -->
+<!-- source: internal/plugins/isis/redistribute/source.go -- addEntry -->
 <h2 id="the-dynamic-hostname">The dynamic hostname</h2>
 <p><code>hostname</code> names this router in the IS-IS network. Ze floods it in the Dynamic
 Hostname TLV 137, and a peer renders it wherever it would otherwise print a
@@ -141,7 +175,9 @@ this router.</p>
 <!-- source: internal/plugins/isis/show.go -- sanitizeHostname -->
 <h2 id="changing-an-interface-parameter-on-a-running-router">Changing an interface parameter on a running router</h2>
 <p>A commit reaches the circuit that is already up. Ze does not wait for a link
-flap, a <code>disable</code>, or a restart.</p>
+flap, a <code>disable</code>, or a restart.
+Adding the first NET to an idle daemon also starts receive processing, aging,
+flooding, and link monitoring; no daemon restart is required.</p>
 <p>Most parameters are written into the running circuit and cost no adjacency:
 <code>metric</code>, <code>priority</code>, <code>hello-interval</code>, <code>hold-multiplier</code>, the same four under
 <code>level-1</code> and <code>level-2</code>, and the per-level <code>auth-key-chain</code>. A new hello
@@ -175,6 +211,9 @@ on the link, so plan it like a link outage:</p>
 </tr>
 </tbody>
 </table>
+<p>Changing the node's NETs, System ID, or level set rebuilds every active circuit.
+Ze drains each old Hello sender before opening its replacement, so the new
+link cannot transmit the old identity.</p>
 <p>Removing an interface from the config, or setting <code>enabled false</code> or
 <code>passive true</code> on it, closes its circuit. Adding one opens a circuit.</p>
 <!-- source: internal/plugins/isis/server.go -- reconcile, circuitNeedsRebuild -->
@@ -582,7 +621,7 @@ System ID embedded in the first NET.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

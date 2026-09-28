@@ -104,8 +104,13 @@ ssh -L 8080:127.0.0.1:8080 user@router.example.com
 <p>This binds <code>127.0.0.1:8080</code> on your laptop. Requests to <code>localhost:8080</code> travel
 through the SSH tunnel and arrive at <code>127.0.0.1:8080</code> on the router.</p>
 <pre><code class="language-bash"># Test from your laptop:
-curl -s http://localhost:8080/ -X POST \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+curl --silent --show-error http://localhost:8080/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -H 'Mcp-Method: tools/list' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{
+        "io.modelcontextprotocol/protocolVersion":"2026-07-28",
+        "io.modelcontextprotocol/clientCapabilities":{}}}}'
 </code></pre>
 <h3 id="let-a-remote-machine-reach-your-local-mcp">Let a Remote Machine Reach Your Local MCP</h3>
 <p>You have Ze running locally with <code>--mcp 8080</code>. You want a remote machine to
@@ -196,12 +201,22 @@ AllowedIPs = 10.0.0.1/32
 PersistentKeepalive = 25
 </code></pre>
 <p>If using socat on the router:</p>
-<pre><code class="language-bash">curl -s http://10.0.0.1:8080/ -X POST \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+<pre><code class="language-bash">curl --silent --show-error http://10.0.0.1:8080/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -H 'Mcp-Method: tools/list' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{
+        "io.modelcontextprotocol/protocolVersion":"2026-07-28",
+        "io.modelcontextprotocol/clientCapabilities":{}}}}'
 </code></pre>
 <p>If using SSH over WireGuard:</p>
-<pre><code class="language-bash">curl -s http://localhost:8080/ -X POST \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+<pre><code class="language-bash">curl --silent --show-error http://localhost:8080/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -H 'Mcp-Method: tools/list' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{
+        "io.modelcontextprotocol/protocolVersion":"2026-07-28",
+        "io.modelcontextprotocol/clientCapabilities":{}}}}'
 </code></pre>
 <h3 id="generating-wireguard-keys">Generating WireGuard Keys</h3>
 <pre><code class="language-bash">wg genkey | tee privatekey | wg pubkey &gt; publickey
@@ -263,7 +278,7 @@ authentication:</p>
         auth-mode oauth;
         oauth {
             authorization-server https://auth.example/;
-            audience             https://mcp.example/;
+            audience             https://mcp.example/mcp;
             required-scopes      [ mcp.admin ];
         }
         tls {
@@ -277,6 +292,17 @@ authentication:</p>
     }
 }
 </code></pre>
+<p>Issuer and audience identifiers are exact, case-sensitive strings. Configure
+the issuer exactly as its RFC 8414 document reports it, including any trailing
+slash, and have the authorization server issue tokens with that exact <code>iss</code>
+and the configured <code>aud</code>. Neither identity is canonicalized. Both URLs must
+use HTTPS, have a host and contain no userinfo or fragment; the issuer cannot
+have a query. The audience may have a query, which also appears in the
+protected-resource metadata URL.</p>
+<p>Discovery and JWKS fetches require trusted HTTPS, including every redirect.
+Loopback HTTP for the MCP listener behind a tunnel does not relax those
+outbound requirements. See <a href="../overview/#checking-oauth-over-http">Checking OAuth over HTTP</a>
+for an authenticated request and rejection checks.</p>
 <p>Alternatively for smaller deployments, use <code>auth-mode bearer-list</code> with
 per-identity tokens:</p>
 <pre><code>environment {
@@ -327,15 +353,27 @@ per-identity tokens:</p>
 <td><code>auth-mode bearer-list</code> without any <code>identity</code> entries</td>
 <td><code>auth-mode=bearer-list requires at least one identity</code></td>
 </tr>
+<tr>
+<td>Issuer or audience with HTTP, userinfo, a fragment or no host</td>
+<td>Invalid OAuth URL</td>
+</tr>
+<tr>
+<td>Issuer with a query, including an empty <code>?</code></td>
+<td>Invalid OAuth issuer</td>
+</tr>
+<tr>
+<td>Only one of <code>tls.cert</code> and <code>tls.key</code>, in any auth mode</td>
+<td>Both TLS paths required</td>
+</tr>
 </tbody>
 </table>
-<p>These are exact-or-reject gates (<code>rules/exact-or-reject.md</code>): a misconfigured
-remote endpoint fails the verifier, never silently accepts.</p>
+<p>These checks run before MCP starts. A remote OAuth listener cannot silently
+fall back to plaintext, and a partial TLS configuration is never ignored.</p>
 <h2 id="security-notes">Security Notes</h2>
 <ul>
 <li>With <code>bind-remote false</code> (default), every server entry is force-rewritten
-to <code>127.0.0.1</code> at config extraction time, preserving the Phase 1 loopback
-clamp even if the operator mistakenly types <code>0.0.0.0</code>.</li>
+to <code>127.0.0.1</code> at config extraction time, even if the operator writes
+<code>0.0.0.0</code>.</li>
 <li>For tunnel-based deployments, use key-based SSH authentication for
 unattended tunnels. Disable password authentication on routers exposed
 to the internet.</li>
@@ -344,9 +382,13 @@ listener. This is your access control boundary.</li>
 <li>Rotate WireGuard keys periodically. Revoke a peer by removing its <code>[Peer]</code>
 block and reloading (<code>wg syncconf wg0 &lt;(wg-quick strip wg0)</code>).</li>
 <li>For native remote deployments, rotate the TLS cert before it expires.
-Hot-reload is not yet supported; restart the daemon after cert rotation.</li>
-<li>OAuth access tokens are never logged. <code>Authorization</code> headers are scrubbed
-from debug logs. Token audience is validated on every request (RFC 8707).</li>
+Certificate/key files are loaded at startup; replacing them requires a
+daemon restart. Authentication-mode, identity, token, issuer, audience and
+required-scope changes also require a restart. A config reload that changes
+those settings is rejected rather than accepted without taking effect.</li>
+<li>Each OAuth request validates its token locally. There is no token
+introspection or immediate per-token revocation at the authorization server.
+Rejected bearer credentials do not become audit actor names.</li>
 <li>JWKS refresh is rate-limited to 30 s minimum interval; an unknown-kid
 spray cannot trigger a JWKS-fetch flood against the AS.</li>
 </ul>
@@ -392,7 +434,7 @@ spray cannot trigger a JWKS-fetch flood against the AS.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

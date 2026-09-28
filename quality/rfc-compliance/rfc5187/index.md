@@ -102,8 +102,8 @@ Same OSPF experimental status.
 |---|---|---|---|---|
 | `RFC5187-2.2-1` | Grace Period TLV (Type=1, Length=4): "This TLV MUST always appear in a grace-LSA" (§2.2) | MUST | 2.2 | **positive:** `unit/verify` [`TestGraceLSARoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L12). **negative:** `unit/verify` [`TestGraceLSADecodeMissingMandatory`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L65) |
 | `RFC5187-2.2-2` | Graceful Restart Reason TLV (Type=2, Length=1): "This TLV MUST always appear in a grace-LSA" (§2.2) | MUST | 2.2 | **positive:** `unit/verify` [`TestGraceLSARoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L16). **negative:** `unit/verify` [`TestGraceLSADecodeMissingMandatory`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/grace_lsa_test.go#L69) |
-| `RFC5187-3.1-1` | "the restarting router MUST preserve the LSA ID to prefix correspondence across graceful restarts" (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRestartFactPersistsAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_nvs_test.go#L60). **negative:** `unit/verify` [`TestStaleRestartFactIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_nvs_test.go#L110) |
-| `RFC5187-3.2-1` | "the OSPFv3 Interface ID, as described in section 3.1.2 of [OSPFv3], MUST be preserved by the restarting router across restarts" (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRestartFactPersistsAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_nvs_test.go#L63). **negative:** `unit/verify` [`TestStaleRestartFactIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_nvs_test.go#L114) |
+| `RFC5187-3.1-1` | Hence, to avoid network churn during graceful restart, the restarting router MUST preserve the LSA ID to prefix correspondence across graceful restarts. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRestartFactPersistsAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_nvs_test.go#L60). **negative:** `unit/verify` [`TestStaleRestartFactIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_nvs_test.go#L110) |
+| `RFC5187-3.2-1` | Therefore, the OSPFv3 Interface ID, as described in section 3.1.2 of [OSPFv3], MUST be preserved by the restarting router across restarts. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRestartFactPersistsAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_nvs_test.go#L63). **negative:** `unit/verify` [`TestStaleRestartFactIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/gr_nvs_test.go#L114) |
 
 ## Gaps and untested MUSTs
 
@@ -137,7 +137,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5187-3.1-1`](#rfc5187-3.1-1)
 
-"the restarting router MUST preserve the LSA ID to prefix correspondence across graceful restarts" (§3.1)
+Hence, to avoid network churn during graceful restart, the restarting router MUST preserve the LSA ID to prefix correspondence across graceful restarts. (§3.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -148,7 +148,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5187-3.2-1`](#rfc5187-3.2-1)
 
-"the OSPFv3 Interface ID, as described in section 3.1.2 of [OSPFv3], MUST be preserved by the restarting router across restarts" (§3.2)
+Therefore, the OSPFv3 Interface ID, as described in section 3.1.2 of [OSPFv3], MUST be preserved by the restarting router across restarts. (§3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 

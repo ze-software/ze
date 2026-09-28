@@ -310,7 +310,7 @@ Scoped to subscriber access.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go#L99" title="internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go" target="_blank" rel="noopener"><code>TestRFC2869AccessRequestNeverRequestsAnUnavailableService</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-2.1-1">RFC2869-2.1-1</code></td><td colspan="3"><span class="rfc-subject">A NAS MUST ensure that only a single generation of an interim Accounting message for a given session is present in the retransmission queue at any given time (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-2.1-1">RFC2869-2.1-1</code></td><td colspan="3"><span class="rfc-subject">Since all the information is cumulative, a NAS MUST ensure that only a single generation of an interim Accounting message for a given session is present in the retransmission queue at any given time. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1 - RADIUS support for Interim Accounting Updates</td>
@@ -319,7 +319,7 @@ Scoped to subscriber access.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L117" title="internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go" target="_blank" rel="noopener"><code>TestRFC2869InterimLoopKeepsOneGenerationOutstanding</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-2.1-2">RFC2869-2.1-2</code></td><td colspan="3"><span class="rfc-subject">A locally configured interim interval value on the NAS MUST override the value found in an Access-Accept (§2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-2.1-2">RFC2869-2.1-2</code></td><td colspan="3"><span class="rfc-subject">Note that a locally configured value on the NAS MUST override the value found in an Access-Accept. (§2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1 - RADIUS support for Interim Accounting Updates</td>
@@ -351,7 +351,7 @@ Scoped to subscriber access.
 <td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2869-x-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L297" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L322" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go#L21" title="internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2869GigawordsAbsentOnStart</code></a></span></div>
 </div></td>
 </tr>
@@ -360,8 +360,8 @@ Scoped to subscriber access.
 <td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2869-x-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L299" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L261" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketWithCounters</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L324" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L286" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketWithCounters</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-x-4">RFC2869-x-4</code></td><td colspan="3"><span class="rfc-subject">Total byte count MUST be reconstructed as (Gigawords * 2^32) + Octets (Gigaword Accounting)</span></td></tr>
@@ -378,11 +378,11 @@ Scoped to subscriber access.
 <td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2869-x-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L231" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestSplitGigawords</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L256" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestSplitGigawords</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> splitGigawords derives Gigawords directly from the 64-bit byte counter (internal/component/l2tp/plugins/authradius/acct.go) with no separate wrap counter; there is no reject path so no negative case exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-5.14-1">RFC2869-5.14-1</code></td><td colspan="3"><span class="rfc-subject">A RADIUS client receiving an Access-Accept, Access-Reject or Access-Challenge with a Message-Authenticator attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent (§5.14)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-5.14-1">RFC2869-5.14-1</code></td><td colspan="3"><span class="rfc-subject">A RADIUS Client receiving an Access-Accept, Access-Reject or Access-Challenge with a Message-Authenticator Attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent. (§5.14)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.14 - Message-Authenticator</td>
@@ -482,7 +482,7 @@ Scoped to subscriber access.
 </table>
 </div>
 <h3><a href="#rfc2869-2.1-1"><code>RFC2869-2.1-1</code></a></h3>
-<p>A NAS MUST ensure that only a single generation of an interim Accounting message for a given session is present in the retransmission queue at any given time (§2.1)</p>
+<p>Since all the information is cumulative, a NAS MUST ensure that only a single generation of an interim Accounting message for a given session is present in the retransmission queue at any given time. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -502,7 +502,7 @@ Scoped to subscriber access.
 </table>
 </div>
 <h3><a href="#rfc2869-2.1-2"><code>RFC2869-2.1-2</code></a></h3>
-<p>A locally configured interim interval value on the NAS MUST override the value found in an Access-Accept (§2.1)</p>
+<p>Note that a locally configured value on the NAS MUST override the value found in an Access-Accept. (§2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -558,7 +558,7 @@ Scoped to subscriber access.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L297" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L322" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -573,12 +573,12 @@ Scoped to subscriber access.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L261" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketWithCounters</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L286" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketWithCounters</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L299" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L324" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestBuildAcctPacketGigawords</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -597,7 +597,7 @@ Scoped to subscriber access.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L231" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestSplitGigawords</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_test.go#L256" title="internal/component/l2tp/plugins/authradius/acct_test.go" target="_blank" rel="noopener"><code>TestSplitGigawords</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -605,7 +605,7 @@ Scoped to subscriber access.
 </table>
 </div>
 <h3><a href="#rfc2869-5.14-1"><code>RFC2869-5.14-1</code></a></h3>
-<p>A RADIUS client receiving an Access-Accept, Access-Reject or Access-Challenge with a Message-Authenticator attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent (§5.14)</p>
+<p>A RADIUS Client receiving an Access-Accept, Access-Reject or Access-Challenge with a Message-Authenticator Attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent. (§5.14)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1202,7 +1202,7 @@ Scoped to subscriber access.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

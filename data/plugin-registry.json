@@ -108,7 +108,7 @@
     "description": "BMP receiver and sender (RFC 7854, 8671)",
     "config_roots": [
       "bgp",
-      "environment"
+      "environment/bmp"
     ],
     "dependencies": [],
     "optional_dependencies": [],
@@ -126,6 +126,19 @@
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/capa",
     "yang_files": []
+  },
+  {
+    "name": "bgp-epe",
+    "description": "Native BGP Egress Peer Engineering segments",
+    "config_roots": [
+      "bgp-epe"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/component/bgp/plugins/epe",
+    "yang_files": [
+      "internal/component/bgp/plugins/epe/yang/ze-bgp-epe-conf.yang"
+    ]
   },
   {
     "name": "bgp-filter-aspath",
@@ -342,6 +355,21 @@
     ]
   },
   {
+    "name": "bgp-ls-export",
+    "description": "Export native routing databases through BGP-LS",
+    "config_roots": [
+      "bgp-ls-export"
+    ],
+    "dependencies": [
+      "bgp-nlri-ls"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/component/bgp/plugins/ls_export",
+    "yang_files": [
+      "internal/component/bgp/plugins/ls_export/yang/ze-bgp-ls-export-conf.yang"
+    ]
+  },
+  {
     "name": "bgp-nlri-evpn",
     "description": "EVPN family plugin",
     "config_roots": [],
@@ -523,7 +551,8 @@
     "description": "Route Reflector",
     "config_roots": [],
     "dependencies": [
-      "bgp-adj-rib-in"
+      "bgp-adj-rib-in",
+      "bgp-rib"
     ],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/rr",
@@ -537,7 +566,9 @@
     "config_roots": [
       "bgp"
     ],
-    "dependencies": [],
+    "dependencies": [
+      "bgp-rib"
+    ],
     "optional_dependencies": [
       "bgp-adj-rib-in"
     ],
@@ -823,7 +854,8 @@
     "description": "Translates BGP FlowSpec routes into nftables firewall rules",
     "config_roots": [],
     "dependencies": [
-      "firewall"
+      "firewall",
+      "bgp-rib"
     ],
     "optional_dependencies": [],
     "source_dir": "internal/plugins/flowspec-firewall",
@@ -1015,7 +1047,7 @@
     "name": "ntp",
     "description": "NTP client: system clock synchronization",
     "config_roots": [
-      "environment"
+      "environment/ntp"
     ],
     "dependencies": [],
     "optional_dependencies": [],
@@ -1105,6 +1137,7 @@
       "rsvp-te"
     ],
     "dependencies": [
+      "interface",
       "fib-kernel",
       "sysctl"
     ],

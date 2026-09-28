@@ -50,10 +50,14 @@ plus `xorriso`.
 `ze appliance iso` checks those tools before it stages an ISO.
 <!-- source: internal/appliance/cmd_iso.go -- resolveISOBuilder -->
 
-The vendored gokrazy command lives at `cmd/ze-gok`; the appliance builder calls
-it in process. No separate gokrazy installation or first-party script is
-required.
+The vendored gokrazy command (`github.com/gokrazy/tools/gok`) runs in process.
+`ze appliance build` calls it directly. A developer runs it with
+`./le build gokrazy <gok args>`, which uses the checked-in module cache, forbids
+network module lookups, and builds `overwrite` from a prepared copy of the
+instance under `tmp/`. No separate gokrazy installation or
+first-party script is required.
 <!-- source: internal/appliance/cmd_build.go -- runGokInProcess -->
+<!-- source: internal/le/build/gokrazy/gokrazy.go -- Run -->
 
 ## First-time setup
 
@@ -130,7 +134,7 @@ support, the deployment proof target builds an L2TP-enabled appliance image and
 drives a real LAC against it:
 
 ```bash
-./le deployment gokrazy-l2tp-ppp-test
+./le test deployment gokrazy-l2tp-ppp-test
 ```
 
 The proof image is built from a temporary gokrazy instance config so the normal
@@ -143,7 +147,7 @@ resolution, and an image on the pinned rtr7 kernel (which has no l2tp support)
 crash-loops at first boot instead of serving.
 <!-- source: gokrazy/kernel/runtime.config -- Ze L2TP/PPP kernel config -->
 <!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
-<!-- source: internal/le/deployment/actions.go -- Answer -->
+<!-- source: internal/le/test/deployment/actions.go -- Answer -->
 
 ## Build an image
 
@@ -362,8 +366,7 @@ gokrazy/
 cmd/ze-serial-shell/        # serial console login gate (replaces serial-busybox)
   main.go                   # gokrazy wrapper: symlink + DontStartOnBoot
   _gokrazy/                 # renamed busybox extrafiles per arch
-cmd/ze-gok/
-  main.go                   # vendored gokrazy command wrapper
+internal/le/build/gokrazy/  # `le build gokrazy`: the vendored gokrazy command wrapper
 ```
 
 The gok source is vendored under `vendor/github.com/gokrazy/`. The small

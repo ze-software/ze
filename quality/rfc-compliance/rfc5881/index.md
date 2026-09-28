@@ -111,29 +111,29 @@ Six MUST gaps, gated in [`rfc/short/rfc5881.md`](https://github.com/ze-software/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5881-2-1` | Each BFD session between a pair of systems must traverse a separate network-layer path in both directions (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze cannot select or guarantee the network-layer path a session's packets take; the datagram is handed to the kernel FIB by internal/component/bfd/transport/udp.go:226 (conn.WriteToUDP), and separating two sessions onto distinct L3 paths is an operator topology property the BFD plugin does not control |
-| `RFC5881-2-2` | A separate BFD session must be established for each protocol (IPv4 and IPv6) over a link (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC5881PerProtocolSessions`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L277). **negative:** `unit/verify` [`TestRFC5881SamePeerCoalesces`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L319) |
-| `RFC5881-2-3` | Implementations supporting Echo function must ensure ingress filtering is not used on the Echo interface, or make an exception for Echo packets (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ingress filtering (BCP 38) is host and network policy; the echo transport opens a plain UDP socket at internal/component/bfd/bfd.go:393 (newEchoTransport) and the BFD plugin neither configures nor exempts kernel ingress filters |
-| `RFC5881-2-4` | A system implementing Echo must be capable of sending packets to its own address (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's echo does not address packets to its own address; sendEchoLocked (internal/component/bfd/engine/echo.go:96) sets the datagram destination to the peer (To: PeerAddr) and relies on the peer's application-level ZEEC reflection (internal/component/bfd/engine/echo.go:203), so the RFC 5881 self-addressed echo is unimplemented |
+| `RFC5881-2-1` | Each BFD session between a pair of systems MUST traverse a separate network-layer path in both directions. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze cannot select or guarantee the network-layer path a session's packets take; the datagram is handed to the kernel FIB by internal/component/bfd/transport/udp.go:226 (conn.WriteToUDP), and separating two sessions onto distinct L3 paths is an operator topology property the BFD plugin does not control |
+| `RFC5881-2-2` | If BFD is to be used in conjunction with both IPv4 and IPv6 on a particular path, a separate BFD session MUST be established for each protocol (and thus encapsulated by that protocol) over that link. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC5881PerProtocolSessions`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L277). **negative:** `unit/verify` [`TestRFC5881SamePeerCoalesces`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L319) |
+| `RFC5881-2-3` | Implementations that support the Echo function MUST ensure that ingress filtering is not used on an interface that employs the Echo function or make an exception for ingress filtering Echo packets. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ingress filtering (BCP 38) is host and network policy; the echo transport opens a plain UDP socket at internal/component/bfd/bfd.go:393 (newEchoTransport) and the BFD plugin neither configures nor exempts kernel ingress filters |
+| `RFC5881-2-4` | A system implementing the Echo function MUST be capable of sending packets to its own address, which will typically require bypassing the normal forwarding lookup. (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's echo does not address packets to its own address; sendEchoLocked (internal/component/bfd/engine/echo.go:96) sets the datagram destination to the peer (To: PeerAddr) and relies on the peer's application-level ZEEC reflection (internal/component/bfd/engine/echo.go:203), so the RFC 5881 self-addressed echo is unimplemented |
 | `RFC5881-3-1` | Both sides of a session must take the Active role (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC5881SingleHopTakesActiveRole`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5881_test.go#L37). **negative:** `unit/verify` [`TestRFC5881NonActiveStaysSilent`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5881_test.go#L52) |
 | `RFC5881-3-2` | A received packet with Your Discriminator = 0 must be associated with the session bound to the remote system, interface, and protocol (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC5881FirstPacketMatchesByTuple`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L128). **negative:** `unit/verify` [`TestRFC5881FirstPacketWrongSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L152) |
-| `RFC5881-4-1` | BFD Control packets must be transmitted in UDP with destination port 3784 (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5881ControlDestPort3784`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L18). **negative:** `unit/verify` [`TestRFC5881ControlPortNotUsedForEcho`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L34) |
-| `RFC5881-4-2` | UDP source port must be in the range 49152-65535 (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the control transport binds one UDP socket to port 3784 (internal/component/bfd/bfd.go:356,360) and reuses it for TX (internal/component/bfd/transport/udp.go:225, conn.WriteToUDP), so the source port of transmitted Control packets is 3784, not a value in the ephemeral 49152-65535 range |
-| `RFC5881-4-3` | The same UDP source port must be used for all Control packets in a session (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5881SingleSourcePortPerSession`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L71). **negative:** no negative test. **{single-polarity}:** every Control packet in a session leaves from the one UDP socket the (vrf,mode) loop binds (internal/component/bfd/bfd.go:355-367, internal/component/bfd/transport/udp.go:218-228), so the source port is a fixed socket property; there is no per-packet source-port selection that could vary it, hence no negative state to exercise |
+| `RFC5881-4-1` | BFD Control packets MUST be transmitted in UDP packets with destination port 3784, within an IPv4 or IPv6 packet. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5881ControlDestPort3784`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L18). **negative:** `unit/verify` [`TestRFC5881ControlPortNotUsedForEcho`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L34) |
+| `RFC5881-4-2` | The source port MUST be in the range 49152 through 65535. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the control transport binds one UDP socket to port 3784 (internal/component/bfd/bfd.go:356,360) and reuses it for TX (internal/component/bfd/transport/udp.go:225, conn.WriteToUDP), so the source port of transmitted Control packets is 3784, not a value in the ephemeral 49152-65535 range |
+| `RFC5881-4-3` | The same UDP source port number MUST be used for all BFD Control packets associated with a particular session. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5881SingleSourcePortPerSession`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L71). **negative:** no negative test. **{single-polarity}:** every Control packet in a session leaves from the one UDP socket the (vrf,mode) loop binds (internal/component/bfd/bfd.go:355-367, internal/component/bfd/transport/udp.go:218-228), so the source port is a fixed socket property; there is no per-packet source-port selection that could vary it, hence no negative state to exercise |
 | `RFC5881-4-4` | Ultimately, RFC 5880 mechanisms must be used to demultiplex incoming packets to the proper session (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5881DiscriminatorDemuxDelivers`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L176). **negative:** `unit/verify` [`TestRFC5881DiscriminatorDemuxUnknownDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L199) |
-| `RFC5881-4-5` | BFD Echo packets must be transmitted in UDP with destination port 3785 (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5881EchoDestPort3785`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L46). **negative:** `unit/verify` [`TestRFC5881EchoPortNotUsedForControl`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L60) |
-| `RFC5881-4-6` | Echo destination address must cause the remote system to forward the packet back (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the echo destination is the peer address (internal/component/bfd/engine/echo.go:96, To: PeerAddr), reflected by the peer's ze application (internal/component/bfd/engine/echo.go:203), not an address chosen so the peer's forwarding plane loops the packet back, so the RFC 5881 echo dest-addressing rule is unimplemented |
-| `RFC5881-4-7` | Echo source address must preclude the remote system from generating ICMP or ND Redirect messages (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** sendEchoLocked (internal/component/bfd/engine/echo.go:83-101) sets no source address on the echo datagram (the kernel selects it) and applies no redirect-avoidance, because ze's echo is peer-addressed and application-reflected rather than looped by the peer's forwarding plane |
+| `RFC5881-4-5` | BFD Echo packets MUST be transmitted in UDP packets with destination UDP port 3785 in an IPv4 or IPv6 packet. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5881EchoDestPort3785`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L46). **negative:** `unit/verify` [`TestRFC5881EchoPortNotUsedForControl`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L60) |
+| `RFC5881-4-6` | The destination address MUST be chosen in such a way as to cause the remote system to forward the packet back to the local system. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the echo destination is the peer address (internal/component/bfd/engine/echo.go:96, To: PeerAddr), reflected by the peer's ze application (internal/component/bfd/engine/echo.go:203), not an address chosen so the peer's forwarding plane loops the packet back, so the RFC 5881 echo dest-addressing rule is unimplemented |
+| `RFC5881-4-7` | The source address MUST be chosen in such a way as to preclude the remote system from generating ICMP or Neighbor Discovery Redirect messages. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** sendEchoLocked (internal/component/bfd/engine/echo.go:83-101) sets no source address on the echo datagram (the kernel selects it) and applies no redirect-avoidance, because ze's echo is peer-addressed and application-reflected rather than looped by the peer's forwarding plane |
 | `RFC5881-4-8` | Echo packets must be transmitted so they are received by the remote system (e.g., correct L2 destination on multiaccess media) (§4) | MUST | 4 | **positive:** `unit/verify` [`TestEchoRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/echo_test.go#L69). **negative:** no negative test. **{single-polarity}:** ze transmits echo datagrams to the peer's echo port and the peer receives and reflects them (proven by the round-trip in internal/component/bfd/engine/echo_test.go:68); ze relies on the kernel for L2 delivery and has no path that would stop a well-formed echo reaching the remote, so there is no negative polarity to exercise |
-| `RFC5881-5-1` | If authentication is not in use: TTL/Hop Limit must be 255 on transmit (§5) | MUST | 5 | **positive:** `unit/verify` [`TestUDPSetOutboundTTL255`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_ttl_linux_test.go#L24). **negative:** `unit/verify` [`TestUDPDefaultTTLNot255`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_ttl_linux_test.go#L158) |
-| `RFC5881-5-2` | If authentication is not in use: received packets must be discarded if TTL/Hop Limit != 255 (§5) | MUST | 5 | **positive:** `unit/verify` [`TestTTLGateSingleHop`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/ttl_test.go#L16). **negative:** `unit/verify` [`TestTTLGateSingleHop`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/ttl_test.go#L20) |
-| `RFC5881-5-3` | If authentication is in use: TTL/Hop Limit must be 255 on transmit (§5) | MUST | 5 | **positive:** `unit/verify` [`TestUDPSetOutboundTTL255`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_ttl_linux_test.go#L28). **negative:** `unit/verify` [`TestUDPDefaultTTLNot255`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_ttl_linux_test.go#L163) |
-| `RFC5881-6-1` | All BFD Control packets must be transmitted over the one-hop path being protected (§6) | MUST | 6 | **positive:** `unit/verify` [`TestUDPSetOutboundTTL255`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_ttl_linux_test.go#L31). **negative:** `unit/verify` [`TestUDPDefaultTTLNot255`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_ttl_linux_test.go#L166) |
-| `RFC5881-6-2` | On multiaccess networks, Control packets must be transmitted with source and destination addresses on the subnet (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC5881TransmitDestinationStable`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L225). **negative:** no negative test. **{single-polarity}:** ze transmits single-hop Control packets to the operator-configured peer (internal/component/bfd/engine/loop.go:232, To: PeerAddr) and the kernel selects the interface source; subnet membership is set by operator config and routing, and no ze code rewrites either address off-subnet, so there is no negative polarity |
-| `RFC5881-6-3` | On point-to-point links, source address must not be used to identify the session (§6) | MUST NOT | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze does not model point-to-point links separately; the first-packet demux keys firstPacketKey on the source address in.From (internal/component/bfd/engine/loop.go:88), so an initial packet whose source differs from the configured peer is not associated with the session, whereas RFC 5881 forbids using the source to identify a point-to-point session |
+| `RFC5881-5-1` | If BFD authentication is not in use on a session, all BFD Control packets for the session MUST be sent with a Time to Live (TTL) or Hop Limit value of 255. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestUDPSetOutboundTTL255`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_ttl_linux_test.go#L24). **negative:** `unit/verify` [`TestUDPDefaultTTLNot255`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_ttl_linux_test.go#L158) |
+| `RFC5881-5-2` | All received BFD Control packets that are demultiplexed to the session MUST be discarded if the received TTL or Hop Limit is not equal to 255. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestTTLGateSingleHop`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/ttl_test.go#L16). **negative:** `unit/verify` [`TestTTLGateSingleHop`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/ttl_test.go#L20) |
+| `RFC5881-5-3` | If BFD authentication is in use on a session, all BFD Control packets MUST be sent with a TTL or Hop Limit value of 255. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestUDPSetOutboundTTL255`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_ttl_linux_test.go#L28). **negative:** `unit/verify` [`TestUDPDefaultTTLNot255`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_ttl_linux_test.go#L163) |
+| `RFC5881-6-1` | Implementations MUST ensure that all BFD Control packets are transmitted over the one-hop path being protected by BFD. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestUDPSetOutboundTTL255`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_ttl_linux_test.go#L31). **negative:** `unit/verify` [`TestUDPDefaultTTLNot255`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_ttl_linux_test.go#L166) |
+| `RFC5881-6-2` | On a multiaccess network, BFD Control packets MUST be transmitted with source and destination addresses that are part of the subnet (addressed from and to interfaces on the subnet). (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC5881TransmitDestinationStable`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L225). **negative:** no negative test. **{single-polarity}:** ze transmits single-hop Control packets to the operator-configured peer (internal/component/bfd/engine/loop.go:232, To: PeerAddr) and the kernel selects the interface source; subnet membership is set by operator config and routing, and no ze code rewrites either address off-subnet, so there is no negative polarity |
+| `RFC5881-6-3` | On a point-to-point link, the source address of a BFD Control packet MUST NOT be used to identify the session. (§6) | MUST NOT | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze does not model point-to-point links separately; the first-packet demux keys firstPacketKey on the source address in.From (internal/component/bfd/engine/loop.go:88), so an initial packet whose source differs from the configured peer is not associated with the session, whereas RFC 5881 forbids using the source to identify a point-to-point session |
 | `RFC5881-6-4` | On point-to-point links, initial BFD packet must be accepted with any source address (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the first-packet demux requires the source to equal the configured peer (internal/component/bfd/engine/loop.go:88-94, byKey lookup on in.From), so ze does not accept a point-to-point initial packet bearing an arbitrary source address; once a discriminator is learned, subsequent packets are demuxed by Your Discriminator alone (internal/component/bfd/engine/loop.go:82) as RFC5881-6-5 requires |
 | `RFC5881-6-5` | On point-to-point links, subsequent packets must be demultiplexed solely by Your Discriminator (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC5881DiscriminatorDemuxDelivers`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L178). **negative:** `unit/verify` [`TestRFC5881DiscriminatorDemuxUnknownDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L201) |
-| `RFC5881-6-6` | If received source address changes on point-to-point, local system must not use that address as the destination; must continue using the address configured at session creation (§6) | MUST NOT | 6 | **positive:** `unit/verify` [`TestRFC5881TransmitDestinationStable`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L218). **negative:** `unit/verify` [`TestRFC5881TransmitDestinationIgnoresChangedSource`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L253) |
+| `RFC5881-6-6` | If the received source address changes, the local system MUST NOT use that address as the destination in outgoing BFD Control packets; rather, it MUST continue to use the address configured at session creation. (§6) | MUST NOT | 6 | **positive:** `unit/verify` [`TestRFC5881TransmitDestinationStable`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L218). **negative:** `unit/verify` [`TestRFC5881TransmitDestinationIgnoresChangedSource`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L253) |
 | `RFC5881-4-9` | UDP source port number should be unique among all BFD sessions on the system (§4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5881-4-10` | Echo source address should not be part of the subnet bound to the egress interface (§4) | SHOULD NOT | 4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5881-4-11` | Echo source address should not be an IPv6 link-local address (§4) | SHOULD NOT | 4 | **positive:** no positive test. **negative:** no negative test |
@@ -149,13 +149,13 @@ Six MUST gaps, gated in [`rfc/short/rfc5881.md`](https://github.com/ze-software/
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC5881-2-1`](#rfc5881-2-1) Each BFD session between a pair of systems must traverse a separate network-layer path in both directions (§2) | no test | no test carries this requirement id; annotated {not-applicable}: ze cannot select or guarantee the network-layer path a session's packets take; the datagram is handed to the kernel FIB by internal/component/bfd/transport/udp.go:226 (conn.WriteToUDP), and separating two sessions onto distinct L3 paths is an operator topology property the BFD plugin does not control |
-| [`RFC5881-2-3`](#rfc5881-2-3) Implementations supporting Echo function must ensure ingress filtering is not used on the Echo interface, or make an exception for Echo packets (§2) | no test | no test carries this requirement id; annotated {not-applicable}: ingress filtering (BCP 38) is host and network policy; the echo transport opens a plain UDP socket at internal/component/bfd/bfd.go:393 (newEchoTransport) and the BFD plugin neither configures nor exempts kernel ingress filters |
-| [`RFC5881-2-4`](#rfc5881-2-4) A system implementing Echo must be capable of sending packets to its own address (§2) | {gap}, no test | ze's echo does not address packets to its own address; sendEchoLocked (internal/component/bfd/engine/echo.go:96) sets the datagram destination to the peer (To: PeerAddr) and relies on the peer's application-level ZEEC reflection (internal/component/bfd/engine/echo.go:203), so the RFC 5881 self-addressed echo is unimplemented |
-| [`RFC5881-4-2`](#rfc5881-4-2) UDP source port must be in the range 49152-65535 (§4) | {gap}, no test | the control transport binds one UDP socket to port 3784 (internal/component/bfd/bfd.go:356,360) and reuses it for TX (internal/component/bfd/transport/udp.go:225, conn.WriteToUDP), so the source port of transmitted Control packets is 3784, not a value in the ephemeral 49152-65535 range |
-| [`RFC5881-4-6`](#rfc5881-4-6) Echo destination address must cause the remote system to forward the packet back (§4) | {gap}, no test | the echo destination is the peer address (internal/component/bfd/engine/echo.go:96, To: PeerAddr), reflected by the peer's ze application (internal/component/bfd/engine/echo.go:203), not an address chosen so the peer's forwarding plane loops the packet back, so the RFC 5881 echo dest-addressing rule is unimplemented |
-| [`RFC5881-4-7`](#rfc5881-4-7) Echo source address must preclude the remote system from generating ICMP or ND Redirect messages (§4) | {gap}, no test | sendEchoLocked (internal/component/bfd/engine/echo.go:83-101) sets no source address on the echo datagram (the kernel selects it) and applies no redirect-avoidance, because ze's echo is peer-addressed and application-reflected rather than looped by the peer's forwarding plane |
-| [`RFC5881-6-3`](#rfc5881-6-3) On point-to-point links, source address must not be used to identify the session (§6) | {gap}, no test | ze does not model point-to-point links separately; the first-packet demux keys firstPacketKey on the source address in.From (internal/component/bfd/engine/loop.go:88), so an initial packet whose source differs from the configured peer is not associated with the session, whereas RFC 5881 forbids using the source to identify a point-to-point session |
+| [`RFC5881-2-1`](#rfc5881-2-1) Each BFD session between a pair of systems MUST traverse a separate network-layer path in both directions. (§2) | no test | no test carries this requirement id; annotated {not-applicable}: ze cannot select or guarantee the network-layer path a session's packets take; the datagram is handed to the kernel FIB by internal/component/bfd/transport/udp.go:226 (conn.WriteToUDP), and separating two sessions onto distinct L3 paths is an operator topology property the BFD plugin does not control |
+| [`RFC5881-2-3`](#rfc5881-2-3) Implementations that support the Echo function MUST ensure that ingress filtering is not used on an interface that employs the Echo function or make an exception for ingress filtering Echo packets. (§2) | no test | no test carries this requirement id; annotated {not-applicable}: ingress filtering (BCP 38) is host and network policy; the echo transport opens a plain UDP socket at internal/component/bfd/bfd.go:393 (newEchoTransport) and the BFD plugin neither configures nor exempts kernel ingress filters |
+| [`RFC5881-2-4`](#rfc5881-2-4) A system implementing the Echo function MUST be capable of sending packets to its own address, which will typically require bypassing the normal forwarding lookup. (§2) | {gap}, no test | ze's echo does not address packets to its own address; sendEchoLocked (internal/component/bfd/engine/echo.go:96) sets the datagram destination to the peer (To: PeerAddr) and relies on the peer's application-level ZEEC reflection (internal/component/bfd/engine/echo.go:203), so the RFC 5881 self-addressed echo is unimplemented |
+| [`RFC5881-4-2`](#rfc5881-4-2) The source port MUST be in the range 49152 through 65535. (§4) | {gap}, no test | the control transport binds one UDP socket to port 3784 (internal/component/bfd/bfd.go:356,360) and reuses it for TX (internal/component/bfd/transport/udp.go:225, conn.WriteToUDP), so the source port of transmitted Control packets is 3784, not a value in the ephemeral 49152-65535 range |
+| [`RFC5881-4-6`](#rfc5881-4-6) The destination address MUST be chosen in such a way as to cause the remote system to forward the packet back to the local system. (§4) | {gap}, no test | the echo destination is the peer address (internal/component/bfd/engine/echo.go:96, To: PeerAddr), reflected by the peer's ze application (internal/component/bfd/engine/echo.go:203), not an address chosen so the peer's forwarding plane loops the packet back, so the RFC 5881 echo dest-addressing rule is unimplemented |
+| [`RFC5881-4-7`](#rfc5881-4-7) The source address MUST be chosen in such a way as to preclude the remote system from generating ICMP or Neighbor Discovery Redirect messages. (§4) | {gap}, no test | sendEchoLocked (internal/component/bfd/engine/echo.go:83-101) sets no source address on the echo datagram (the kernel selects it) and applies no redirect-avoidance, because ze's echo is peer-addressed and application-reflected rather than looped by the peer's forwarding plane |
+| [`RFC5881-6-3`](#rfc5881-6-3) On a point-to-point link, the source address of a BFD Control packet MUST NOT be used to identify the session. (§6) | {gap}, no test | ze does not model point-to-point links separately; the first-packet demux keys firstPacketKey on the source address in.From (internal/component/bfd/engine/loop.go:88), so an initial packet whose source differs from the configured peer is not associated with the session, whereas RFC 5881 forbids using the source to identify a point-to-point session |
 | [`RFC5881-6-4`](#rfc5881-6-4) On point-to-point links, initial BFD packet must be accepted with any source address (§6) | {gap}, no test | the first-packet demux requires the source to equal the configured peer (internal/component/bfd/engine/loop.go:88-94, byKey lookup on in.From), so ze does not accept a point-to-point initial packet bearing an arbitrary source address; once a discriminator is learned, subsequent packets are demuxed by Your Discriminator alone (internal/component/bfd/engine/loop.go:82) as RFC5881-6-5 requires |
 
 ## Proof state
@@ -164,7 +164,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC5881-2-1`](#rfc5881-2-1)
 
-Each BFD session between a pair of systems must traverse a separate network-layer path in both directions (§2)
+Each BFD session between a pair of systems MUST traverse a separate network-layer path in both directions. (§2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -172,7 +172,7 @@ No test carries RFC5881-2-1, so no unit is bound to it.
 
 ### [`RFC5881-2-2`](#rfc5881-2-2)
 
-A separate BFD session must be established for each protocol (IPv4 and IPv6) over a link (§2)
+If BFD is to be used in conjunction with both IPv4 and IPv6 on a particular path, a separate BFD session MUST be established for each protocol (and thus encapsulated by that protocol) over that link. (§2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -183,7 +183,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5881-2-3`](#rfc5881-2-3)
 
-Implementations supporting Echo function must ensure ingress filtering is not used on the Echo interface, or make an exception for Echo packets (§2)
+Implementations that support the Echo function MUST ensure that ingress filtering is not used on an interface that employs the Echo function or make an exception for ingress filtering Echo packets. (§2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -191,7 +191,7 @@ No test carries RFC5881-2-3, so no unit is bound to it.
 
 ### [`RFC5881-2-4`](#rfc5881-2-4)
 
-A system implementing Echo must be capable of sending packets to its own address (§2)
+A system implementing the Echo function MUST be capable of sending packets to its own address, which will typically require bypassing the normal forwarding lookup. (§2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -221,7 +221,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5881-4-1`](#rfc5881-4-1)
 
-BFD Control packets must be transmitted in UDP with destination port 3784 (§4)
+BFD Control packets MUST be transmitted in UDP packets with destination port 3784, within an IPv4 or IPv6 packet. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -232,7 +232,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5881-4-2`](#rfc5881-4-2)
 
-UDP source port must be in the range 49152-65535 (§4)
+The source port MUST be in the range 49152 through 65535. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -240,7 +240,7 @@ No test carries RFC5881-4-2, so no unit is bound to it.
 
 ### [`RFC5881-4-3`](#rfc5881-4-3)
 
-The same UDP source port must be used for all Control packets in a session (§4)
+The same UDP source port number MUST be used for all BFD Control packets associated with a particular session. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -261,7 +261,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5881-4-5`](#rfc5881-4-5)
 
-BFD Echo packets must be transmitted in UDP with destination port 3785 (§4)
+BFD Echo packets MUST be transmitted in UDP packets with destination UDP port 3785 in an IPv4 or IPv6 packet. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -272,7 +272,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5881-4-6`](#rfc5881-4-6)
 
-Echo destination address must cause the remote system to forward the packet back (§4)
+The destination address MUST be chosen in such a way as to cause the remote system to forward the packet back to the local system. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -280,7 +280,7 @@ No test carries RFC5881-4-6, so no unit is bound to it.
 
 ### [`RFC5881-4-7`](#rfc5881-4-7)
 
-Echo source address must preclude the remote system from generating ICMP or ND Redirect messages (§4)
+The source address MUST be chosen in such a way as to preclude the remote system from generating ICMP or Neighbor Discovery Redirect messages. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -298,7 +298,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5881-5-1`](#rfc5881-5-1)
 
-If authentication is not in use: TTL/Hop Limit must be 255 on transmit (§5)
+If BFD authentication is not in use on a session, all BFD Control packets for the session MUST be sent with a Time to Live (TTL) or Hop Limit value of 255. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -309,7 +309,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5881-5-2`](#rfc5881-5-2)
 
-If authentication is not in use: received packets must be discarded if TTL/Hop Limit != 255 (§5)
+All received BFD Control packets that are demultiplexed to the session MUST be discarded if the received TTL or Hop Limit is not equal to 255. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -320,7 +320,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5881-5-3`](#rfc5881-5-3)
 
-If authentication is in use: TTL/Hop Limit must be 255 on transmit (§5)
+If BFD authentication is in use on a session, all BFD Control packets MUST be sent with a TTL or Hop Limit value of 255. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -331,7 +331,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5881-6-1`](#rfc5881-6-1)
 
-All BFD Control packets must be transmitted over the one-hop path being protected (§6)
+Implementations MUST ensure that all BFD Control packets are transmitted over the one-hop path being protected by BFD. (§6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -342,7 +342,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5881-6-2`](#rfc5881-6-2)
 
-On multiaccess networks, Control packets must be transmitted with source and destination addresses on the subnet (§6)
+On a multiaccess network, BFD Control packets MUST be transmitted with source and destination addresses that are part of the subnet (addressed from and to interfaces on the subnet). (§6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -352,7 +352,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5881-6-3`](#rfc5881-6-3)
 
-On point-to-point links, source address must not be used to identify the session (§6)
+On a point-to-point link, the source address of a BFD Control packet MUST NOT be used to identify the session. (§6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -379,7 +379,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5881-6-6`](#rfc5881-6-6)
 
-If received source address changes on point-to-point, local system must not use that address as the destination; must continue using the address configured at session creation (§6)
+If the received source address changes, the local system MUST NOT use that address as the destination in outgoing BFD Control packets; rather, it MUST continue to use the address configured at session creation. (§6)
 
 Audit verdict: not audited: no reader has judged these tests
 

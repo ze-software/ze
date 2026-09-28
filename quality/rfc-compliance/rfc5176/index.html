@@ -341,7 +341,7 @@ Scoped to subscriber access. Two OPTIONAL features of the RFC are out of scope, 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L358" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestVerifyCoARequestAuth</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-2.3-1">RFC5176-2.3-1</code></td><td colspan="3"><span class="rfc-subject">A packet received with an invalid Code field MUST be silently discarded (§2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-2.3-1">RFC5176-2.3-1</code></td><td colspan="3"><span class="rfc-subject">Packets received with an invalid Code field MUST be silently discarded. (§2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3</td>
@@ -431,7 +431,7 @@ Scoped to subscriber access. Two OPTIONAL features of the RFC are out of scope, 
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L429" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateReturnedUnmodified</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.4-1">RFC5176-3.4-1</code></td><td colspan="3"><span class="rfc-subject">When the HMAC-MD5 message integrity check of a CoA-Request or Disconnect-Request is calculated, the Request Authenticator field and the Message-Authenticator Attribute MUST each be considered to be sixteen octets of zero (§3.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.4-1">RFC5176-3.4-1</code></td><td colspan="3"><span class="rfc-subject">When the HMAC-MD5 message integrity check is calculated the Request Authenticator field and Message-Authenticator Attribute MUST each be considered to be sixteen octets of zero. (§3.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.4</td>
@@ -623,7 +623,7 @@ Scoped to subscriber access. Two OPTIONAL features of the RFC are out of scope, 
 </table>
 </div>
 <h3><a href="#rfc5176-2.3-1"><code>RFC5176-2.3-1</code></a></h3>
-<p>A packet received with an invalid Code field MUST be silently discarded (§2.3)</p>
+<p>Packets received with an invalid Code field MUST be silently discarded. (§2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -823,7 +823,7 @@ Scoped to subscriber access. Two OPTIONAL features of the RFC are out of scope, 
 </table>
 </div>
 <h3><a href="#rfc5176-3.4-1"><code>RFC5176-3.4-1</code></a></h3>
-<p>When the HMAC-MD5 message integrity check of a CoA-Request or Disconnect-Request is calculated, the Request Authenticator field and the Message-Authenticator Attribute MUST each be considered to be sixteen octets of zero (§3.4)</p>
+<p>When the HMAC-MD5 message integrity check is calculated the Request Authenticator field and Message-Authenticator Attribute MUST each be considered to be sixteen octets of zero. (§3.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1403,7 +1403,7 @@ Scoped to subscriber access. Two OPTIONAL features of the RFC are out of scope, 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

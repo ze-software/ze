@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 69.6% | 16 of 23 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 4.3% | 1 of 23 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 23 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 33 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 6.1% | 2 of 33 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -68,7 +68,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 33 |
 | Tagged units | 33 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 2 |
 | Summary | `rfc/short/rfc5340.md` |
 | Requirement shard | `rfc/requirements/rfc5340.md` |
 | RFC text | `rfc/full/rfc5340.txt` |
@@ -109,29 +109,29 @@ Five MUST gaps, annotated in [`rfc/short/rfc5340.md`](https://github.com/ze-soft
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5340-2.5-1` | On virtual links, a global scope IPv6 address MUST be used as the source address for OSPF protocol packets (§2.5) | MUST | 2.5 | **positive:** `unit/verify` [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L439). **negative:** `unit/verify` [`TestV6VirtualEndpointRequiresGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L475) |
-| `RFC5340-2.5-2` | Link-local addresses MUST NOT be advertised in inter-area-prefix-LSAs, AS-external-LSAs, NSSA-LSAs, or intra-area-prefix-LSAs; restated for inter-area-prefix-LSAs in §4.4.3.4 (§2.5) | MUST NOT | 2.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the ban holds for intra-area-prefix-LSAs on both origination paths (interfaceIPv6Prefixes, origination_v6.go:564; v6HostPrefixes, origination_v6.go:432; v6AggregatedLinkPrefixes, origination_v6_link.go:153), but the ABR summary path copies every prefix out of a received intra-area-prefix-LSA into an inter-area-prefix-LSA with no link-local filter (v6SummaryNetworks, origination_v6_summary.go:136-147), and the ASBR path wire-encodes a redistributed prefix with no link-local filter either (v6InjectExternal -> netipToV6Prefix, origination_v6_external.go:55 and origination_v6.go:592), so a link-local supplied by a peer or by redistribution reaches an inter-area-prefix-LSA / AS-external-LSA / NSSA-LSA. Disclosed in docs/features/rfc-status.md RFC 5340 row |
+| `RFC5340-2.5-1` | On virtual links, a global scope IPv6 address MUST be used as the source address for OSPF protocol packets (§2.5) | MUST | 2.5 | **positive:** `unit/verify` [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L519). **negative:** `unit/verify` [`TestV6VirtualEndpointRequiresGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L555) |
+| `RFC5340-2.5-2` | In particular, link-local addresses MUST NOT be advertised in inter-area-prefix-LSAs (Section 4.4.3.4), AS-external-LSAs (Section 4.4.3.6), NSSA-LSAs (Section 4.4.3.7), or intra-area-prefix- LSAs (Section 4.4.3.9). (§2.5) | MUST NOT | 2.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the ban holds for intra-area-prefix-LSAs on both origination paths (interfaceIPv6Prefixes, origination_v6.go:564; v6HostPrefixes, origination_v6.go:432; v6AggregatedLinkPrefixes, origination_v6_link.go:153), but the ABR summary path copies every prefix out of a received intra-area-prefix-LSA into an inter-area-prefix-LSA with no link-local filter (v6SummaryNetworks, origination_v6_summary.go:136-147), and the ASBR path wire-encodes a redistributed prefix with no link-local filter either (v6InjectExternal -> netipToV6Prefix, origination_v6_external.go:55 and origination_v6.go:592), so a link-local supplied by a peer or by redistribution reaches an inter-area-prefix-LSA / AS-external-LSA / NSSA-LSA. Disclosed in docs/features/rfc-status.md RFC 5340 row |
 | `RFC5340-2.8-2` | Receivers MUST concatenate all the router-LSAs originated by a given router, treating them as a single aggregate, when running the SPF calculation; reaffirmed in §4.8 and §4.8.1 (§2.8) | MUST | 2.8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the OSPFv3 graph build keys a router vertex by Advertising Router alone and ASSIGNS rather than concatenates, so a second Router-LSA from the same router (a different Link State ID) replaces the first instead of aggregating its links (v6Strategy.BuildGraph, afstrategy_v6.go:113-117). Disclosed in docs/features/rfc-status.md RFC 5340 row |
 | `RFC5340-2.8-3` | A network-LSA MUST list all routers connected to the link (§2.8) | MUST | 2.8 | **positive:** `unit/verify` [`TestRFC5340NetworkLSAListsAttachedRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L183). **negative:** `unit/verify` [`TestRFC5340NetworkLSAListsAttachedRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L186) |
 | `RFC5340-2.8-4` | A link-LSA MUST list all of a router's addresses on the link (§2.8) | MUST | 2.8 | **positive:** `unit/verify` [`TestRFC5340LinkLSAListsLinkAddresses`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L221). **negative:** `unit/verify` [`TestRFC5340LinkLSAListsLinkAddresses`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L225) |
-| `RFC5340-4.1.2-2` | A virtual link MUST use one of the router's own global-scope IPv6 addresses as its IP interface address, instead of a link-local address; also §4.7 (§4.1.2) | MUST | 4.1.2 | **positive:** `unit/verify` [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L444). **negative:** `unit/verify` [`TestRFC5340VirtualLinkRefusesLocalLinkLocalInterfaceAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_vlink_test.go#L14) |
-| `RFC5340-4.2.1.1-1` | Before a Hello packet is sent on an interface, the interface's Interface ID MUST be copied into the Hello packet (§4.2.1.1) | MUST | 4.2.1.1 | **positive:** `unit/verify` [`TestRFC5340HelloCarriesInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L74). **negative:** `unit/verify` [`TestRFC5340HelloCarriesInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L80) |
+| `RFC5340-4.1.2-2` | A virtual link MUST use one of the router's own global-scope IPv6 addresses as its IP interface address, instead of a link-local address; also §4.7 (§4.1.2) | MUST | 4.1.2 | **positive:** `unit/verify` [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L524). **negative:** `unit/verify` [`TestRFC5340VirtualLinkRefusesLocalLinkLocalInterfaceAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_vlink_test.go#L14) |
+| `RFC5340-4.2.1.1-1` | o Before the Hello packet is sent on an interface, the interface's Interface ID MUST be copied into the Hello packet. (§4.2.1.1) | MUST | 4.2.1.1 | **positive:** `unit/verify` [`TestRFC5340HelloCarriesInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L74). **negative:** `unit/verify` [`TestRFC5340HelloCarriesInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L80) |
 | `RFC5340-4.2.1.1-2` | The Options bits that MUST be set correctly in Hello packets are the E-bit (regular area), N-bit (NSSA area), and DC-bit (demand circuit) (§4.2.1.1) | MUST | 4.2.1.1 | **positive:** `unit/verify` [`TestRFC5340HelloOptionsBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L119). **negative:** `unit/verify` [`TestRFC5340HelloOptionsBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L123) |
-| `RFC5340-4.2.1.2-1` | The Options bits that MUST be set correctly in Database Description packets include the DC-bit for demand circuits (§4.2.1.2) | MUST | 4.2.1.2 | **positive:** `unit/verify` [`TestRFC5340DBDescOptionsBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L154). **negative:** `unit/verify` [`TestRFC5340DBDescOptionsBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L158) |
-| `RFC5340-4.2.2-1` | A received packet's IP destination address MUST be a unicast address of the receiving interface, the AllSPFRouters or AllDRouters multicast address, or (for virtual links) an IPv6 global address (§4.2.2) | MUST | 4.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no destination-address acceptance check exists. The v3 backend records the datagram destination from the IPV6_PKTINFO control message (backend_linux.go:307) and the dispatcher consumes it ONLY as pseudo-header input to the checksum (dispatcher.go:65), never comparing it against the interface's addresses or ff02::5 / ff02::6; grep for `.Dst` over internal/plugins/ospf finds no other reader. A protocol-89 datagram sent to a group the host already joins (for example ff02::1) is therefore accepted, since its sender computed a checksum for that same destination. Disclosed in docs/features/rfc-status.md RFC 5340 row |
+| `RFC5340-4.2.1.2-1` | Those that MUST be set correctly in Database Description packets are as follows. (§4.2.1.2) | MUST | 4.2.1.2 | **positive:** `unit/verify` [`TestRFC5340DBDescOptionsBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L154). **negative:** `unit/verify` [`TestRFC5340DBDescOptionsBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L158) |
+| `RFC5340-4.2.2-1` | In order for the packet to be passed to OSPF for processing, the following tests must be performed on the encapsulating IPv6 headers: o The packet's IP destination address MUST be one of the IPv6 unicast addresses associated with the receiving interface (this includes link-local addresses), one of the IPv6 multicast addresses AllSPFRouters or AllDRouters, or an IPv6 global address (for virtual links). (§4.2.2) | MUST | 4.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no destination-address acceptance check exists. The v3 backend records the datagram destination from the IPV6_PKTINFO control message (backend_linux.go:307) and the dispatcher consumes it ONLY as pseudo-header input to the checksum (dispatcher.go:65), never comparing it against the interface's addresses or ff02::5 / ff02::6; grep for `.Dst` over internal/plugins/ospf finds no other reader. A protocol-89 datagram sent to a group the host already joins (for example ff02::1) is therefore accepted, since its sender computed a checksum for that same destination. Disclosed in docs/features/rfc-status.md RFC 5340 row |
 | `RFC5340-4.2.2-2` | The Next Header field of the immediately encapsulating IPv6 header MUST specify the OSPF protocol (89) (§4.2.2) | MUST | 4.2.2 | **positive:** `unit/verify` [`TestRFC5340TransportUsesOSPFProtocolNumber`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/transport/rfc5340_linux_test.go#L13). **negative:** no negative test. **{single-polarity}:** the transport opens its raw socket on "ip6:89" (listenNetwork, v3/transport/backend_linux.go:28), so the kernel stamps Next Header 89 on every send and demultiplexes only Next Header 89 to this socket on receive. ze never sees a non-89 datagram, so it has no reject path of its own to exercise |
-| `RFC5340-4.2.2-3` | Any encapsulating IP Authentication Headers and IP Encapsulating Security Payloads MUST be processed and/or verified to ensure integrity and authentication/confidentiality (§4.2.2) | MUST | 4.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** AH and ESP are processed by the kernel XFRM inbound transform before the datagram reaches the socket; ze installs the require-policy that makes that happen (buildIPsecPolicies SADirIn, ipsec_install.go:449) and only samples the resulting drop counters (readXfrmDropsPlatform, ipsec_drops_linux.go:32). ze never parses or verifies an AH/ESP header, matching the RFC 4552 rows for the same delegation |
+| `RFC5340-4.2.2-3` | o Any encapsulating IP Authentication Headers (see [IPAUTH]) and the IP Encapsulating Security Payloads (see [IPESP]) MUST be processed and/or verified to ensure integrity and authentication/ confidentiality of OSPF routing exchanges. (§4.2.2) | MUST | 4.2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** AH and ESP are processed by the kernel XFRM inbound transform before the datagram reaches the socket; ze installs the require-policy that makes that happen (buildIPsecPolicies SADirIn, ipsec_install.go:449) and only samples the resulting drop counters (readXfrmDropsPlatform, ipsec_drops_linux.go:32). ze never parses or verifies an AH/ESP header, matching the RFC 4552 rows for the same delegation |
 | `RFC5340-4.2.2-5` | The version number field MUST specify protocol version 3 (§4.2.2) | MUST | 4.2.2 | **positive:** `unit/verify` [`TestOSPFv3HeaderRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/header_test.go#L31). **negative:** `unit/verify` [`TestOSPFv3DecodeHeaderBounds`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/header_test.go#L80) |
-| `RFC5340-4.9-1` | Each of a router's multiple interfaces to a single link MUST be configured with the same Interface Instance ID to be considered on the same link (§4.9) | MUST | 4.9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze has no notion of several interfaces sharing one link. Each configured interface is enrolled independently, keyed by its own name and OS ifindex (openInterface, instance.go:679-691; the Interface ID is interfaceIndex, interface_addr.go:107-123), and two interfaces on the same physical link with the same Instance ID form two separate adjacencies rather than one Active/Standby pair. Disclosed in docs/features/rfc-status.md RFC 5340 row |
-| `RFC5340-4.9-2` | When a Standby Interface goes down, the link-local scope LSAs originated for it MUST be flushed on the Active Interface (§4.9) | MUST | 4.9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** there is no Active/Standby interface model to flush from -- grep for "Standby" over internal/plugins/ospf finds no producer. A link-local scope Link-LSA is flushed only with its own interface's link store (v6OriginateLinkLSA / OriginateLinkSelf, origination_v6_link.go:58), never re-flushed onto a sibling interface. Disclosed in docs/features/rfc-status.md RFC 5340 row |
-| `RFC5340-A.3.1-2` | The reserved header fields MUST be ignored when receiving protocol packets (§A.3.1) | MUST | A.3.1 | **positive:** `unit/verify` [`TestRFC5340ReservedHeaderOctetIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L366). **negative:** `unit/verify` [`TestRFC5340ReservedHeaderOctetIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L370) |
-| `RFC5340-A.4.7-1` | An AS-external-LSA forwarding address MUST NOT be set to the IPv6 Unspecified Address or an IPv6 Link-Local Address (§A.4.7) | MUST NOT | A.4.7 | **positive:** `unit/verify` [`TestRFC5340ForwardingAddressIsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L292). **negative:** `unit/verify` [`TestRFC5340ForwardingAddressIsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L294) |
-| `RFC5340-A.4.7-2` | An OSPFv3 implementation advertising a forwarding address MUST advertise a global IPv6 address (§A.4.7) | MUST | A.4.7 | **positive:** `unit/verify` [`TestRFC5340ForwardingAddressIsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L300). **negative:** `unit/verify` [`TestRFC5340ForwardingAddressIsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L304) |
-| `RFC5340-A.4.8-1` | A global IPv6 address MUST be selected as the forwarding address for NSSA-LSAs that are to be propagated by NSSA area border routers (§A.4.8) | MUST | A.4.8 | **positive:** `unit/verify` [`TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L336). **negative:** `unit/verify` [`TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L339) |
-| `RFC5340-C.3-1` | The interface output cost MUST always be greater than 0 (§C.3) | MUST | C.3 | **positive:** `unit/verify` [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L423). **negative:** `unit/verify` [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L426) |
-| `RFC5340-C.3-2` | InfTransDelay MUST be greater than 0 (§C.3) | MUST | C.3 | **positive:** `unit/verify` [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L429). **negative:** `unit/verify` [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L432) |
-| `RFC5340-C.3-3` | HelloInterval MUST be the same for all routers attached to a common link (§C.3) | MUST | C.3 | **positive:** `unit/verify` [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L465). **negative:** `unit/verify` [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L468) |
-| `RFC5340-C.3-4` | RouterDeadInterval MUST be the same for all routers attached to a common link (§C.3) | MUST | C.3 | **positive:** `unit/verify` [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L471). **negative:** `unit/verify` [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L473) |
+| `RFC5340-4.9-1` | o Each of the multiple interfaces MUST be configured with the same Interface Instance ID to be considered on the same link. (§4.9) | MUST | 4.9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze has no notion of several interfaces sharing one link. Each configured interface is enrolled independently, keyed by its own name and OS ifindex (openInterface, instance.go:679-691; the Interface ID is interfaceIndex, interface_addr.go:107-123), and two interfaces on the same physical link with the same Instance ID form two separate adjacencies rather than one Active/Standby pair. Disclosed in docs/features/rfc-status.md RFC 5340 row |
+| `RFC5340-4.9-2` | If a Standby Interface goes down, then the link-local scope LSAs originated for the Standby Interfaces MUST be flushed on the Active Interface. (§4.9) | MUST | 4.9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** there is no Active/Standby interface model to flush from -- grep for "Standby" over internal/plugins/ospf finds no producer. A link-local scope Link-LSA is flushed only with its own interface's link store (v6OriginateLinkLSA / OriginateLinkSelf, origination_v6_link.go:58), never re-flushed onto a sibling interface. Disclosed in docs/features/rfc-status.md RFC 5340 row |
+| `RFC5340-A.3.1-2` | The reserved header fields MUST be ignored when receiving protocol packets (§A.3.1) | MUST | A.3.1 | **positive:** `unit/verify` [`TestRFC5340ReservedHeaderOctetIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L367). **negative:** `unit/verify` [`TestRFC5340ReservedHeaderOctetIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L371) |
+| `RFC5340-A.4.7-1` | It MUST NOT be set to the IPv6 Unspecified Address (0:0:0:0:0:0:0:0) or an IPv6 Link-Local Address (Prefix FE80/10). (§A.4.7) | MUST NOT | A.4.7 | **positive:** `unit/verify` [`TestRFC5340ForwardingAddressIsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L292). **negative:** `unit/verify` [`TestRFC5340ForwardingAddressIsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L294) |
+| `RFC5340-A.4.7-2` | While OSPFv3 routes are normally installed with link-local addresses, an OSPFv3 implementation advertising a forwarding address MUST advertise a global IPv6 address. (§A.4.7) | MUST | A.4.7 | **positive:** `unit/verify` [`TestRFC5340ForwardingAddressIsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L300). **negative:** `unit/verify` [`TestRFC5340ForwardingAddressIsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L304) |
+| `RFC5340-A.4.8-1` | A global IPv6 address MUST be selected as forwarding address for NSSA-LSAs that are to be propagated by NSSA area border routers. (§A.4.8) | MUST | A.4.8 | **positive:** `unit/verify` [`TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L336). **negative:** `unit/verify` [`TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L339) |
+| `RFC5340-C.3-1` | The interface output cost MUST always be greater than 0 (§C.3) | MUST | C.3 | **positive:** `unit/verify` [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L424). **negative:** `unit/verify` [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L427) |
+| `RFC5340-C.3-2` | It MUST be greater than 0. (§C.3) | MUST | C.3 | **positive:** `unit/verify` [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L430). **negative:** `unit/verify` [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L433) |
+| `RFC5340-C.3-3` | It MUST be the same for all routers attached to a common link. (§C.3) | MUST | C.3 | **positive:** `unit/verify` [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L466). **negative:** `unit/verify` [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L469) |
+| `RFC5340-C.3-4` | This value again MUST be the same for all routers attached to a common link. (§C.3) | MUST | C.3 | **positive:** `unit/verify` [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L472). **negative:** `unit/verify` [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L474) |
 | `RFC5340-2.11-1` | The Router ID of 0.0.0.0 is reserved and SHOULD NOT be used; restated in §C.1 (§2.11) | SHOULD NOT | 2.11 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5340-4.2.2-4` | If the OSPF header fields do not match those configured for the receiving OSPFv3 interface, the packet SHOULD be discarded (§4.2.2) | SHOULD | 4.2.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5340-4.2.2-6` | Locally originated packets SHOULD NOT be processed by OSPF, except in support of multiple interfaces attached to the same link per §4.9 (§4.2.2) | SHOULD NOT | 4.2.2 | **positive:** no positive test. **negative:** no negative test |
@@ -160,12 +160,12 @@ Five MUST gaps, annotated in [`rfc/short/rfc5340.md`](https://github.com/ze-soft
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC5340-2.5-2`](#rfc5340-2.5-2) Link-local addresses MUST NOT be advertised in inter-area-prefix-LSAs, AS-external-LSAs, NSSA-LSAs, or intra-area-prefix-LSAs; restated for inter-area-prefix-LSAs in §4.4.3.4 (§2.5) | {gap}, no test | the ban holds for intra-area-prefix-LSAs on both origination paths (interfaceIPv6Prefixes, origination_v6.go:564; v6HostPrefixes, origination_v6.go:432; v6AggregatedLinkPrefixes, origination_v6_link.go:153), but the ABR summary path copies every prefix out of a received intra-area-prefix-LSA into an inter-area-prefix-LSA with no link-local filter (v6SummaryNetworks, origination_v6_summary.go:136-147), and the ASBR path wire-encodes a redistributed prefix with no link-local filter either (v6InjectExternal -> netipToV6Prefix, origination_v6_external.go:55 and origination_v6.go:592), so a link-local supplied by a peer or by redistribution reaches an inter-area-prefix-LSA / AS-external-LSA / NSSA-LSA. Disclosed in docs/features/rfc-status.md RFC 5340 row |
+| [`RFC5340-2.5-2`](#rfc5340-2.5-2) In particular, link-local addresses MUST NOT be advertised in inter-area-prefix-LSAs (Section 4.4.3.4), AS-external-LSAs (Section 4.4.3.6), NSSA-LSAs (Section 4.4.3.7), or intra-area-prefix- LSAs (Section 4.4.3.9). (§2.5) | {gap}, no test | the ban holds for intra-area-prefix-LSAs on both origination paths (interfaceIPv6Prefixes, origination_v6.go:564; v6HostPrefixes, origination_v6.go:432; v6AggregatedLinkPrefixes, origination_v6_link.go:153), but the ABR summary path copies every prefix out of a received intra-area-prefix-LSA into an inter-area-prefix-LSA with no link-local filter (v6SummaryNetworks, origination_v6_summary.go:136-147), and the ASBR path wire-encodes a redistributed prefix with no link-local filter either (v6InjectExternal -> netipToV6Prefix, origination_v6_external.go:55 and origination_v6.go:592), so a link-local supplied by a peer or by redistribution reaches an inter-area-prefix-LSA / AS-external-LSA / NSSA-LSA. Disclosed in docs/features/rfc-status.md RFC 5340 row |
 | [`RFC5340-2.8-2`](#rfc5340-2.8-2) Receivers MUST concatenate all the router-LSAs originated by a given router, treating them as a single aggregate, when running the SPF calculation; reaffirmed in §4.8 and §4.8.1 (§2.8) | {gap}, no test | the OSPFv3 graph build keys a router vertex by Advertising Router alone and ASSIGNS rather than concatenates, so a second Router-LSA from the same router (a different Link State ID) replaces the first instead of aggregating its links (v6Strategy.BuildGraph, afstrategy_v6.go:113-117). Disclosed in docs/features/rfc-status.md RFC 5340 row |
-| [`RFC5340-4.2.2-1`](#rfc5340-4.2.2-1) A received packet's IP destination address MUST be a unicast address of the receiving interface, the AllSPFRouters or AllDRouters multicast address, or (for virtual links) an IPv6 global address (§4.2.2) | {gap}, no test | no destination-address acceptance check exists. The v3 backend records the datagram destination from the IPV6_PKTINFO control message (backend_linux.go:307) and the dispatcher consumes it ONLY as pseudo-header input to the checksum (dispatcher.go:65), never comparing it against the interface's addresses or ff02::5 / ff02::6; grep for `.Dst` over internal/plugins/ospf finds no other reader. A protocol-89 datagram sent to a group the host already joins (for example ff02::1) is therefore accepted, since its sender computed a checksum for that same destination. Disclosed in docs/features/rfc-status.md RFC 5340 row |
-| [`RFC5340-4.2.2-3`](#rfc5340-4.2.2-3) Any encapsulating IP Authentication Headers and IP Encapsulating Security Payloads MUST be processed and/or verified to ensure integrity and authentication/confidentiality (§4.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: AH and ESP are processed by the kernel XFRM inbound transform before the datagram reaches the socket; ze installs the require-policy that makes that happen (buildIPsecPolicies SADirIn, ipsec_install.go:449) and only samples the resulting drop counters (readXfrmDropsPlatform, ipsec_drops_linux.go:32). ze never parses or verifies an AH/ESP header, matching the RFC 4552 rows for the same delegation |
-| [`RFC5340-4.9-1`](#rfc5340-4.9-1) Each of a router's multiple interfaces to a single link MUST be configured with the same Interface Instance ID to be considered on the same link (§4.9) | {gap}, no test | ze has no notion of several interfaces sharing one link. Each configured interface is enrolled independently, keyed by its own name and OS ifindex (openInterface, instance.go:679-691; the Interface ID is interfaceIndex, interface_addr.go:107-123), and two interfaces on the same physical link with the same Instance ID form two separate adjacencies rather than one Active/Standby pair. Disclosed in docs/features/rfc-status.md RFC 5340 row |
-| [`RFC5340-4.9-2`](#rfc5340-4.9-2) When a Standby Interface goes down, the link-local scope LSAs originated for it MUST be flushed on the Active Interface (§4.9) | {gap}, no test | there is no Active/Standby interface model to flush from -- grep for "Standby" over internal/plugins/ospf finds no producer. A link-local scope Link-LSA is flushed only with its own interface's link store (v6OriginateLinkLSA / OriginateLinkSelf, origination_v6_link.go:58), never re-flushed onto a sibling interface. Disclosed in docs/features/rfc-status.md RFC 5340 row |
+| [`RFC5340-4.2.2-1`](#rfc5340-4.2.2-1) In order for the packet to be passed to OSPF for processing, the following tests must be performed on the encapsulating IPv6 headers: o The packet's IP destination address MUST be one of the IPv6 unicast addresses associated with the receiving interface (this includes link-local addresses), one of the IPv6 multicast addresses AllSPFRouters or AllDRouters, or an IPv6 global address (for virtual links). (§4.2.2) | {gap}, no test | no destination-address acceptance check exists. The v3 backend records the datagram destination from the IPV6_PKTINFO control message (backend_linux.go:307) and the dispatcher consumes it ONLY as pseudo-header input to the checksum (dispatcher.go:65), never comparing it against the interface's addresses or ff02::5 / ff02::6; grep for `.Dst` over internal/plugins/ospf finds no other reader. A protocol-89 datagram sent to a group the host already joins (for example ff02::1) is therefore accepted, since its sender computed a checksum for that same destination. Disclosed in docs/features/rfc-status.md RFC 5340 row |
+| [`RFC5340-4.2.2-3`](#rfc5340-4.2.2-3) o Any encapsulating IP Authentication Headers (see [IPAUTH]) and the IP Encapsulating Security Payloads (see [IPESP]) MUST be processed and/or verified to ensure integrity and authentication/ confidentiality of OSPF routing exchanges. (§4.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: AH and ESP are processed by the kernel XFRM inbound transform before the datagram reaches the socket; ze installs the require-policy that makes that happen (buildIPsecPolicies SADirIn, ipsec_install.go:449) and only samples the resulting drop counters (readXfrmDropsPlatform, ipsec_drops_linux.go:32). ze never parses or verifies an AH/ESP header, matching the RFC 4552 rows for the same delegation |
+| [`RFC5340-4.9-1`](#rfc5340-4.9-1) o Each of the multiple interfaces MUST be configured with the same Interface Instance ID to be considered on the same link. (§4.9) | {gap}, no test | ze has no notion of several interfaces sharing one link. Each configured interface is enrolled independently, keyed by its own name and OS ifindex (openInterface, instance.go:679-691; the Interface ID is interfaceIndex, interface_addr.go:107-123), and two interfaces on the same physical link with the same Instance ID form two separate adjacencies rather than one Active/Standby pair. Disclosed in docs/features/rfc-status.md RFC 5340 row |
+| [`RFC5340-4.9-2`](#rfc5340-4.9-2) If a Standby Interface goes down, then the link-local scope LSAs originated for the Standby Interfaces MUST be flushed on the Active Interface. (§4.9) | {gap}, no test | there is no Active/Standby interface model to flush from -- grep for "Standby" over internal/plugins/ospf finds no producer. A link-local scope Link-LSA is flushed only with its own interface's link store (v6OriginateLinkLSA / OriginateLinkSelf, origination_v6_link.go:58), never re-flushed onto a sibling interface. Disclosed in docs/features/rfc-status.md RFC 5340 row |
 
 ## Proof state
 
@@ -179,12 +179,12 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestV6VirtualEndpointRequiresGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L475) | unit/verify | unproven |
-| positive | [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L439) | unit/verify | unproven |
+| negative | [`TestV6VirtualEndpointRequiresGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L555) | unit/verify | unproven |
+| positive | [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L519) | unit/verify | unproven |
 
 ### [`RFC5340-2.5-2`](#rfc5340-2.5-2)
 
-Link-local addresses MUST NOT be advertised in inter-area-prefix-LSAs, AS-external-LSAs, NSSA-LSAs, or intra-area-prefix-LSAs; restated for inter-area-prefix-LSAs in §4.4.3.4 (§2.5)
+In particular, link-local addresses MUST NOT be advertised in inter-area-prefix-LSAs (Section 4.4.3.4), AS-external-LSAs (Section 4.4.3.6), NSSA-LSAs (Section 4.4.3.7), or intra-area-prefix- LSAs (Section 4.4.3.9). (§2.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -229,11 +229,11 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5340VirtualLinkRefusesLocalLinkLocalInterfaceAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_vlink_test.go#L14) | unit/verify | unproven |
-| positive | [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L444) | unit/verify | unproven |
+| positive | [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L524) | unit/verify | unproven |
 
 ### [`RFC5340-4.2.1.1-1`](#rfc5340-4.2.1.1-1)
 
-Before a Hello packet is sent on an interface, the interface's Interface ID MUST be copied into the Hello packet (§4.2.1.1)
+o Before the Hello packet is sent on an interface, the interface's Interface ID MUST be copied into the Hello packet. (§4.2.1.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -255,7 +255,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5340-4.2.1.2-1`](#rfc5340-4.2.1.2-1)
 
-The Options bits that MUST be set correctly in Database Description packets include the DC-bit for demand circuits (§4.2.1.2)
+Those that MUST be set correctly in Database Description packets are as follows. (§4.2.1.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -266,7 +266,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5340-4.2.2-1`](#rfc5340-4.2.2-1)
 
-A received packet's IP destination address MUST be a unicast address of the receiving interface, the AllSPFRouters or AllDRouters multicast address, or (for virtual links) an IPv6 global address (§4.2.2)
+In order for the packet to be passed to OSPF for processing, the following tests must be performed on the encapsulating IPv6 headers: o The packet's IP destination address MUST be one of the IPv6 unicast addresses associated with the receiving interface (this includes link-local addresses), one of the IPv6 multicast addresses AllSPFRouters or AllDRouters, or an IPv6 global address (for virtual links). (§4.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -284,7 +284,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5340-4.2.2-3`](#rfc5340-4.2.2-3)
 
-Any encapsulating IP Authentication Headers and IP Encapsulating Security Payloads MUST be processed and/or verified to ensure integrity and authentication/confidentiality (§4.2.2)
+o Any encapsulating IP Authentication Headers (see [IPAUTH]) and the IP Encapsulating Security Payloads (see [IPESP]) MUST be processed and/or verified to ensure integrity and authentication/ confidentiality of OSPF routing exchanges. (§4.2.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -303,7 +303,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5340-4.9-1`](#rfc5340-4.9-1)
 
-Each of a router's multiple interfaces to a single link MUST be configured with the same Interface Instance ID to be considered on the same link (§4.9)
+o Each of the multiple interfaces MUST be configured with the same Interface Instance ID to be considered on the same link. (§4.9)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -311,7 +311,7 @@ No test carries RFC5340-4.9-1, so no unit is bound to it.
 
 ### [`RFC5340-4.9-2`](#rfc5340-4.9-2)
 
-When a Standby Interface goes down, the link-local scope LSAs originated for it MUST be flushed on the Active Interface (§4.9)
+If a Standby Interface goes down, then the link-local scope LSAs originated for the Standby Interfaces MUST be flushed on the Active Interface. (§4.9)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -325,12 +325,12 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5340ReservedHeaderOctetIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L370) | unit/verify | unproven |
-| positive | [`TestRFC5340ReservedHeaderOctetIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L366) | unit/verify | unproven |
+| negative | [`TestRFC5340ReservedHeaderOctetIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L371) | unit/verify | unproven |
+| positive | [`TestRFC5340ReservedHeaderOctetIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L367) | unit/verify | unproven |
 
 ### [`RFC5340-A.4.7-1`](#rfc5340-a.4.7-1)
 
-An AS-external-LSA forwarding address MUST NOT be set to the IPv6 Unspecified Address or an IPv6 Link-Local Address (§A.4.7)
+It MUST NOT be set to the IPv6 Unspecified Address (0:0:0:0:0:0:0:0) or an IPv6 Link-Local Address (Prefix FE80/10). (§A.4.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -341,7 +341,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5340-A.4.7-2`](#rfc5340-a.4.7-2)
 
-An OSPFv3 implementation advertising a forwarding address MUST advertise a global IPv6 address (§A.4.7)
+While OSPFv3 routes are normally installed with link-local addresses, an OSPFv3 implementation advertising a forwarding address MUST advertise a global IPv6 address. (§A.4.7)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -352,14 +352,14 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5340-A.4.8-1`](#rfc5340-a.4.8-1)
 
-A global IPv6 address MUST be selected as the forwarding address for NSSA-LSAs that are to be propagated by NSSA area border routers (§A.4.8)
+A global IPv6 address MUST be selected as forwarding address for NSSA-LSAs that are to be propagated by NSSA area border routers. (§A.4.8)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L339) | unit/verify | unproven |
-| positive | [`TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L336) | unit/verify | unproven |
+| negative | [`TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L339) | unit/verify | mutant, verified |
+| positive | [`TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L336) | unit/verify | mutant, verified |
 
 ### [`RFC5340-C.3-1`](#rfc5340-c.3-1)
 
@@ -369,41 +369,41 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L426) | unit/verify | unproven |
-| positive | [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L423) | unit/verify | unproven |
+| negative | [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L427) | unit/verify | unproven |
+| positive | [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L424) | unit/verify | unproven |
 
 ### [`RFC5340-C.3-2`](#rfc5340-c.3-2)
 
-InfTransDelay MUST be greater than 0 (§C.3)
+It MUST be greater than 0. (§C.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L432) | unit/verify | unproven |
-| positive | [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L429) | unit/verify | unproven |
+| negative | [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L433) | unit/verify | unproven |
+| positive | [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L430) | unit/verify | unproven |
 
 ### [`RFC5340-C.3-3`](#rfc5340-c.3-3)
 
-HelloInterval MUST be the same for all routers attached to a common link (§C.3)
+It MUST be the same for all routers attached to a common link. (§C.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L468) | unit/verify | unproven |
-| positive | [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L465) | unit/verify | unproven |
+| negative | [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L469) | unit/verify | unproven |
+| positive | [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L466) | unit/verify | unproven |
 
 ### [`RFC5340-C.3-4`](#rfc5340-c.3-4)
 
-RouterDeadInterval MUST be the same for all routers attached to a common link (§C.3)
+This value again MUST be the same for all routers attached to a common link. (§C.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L473) | unit/verify | unproven |
-| positive | [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L471) | unit/verify | unproven |
+| negative | [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L474) | unit/verify | unproven |
+| positive | [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L472) | unit/verify | unproven |
 
 ## Extraction sign-off
 

@@ -63,7 +63,7 @@
 <p>The commands assume Ubuntu 24.04 or newer, <code>sudo</code>, and an <code>amd64</code> or <code>arm64</code> host. Replace <code>edge-01</code> and every password before running them on a real box.</p>
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
-<!-- source: internal/le/featuretags/daemontags.go -- DaemonTags -->
+<!-- source: internal/le/repo/featuretags/daemontags.go -- DaemonTags -->
 <!-- source: internal/plugins/init/main.go -- Run, runInit -->
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment.ssh and public-keys augmentation -->
@@ -115,8 +115,8 @@ cd ze
 CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' -o bin/ze ./cmd/ze
 </code></pre>
 <p>The default feature-tag list is derived from <code>feature-gates.txt</code>.
-<code>./le feature-tags check</code> verifies every checked-in consumer of that list, and
-<code>./le repository tracked-build matrix</code> shows the shipped build flavors.</p>
+<code>./le repo feature-tags check</code> verifies every checked-in consumer of that list, and
+<code>./le repo compiles matrix</code> shows the shipped build flavors.</p>
 <p>For a deliberately smaller custom binary, name its feature tags explicitly:</p>
 <pre><code class="language-bash">go build -tags 'ze_core ze_ssh ze_lg ze_web' -o bin/ze ./cmd/ze
 </code></pre>
@@ -335,7 +335,7 @@ sudo /usr/local/bin/ze uninstall local
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

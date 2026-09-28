@@ -116,11 +116,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>77.8%</strong><b>7 of 9 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>11.1%</strong><b>1 of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>44.4%</strong><b>4 of 9 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>44.4%</strong><b>4 of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>23.1%</strong><b>3 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -217,16 +217,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>17</td>
+<td>13</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>17</td>
+<td>13</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>3</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5492.md</code></td>
@@ -242,7 +242,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: BGP Capabilities Advertisement: nine MUST-level requirements. Eight are met with test tags: 3-1 (Unsupported-Capability NOTIFICATION carries the offending capabilities), 5-1 (each capability encoded code+length+value as in OPEN), 4-2 (every Type-2 Optional Parameter processed), 3-2 (unknown capability preserved without error), and the MUST NOTs 3-3/3-4/5-2 (a not-understood capability is not rejected and triggers no NOTIFICATION) carry positive+negative tags in internal/core/bgp/capability and internal/component/bgp/reactor. 4-1 (accept multiple identical capability instances) is {single-polarity: positive} bound to a new parser test (capability.go:177 appends every TLV with no reject path). 4-3 is {not-applicable}: it obliges the author of a capability-defining specification to describe its error handling, not a runtime behavior ze implements.</p>
+<p>Enrolled: BGP Capabilities Advertisement: nine MUST-level requirements. 3-1 (Unsupported-Capability NOTIFICATION carries the offending capabilities), 5-1 (each capability encoded code+length+value as in OPEN), 4-2 (every Type-2 Optional Parameter processed), and 3-2 (unknown capability preserved without error) carry positive+negative tags in internal/core/bgp/capability and internal/component/bgp/reactor. The MUST NOTs 3-3/3-4/5-2 have justified single-polarity positive coverage in TestOpenIgnoresUnknownCapability: valid unknown capabilities provide no conforming rejection case under these prohibitions. The required-capability rejection test retains separate policy and payload assertions without claiming negative coverage of those prohibitions. 4-1 (accept multiple identical capability instances) is {single-polarity: positive} bound to a parser test. 4-3 is {not-applicable}: it obliges the author of a capability-defining specification to describe its error handling, not a runtime behavior ze implements.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Supported</p>
@@ -257,11 +257,11 @@ No tracked gap in current source anchors.
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>7</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>2</strong></td>
+<td><strong>5</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -284,25 +284,24 @@ No tracked gap in current source anchors.
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#rfc5492-3-1"><code>RFC5492-3-1</code></a>, <a href="#rfc5492-5-1"><code>RFC5492-5-1</code></a>, <a href="#rfc5492-4-2"><code>RFC5492-4-2</code></a>, <a href="#rfc5492-3-2"><code>RFC5492-3-2</code></a>, <a href="#rfc5492-3-3"><code>RFC5492-3-3</code></a>, <a href="#rfc5492-3-4"><code>RFC5492-3-4</code></a>, <a href="#rfc5492-5-2"><code>RFC5492-5-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (2):</strong> <a href="#rfc5492-4-1"><code>RFC5492-4-1</code></a>, <a href="#rfc5492-4-3"><code>RFC5492-4-3</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc5492-3-1"><code>RFC5492-3-1</code></a>, <a href="#rfc5492-5-1"><code>RFC5492-5-1</code></a>, <a href="#rfc5492-4-2"><code>RFC5492-4-2</code></a>, <a href="#rfc5492-3-2"><code>RFC5492-3-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (5):</strong> <a href="#rfc5492-4-1"><code>RFC5492-4-1</code></a>, <a href="#rfc5492-4-3"><code>RFC5492-4-3</code></a>, <a href="#rfc5492-3-3"><code>RFC5492-3-3</code></a>, <a href="#rfc5492-3-4"><code>RFC5492-3-4</code></a>, <a href="#rfc5492-5-2"><code>RFC5492-5-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-1">RFC5492-3-1</code></td><td colspan="3"><span class="rfc-subject">When sending Unsupported Capability NOTIFICATION, the message MUST contain the capability or capabilities that cause the speaker to send the message (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-1">RFC5492-3-1</code></td><td colspan="3"><span class="rfc-subject">The message MUST contain the capability or capabilities that cause the speaker to send the message. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3 - Overview of Operations</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5492-3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L359" title="internal/component/bgp/reactor/session_validate_test.go" target="_blank" rel="noopener"><code>TestBuildUnsupportedCapabilityData</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L93" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenRejectsMalformedKnownCapability</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1312" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestSessionAcceptsRequiredCapability</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-5-1">RFC5492-5-1</code></td><td colspan="3"><span class="rfc-subject">The Data field in the NOTIFICATION message MUST list the set of capabilities that causes the speaker to send the message, each encoded as in an OPEN message (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-5-1">RFC5492-5-1</code></td><td colspan="3"><span class="rfc-subject">The Data field in the NOTIFICATION message MUST list the set of capabilities that causes the speaker to send the message. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - Extensions to Error Handling</td>
@@ -317,17 +316,17 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>4 - Capabilities Optional Parameter (Parameter Type 2)</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5492-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L254" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseAcceptsMultipleIdenticalCapabilityInstances</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L289" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseAcceptsMultipleIdenticalCapabilityInstances</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s capability parser appends every capability TLV without dedup or reject (internal/core/bgp/capability/capability.go:177), so multiple identical instances are all accepted; there is no reject path, so no negative case exists</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-4-2">RFC5492-4-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MUST be prepared to receive an OPEN message that contains multiple Capabilities Optional Parameters (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-4-2">RFC5492-4-2</code></td><td colspan="3"><span class="rfc-subject">However, for backward compatibility, a BGP speaker MUST be prepared to receive an OPEN message that contains multiple Capabilities Optional Parameters, each of which contains one or more capabilities TLVs. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4 - Capabilities Optional Parameter (Parameter Type 2)</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5492-4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L285" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseFromOptionalParamsMultipleCapabilitiesParameters</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L201" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestOptionalParamRejectsTruncatedCapabilityTLV</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L320" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseFromOptionalParamsMultipleCapabilitiesParameters</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L246" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestOptionalParamRejectsTruncatedCapabilityTLV</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-2">RFC5492-3-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MUST ignore unrecognized capability codes (§3)</span></td></tr>
@@ -335,11 +334,11 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>3 - Overview of Operations</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5492-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L138" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseUnknownCapability</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L167" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseRejectsMalformedKnownCapabilityLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L183" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseUnknownCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L212" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseRejectsMalformedKnownCapabilityLength</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-4-3">RFC5492-4-3</code></td><td colspan="3"><span class="rfc-subject">Processing of multiple instances of the same Capability Code with different values MUST be described in the document introducing the new capability (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-4-3">RFC5492-4-3</code></td><td colspan="3"><span class="rfc-subject">Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4 - Capabilities Optional Parameter (Parameter Type 2)</td>
@@ -353,27 +352,27 @@ No tracked gap in current source anchors.
 <td>MUST NOT</td>
 <td>3 - Overview of Operations</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5492-3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L222" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestOptionalParamPreservesUnknownCapability</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L98" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenRejectsMalformedKnownCapability</code></a></span></div>
-</div></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L110" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> a valid unknown capability has no conforming termination case under this prohibition; TestOpenIgnoresUnknownCapability exercises handleOpen and completes establishment, while rejection for a missing required capability is separate local policy</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-4">RFC5492-3-4</code></td><td colspan="3"><span class="rfc-subject">The Unsupported Capability NOTIFICATION message MUST NOT be generated in response to an unrecognized capability (§3, §5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3 - Overview of Operations</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5492-3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L227" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestOptionalParamPreservesUnknownCapability</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L101" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenRejectsMalformedKnownCapability</code></a></span></div>
-</div></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L113" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> this prohibition defines no input for which an unknown capability warrants Unsupported Capability; TestOpenIgnoresUnknownCapability observes the outgoing KEEPALIVE and absence of NOTIFICATION, while a missing required capability invokes a separate permitted response</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-5-2">RFC5492-5-2</code></td><td colspan="3"><span class="rfc-subject">Unsupported Capability NOTIFICATION MUST NOT be used when a BGP speaker receives a capability it does not understand; such capabilities MUST be ignored (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-5-2">RFC5492-5-2</code></td><td colspan="3"><span class="rfc-subject">It MUST NOT be used when a BGP speaker receives a capability that it does not understand; such capabilities MUST be ignored. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5 - Extensions to Error Handling</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5492-5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L229" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestOptionalParamPreservesUnknownCapability</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L104" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenRejectsMalformedKnownCapability</code></a></span></div>
-</div></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L115" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> valid unknown capabilities must all be ignored, so this rule has no conforming reject case; TestOpenIgnoresUnknownCapability checks known-capability negotiation and the session response, while malformed encodings and absent required capabilities exercise different rules</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-5">RFC5492-3-5</code></td><td colspan="3"><span class="rfc-subject">On receiving Unsupported Optional Parameter NOTIFICATION, speaker SHOULD attempt to re-establish without Capabilities Optional Parameter (§3)</span></td></tr>
 <tr><td></td>
@@ -447,7 +446,7 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc5492-4-3"><code>RFC5492-4-3</code></a> Processing of multiple instances of the same Capability Code with different values MUST be described in the document introducing the new capability (§4)</td>
+<tr><td><a href="#rfc5492-4-3"><code>RFC5492-4-3</code></a> Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability. (§4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this obligation binds the author of a specification that introduces a new capability to describe its multiple-instance error handling; it is not a runtime behavior ze implements</td>
 </tr>
@@ -458,7 +457,7 @@ No tracked gap in current source anchors.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc5492-3-1"><code>RFC5492-3-1</code></a></h3>
-<p>When sending Unsupported Capability NOTIFICATION, the message MUST contain the capability or capabilities that cause the speaker to send the message (§3)</p>
+<p>The message MUST contain the capability or capabilities that cause the speaker to send the message. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -466,11 +465,6 @@ No tracked gap in current source anchors.
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1312" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestSessionAcceptsRequiredCapability</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L93" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenRejectsMalformedKnownCapability</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -483,7 +477,7 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc5492-5-1"><code>RFC5492-5-1</code></a></h3>
-<p>The Data field in the NOTIFICATION message MUST list the set of capabilities that causes the speaker to send the message, each encoded as in an OPEN message (§5)</p>
+<p>The Data field in the NOTIFICATION message MUST list the set of capabilities that causes the speaker to send the message. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -515,7 +509,7 @@ No tracked gap in current source anchors.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L254" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseAcceptsMultipleIdenticalCapabilityInstances</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L289" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseAcceptsMultipleIdenticalCapabilityInstances</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -523,19 +517,19 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc5492-4-2"><code>RFC5492-4-2</code></a></h3>
-<p>A BGP speaker MUST be prepared to receive an OPEN message that contains multiple Capabilities Optional Parameters (§4)</p>
+<p>However, for backward compatibility, a BGP speaker MUST be prepared to receive an OPEN message that contains multiple Capabilities Optional Parameters, each of which contains one or more capabilities TLVs. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L201" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestOptionalParamRejectsTruncatedCapabilityTLV</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L246" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestOptionalParamRejectsTruncatedCapabilityTLV</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L285" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseFromOptionalParamsMultipleCapabilitiesParameters</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L320" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseFromOptionalParamsMultipleCapabilitiesParameters</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -550,12 +544,12 @@ No tracked gap in current source anchors.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L167" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseRejectsMalformedKnownCapabilityLength</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L212" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseRejectsMalformedKnownCapabilityLength</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L138" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseUnknownCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L183" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseUnknownCapability</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -563,7 +557,7 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc5492-4-3"><code>RFC5492-4-3</code></a></h3>
-<p>Processing of multiple instances of the same Capability Code with different values MUST be described in the document introducing the new capability (§4)</p>
+<p>Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5492-4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc5492-3-3"><code>RFC5492-3-3</code></a></h3>
@@ -573,15 +567,10 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L98" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenRejectsMalformedKnownCapability</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L222" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestOptionalParamPreservesUnknownCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L110" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -593,35 +582,25 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L101" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenRejectsMalformedKnownCapability</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L227" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestOptionalParamPreservesUnknownCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L113" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc5492-5-2"><code>RFC5492-5-2</code></a></h3>
-<p>Unsupported Capability NOTIFICATION MUST NOT be used when a BGP speaker receives a capability it does not understand; such capabilities MUST be ignored (§5)</p>
+<p>It MUST NOT be used when a BGP speaker receives a capability that it does not understand; such capabilities MUST be ignored. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L104" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenRejectsMalformedKnownCapability</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L229" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestOptionalParamPreservesUnknownCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L115" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -813,7 +792,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

@@ -112,25 +112,25 @@ One MUST NOT gap ([`RFC7858-3.1-3`](#rfc7858-3.1-3)): ze does not reject a DoT l
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7858-3.1-1` | By default, a DNS server that supports DNS over TLS MUST listen for and accept TCP connections on port 853, unless it has mutual agreement with its clients to use another port (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestDefaultSecureConfig`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L377). **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L52). **negative:** no negative test. **{single-polarity}:** affirmative listen mandate. Positive proof: a DoT listener accepts a TCP+TLS connection and answers (internal/core/dnsserver/secure_test.go TestDoTListener) with the default DoT port pinned to 853 (internal/core/dnsserver/secure.go:39, TestDefaultSecureConfig). A "must listen and accept" obligation has no rejecting counter-behavior to assert as a negative. |
-| `RFC7858-3.1-2` | By default, a DNS client desiring privacy MUST establish a TCP connection to port 853 on the server, unless it has mutual agreement to use another port (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a DoT server only, not a DoT client. The querying resolver initiates the connection; ze's only DoT code path is the server listener bindDoT (internal/core/dnsserver/secure.go:307), and dnsserver/client.go is EDNS0 client-subnet resolution (client.go:21), not a DoT client. |
+| `RFC7858-3.1-1` | By default, a DNS server that supports DNS over TLS MUST listen for and accept TCP connections on port 853, unless it has mutual agreement with its clients to use a port other than 853 for DNS over TLS. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestDefaultSecureConfig`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L377). **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L52). **negative:** no negative test. **{single-polarity}:** affirmative listen mandate. Positive proof: a DoT listener accepts a TCP+TLS connection and answers (internal/core/dnsserver/secure_test.go TestDoTListener) with the default DoT port pinned to 853 (internal/core/dnsserver/secure.go:39, TestDefaultSecureConfig). A "must listen and accept" obligation has no rejecting counter-behavior to assert as a negative. |
+| `RFC7858-3.1-2` | By default, a DNS client desiring privacy from DNS over TLS from a particular server MUST establish a TCP connection to port 853 on the server, unless it has mutual agreement with its server to use a port other than port 853 for DNS over TLS. (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is a DoT server only, not a DoT client. The querying resolver initiates the connection; ze's only DoT code path is the server listener bindDoT (internal/core/dnsserver/secure.go:307), and dnsserver/client.go is EDNS0 client-subnet resolution (client.go:21), not a DoT client. |
 | `RFC7858-3.1-3` | A mutually agreed alternative port MUST NOT be port 53 (§3.1) | MUST NOT | 3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze does not enforce this. ParseSecureLeaves validates the DoT listen-port only as 1..65535 (internal/core/dnsserver/secure.go:166-172) and does not reject 53, so an operator can configure the DoT listener on port 53. |
-| `RFC7858-3.1-5` | The first data exchange on the TCP connection MUST be the client and server initiating a TLS handshake per RFC 5246 (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L53). **negative:** `unit/verify` [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L632) |
+| `RFC7858-3.1-5` | The first data exchange on this TCP connection MUST be the client and server initiating a TLS handshake using the procedure described in [RFC5246]. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L53). **negative:** `unit/verify` [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L632) |
 | `RFC7858-3.1-6` | DNS clients and servers MUST NOT use port 853 to transport cleartext DNS messages (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L54). **negative:** `unit/verify` [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L633) |
 | `RFC7858-3.1-7` | DNS clients MUST NOT send cleartext DNS messages on any port used for DNS over TLS, including after a failed TLS handshake (§3.1) | MUST NOT | 3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** constrains a DoT client's send behavior; ze is a DoT server only (internal/core/dnsserver/secure.go:307 bindDoT) and issues no DoT queries. The server-side counterpart (do not respond to cleartext on the DoT port) is RFC7858-3.1-8. |
 | `RFC7858-3.1-8` | DNS servers MUST NOT respond to cleartext DNS messages on any port used for DNS over TLS, including after a failed TLS handshake (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L55). **negative:** `unit/verify` [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L634) |
-| `RFC7858-3.3-1` | All messages (requests and responses) in the established TLS session MUST use the two-octet length field described in Section 4.2.2 of RFC 1035 (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L56). **negative:** no negative test. **{single-polarity}:** the RFC 1035 4.2.2 two-octet length-prefixed framing is provided by the miekg/dns Server ze hands the TLS listener to (internal/core/dnsserver/secure.go:314-315). A successful DoT round trip (internal/core/dnsserver/secure_test.go TestDoTListener) proves conformant framing; ze has no code path that emits non-length-prefixed framing to exercise as a negative. |
-| `RFC7858-3.3-4` | Clients MUST match pipelined responses to outstanding queries on the same TLS connection using the Message ID (§3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client obligation to match pipelined responses to outstanding queries; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and issues no DoT queries. dnsserver/client.go is EDNS0 client-subnet resolution (client.go:21), not a DoT client. |
-| `RFC7858-3.3-5` | If a response contains a Question Section, the client MUST match the QNAME, QCLASS, and QTYPE fields (§3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client response-matching obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and issues no DoT queries to match responses against. |
-| `RFC7858-3.4-5` | Clients and servers that keep idle connections open MUST be robust to termination of an idle connection by either party (§3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestDoTRobustToIdleConnectionClose`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L708). **negative:** no negative test. **{single-polarity}:** server-side liveness property. Positive proof: after a DoT client abruptly closes an idle connection the server keeps serving and answers a fresh connection (internal/core/dnsserver/secure_test.go TestDoTRobustToIdleConnectionClose). "Remains robust" has no failure polarity to assert as a negative. |
-| `RFC7858-3.4-7` | Clients MUST handle abrupt closes and be prepared to reestablish connections and/or retry queries (§3.4) | MUST | 3.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client reconnect/retry obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and opens no client connections to reestablish. The server-side robustness counterpart is RFC7858-3.4-5. |
+| `RFC7858-3.3-1` | All messages (requests and responses) in the established TLS session MUST use the two-octet length field described in Section 4.2.2 of [RFC1035]. (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L56). **negative:** no negative test. **{single-polarity}:** the RFC 1035 4.2.2 two-octet length-prefixed framing is provided by the miekg/dns Server ze hands the TLS listener to (internal/core/dnsserver/secure.go:314-315). A successful DoT round trip (internal/core/dnsserver/secure_test.go TestDoTListener) proves conformant framing; ze has no code path that emits non-length-prefixed framing to exercise as a negative. |
+| `RFC7858-3.3-4` | Since pipelined responses can arrive out of order, clients MUST match responses to outstanding queries on the same TLS connection using the Message ID. (§3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client obligation to match pipelined responses to outstanding queries; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and issues no DoT queries. dnsserver/client.go is EDNS0 client-subnet resolution (client.go:21), not a DoT client. |
+| `RFC7858-3.3-5` | If the response contains a Question Section, the client MUST match the QNAME, QCLASS, and QTYPE fields. (§3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client response-matching obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and issues no DoT queries to match responses against. |
+| `RFC7858-3.4-5` | Clients and servers that keep idle connections open MUST be robust to termination of idle connection by either party. (§3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestDoTRobustToIdleConnectionClose`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L708). **negative:** no negative test. **{single-polarity}:** server-side liveness property. Positive proof: after a DoT client abruptly closes an idle connection the server keeps serving and answers a fresh connection (internal/core/dnsserver/secure_test.go TestDoTRobustToIdleConnectionClose). "Remains robust" has no failure polarity to assert as a negative. |
+| `RFC7858-3.4-7` | As with current DNS over TCP, clients MUST handle abrupt closes and be prepared to reestablish connections and/or retry queries. (§3.4) | MUST | 3.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client reconnect/retry obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and opens no client connections to reestablish. The server-side robustness counterpart is RFC7858-3.4-5. |
 | `RFC7858-3.4-8` | When using TCP Fast Open, the client and server MUST immediately initiate or resume a TLS handshake (§3.4) | MUST | 3.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DoT listener does not use TCP Fast Open. bindDoT opens an ordinary TCP socket via lc.Listen (internal/core/dnsserver/secure.go:308-309) with no TCP_FASTOPEN, so the TFO-specific handshake obligation has no bearing. |
 | `RFC7858-3.4-9` | When using TCP Fast Open, cleartext DNS MUST NOT be exchanged (§3.4) | MUST NOT | 3.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's DoT listener does not use TCP Fast Open (internal/core/dnsserver/secure.go:308-309 opens a plain TCP socket, no TCP_FASTOPEN), so the TFO-specific cleartext prohibition has no bearing. |
-| `RFC7858-4.2-4` | The user MUST be alerted whenever possible that DNS is not private during such bootstrap network configuration (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client bootstrap-configuration obligation (opportunistic-privacy user alerting); ze is a DoT server only (internal/core/dnsserver/secure.go:307) and performs no client bootstrap. |
-| `RFC7858-4.2-5` | If no computed fingerprint matches a configured pin, the client MUST treat the SPKI validation failure as a non-recoverable error (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client out-of-band key-pinning obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and pins no server SPKI. Client authentication policy is the querying resolver's concern. |
-| `RFC7858-4.2-6` | Implementations of the key-pinned profile MUST support computing a fingerprint as the SHA-256 hash of the DER-encoded ASN.1 SubjectPublicKeyInfo of an X.509 certificate (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client key-pinned-profile obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and implements no client-side SPKI pinning profile. |
-| `RFC7858-4.2-7` | Implementations MUST support representing a SHA-256 fingerprint as a base64-encoded character string (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client key-pinning representation obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and implements no client-side pin storage. |
-| `RFC7858-8-1` | Clients and servers MUST adhere to the TLS implementation recommendations and security considerations of BCP 195 (§8) | MUST | 8 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L57). **negative:** `unit/verify` [`TestDoTRejectsBelowTLS12`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L684) |
+| `RFC7858-4.2-4` | The user MUST be alerted whenever possible that the DNS is not private during such bootstrap. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client bootstrap-configuration obligation (opportunistic-privacy user alerting); ze is a DoT server only (internal/core/dnsserver/secure.go:307) and performs no client bootstrap. |
+| `RFC7858-4.2-5` | Otherwise, the client MUST treat the SPKI validation failure as a non-recoverable error. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client out-of-band key-pinning obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and pins no server SPKI. Client authentication policy is the querying resolver's concern. |
+| `RFC7858-4.2-6` | Implementations of this privacy profile MUST support the calculation of a fingerprint as the SHA-256 [RFC6234] hash of the DER-encoded ASN.1 representation of the SPKI of an X.509 certificate. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client key-pinned-profile obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and implements no client-side SPKI pinning profile. |
+| `RFC7858-4.2-7` | Implementations MUST support the representation of a SHA-256 fingerprint as a base64-encoded character string [RFC4648]. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a DoT client key-pinning representation obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and implements no client-side pin storage. |
+| `RFC7858-8-1` | Clients and servers MUST adhere to the TLS implementation recommendations and security considerations of [BCP195]. (§8) | MUST | 8 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L57). **negative:** `unit/verify` [`TestDoTRejectsBelowTLS12`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L684) |
 | `RFC7858-3.1-9` | DNS clients SHOULD remember server IP addresses that do not support DNS over TLS (timeouts, connection refusals, TLS handshake failures) and not request DNS over TLS from them for a reasonable period (§3.1) | SHOULD | 3.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7858-3.3-2` | DNS clients and servers SHOULD pass the two-octet length field and the message it describes to the TCP layer at the same time, e.g. in a single write system call (§3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7858-3.3-3` | Clients SHOULD pipeline multiple queries over a TLS session (§3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
@@ -155,18 +155,18 @@ One MUST NOT gap ([`RFC7858-3.1-3`](#rfc7858-3.1-3)): ze does not reject a DoT l
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC7858-3.1-2`](#rfc7858-3.1-2) By default, a DNS client desiring privacy MUST establish a TCP connection to port 853 on the server, unless it has mutual agreement to use another port (§3.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze is a DoT server only, not a DoT client. The querying resolver initiates the connection; ze's only DoT code path is the server listener bindDoT (internal/core/dnsserver/secure.go:307), and dnsserver/client.go is EDNS0 client-subnet resolution (client.go:21), not a DoT client. |
+| [`RFC7858-3.1-2`](#rfc7858-3.1-2) By default, a DNS client desiring privacy from DNS over TLS from a particular server MUST establish a TCP connection to port 853 on the server, unless it has mutual agreement with its server to use a port other than port 853 for DNS over TLS. (§3.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze is a DoT server only, not a DoT client. The querying resolver initiates the connection; ze's only DoT code path is the server listener bindDoT (internal/core/dnsserver/secure.go:307), and dnsserver/client.go is EDNS0 client-subnet resolution (client.go:21), not a DoT client. |
 | [`RFC7858-3.1-3`](#rfc7858-3.1-3) A mutually agreed alternative port MUST NOT be port 53 (§3.1) | {gap}, no test | ze does not enforce this. ParseSecureLeaves validates the DoT listen-port only as 1..65535 (internal/core/dnsserver/secure.go:166-172) and does not reject 53, so an operator can configure the DoT listener on port 53. |
 | [`RFC7858-3.1-7`](#rfc7858-3.1-7) DNS clients MUST NOT send cleartext DNS messages on any port used for DNS over TLS, including after a failed TLS handshake (§3.1) | no test | no test carries this requirement id; annotated {not-applicable}: constrains a DoT client's send behavior; ze is a DoT server only (internal/core/dnsserver/secure.go:307 bindDoT) and issues no DoT queries. The server-side counterpart (do not respond to cleartext on the DoT port) is RFC7858-3.1-8. |
-| [`RFC7858-3.3-4`](#rfc7858-3.3-4) Clients MUST match pipelined responses to outstanding queries on the same TLS connection using the Message ID (§3.3) | no test | no test carries this requirement id; annotated {not-applicable}: a DoT client obligation to match pipelined responses to outstanding queries; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and issues no DoT queries. dnsserver/client.go is EDNS0 client-subnet resolution (client.go:21), not a DoT client. |
-| [`RFC7858-3.3-5`](#rfc7858-3.3-5) If a response contains a Question Section, the client MUST match the QNAME, QCLASS, and QTYPE fields (§3.3) | no test | no test carries this requirement id; annotated {not-applicable}: a DoT client response-matching obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and issues no DoT queries to match responses against. |
-| [`RFC7858-3.4-7`](#rfc7858-3.4-7) Clients MUST handle abrupt closes and be prepared to reestablish connections and/or retry queries (§3.4) | no test | no test carries this requirement id; annotated {not-applicable}: a DoT client reconnect/retry obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and opens no client connections to reestablish. The server-side robustness counterpart is RFC7858-3.4-5. |
+| [`RFC7858-3.3-4`](#rfc7858-3.3-4) Since pipelined responses can arrive out of order, clients MUST match responses to outstanding queries on the same TLS connection using the Message ID. (§3.3) | no test | no test carries this requirement id; annotated {not-applicable}: a DoT client obligation to match pipelined responses to outstanding queries; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and issues no DoT queries. dnsserver/client.go is EDNS0 client-subnet resolution (client.go:21), not a DoT client. |
+| [`RFC7858-3.3-5`](#rfc7858-3.3-5) If the response contains a Question Section, the client MUST match the QNAME, QCLASS, and QTYPE fields. (§3.3) | no test | no test carries this requirement id; annotated {not-applicable}: a DoT client response-matching obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and issues no DoT queries to match responses against. |
+| [`RFC7858-3.4-7`](#rfc7858-3.4-7) As with current DNS over TCP, clients MUST handle abrupt closes and be prepared to reestablish connections and/or retry queries. (§3.4) | no test | no test carries this requirement id; annotated {not-applicable}: a DoT client reconnect/retry obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and opens no client connections to reestablish. The server-side robustness counterpart is RFC7858-3.4-5. |
 | [`RFC7858-3.4-8`](#rfc7858-3.4-8) When using TCP Fast Open, the client and server MUST immediately initiate or resume a TLS handshake (§3.4) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DoT listener does not use TCP Fast Open. bindDoT opens an ordinary TCP socket via lc.Listen (internal/core/dnsserver/secure.go:308-309) with no TCP_FASTOPEN, so the TFO-specific handshake obligation has no bearing. |
 | [`RFC7858-3.4-9`](#rfc7858-3.4-9) When using TCP Fast Open, cleartext DNS MUST NOT be exchanged (§3.4) | no test | no test carries this requirement id; annotated {not-applicable}: ze's DoT listener does not use TCP Fast Open (internal/core/dnsserver/secure.go:308-309 opens a plain TCP socket, no TCP_FASTOPEN), so the TFO-specific cleartext prohibition has no bearing. |
-| [`RFC7858-4.2-4`](#rfc7858-4.2-4) The user MUST be alerted whenever possible that DNS is not private during such bootstrap network configuration (§4.2) | no test | no test carries this requirement id; annotated {not-applicable}: a DoT client bootstrap-configuration obligation (opportunistic-privacy user alerting); ze is a DoT server only (internal/core/dnsserver/secure.go:307) and performs no client bootstrap. |
-| [`RFC7858-4.2-5`](#rfc7858-4.2-5) If no computed fingerprint matches a configured pin, the client MUST treat the SPKI validation failure as a non-recoverable error (§4.2) | no test | no test carries this requirement id; annotated {not-applicable}: a DoT client out-of-band key-pinning obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and pins no server SPKI. Client authentication policy is the querying resolver's concern. |
-| [`RFC7858-4.2-6`](#rfc7858-4.2-6) Implementations of the key-pinned profile MUST support computing a fingerprint as the SHA-256 hash of the DER-encoded ASN.1 SubjectPublicKeyInfo of an X.509 certificate (§4.2) | no test | no test carries this requirement id; annotated {not-applicable}: a DoT client key-pinned-profile obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and implements no client-side SPKI pinning profile. |
-| [`RFC7858-4.2-7`](#rfc7858-4.2-7) Implementations MUST support representing a SHA-256 fingerprint as a base64-encoded character string (§4.2) | no test | no test carries this requirement id; annotated {not-applicable}: a DoT client key-pinning representation obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and implements no client-side pin storage. |
+| [`RFC7858-4.2-4`](#rfc7858-4.2-4) The user MUST be alerted whenever possible that the DNS is not private during such bootstrap. (§4.2) | no test | no test carries this requirement id; annotated {not-applicable}: a DoT client bootstrap-configuration obligation (opportunistic-privacy user alerting); ze is a DoT server only (internal/core/dnsserver/secure.go:307) and performs no client bootstrap. |
+| [`RFC7858-4.2-5`](#rfc7858-4.2-5) Otherwise, the client MUST treat the SPKI validation failure as a non-recoverable error. (§4.2) | no test | no test carries this requirement id; annotated {not-applicable}: a DoT client out-of-band key-pinning obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and pins no server SPKI. Client authentication policy is the querying resolver's concern. |
+| [`RFC7858-4.2-6`](#rfc7858-4.2-6) Implementations of this privacy profile MUST support the calculation of a fingerprint as the SHA-256 [RFC6234] hash of the DER-encoded ASN.1 representation of the SPKI of an X.509 certificate. (§4.2) | no test | no test carries this requirement id; annotated {not-applicable}: a DoT client key-pinned-profile obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and implements no client-side SPKI pinning profile. |
+| [`RFC7858-4.2-7`](#rfc7858-4.2-7) Implementations MUST support the representation of a SHA-256 fingerprint as a base64-encoded character string [RFC4648]. (§4.2) | no test | no test carries this requirement id; annotated {not-applicable}: a DoT client key-pinning representation obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and implements no client-side pin storage. |
 
 ## Proof state
 
@@ -174,7 +174,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC7858-3.1-1`](#rfc7858-3.1-1)
 
-By default, a DNS server that supports DNS over TLS MUST listen for and accept TCP connections on port 853, unless it has mutual agreement with its clients to use another port (§3.1)
+By default, a DNS server that supports DNS over TLS MUST listen for and accept TCP connections on port 853, unless it has mutual agreement with its clients to use a port other than 853 for DNS over TLS. (§3.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -185,7 +185,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7858-3.1-2`](#rfc7858-3.1-2)
 
-By default, a DNS client desiring privacy MUST establish a TCP connection to port 853 on the server, unless it has mutual agreement to use another port (§3.1)
+By default, a DNS client desiring privacy from DNS over TLS from a particular server MUST establish a TCP connection to port 853 on the server, unless it has mutual agreement with its server to use a port other than port 853 for DNS over TLS. (§3.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -201,7 +201,7 @@ No test carries RFC7858-3.1-3, so no unit is bound to it.
 
 ### [`RFC7858-3.1-5`](#rfc7858-3.1-5)
 
-The first data exchange on the TCP connection MUST be the client and server initiating a TLS handshake per RFC 5246 (§3.1)
+The first data exchange on this TCP connection MUST be the client and server initiating a TLS handshake using the procedure described in [RFC5246]. (§3.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -242,7 +242,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7858-3.3-1`](#rfc7858-3.3-1)
 
-All messages (requests and responses) in the established TLS session MUST use the two-octet length field described in Section 4.2.2 of RFC 1035 (§3.3)
+All messages (requests and responses) in the established TLS session MUST use the two-octet length field described in Section 4.2.2 of [RFC1035]. (§3.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -252,7 +252,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7858-3.3-4`](#rfc7858-3.3-4)
 
-Clients MUST match pipelined responses to outstanding queries on the same TLS connection using the Message ID (§3.3)
+Since pipelined responses can arrive out of order, clients MUST match responses to outstanding queries on the same TLS connection using the Message ID. (§3.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -260,7 +260,7 @@ No test carries RFC7858-3.3-4, so no unit is bound to it.
 
 ### [`RFC7858-3.3-5`](#rfc7858-3.3-5)
 
-If a response contains a Question Section, the client MUST match the QNAME, QCLASS, and QTYPE fields (§3.3)
+If the response contains a Question Section, the client MUST match the QNAME, QCLASS, and QTYPE fields. (§3.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -268,7 +268,7 @@ No test carries RFC7858-3.3-5, so no unit is bound to it.
 
 ### [`RFC7858-3.4-5`](#rfc7858-3.4-5)
 
-Clients and servers that keep idle connections open MUST be robust to termination of an idle connection by either party (§3.4)
+Clients and servers that keep idle connections open MUST be robust to termination of idle connection by either party. (§3.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -278,7 +278,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7858-3.4-7`](#rfc7858-3.4-7)
 
-Clients MUST handle abrupt closes and be prepared to reestablish connections and/or retry queries (§3.4)
+As with current DNS over TCP, clients MUST handle abrupt closes and be prepared to reestablish connections and/or retry queries. (§3.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -302,7 +302,7 @@ No test carries RFC7858-3.4-9, so no unit is bound to it.
 
 ### [`RFC7858-4.2-4`](#rfc7858-4.2-4)
 
-The user MUST be alerted whenever possible that DNS is not private during such bootstrap network configuration (§4.2)
+The user MUST be alerted whenever possible that the DNS is not private during such bootstrap. (§4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -310,7 +310,7 @@ No test carries RFC7858-4.2-4, so no unit is bound to it.
 
 ### [`RFC7858-4.2-5`](#rfc7858-4.2-5)
 
-If no computed fingerprint matches a configured pin, the client MUST treat the SPKI validation failure as a non-recoverable error (§4.2)
+Otherwise, the client MUST treat the SPKI validation failure as a non-recoverable error. (§4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -318,7 +318,7 @@ No test carries RFC7858-4.2-5, so no unit is bound to it.
 
 ### [`RFC7858-4.2-6`](#rfc7858-4.2-6)
 
-Implementations of the key-pinned profile MUST support computing a fingerprint as the SHA-256 hash of the DER-encoded ASN.1 SubjectPublicKeyInfo of an X.509 certificate (§4.2)
+Implementations of this privacy profile MUST support the calculation of a fingerprint as the SHA-256 [RFC6234] hash of the DER-encoded ASN.1 representation of the SPKI of an X.509 certificate. (§4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -326,7 +326,7 @@ No test carries RFC7858-4.2-6, so no unit is bound to it.
 
 ### [`RFC7858-4.2-7`](#rfc7858-4.2-7)
 
-Implementations MUST support representing a SHA-256 fingerprint as a base64-encoded character string (§4.2)
+Implementations MUST support the representation of a SHA-256 fingerprint as a base64-encoded character string [RFC4648]. (§4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -334,7 +334,7 @@ No test carries RFC7858-4.2-7, so no unit is bound to it.
 
 ### [`RFC7858-8-1`](#rfc7858-8-1)
 
-Clients and servers MUST adhere to the TLS implementation recommendations and security considerations of BCP 195 (§8)
+Clients and servers MUST adhere to the TLS implementation recommendations and security considerations of [BCP195]. (§8)
 
 Audit verdict: not audited: no reader has judged these tests
 

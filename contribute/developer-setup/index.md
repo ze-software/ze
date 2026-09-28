@@ -127,6 +127,7 @@ of the two is absent.
 | `staticcheck` | Feature-tag structural type checker, pinned to 2026.2.1 (via `go install`) |
 | `goimports` | Go import formatter (via `go install`) |
 | `gopls` | Go language server behind the agent LSP tool (via `go install`) |
+| `govulncheck` | Dependency vulnerability scanner for the verification gate, built from the vendored copy (via `go install`) |
 
 Regenerate the checked-in protobuf Go files after you change
 `api/proto/ze.proto` or the module path:
@@ -142,7 +143,7 @@ The action builds both protoc plugins from the vendored module versions, runs
 Run the installed checker through the repository gate:
 
 ```bash
-./le staticcheck-feature-matrix check
+./le go staticcheck check
 ```
 
 The target and its checked feature population are documented in
@@ -258,7 +259,7 @@ even after the command succeeds. Log out and back in, or run one command with
 the new group:
 
 ```bash
-sg kvm -c './le qemu vpp-hugepages-test'
+sg kvm -c './le test qemu vpp-hugepages-test'
 ```
 
 Setup distinguishes the two states: `kvm-access` reports `pending` when the
@@ -268,7 +269,7 @@ virtualisation, or a VM without nested virt) reports `n/a`: QEMU runs under
 `tcg` there, only slower. macOS has no `/dev/kvm` and needs no group; the
 native QEMU actions select the Apple hypervisor (`hvf`) by platform.
 
-<!-- source: internal/le/qemu/actions.go -- Answer -->
+<!-- source: internal/le/test/qemu/actions.go -- Answer -->
 
 **Loopback addresses.** The functional fixtures give each end of a BGP session
 its own address: RFC 4271 Section 5.1.3 forbids a peer its own address as

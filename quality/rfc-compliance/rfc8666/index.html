@@ -345,7 +345,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> same producer as RFC8666-5-3. A subsequent instance carrying an identical SID is skipped only because it compares equal (v6PrefixSIDEqual, sr_reception_v6.go:182), and a subsequent instance carrying a different SID makes ze ignore BOTH by setting Duplicate (sr_reception_v6.go:171-176) instead of keeping the smallest-Instance-ID one. Disclosed in docs/features/rfc-status.md RFC 8666 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-1">RFC8666-6-1</code></td><td colspan="3"><span class="rfc-subject">If NP-Flag set, penultimate hop MUST NOT pop the Prefix-SID before delivering to the advertising node (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-1">RFC8666-6-1</code></td><td colspan="3"><span class="rfc-subject">If set, then the penultimate hop MUST NOT pop the Prefix-SID before delivering packets to the node that advertised the Prefix- SID. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6</td>
@@ -354,7 +354,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L126" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666PHPPopsPrefixSID</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-2">RFC8666-6-2</code></td><td colspan="3"><span class="rfc-subject">If E-Flag set, upstream neighbor MUST replace the Prefix-SID with the Explicit NULL label (0 IPv4, 2 IPv6) before forwarding (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-2">RFC8666-6-2</code></td><td colspan="3"><span class="rfc-subject">If set, any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with the Explicit NULL label (0 for IPv4, 2 for IPv6) before forwarding the packet. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -381,7 +381,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L109" title="internal/plugins/ospf/sr/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666PrefixSIDAlgorithmOctetNotIgnored</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-5">RFC8666-6-5</code></td><td colspan="3"><span class="rfc-subject">A Prefix-SID with an Algorithm value not advertised by the remote node in its SR-Algorithm TLV MUST be ignored (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-5">RFC8666-6-5</code></td><td colspan="3"><span class="rfc-subject">A router receiving a Prefix-SID from a remote node and with an algorithm value that the remote node has not advertised in the SR-Algorithm TLV [RFC8665] MUST ignore the Prefix-SID sub-TLV. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -390,7 +390,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L212" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666PrefixSIDUnadvertisedAlgorithmIgnored</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-6">RFC8666-6-6</code></td><td colspan="3"><span class="rfc-subject">A SID advertisement with an invalid V-/L-Flag combination MUST be ignored (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-6">RFC8666-6-6</code></td><td colspan="3"><span class="rfc-subject">All other combinations of V-Flag and L-Flag are invalid and any SID Advertisement received with an invalid setting for V- and L-Flags MUST be ignored. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -399,7 +399,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/codec_v6_test.go#L32" title="internal/plugins/ospf/sr/codec_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3PrefixSIDCodec</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-7">RFC8666-6-7</code></td><td colspan="3"><span class="rfc-subject">If a router advertises multiple Prefix-SIDs for the same prefix, topology, and algorithm, all MUST be ignored (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-7">RFC8666-6-7</code></td><td colspan="3"><span class="rfc-subject">If an OSPFv3 router advertises multiple Prefix-SIDs for the same prefix, topology, and algorithm, all of them MUST be ignored. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -408,7 +408,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_reception_v6_test.go#L151" title="internal/plugins/ospf/sr_reception_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3ReceptionSameSIDNotDuplicate</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-8">RFC8666-6-8</code></td><td colspan="3"><span class="rfc-subject">When computing the outgoing label, the router MUST take the E-, NP-, and M-Flags of the next-hop router into account, regardless of whether it contributes to the best path (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-8">RFC8666-6-8</code></td><td colspan="3"><span class="rfc-subject">When calculating the outgoing label for the prefix, the router MUST take into account, as described below, the E-, NP-, and M-Flags advertised by the next-hop router if that router advertised the SID for the prefix. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -453,7 +453,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L129" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666PHPPopsPrefixSID</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-13">RFC8666-6-13</code></td><td colspan="3"><span class="rfc-subject">If both NP-Flag and E-Flag set, any upstream neighbor MUST replace the Prefix-SID with an Explicit NULL label (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-13">RFC8666-6-13</code></td><td colspan="3"><span class="rfc-subject">Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -462,7 +462,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L101" title="internal/plugins/ospf/rfc8666_test.go" target="_blank" rel="noopener"><code>TestRFC8666NoPHPKeepsPrefixSIDOnStack</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-14">RFC8666-6-14</code></td><td colspan="3"><span class="rfc-subject">When the M-Flag is set, the NP-Flag and E-Flag MUST be ignored on reception (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-6-14">RFC8666-6-14</code></td><td colspan="3"><span class="rfc-subject">When the M-Flag is set, the NP-Flag and the E-Flag MUST be ignored on reception. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -516,7 +516,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the LAN form shares the allocation path and the flags octet with the Adj-SID (srAdjManager.neighborFull sets IsLAN on the same sr.AdjSID, sr_adjsid.go:62-69, and v6AdjSubTLV picks the LAN sub-TLV from it, sr_origination_v6.go:177-182), so it is equally non-persistent and equally never sets P. A negative is not meaningful for the same reason as RFC8666-7.1-3</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-8.1-1">RFC8666-8.1-1</code></td><td colspan="3"><span class="rfc-subject">Multiple Mapping Servers advertising the same prefix MUST advertise the same Prefix-SID (§8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-8.1-1">RFC8666-8.1-1</code></td><td colspan="3"><span class="rfc-subject">Multiple Mapping Servers can advertise Prefix-SIDs for the same prefix, in which case the same Prefix-SID MUST be advertised by all of them. (§8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.1</td>
@@ -534,7 +534,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> same grep evidence as RFC8666-8.1-1 -- ze has no Mapping Server. ze does emit the Extended Prefix Range TLV, but from the ABR inter-area propagation path (v6EInterAreaPrefixBody, sr_interarea_v6.go:48-54), which is §8.2 carriage and not a Mapping Server advertisement</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-8.1-3">RFC8666-8.1-3</code></td><td colspan="3"><span class="rfc-subject">The NU-bit MUST be set in the PrefixOptions field of the LSA used by the Mapping Server to advertise SID or SID Range (§8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-8.1-3">RFC8666-8.1-3</code></td><td colspan="3"><span class="rfc-subject">The NU-bit [RFC5340] MUST be set in the PrefixOptions field of the LSA, which is used by the Mapping Server to advertise SID or SID Range, which prevents the advertisement from contributing to prefix reachability. (§8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.1</td>
@@ -543,7 +543,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> same evidence as RFC8666-8.1-1 -- with no Mapping Server advertisement there is no LSA that must carry the NU-bit. The NU-bit constant exists (OptPrefixNU, v3/types/prefix.go:50) and no producer sets it, which is correct here: every Prefix-SID-bearing LSA ze originates is either its own configured prefix (sr_origination_v6.go:219) or an ABR §8.2 re-advertisement of a prefix another node reaches (sr_interarea_v6.go:35-42, carried by v6EInterAreaPrefixBody :48-54), and both advertise reachability, so both must NOT set NU</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-8.2-1">RFC8666-8.2-1</code></td><td colspan="3"><span class="rfc-subject">OSPFv3 MUST propagate Prefix-SID information between areas to support multi-area SR (§8.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-8.2-1">RFC8666-8.2-1</code></td><td colspan="3"><span class="rfc-subject">In order to support SR in a multiarea environment, OSPFv3 MUST propagate Prefix-SID information between areas. (§8.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.2</td>
@@ -552,7 +552,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_interarea_v6_test.go#L41" title="internal/plugins/ospf/sr_interarea_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3OriginateInterAreaPropagation</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-8.4.1-1">RFC8666-8.4.1-1</code></td><td colspan="3"><span class="rfc-subject">If a P2P adjacency transitions to a state lower than 2-Way, the Adj-SID advertisement MUST be withdrawn from the area (§8.4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-8.4.1-1">RFC8666-8.4.1-1</code></td><td colspan="3"><span class="rfc-subject">If the adjacency transitions to a state lower than 2-Way, then the Adj-SID Advertisement MUST be withdrawn from the area. (§8.4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>8.4.1</td>
@@ -561,7 +561,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_origination_v6_test.go#L21" title="internal/plugins/ospf/sr_origination_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3ERouterBodyCarriesAdjSID</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-10-1">RFC8666-10-1</code></td><td colspan="3"><span class="rfc-subject">If a TLV/sub-TLV length is invalid, the LSA MUST be ignored (§10)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-10-1">RFC8666-10-1</code></td><td colspan="3"><span class="rfc-subject">For any new TLVs/sub-TLVs defined in this document, if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored. (§10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>10</td>
@@ -570,7 +570,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the rule holds at the TOP-LEVEL TLV layer only. An invalid top-level TLV length makes DecodeExtendedLSABody return an error (v3/packet/lsa_extended.go:42-54) and the reader drops the whole LSA (sr_reception_v6.go:67-71). An invalid SUB-TLV length inside an otherwise-parseable TLV does not: v6PrefixSIDFromTLV returns false for that one TLV (sr_reception_v6.go:94-111, 129-143) and the caller&#39;s loop keeps consuming the remaining TLVs of the same LSA (sr_reception_v6.go:72-85), so the other Prefix-SIDs of a malformed LSA are still installed instead of the LSA being ignored. Disclosed in docs/features/rfc-status.md RFC 8666 row</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-11-1">RFC8666-11-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST ensure malformed TLVs/sub-TLVs are detected and do not let an attacker crash the OSPFv3 router or routing process (§11)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8666-11-1">RFC8666-11-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST ensure that malformed TLVs and sub-TLVs defined in this document are detected and that they do not provide a vulnerability for attackers to crash the OSPFv3 router or routing process. (§11)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>11</td>
@@ -835,7 +835,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the OSPFv3 SR origination never attaches a Prefix-SID to a redistributed prefix. v6OriginateSR builds only the E-Router-LSA and the E-Intra-Area-Prefix-LSA for configured node prefixes, plus the ABR inter-area propagation (sr_origination_v6.go:66-100); grep for extTLVExternalPrefix over internal/plugins/ospf finds it only in the RECEPTION switch (sr_reception_v6.go:106) and in the constant block (sr_origination_v6.go:33), and no producer builds an External-Prefix TLV or an E-AS-External / E-Type-7 body carrying sr.V6TypePrefixSID. With no ASBR Prefix-SID advertisement there is no flag-setting code to be right or wrong about</td>
 </tr>
-<tr><td><a href="#rfc8666-8.1-1"><code>RFC8666-8.1-1</code></a> Multiple Mapping Servers advertising the same prefix MUST advertise the same Prefix-SID (§8.1)</td>
+<tr><td><a href="#rfc8666-8.1-1"><code>RFC8666-8.1-1</code></a> Multiple Mapping Servers can advertise Prefix-SIDs for the same prefix, in which case the same Prefix-SID MUST be advertised by all of them. (§8.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is not an SR Mapping Server. grep for SRMS / MappingServer over internal/plugins/ospf finds only the RFC 8665 §3.4 SRMS Preference TLV of the IPv4 RI LSA (srBuildSRMS, sr.go:187-193) and its decode (sr.go:349-358) -- a preference value, not a mapping advertisement. Every Prefix-SID ze originates from configuration is for a prefix ze itself advertises reachability to, built from the operator&#39;s NoPHP/ExplicitNull leaves alone (sr.go:203-208, sr_origination_v6.go:219). ze CAN emit an M-flagged Prefix-SID, but only by propagation, not by mapping: the ABR inter-area rule copies a RECEIVED sr.PrefixSID whole (`out := src`, sr_interarea_v6.go:36) and overrides only NP and E (:40-41), so a received M survives into EncodePrefixSIDValueV6 -&gt; SIDFlags.toByte, which sets flagM (sr/codec_v6.go:49, sr/codec.go:92-94). That is RFC 8666 §8.2 inter-area propagation of another node&#39;s advertisement, not this node advertising a prefix-to-SID mapping of its own, so there is still no Mapping Server advertisement of ze&#39;s that could disagree with another server&#39;s</td>
 </tr>
@@ -843,11 +843,11 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: same grep evidence as RFC8666-8.1-1 -- ze has no Mapping Server. ze does emit the Extended Prefix Range TLV, but from the ABR inter-area propagation path (v6EInterAreaPrefixBody, sr_interarea_v6.go:48-54), which is §8.2 carriage and not a Mapping Server advertisement</td>
 </tr>
-<tr><td><a href="#rfc8666-8.1-3"><code>RFC8666-8.1-3</code></a> The NU-bit MUST be set in the PrefixOptions field of the LSA used by the Mapping Server to advertise SID or SID Range (§8.1)</td>
+<tr><td><a href="#rfc8666-8.1-3"><code>RFC8666-8.1-3</code></a> The NU-bit [RFC5340] MUST be set in the PrefixOptions field of the LSA, which is used by the Mapping Server to advertise SID or SID Range, which prevents the advertisement from contributing to prefix reachability. (§8.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: same evidence as RFC8666-8.1-1 -- with no Mapping Server advertisement there is no LSA that must carry the NU-bit. The NU-bit constant exists (OptPrefixNU, v3/types/prefix.go:50) and no producer sets it, which is correct here: every Prefix-SID-bearing LSA ze originates is either its own configured prefix (sr_origination_v6.go:219) or an ABR §8.2 re-advertisement of a prefix another node reaches (sr_interarea_v6.go:35-42, carried by v6EInterAreaPrefixBody :48-54), and both advertise reachability, so both must NOT set NU</td>
 </tr>
-<tr><td><a href="#rfc8666-10-1"><code>RFC8666-10-1</code></a> If a TLV/sub-TLV length is invalid, the LSA MUST be ignored (§10)</td>
+<tr><td><a href="#rfc8666-10-1"><code>RFC8666-10-1</code></a> For any new TLVs/sub-TLVs defined in this document, if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored. (§10)</td>
 <td>{gap}, no test</td>
 <td>the rule holds at the TOP-LEVEL TLV layer only. An invalid top-level TLV length makes DecodeExtendedLSABody return an error (v3/packet/lsa_extended.go:42-54) and the reader drops the whole LSA (sr_reception_v6.go:67-71). An invalid SUB-TLV length inside an otherwise-parseable TLV does not: v6PrefixSIDFromTLV returns false for that one TLV (sr_reception_v6.go:94-111, 129-143) and the caller&#39;s loop keeps consuming the remaining TLVs of the same LSA (sr_reception_v6.go:72-85), so the other Prefix-SIDs of a malformed LSA are still installed instead of the LSA being ignored. Disclosed in docs/features/rfc-status.md RFC 8666 row</td>
 </tr>
@@ -921,7 +921,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8666-5-4, so no unit is bound to it.</p>
 <h3><a href="#rfc8666-6-1"><code>RFC8666-6-1</code></a></h3>
-<p>If NP-Flag set, penultimate hop MUST NOT pop the Prefix-SID before delivering to the advertising node (§6)</p>
+<p>If set, then the penultimate hop MUST NOT pop the Prefix-SID before delivering packets to the node that advertised the Prefix- SID. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -941,7 +941,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 </table>
 </div>
 <h3><a href="#rfc8666-6-2"><code>RFC8666-6-2</code></a></h3>
-<p>If E-Flag set, upstream neighbor MUST replace the Prefix-SID with the Explicit NULL label (0 IPv4, 2 IPv6) before forwarding (§6)</p>
+<p>If set, any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with the Explicit NULL label (0 for IPv4, 2 for IPv6) before forwarding the packet. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1001,7 +1001,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 </table>
 </div>
 <h3><a href="#rfc8666-6-5"><code>RFC8666-6-5</code></a></h3>
-<p>A Prefix-SID with an Algorithm value not advertised by the remote node in its SR-Algorithm TLV MUST be ignored (§6)</p>
+<p>A router receiving a Prefix-SID from a remote node and with an algorithm value that the remote node has not advertised in the SR-Algorithm TLV [RFC8665] MUST ignore the Prefix-SID sub-TLV. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1021,7 +1021,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 </table>
 </div>
 <h3><a href="#rfc8666-6-6"><code>RFC8666-6-6</code></a></h3>
-<p>A SID advertisement with an invalid V-/L-Flag combination MUST be ignored (§6)</p>
+<p>All other combinations of V-Flag and L-Flag are invalid and any SID Advertisement received with an invalid setting for V- and L-Flags MUST be ignored. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1041,7 +1041,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 </table>
 </div>
 <h3><a href="#rfc8666-6-7"><code>RFC8666-6-7</code></a></h3>
-<p>If a router advertises multiple Prefix-SIDs for the same prefix, topology, and algorithm, all MUST be ignored (§6)</p>
+<p>If an OSPFv3 router advertises multiple Prefix-SIDs for the same prefix, topology, and algorithm, all of them MUST be ignored. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1061,7 +1061,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 </table>
 </div>
 <h3><a href="#rfc8666-6-8"><code>RFC8666-6-8</code></a></h3>
-<p>When computing the outgoing label, the router MUST take the E-, NP-, and M-Flags of the next-hop router into account, regardless of whether it contributes to the best path (§6)</p>
+<p>When calculating the outgoing label for the prefix, the router MUST take into account, as described below, the E-, NP-, and M-Flags advertised by the next-hop router if that router advertised the SID for the prefix. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1145,7 +1145,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 </table>
 </div>
 <h3><a href="#rfc8666-6-13"><code>RFC8666-6-13</code></a></h3>
-<p>If both NP-Flag and E-Flag set, any upstream neighbor MUST replace the Prefix-SID with an Explicit NULL label (§6)</p>
+<p>Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1165,7 +1165,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 </table>
 </div>
 <h3><a href="#rfc8666-6-14"><code>RFC8666-6-14</code></a></h3>
-<p>When the M-Flag is set, the NP-Flag and E-Flag MUST be ignored on reception (§6)</p>
+<p>When the M-Flag is set, the NP-Flag and the E-Flag MUST be ignored on reception. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1275,7 +1275,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 </table>
 </div>
 <h3><a href="#rfc8666-8.1-1"><code>RFC8666-8.1-1</code></a></h3>
-<p>Multiple Mapping Servers advertising the same prefix MUST advertise the same Prefix-SID (§8.1)</p>
+<p>Multiple Mapping Servers can advertise Prefix-SIDs for the same prefix, in which case the same Prefix-SID MUST be advertised by all of them. (§8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8666-8.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8666-8.1-2"><code>RFC8666-8.1-2</code></a></h3>
@@ -1283,11 +1283,11 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8666-8.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8666-8.1-3"><code>RFC8666-8.1-3</code></a></h3>
-<p>The NU-bit MUST be set in the PrefixOptions field of the LSA used by the Mapping Server to advertise SID or SID Range (§8.1)</p>
+<p>The NU-bit [RFC5340] MUST be set in the PrefixOptions field of the LSA, which is used by the Mapping Server to advertise SID or SID Range, which prevents the advertisement from contributing to prefix reachability. (§8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8666-8.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc8666-8.2-1"><code>RFC8666-8.2-1</code></a></h3>
-<p>OSPFv3 MUST propagate Prefix-SID information between areas to support multi-area SR (§8.2)</p>
+<p>In order to support SR in a multiarea environment, OSPFv3 MUST propagate Prefix-SID information between areas. (§8.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1307,7 +1307,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 </table>
 </div>
 <h3><a href="#rfc8666-8.4.1-1"><code>RFC8666-8.4.1-1</code></a></h3>
-<p>If a P2P adjacency transitions to a state lower than 2-Way, the Adj-SID advertisement MUST be withdrawn from the area (§8.4.1)</p>
+<p>If the adjacency transitions to a state lower than 2-Way, then the Adj-SID Advertisement MUST be withdrawn from the area. (§8.4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1327,11 +1327,11 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
 </table>
 </div>
 <h3><a href="#rfc8666-10-1"><code>RFC8666-10-1</code></a></h3>
-<p>If a TLV/sub-TLV length is invalid, the LSA MUST be ignored (§10)</p>
+<p>For any new TLVs/sub-TLVs defined in this document, if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored. (§10)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8666-10-1, so no unit is bound to it.</p>
 <h3><a href="#rfc8666-11-1"><code>RFC8666-11-1</code></a></h3>
-<p>Implementations MUST ensure malformed TLVs/sub-TLVs are detected and do not let an attacker crash the OSPFv3 router or routing process (§11)</p>
+<p>Implementations MUST ensure that malformed TLVs and sub-TLVs defined in this document are detected and that they do not provide a vulnerability for attackers to crash the OSPFv3 router or routing process. (§11)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1604,7 +1604,7 @@ OSPFv3 Segment Routing (SR-MPLS) over RFC 8362 Extended LSAs: the OSPFv3 Extende
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

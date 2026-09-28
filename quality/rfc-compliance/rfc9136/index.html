@@ -298,7 +298,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-1">RFC9136-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Length field MUST be either 34 (IPv4) or 58 (IPv6) (S3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-1">RFC9136-3.1-1</code></td><td colspan="3"><span class="rfc-subject">* The Length field of the BGP EVPN NLRI for an EVPN IP Prefix route MUST be either 34 (if IPv4 addresses are carried) or 58 (if IPv6 addresses are carried). (S3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -318,7 +318,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the single Length field fixes both prefix and gateway to one family on decode and encode, so a cross-family pair is unrepresentable on the wire and has no negative case to reject (internal/component/bgp/plugins/nlri/evpn/types.go:780-800)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-3">RFC9136-3.1-3</code></td><td colspan="3"><span class="rfc-subject">Route Distinguisher (RD) and Ethernet Tag ID MUST be used as defined in RFC 7432 and RFC 8365 (S3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-3">RFC9136-3.1-3</code></td><td colspan="3"><span class="rfc-subject">* The Route Distinguisher (RD) and Ethernet Tag ID MUST be used as defined in [RFC7432] and [RFC8365]. (S3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -327,7 +327,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> RD (8 octets) and Ethernet Tag (uint32) are decoded, carried, and re-encoded per the RFC 7432/8365 wire layout, and any uint32 tag is valid so there is no malformed-input negative for the field ze handles (internal/component/bgp/plugins/nlri/evpn/types.go:763-774)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-4">RFC9136-3.1-4</code></td><td colspan="3"><span class="rfc-subject">ESI MUST be a non-zero 10-octet identifier if used as Overlay Index; MUST be all zeros otherwise (S3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-4">RFC9136-3.1-4</code></td><td colspan="3"><span class="rfc-subject">* The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of &#34;Overlay Index&#34; in Section 3.2). (S3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -336,7 +336,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze decodes and carries the 10-octet ESI but models no overlay-index concept, so it never enforces the zero-unless-used-as-overlay-index constraint (internal/component/bgp/plugins/nlri/evpn/types.go:770)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-5">RFC9136-3.1-5</code></td><td colspan="3"><span class="rfc-subject">IP Prefix Length value MUST NOT be greater than 128 (S3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-5">RFC9136-3.1-5</code></td><td colspan="3"><span class="rfc-subject">The value MUST NOT be greater than 128. (S3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.1</td>
@@ -346,7 +346,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L235" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5PrefixLengthTooLong</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-6">RFC9136-3.1-6</code></td><td colspan="3"><span class="rfc-subject">GW IP field MUST be all bytes zero if not used as an Overlay Index (S3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-6">RFC9136-3.1-6</code></td><td colspan="3"><span class="rfc-subject">The GW IP field MUST be all bytes zero if it is not used as an Overlay Index. (S3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -355,7 +355,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze decodes and re-encodes the gateway field verbatim but has no overlay-index model, so it never enforces gateway-zero-unless-used-as-overlay-index (internal/component/bgp/plugins/nlri/evpn/types.go:788, :798, :854, :863)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-1">RFC9136-3.2-1</code></td><td colspan="3"><span class="rfc-subject">ESI and GW IP MUST NOT both be non-zero simultaneously (S3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-1">RFC9136-3.2-1</code></td><td colspan="3"><span class="rfc-subject">However, they MUST NOT both be non-zero at the same time. (S3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2</td>
@@ -391,7 +391,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> this receive-side content validation could be applied to the parsed NLRI, but ze performs no treat-as-withdraw for a zero-label / no-overlay-index RT-5 (internal/component/bgp/plugins/nlri/evpn/types.go:754-814)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-2">RFC9136-3.2-2</code></td><td colspan="3"><span class="rfc-subject">If no IGP or BGP route to BGP next hop of RT-5, MUST NOT install even if Overlay Index resolves (S3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-2">RFC9136-3.2-2</code></td><td colspan="3"><span class="rfc-subject">* Irrespective of the recursive resolution, if there is no IGP or BGP route to the BGP next hop of an RT-5, BGP MUST NOT install the RT-5 even if the Overlay Index can be resolved. (S3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3.2</td>
@@ -400,7 +400,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze never installs RT-5 into a FIB/IP-VRF, so a next-hop-reachability install gate binds a role it does not play (internal/component/sysrib and internal/plugins/fib carry no EVPN handling)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3-1">RFC9136-3-1</code></td><td colspan="3"><span class="rfc-subject">NVEs attached to different BDs of same tenant MUST support RT-5 for proper inter-subnet forwarding (S3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3-1">RFC9136-3-1</code></td><td colspan="3"><span class="rfc-subject">In case two or more NVEs are attached to different BDs of the same tenant, they MUST support the RT-5 for the proper inter-subnet forwarding operation of the tenant. (S3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -409,7 +409,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> the requirement binds NVEs performing inter-subnet forwarding between broadcast domains; ze supports RT-5 on the wire but performs no such forwarding (internal/component/bgp/plugins/nlri/evpn/types.go:743)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-3">RFC9136-3.2-3</code></td><td colspan="3"><span class="rfc-subject">MAC address encoding MUST be 6-octet MAC address per IEEE 802.1Q (S3.2, Table 1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-3">RFC9136-3.2-3</code></td><td colspan="3"><span class="rfc-subject">The encoding of a MAC address MUST be the 6-octet MAC address specified by [IEEE-802.1Q]. (S3.2, Table 1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
@@ -418,7 +418,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> this constrains the MAC inside the EVPN Router&#39;s MAC Extended Community (the optional MAC overlay-index feature), which ze does not implement or interpret</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-4">RFC9136-3.2-4</code></td><td colspan="3"><span class="rfc-subject">The route MUST be treat as withdraw in case of an invalid MAC address; broadcast and multicast MAC addresses are the examples the RFC gives (S3.2, Table 1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-4">RFC9136-3.2-4</code></td><td colspan="3"><span class="rfc-subject">The route MUST be treat as withdraw in case of an invalid MAC address. (S3.2, Table 1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
@@ -490,15 +490,15 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a> ESI MUST be a non-zero 10-octet identifier if used as Overlay Index; MUST be all zeros otherwise (S3.1)</td>
+<tr><td><a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a> * The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of &#34;Overlay Index&#34; in Section 3.2). (S3.1)</td>
 <td>{gap}, no test</td>
 <td>ze decodes and carries the 10-octet ESI but models no overlay-index concept, so it never enforces the zero-unless-used-as-overlay-index constraint (internal/component/bgp/plugins/nlri/evpn/types.go:770)</td>
 </tr>
-<tr><td><a href="#rfc9136-3.1-6"><code>RFC9136-3.1-6</code></a> GW IP field MUST be all bytes zero if not used as an Overlay Index (S3.1)</td>
+<tr><td><a href="#rfc9136-3.1-6"><code>RFC9136-3.1-6</code></a> The GW IP field MUST be all bytes zero if it is not used as an Overlay Index. (S3.1)</td>
 <td>{gap}, no test</td>
 <td>ze decodes and re-encodes the gateway field verbatim but has no overlay-index model, so it never enforces gateway-zero-unless-used-as-overlay-index (internal/component/bgp/plugins/nlri/evpn/types.go:788, :798, :854, :863)</td>
 </tr>
-<tr><td><a href="#rfc9136-3.2-1"><code>RFC9136-3.2-1</code></a> ESI and GW IP MUST NOT both be non-zero simultaneously (S3.2)</td>
+<tr><td><a href="#rfc9136-3.2-1"><code>RFC9136-3.2-1</code></a> However, they MUST NOT both be non-zero at the same time. (S3.2)</td>
 <td>{gap}, no test</td>
 <td>parseEVPNType5 reads both ESI and gateway without any mutual-exclusion validation, so it never treats a both-non-zero RT-5 as a withdraw (internal/component/bgp/plugins/nlri/evpn/types.go:770, :788-800)</td>
 </tr>
@@ -514,19 +514,19 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>{gap}, no test</td>
 <td>this receive-side content validation could be applied to the parsed NLRI, but ze performs no treat-as-withdraw for a zero-label / no-overlay-index RT-5 (internal/component/bgp/plugins/nlri/evpn/types.go:754-814)</td>
 </tr>
-<tr><td><a href="#rfc9136-3.2-2"><code>RFC9136-3.2-2</code></a> If no IGP or BGP route to BGP next hop of RT-5, MUST NOT install even if Overlay Index resolves (S3.2)</td>
+<tr><td><a href="#rfc9136-3.2-2"><code>RFC9136-3.2-2</code></a> * Irrespective of the recursive resolution, if there is no IGP or BGP route to the BGP next hop of an RT-5, BGP MUST NOT install the RT-5 even if the Overlay Index can be resolved. (S3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze never installs RT-5 into a FIB/IP-VRF, so a next-hop-reachability install gate binds a role it does not play (internal/component/sysrib and internal/plugins/fib carry no EVPN handling)</td>
 </tr>
-<tr><td><a href="#rfc9136-3-1"><code>RFC9136-3-1</code></a> NVEs attached to different BDs of same tenant MUST support RT-5 for proper inter-subnet forwarding (S3)</td>
+<tr><td><a href="#rfc9136-3-1"><code>RFC9136-3-1</code></a> In case two or more NVEs are attached to different BDs of the same tenant, they MUST support the RT-5 for the proper inter-subnet forwarding operation of the tenant. (S3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the requirement binds NVEs performing inter-subnet forwarding between broadcast domains; ze supports RT-5 on the wire but performs no such forwarding (internal/component/bgp/plugins/nlri/evpn/types.go:743)</td>
 </tr>
-<tr><td><a href="#rfc9136-3.2-3"><code>RFC9136-3.2-3</code></a> MAC address encoding MUST be 6-octet MAC address per IEEE 802.1Q (S3.2, Table 1)</td>
+<tr><td><a href="#rfc9136-3.2-3"><code>RFC9136-3.2-3</code></a> The encoding of a MAC address MUST be the 6-octet MAC address specified by [IEEE-802.1Q]. (S3.2, Table 1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this constrains the MAC inside the EVPN Router&#39;s MAC Extended Community (the optional MAC overlay-index feature), which ze does not implement or interpret</td>
 </tr>
-<tr><td><a href="#rfc9136-3.2-4"><code>RFC9136-3.2-4</code></a> The route MUST be treat as withdraw in case of an invalid MAC address; broadcast and multicast MAC addresses are the examples the RFC gives (S3.2, Table 1)</td>
+<tr><td><a href="#rfc9136-3.2-4"><code>RFC9136-3.2-4</code></a> The route MUST be treat as withdraw in case of an invalid MAC address. (S3.2, Table 1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: detecting an invalid MAC requires interpreting the Router&#39;s MAC Extended Community, an optional feature ze neither parses nor validates</td>
 </tr>
@@ -537,7 +537,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc9136-3.1-1"><code>RFC9136-3.1-1</code></a></h3>
-<p>Length field MUST be either 34 (IPv4) or 58 (IPv6) (S3.1)</p>
+<p>* The Length field of the BGP EVPN NLRI for an EVPN IP Prefix route MUST be either 34 (if IPv4 addresses are carried) or 58 (if IPv6 addresses are carried). (S3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -582,7 +582,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </table>
 </div>
 <h3><a href="#rfc9136-3.1-3"><code>RFC9136-3.1-3</code></a></h3>
-<p>Route Distinguisher (RD) and Ethernet Tag ID MUST be used as defined in RFC 7432 and RFC 8365 (S3.1)</p>
+<p>* The Route Distinguisher (RD) and Ethernet Tag ID MUST be used as defined in [RFC7432] and [RFC8365]. (S3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -597,11 +597,11 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </table>
 </div>
 <h3><a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a></h3>
-<p>ESI MUST be a non-zero 10-octet identifier if used as Overlay Index; MUST be all zeros otherwise (S3.1)</p>
+<p>* The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of &#34;Overlay Index&#34; in Section 3.2). (S3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9136-3.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc9136-3.1-5"><code>RFC9136-3.1-5</code></a></h3>
-<p>IP Prefix Length value MUST NOT be greater than 128 (S3.1)</p>
+<p>The value MUST NOT be greater than 128. (S3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -626,11 +626,11 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 </table>
 </div>
 <h3><a href="#rfc9136-3.1-6"><code>RFC9136-3.1-6</code></a></h3>
-<p>GW IP field MUST be all bytes zero if not used as an Overlay Index (S3.1)</p>
+<p>The GW IP field MUST be all bytes zero if it is not used as an Overlay Index. (S3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9136-3.1-6, so no unit is bound to it.</p>
 <h3><a href="#rfc9136-3.2-1"><code>RFC9136-3.2-1</code></a></h3>
-<p>ESI and GW IP MUST NOT both be non-zero simultaneously (S3.2)</p>
+<p>However, they MUST NOT both be non-zero at the same time. (S3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9136-3.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9136-3.1-7"><code>RFC9136-3.1-7</code></a></h3>
@@ -646,19 +646,19 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9136-3.1-9, so no unit is bound to it.</p>
 <h3><a href="#rfc9136-3.2-2"><code>RFC9136-3.2-2</code></a></h3>
-<p>If no IGP or BGP route to BGP next hop of RT-5, MUST NOT install even if Overlay Index resolves (S3.2)</p>
+<p>* Irrespective of the recursive resolution, if there is no IGP or BGP route to the BGP next hop of an RT-5, BGP MUST NOT install the RT-5 even if the Overlay Index can be resolved. (S3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9136-3.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9136-3-1"><code>RFC9136-3-1</code></a></h3>
-<p>NVEs attached to different BDs of same tenant MUST support RT-5 for proper inter-subnet forwarding (S3)</p>
+<p>In case two or more NVEs are attached to different BDs of the same tenant, they MUST support the RT-5 for the proper inter-subnet forwarding operation of the tenant. (S3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9136-3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9136-3.2-3"><code>RFC9136-3.2-3</code></a></h3>
-<p>MAC address encoding MUST be 6-octet MAC address per IEEE 802.1Q (S3.2, Table 1)</p>
+<p>The encoding of a MAC address MUST be the 6-octet MAC address specified by [IEEE-802.1Q]. (S3.2, Table 1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9136-3.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9136-3.2-4"><code>RFC9136-3.2-4</code></a></h3>
-<p>The route MUST be treat as withdraw in case of an invalid MAC address; broadcast and multicast MAC addresses are the examples the RFC gives (S3.2, Table 1)</p>
+<p>The route MUST be treat as withdraw in case of an invalid MAC address. (S3.2, Table 1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9136-3.2-4, so no unit is bound to it.</p>
 </section>
@@ -886,7 +886,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

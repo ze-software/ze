@@ -140,7 +140,17 @@ ze config history client-edge-01.conf      # View rollback history
 </code></pre>
 <p>The blob key for a client carries a <code>client-</code> prefix. That prefix keeps a client's config
 from colliding with the hub's own config file.</p>
-<!-- source: internal/component/plugin/server/managed_serve.go -- ClientConfigKey -->
+<p>A running hub restores a client's config from a backup artifact on its own host, with no
+stop. The config becomes a new version of <code>client-&lt;name&gt;.conf</code>, the hub pushes
+<code>config-changed</code> to that client, and the client fetches and applies it. The hub's own
+config does not change and the hub does not reload.</p>
+<pre><code>request data restore path /var/backups/edge-01.zefs config client edge-01
+request data restore path /var/backups/fleet.zefs config name edge-01.conf client edge-01
+</code></pre>
+<p>The hub refuses <code>client &lt;name&gt;</code> when it has no <code>client &lt;name&gt;</code> entry under
+<code>plugin hub server</code>.</p>
+<!-- source: internal/component/plugin/server/managed_serve.go -- ClientConfigKey, Serves -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreClientConfig -->
 <!-- source: internal/component/config/cli/cmd_edit.go -- config edit command -->
 <!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
 <!-- source: internal/component/config/cli/cmd_archive.go -- config archive command -->
@@ -216,7 +226,7 @@ from colliding with the hub's own config file.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 06:03 UTC</span>
                 </div>
             </div>
         </footer>

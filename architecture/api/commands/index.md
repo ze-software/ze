@@ -528,6 +528,8 @@ request shutdown         # Gracefully shutdown
 request reboot           # Gracefully shutdown then reboot the system
 show status              # Show process status
 request reload           # Reload the configuration
+request data backup path <file> [spare <n>] [force]   # Back up the store to a file on the daemon host
+request data restore path <file> config [name <n>]    # Restore the config from a backup through the reload
 show reload-status       # Show how many config reloads have been processed
 ```
 
@@ -1383,6 +1385,16 @@ Operational commands declare their argument types as YANG leaves inside
    between tokenize and handler call (two-phase: keyword extraction, then
    positional matching).
 
+A `type empty` leaf is a flag (`ArgFlag`): the keyword alone is the argument,
+in any position, and no value follows it. `validateCommandArgs` consumes it in
+the keyword phase, and it is never an open definition, so a bare `force` never
+fills a value leaf beside it (`request data backup path <abs> force` once
+answered `invalid value "force", expected unsigned integer` against `spare`).
+Usage renders it `[force]`, the completer offers the keyword, and help and the
+catalog name its kind `flag`.
+<!-- source: internal/component/command/argvalidate.go -- ValidateArgString -->
+<!-- source: internal/component/plugin/server/command.go -- validateCommandArgs, unmatchedDefCount -->
+
 A command carries more grammar than its ArgDefs hold. A modifier group states a
 keyword and a value the HANDLER parses, so the dispatcher meets tokens that
 belong to no definition of its own, and it MUST NOT read one of them as a bad
@@ -1612,7 +1624,7 @@ gRPC `ParamInfo` message carries `short_help` and `description`; and
 notification's `leaves` with both keys. `GetHelpExtension` is the ONE reader
 of the extension for both carriers. A command container reaches it through
 `Entry.Exts`, and an rpc through `gyang.RPC.Exts()`.
-`./le docvalid help-shape` holds the two corpora to one shape.
+`./le doc yang-contract help-shape` holds the two corpora to one shape.
 
 An RPC's pair reaches an agent through the machine-readable reference.
 `SchemaRegistry.RegisterRPCs` copies both to `RegisteredRPC.ShortHelp` and
@@ -1652,7 +1664,7 @@ the summary and `Description` is the explanation, and the same empty-is-unwritte
 rule holds for both. `collectCommands` (`cmd/ze/help_command.go`) merges these
 registrations into `ze help command --json` after the tree, and skips one whose
 path the tree already holds, so the catalog publishes the node's texts for such
-a path and the registration's for every other. `./le docvalid help-shape` holds
+a path and the registration's for every other. `./le doc yang-contract help-shape` holds
 this third corpus to the same seven rules, reading the registrations this binary
 links from the registry and the four `cmd/ze` declares in `package main` from
 its source, which is the only way to read a package Go forbids importing.
@@ -1681,11 +1693,11 @@ surfaces.
 | An MCP tool's action enum | `buildToolDef` | `ShortHelp`, one line for each action |
 | An MCP tool's own description | `buildToolDef`, `commandText` | `ShortHelp`, then a blank line, then `Description` |
 | The OpenAPI operation | `OpenAPISchema` | `ShortHelp` as `summary`, `Description` as `description` |
-| The published wiki catalog | `wikicatalog.Render` | `ShortHelp` in the summary table column, `Description` in the `###` detail block |
+| The published wiki catalog | `clicatalog.Render` | `ShortHelp` in the summary table column, `Description` in the `###` detail block |
 | The published CLI reference row | `internal/le/site` `writeCommandRow`, `commandMirrorDescription` | `ShortHelp` |
 | The published per-command detail page | `internal/le/site` `equivalentZeCard`, `equivalentDetailMirror` | `ShortHelp` as the lede, `Description` as the Description body |
 | The `llms.txt` command line | `internal/le/site` `writeLLMSCommands` | `ShortHelp`, whole and with no character budget |
-| An offline local command in any of the rows above | `registry.ListLocal`, merged by `collectCommands` and by `wikicatalog.Collect` | `Meta.ShortHelp` and `Meta.Description`, in place of the node's two texts |
+| An offline local command in any of the rows above | `registry.ListLocal`, merged by `collectCommands` and by `clicatalog.Collect` | `Meta.ShortHelp` and `Meta.Description`, in place of the node's two texts |
 
 The machine surfaces carry the same pair. `commandMeta`
 (`cmd/ze/hub/command_meta.go`) holds both halves for the API and MCP listers.
@@ -2177,9 +2189,9 @@ report one.
 |---------|-------|-------|-------------------------------------|
 | `show command help "<name>"` | the running daemon's registries | Yes, as a `pipe-aliases` list beside `pipe-filters` | Yes, as `answer-shape`, `column-orders` and `address-fields` |
 | Tab completion in the daemon-hosted TUI | the running daemon's registries | Yes | Yes |
-| `./le command list` | the compiled tree and `registry.All()` | Yes | Yes |
+| `./le cli list` | the compiled tree and `registry.All()` | Yes | Yes |
 | `ze help command --json` | the compiled tree and `registry.All()` | Yes | Yes |
-| the wiki catalog (`wikicatalog.Collect`) | the compiled tree and `registry.All()` | Yes | Yes |
+| the wiki catalog (`clicatalog.Collect`) | the compiled tree and `registry.All()` | Yes | Yes |
 
 An EXTERNAL plugin is the one case the last three rows still cannot answer for.
 It registers nothing in the composition root, so its declaration exists on the
@@ -2248,8 +2260,8 @@ one's catalog entries with it while the daemon still serves them.
 The wiki catalog is NOT built from `ze help command --json`. Both join the
 registries in their own process, because an `internal` package cannot import
 `cmd/ze`'s main package. `compareWikiCatalogProducer`
-(`internal/le/docvalid/command_surfaces.go`) holds what is left of that split to
-one answer: the four main-package commands `wikicatalog.Collect` carries as
+(`internal/le/doc/yangcontract/command_surfaces.go`) holds what is left of that split to
+one answer: the four main-package commands `clicatalog.Collect` carries as
 literal entries, and the `le ` paths it drops.
 
 All three readers name a purely plugin-provided command. Each walks
@@ -2264,7 +2276,7 @@ Two rules govern what such an entry carries.
 
 - A HIDDEN declaration is skipped by the two published catalogs, because the
   daemon already keeps one out of `VisibleCommandEntries` and out of completion.
-  `./le command list` keeps it, because that inventory answers what ze
+  `./le cli list` keeps it, because that inventory answers what ze
   REGISTERS. `request bgp adj-rib-in claim-replay` is the one such command.
 - The YANG node WINS wherever one exists. A plugin command can be modeled and
   still carry no wire method, `show vrrp interface` among them, so it arrives
@@ -2280,8 +2292,8 @@ Two rules govern what such an entry carries.
 <!-- source: internal/le/plugin/declarations/plugindeclarations.go -- Check -->
 
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp, handleBgpCommandHelp -->
-<!-- source: internal/le/command/list/commandlist.go -- Collect, Answer -->
-<!-- source: internal/le/wikicatalog/catalog.go -- Collect, operatorsFor -->
+<!-- source: internal/le/cli/list/commandlist.go -- Collect, Answer -->
+<!-- source: internal/le/cli/catalog/catalog.go -- Collect, operatorsFor -->
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 
 #### A plugin declares its own answer shape

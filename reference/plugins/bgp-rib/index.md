@@ -22,7 +22,7 @@ Route Information Base storage
 
 ## Used by
 
-- Required dependency for: [`bgp-gr`](../bgp-gr/index.md)
+- Required dependency for: [`bgp-gr`](../bgp-gr/index.md), [`bgp-rr`](../bgp-rr/index.md), [`bgp-rs`](../bgp-rs/index.md), [`flowspec-firewall`](../flowspec-firewall/index.md)
 - Optional dependency for: None
 
 ## Repository artifacts

@@ -116,7 +116,7 @@ One MUST gap, gated in [`rfc/short/rfc3787.md`](https://github.com/ze-software/z
 | `RFC3787-4-2` | On receiving an OL-set LSP number Zero, treat all IP reachability advertisements as directly connected in SPF (Section 4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3787-5-1` | Continue using narrow metrics unless all devices in the domain support wide metrics (Section 5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze originates ONLY wide metrics by umbrella decision -- it never emits the narrow TLV 2 (internal/plugins/isis/packet/tlv_neighbours.go:59-60 "Ze never originates TLV 2"; internal/plugins/isis/types/metric.go:15 "Only wide metrics are originated by Ze"). Ze DECODES a legacy neighbor's narrow TLV 2 (decode-only) so it can parse mixed-domain LSPs, but it does not fall back to narrow-metric ORIGINATION, so a narrow-only router cannot interpret Ze's advertisements. Ze therefore requires every device in the domain to support wide metrics rather than continuing with narrow until the whole domain is wide-capable. Disclosed in docs/features/rfc-status.md |
 | `RFC3787-8-1` | Generate default routes in Level 1 (Section 8) | MAY | 8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC3787-x-2` | Generate a Protocol Supported TLV (code 129) including IP, and include an IP Interface Address TLV (132) in IIH PDUs for mixed-environment interoperability (Sections 9, 10) | MUST | x | **positive:** `unit/verify` [`TestISISIIHOriginationTLVs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L136). **negative:** `unit/verify` [`TestISISHelloTLV132RequiresInterfaceAddr`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L186) |
+| `RFC3787-x-2` | Generate a Protocol Supported TLV (code 129) including IP, and include an IP Interface Address TLV (132) in IIH PDUs for mixed-environment interoperability (Sections 9, 10) | MUST | x | **positive:** `unit/verify` [`TestISISIIHOriginationTLVs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L146). **negative:** `unit/verify` [`TestISISHelloTLV132RequiresInterfaceAddr`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L196) |
 
 ## Gaps and untested MUSTs
 
@@ -155,8 +155,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestISISHelloTLV132RequiresInterfaceAddr`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L186) | unit/verify | unproven |
-| positive | [`TestISISIIHOriginationTLVs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L136) | unit/verify | unproven |
+| negative | [`TestISISHelloTLV132RequiresInterfaceAddr`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L196) | unit/verify | unproven |
+| positive | [`TestISISIIHOriginationTLVs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L146) | unit/verify | unproven |
 
 ## Extraction sign-off
 

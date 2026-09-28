@@ -1,6 +1,6 @@
 # Plugin catalog
 
-89 runtime plugins generated from `data/plugin-registry.json`. 71 runtime plugins declare configuration roots and 73 ship YANG modules.
+91 runtime plugins generated from `data/plugin-registry.json`. 73 runtime plugins declare configuration roots and 75 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 
@@ -24,27 +24,29 @@ Generated group for registry entries mapped to the BFD area. Config roots: `bfd`
 
 ## BGP
 
-Generated group for registry entries mapped to the BGP area. Config roots: `bgp`, `environment`. Source area: `internal/component/bgp`.
+Generated group for registry entries mapped to the BGP area. Config roots: `bgp`, `bgp-epe`, `bgp-ls-export`, `environment`. Source area: `internal/component/bgp`.
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
 | [`bgp`](bgp/index.md) | BGP routing daemon | `bgp` | None | `internal/component/bgp/plugin` |
 | [`bgp-adj-rib-in`](bgp-adj-rib-in/index.md) | Adj-RIB-In storage (raw hex replay) | None | None | `internal/component/bgp/plugins/adj_rib_in` |
 | [`bgp-aigp`](bgp-aigp/index.md) | Accumulated IGP Metric (RFC 7311) | None | None | `internal/component/bgp/plugins/aigp` |
-| [`bgp-bmp`](bgp-bmp/index.md) | BMP receiver and sender (RFC 7854, 8671) | `bgp`, `environment` | None | `internal/component/bgp/plugins/bmp` |
+| [`bgp-bmp`](bgp-bmp/index.md) | BMP receiver and sender (RFC 7854, 8671) | `bgp`, `environment/bmp` | None | `internal/component/bgp/plugins/bmp` |
 | [`bgp-capa`](bgp-capa/index.md) | Core BGP capability decoding (multiprotocol, asn4, add-path, paths-limit, extended-nexthop, extended-message) | None | None | `internal/component/bgp/plugins/capa` |
+| [`bgp-epe`](bgp-epe/index.md) | Native BGP Egress Peer Engineering segments | `bgp-epe` | None | `internal/component/bgp/plugins/epe` |
 | [`bgp-gr`](bgp-gr/index.md) | Graceful Restart capability and mechanism plugin | `bgp` | `bgp`, `bgp-rib` | `internal/component/bgp/plugins/gr` |
 | [`bgp-healthcheck`](bgp-healthcheck/index.md) | Service healthcheck plugin with watchdog route control | `bgp` | `bgp`, `bgp-watchdog` | `internal/component/bgp/plugins/healthcheck` |
 | [`bgp-hostname`](bgp-hostname/index.md) | FQDN capability decoding | `bgp` | `bgp` | `internal/component/bgp/plugins/hostname` |
 | [`bgp-llnh`](bgp-llnh/index.md) | Link-Local Next-Hop capability plugin | `bgp` | `bgp` | `internal/component/bgp/plugins/llnh` |
+| [`bgp-ls-export`](bgp-ls-export/index.md) | Export native routing databases through BGP-LS | `bgp-ls-export` | `bgp-nlri-ls` | `internal/component/bgp/plugins/ls_export` |
 | [`bgp-persist`](bgp-persist/index.md) | Route Persistence | None | None | `internal/component/bgp/plugins/persist` |
 | [`bgp-rib`](bgp-rib/index.md) | Route Information Base storage | `bgp` | None | `internal/component/bgp/plugins/rib` |
 | [`bgp-role`](bgp-role/index.md) | RFC 9234 BGP Role capability | `bgp` | `bgp` | `internal/component/bgp/plugins/role` |
 | [`bgp-route-refresh`](bgp-route-refresh/index.md) | Route Refresh capability decoding | `bgp` | `bgp` | `internal/component/bgp/plugins/route_refresh` |
 | [`bgp-rpki`](bgp-rpki/index.md) | RPKI origin validation via RTR protocol | `bgp` | `bgp`, `bgp-adj-rib-in` | `internal/component/bgp/plugins/rpki` |
 | [`bgp-rpki-decorator`](bgp-rpki-decorator/index.md) | Correlates UPDATE + RPKI events into merged update-rpki events | None | `bgp`, `bgp-rpki` | `internal/component/bgp/plugins/rpki_decorator` |
-| [`bgp-rr`](bgp-rr/index.md) | Route Reflector | None | `bgp-adj-rib-in` | `internal/component/bgp/plugins/rr` |
-| [`bgp-rs`](bgp-rs/index.md) | Route Server | `bgp` | None | `internal/component/bgp/plugins/rs` |
+| [`bgp-rr`](bgp-rr/index.md) | Route Reflector | None | `bgp-adj-rib-in`, `bgp-rib` | `internal/component/bgp/plugins/rr` |
+| [`bgp-rs`](bgp-rs/index.md) | Route Server | `bgp` | `bgp-rib` | `internal/component/bgp/plugins/rs` |
 | [`bgp-softver`](bgp-softver/index.md) | Software Version capability (code 75) | `bgp` | `bgp` | `internal/component/bgp/plugins/softver` |
 | [`bgp-watchdog`](bgp-watchdog/index.md) | Watchdog route management plugin | `bgp` | `bgp` | `internal/component/bgp/plugins/watchdog` |
 
@@ -133,7 +135,7 @@ Generated group for registry entries mapped to the Environment area. Config root
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`ntp`](ntp/index.md) | NTP client: system clock synchronization | `environment` | None | `internal/plugins/ntp` |
+| [`ntp`](ntp/index.md) | NTP client: system clock synchronization | `environment/ntp` | None | `internal/plugins/ntp` |
 
 ## Exabgp
 
@@ -177,7 +179,7 @@ Generated group for registry entries mapped to the Flowspec Firewall area. Sourc
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`flowspec-firewall`](flowspec-firewall/index.md) | Translates BGP FlowSpec routes into nftables firewall rules | None | `firewall` | `internal/plugins/flowspec-firewall` |
+| [`flowspec-firewall`](flowspec-firewall/index.md) | Translates BGP FlowSpec routes into nftables firewall rules | None | `firewall`, `bgp-rib` | `internal/plugins/flowspec-firewall` |
 
 ## IS-IS
 
@@ -261,7 +263,7 @@ Generated group for registry entries mapped to the RSVP TE area. Config roots: `
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`rsvp-te`](rsvp-te/index.md) | RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) | `rsvp-te` | `fib-kernel`, `sysctl` | `internal/plugins/rsvpte` |
+| [`rsvp-te`](rsvp-te/index.md) | RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) | `rsvp-te` | `interface`, `fib-kernel`, `sysctl` | `internal/plugins/rsvpte` |
 
 ## Routing Table
 

@@ -17,7 +17,7 @@ IPv4 and IPv6) by default, and [RFC 3768](https://www.rfc-editor.org/rfc/rfc3768
 > [RFC status](../../reference/rfcs/index.md#first-hop-redundancy).
 
 The Docker interop lab runs the `vrrp-mastership-keepalived` scenario
-(`./le integration interop`). Ze at priority 200 and keepalived 2.3.1 at 100 contend
+(`./le test integration interop`). Ze at priority 200 and keepalived 2.3.1 at 100 contend
 for one virtual IP on a shared segment, VRID 10, VRRPv3 pinned on both sides
 (keepalived speaks v2 by default, and RFC 9568 Section 7.1 has a v3 router discard
 a v2 advertisement, so the two would never see each other). Every assertion reads
@@ -44,6 +44,22 @@ break is a build error instead.
 
 <!-- source: internal/plugins/vrrp/transport/transport.go -- AnnounceMaster, v6SourceWarmer -->
 <!-- source: internal/plugins/vrrp/transport/backend_linux.go -- warmV6Source, var _ v6SourceWarmer -->
+
+### IPv4 forwarding and redirects
+
+VRRP supplies the virtual gateway addresses and MACs; IPv4 forwarding must also
+be enabled for the router, including its virtual-MAC interfaces. A system-wide
+`net.ipv4.ip_forward=1` before group creation enables forwarding on those devices.
+
+When Linux emits an ICMP redirect for a packet sent to a virtual MAC, its source
+is that virtual router's VIP. Ze sets
+`net.ipv4.icmp_errors_use_inbound_ifaddr=1` while IPv4 groups exist so that the
+reverse route to a host cannot select the physical address or another group's
+VIP. This affects IPv4 ICMP error source selection throughout the network
+namespace. The prior value is restored when the last IPv4 group is removed;
+Ze does not disable redirects.
+
+<!-- source: internal/plugins/vrrp/dataplane_linux.go -- globalDataplaneSysctls, applyDataplaneSysctls, revertDataplaneSysctls -->
 
 
 ## Configuration
@@ -271,7 +287,13 @@ installed with the parent's subnet prefix, and a small set of `arp_ignore`,
 IP while letting the macvlan answer with the virtual MAC. This mirrors what
 keepalived's `use_vmac` does, and ze restores the sysctls it changed when the
 last group on an interface goes away. This behaviour is verified against
-keepalived under QEMU (`ze-test`'s VRRP interop lab).
+keepalived under QEMU (`le test`'s VRRP interop lab).
+
+If Ze cannot read or set a required sysctl, the group does not start. It attempts
+to restore shared settings changed by that setup and reports both setup and
+restoration errors. Failed restores retain the original values even when no
+group started. A later config apply retries the affected restoration before
+setup; teardown also retries settings no longer held by an active group.
 
 A few consequences of this mechanism are worth knowing:
 
@@ -279,11 +301,13 @@ A few consequences of this mechanism are worth knowing:
   group is active.** It re-asserts them on every config apply, so if you also set
   those knobs on the same interface unit, ze's values win for as long as VRRP
   runs there. Do not rely on a conflicting manual setting on a VRRP interface.
-- **`net.ipv4.conf.all.rp_filter` is set to 0** (host-wide) while any IPv4 group
-  is active, because a per-device `rp_filter` cannot go below the `all` value.
-  Ze restores the previous value when the last group is removed, but a hard kill
-  (SIGKILL, power loss) skips that cleanup and leaves it at 0. This matches
-  keepalived, which never restores it.
+- **Two namespace-wide settings stay changed while IPv4 groups exist.**
+  `net.ipv4.conf.all.rp_filter=0` lets the macvlan disable reverse-path filtering,
+  and `net.ipv4.icmp_errors_use_inbound_ifaddr=1` selects the inbound virtual
+  router's address for ICMP errors. Normal teardown attempts to restore both
+  saved values; failures are logged and retain the originals for retry. SIGKILL
+  skips cleanup and leaves the settings in place until the namespace is reset
+  or an operator restores them.
 - **The address owner is a special case.** When the virtual IP equals a real
   address on the unit, that address already lives on the parent, so it keeps
   answering with the parent's real MAC (ze installs it as a host route on the

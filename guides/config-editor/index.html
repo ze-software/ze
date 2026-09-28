@@ -303,6 +303,32 @@ without <code>-f</code> to serve the web editor from the owning daemon.</p>
 owning daemon gives each session an identity (<code>user@origin%timestamp</code>) and a
 per-user change file. Commit applies the session's changes with conflict
 detection. The same store holds draft recovery and history for every surface.</p>
+<p><strong>Backup mode</strong> (<code>ze config edit --backup &lt;artifact&gt; [config-name]</code>): the
+editor opens a config inside a backup artifact (a <code>.zefs</code> file that <code>ze data backup</code> or <code>request data backup</code> wrote) with no daemon. No SSH credentials are
+read, no daemon is probed or started, and <code>run</code> commands have nothing to reach.
+The session behaves as a daemon session does: it has an identity, a draft and
+history, all inside the artifact. A commit publishes into the artifact: a new
+version, the active and rollback pointers, and <code>file/active/&lt;name&gt;</code>. The
+status line ends in "and published". <code>ze data restore &lt;artifact&gt; config</code> then
+applies the edited config to a device.</p>
+<p>The editor holds the artifact's <code>&lt;artifact&gt;.lock</code> sidecar for the whole
+session, so a second <code>--backup</code> editor, and any other <code>--backup</code> command, on
+the same file is refused with an error that names it. A lock on the artifact
+itself would not do: each commit rewrites the artifact through a rename,
+which installs a new file. Writes pad each changed slot by 10%, so a later
+edit of about the same size stays in place; <code>ze data backup</code> writes
+exact-fit artifacts because nothing edits them. <code>--backup</code> cannot be combined
+with <code>-f</code>, <code>--web</code> or <code>--insecure-web</code>, and the refusal names both flags.
+Without a config name the editor uses the artifact's <code>&lt;instance&gt;.conf</code> and
+otherwise asks which config to edit.</p>
+<!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditBackup -->
+<!-- source: internal/component/config/cli/backup_flag.go -- openBackup, publishInBackup -->
+<!-- source: internal/component/cli/editor.go -- NewOfflineSessionEditor, SetOfflinePromotion -->
+<p><code>ze config show</code>, <code>diff</code>, <code>set</code> and <code>list</code> take the same <code>--backup &lt;artifact&gt;</code>
+flag and work on the configs inside it: <code>show</code> and <code>diff</code> read under a shared
+lock, <code>set</code> publishes the way an editor commit does, and <code>list</code> names only
+the artifact's configs. <code>set --backup</code> refuses <code>--reload</code>, because an artifact
+has no daemon.</p>
 <p>When the daemon was started with an explicit file, every start reads that
 file, and daemon commits update it together with stored history. An external
 edit must be reconciled before a competing daemon commit can succeed. Bare
@@ -359,6 +385,7 @@ leaf-list member rather than a leaf or a path.</p>
 <th>Feature</th>
 <th>File mode</th>
 <th>Session mode</th>
+<th>Backup mode</th>
 </tr>
 </thead>
 <tbody>
@@ -366,30 +393,36 @@ leaf-list member rather than a leaf or a path.</p>
 <td>Commit</td>
 <td>Writes explicit file</td>
 <td>Applies tracked changes in the owning daemon</td>
+<td>Publishes a version and its pointers into the artifact</td>
 </tr>
 <tr>
 <td>Multi-user</td>
 <td>Offline writer only</td>
 <td>Per-user change files</td>
+<td>One editor; the artifact lock refuses a second</td>
 </tr>
 <tr>
 <td>Conflict detection</td>
 <td>External file changes</td>
+<td>Live and stale changes</td>
 <td>Live and stale changes</td>
 </tr>
 <tr>
 <td>Blame / authorship</td>
 <td class="cell-no">✕</td>
 <td class="cell-yes">✓</td>
+<td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Crash recovery</td>
 <td><code>.edit</code> file</td>
 <td>Change files and draft</td>
+<td>Change files and draft, inside the artifact</td>
 </tr>
 <tr>
 <td>Draft / discard path</td>
 <td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 </tr>
 </tbody>
@@ -596,7 +629,7 @@ ze config archive prod config.conf # Archive to named destination
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

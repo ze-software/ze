@@ -102,13 +102,13 @@ No tracked gap in current source anchors.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8092-3-1` | Duplicate BGP Large Community values must not be transmitted (Section 3) | MUST NOT | 3 - BGP Large Communities Attribute | **positive:** `unit/verify` [`TestLargeCommunitiesWriteToNoDuplicates`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L430). **negative:** `unit/verify` [`TestLargeCommunities`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L221) |
-| `RFC8092-3-2` | A receiving speaker must silently remove redundant BGP Large Community values (Section 3) | MUST | 3 - BGP Large Communities Attribute | **positive:** `unit/verify` [`TestLargeCommunitiesDeduplication`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L403). **negative:** `unit/verify` [`TestLargeCommunitiesParse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L245) |
+| `RFC8092-3-1` | Duplicate BGP Large Community values MUST NOT be transmitted. (Section 3) | MUST NOT | 3 - BGP Large Communities Attribute | **positive:** `unit/verify` [`TestLargeCommunitiesWriteToNoDuplicates`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L430). **negative:** `unit/verify` [`TestLargeCommunities`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L221) |
+| `RFC8092-3-2` | A receiving speaker MUST silently remove redundant BGP Large Community values from a BGP Large Community attribute. (Section 3) | MUST | 3 - BGP Large Communities Attribute | **positive:** `unit/verify` [`TestLargeCommunitiesDeduplication`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L403). **negative:** `unit/verify` [`TestLargeCommunitiesParse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L245) |
 | `RFC8092-5-1` | Canonical representation numbers must not contain leading zeros; zero must be represented as a single "0" (Section 5) | MUST NOT | 5 - Canonical Representation | **positive:** `unit/verify` [`TestAppendText_LargeCommunityElement`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/text_append_test.go#L41). **negative:** no negative test. **{single-polarity}:** the canonical rendering LargeCommunity.AppendText (internal/core/bgp/attribute/community.go:316) uses strconv.AppendUint, which never emits leading zeros and renders 0 as a single "0", so every value is canonical and there is no non-canonical rendering to assert as a negative |
-| `RFC8092-6-1` | BGP Large Communities attribute must not be considered malformed if Global Administrator contains an unallocated, unassigned, or reserved ASN (Section 6) | MUST NOT | 6 - Error Handling | **positive:** `unit/verify` [`TestRFC8092LargeCommunityValidReservedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L41). **negative:** no negative test. **{single-polarity}:** the malformed check validateLargeCommunityAttr (internal/component/bgp/message/rfc7606.go:620) inspects the attribute length only and never the Global Administrator value, so a reserved or unallocated ASN is never treated as malformed and there is no ASN-based rejection to assert as a negative |
-| `RFC8092-6-2` | Attribute shall be considered malformed if length is not a non-zero multiple of 12 octets (Section 6) | SHALL | 6 - Error Handling | **positive:** `unit/verify` [`TestRFC8092LargeCommunityMalformedLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L17). **negative:** `unit/verify` [`TestRFC8092LargeCommunityValidReservedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L37) |
-| `RFC8092-6-3` | Attribute shall not be considered malformed due to presence of duplicate Large Community values (Section 6) | SHALL NOT | 6 - Error Handling | **positive:** `unit/verify` [`TestLargeCommunitiesDeduplication`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L406). **negative:** no negative test. **{single-polarity}:** ParseLargeCommunities silently deduplicates and returns no error on duplicates (internal/core/bgp/attribute/community.go:422), and validateLargeCommunityAttr checks only length, so a duplicate is never treated as malformed and there is no duplicate-based rejection to assert as a negative |
-| `RFC8092-6-4` | A BGP UPDATE with malformed BGP Large Communities attribute shall be handled using "treat-as-withdraw" per RFC 7606 (Section 6) | SHALL | 6 - Error Handling | **positive:** `unit/verify` [`TestRFC8092LargeCommunityMalformedLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L19). **negative:** `unit/verify` [`TestRFC8092LargeCommunityValidReservedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L39) |
+| `RFC8092-6-1` | The BGP Large Communities Global Administrator field may contain any value, and a BGP Large Communities attribute MUST NOT be considered malformed if the Global Administrator field contains an unallocated, unassigned, or reserved ASN. (Section 6) | MUST NOT | 6 - Error Handling | **positive:** `unit/verify` [`TestRFC8092LargeCommunityValidReservedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L41). **negative:** no negative test. **{single-polarity}:** the malformed check validateLargeCommunityAttr (internal/component/bgp/message/rfc7606.go:620) inspects the attribute length only and never the Global Administrator value, so a reserved or unallocated ASN is never treated as malformed and there is no ASN-based rejection to assert as a negative |
+| `RFC8092-6-2` | o A BGP Large Communities attribute SHALL be considered malformed if the length of the BGP Large Communities Attribute value, expressed in octets, is not a non-zero multiple of 12. (Section 6) | SHALL | 6 - Error Handling | **positive:** `unit/verify` [`TestRFC8092LargeCommunityMalformedLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L17). **negative:** `unit/verify` [`TestRFC8092LargeCommunityValidReservedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L37) |
+| `RFC8092-6-3` | o A BGP Large Communities attribute SHALL NOT be considered malformed due to presence of duplicate Large Community values. (Section 6) | SHALL NOT | 6 - Error Handling | **positive:** `unit/verify` [`TestLargeCommunitiesDeduplication`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L406). **negative:** no negative test. **{single-polarity}:** ParseLargeCommunities silently deduplicates and returns no error on duplicates (internal/core/bgp/attribute/community.go:422), and validateLargeCommunityAttr checks only length, so a duplicate is never treated as malformed and there is no duplicate-based rejection to assert as a negative |
+| `RFC8092-6-4` | o A BGP UPDATE message with a malformed BGP Large Communities attribute SHALL be handled using the approach of "treat-as- withdraw" as described in Section 2 of [RFC7606]. (Section 6) | SHALL | 6 - Error Handling | **positive:** `unit/verify` [`TestRFC8092LargeCommunityMalformedLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L19). **negative:** `unit/verify` [`TestRFC8092LargeCommunityValidReservedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L39) |
 | `RFC8092-3-3` | Global Administrator field should be an ASN (Section 3) | SHOULD | 3 - BGP Large Communities Attribute | **positive:** no positive test. **negative:** no negative test |
 | `RFC8092-5-2` | BGP Large Communities should be represented in the canonical representation (Section 5) | SHOULD | 5 - Canonical Representation | **positive:** no positive test. **negative:** no negative test |
 | `RFC8092-4-1` | Aggregated routes should contain the union of all BGP Large Communities from all aggregated routes (Section 4) | SHOULD | 4 - Aggregation | **positive:** no positive test. **negative:** no negative test |
@@ -124,7 +124,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC8092-3-1`](#rfc8092-3-1)
 
-Duplicate BGP Large Community values must not be transmitted (Section 3)
+Duplicate BGP Large Community values MUST NOT be transmitted. (Section 3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -135,7 +135,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8092-3-2`](#rfc8092-3-2)
 
-A receiving speaker must silently remove redundant BGP Large Community values (Section 3)
+A receiving speaker MUST silently remove redundant BGP Large Community values from a BGP Large Community attribute. (Section 3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -156,7 +156,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8092-6-1`](#rfc8092-6-1)
 
-BGP Large Communities attribute must not be considered malformed if Global Administrator contains an unallocated, unassigned, or reserved ASN (Section 6)
+The BGP Large Communities Global Administrator field may contain any value, and a BGP Large Communities attribute MUST NOT be considered malformed if the Global Administrator field contains an unallocated, unassigned, or reserved ASN. (Section 6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -166,7 +166,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8092-6-2`](#rfc8092-6-2)
 
-Attribute shall be considered malformed if length is not a non-zero multiple of 12 octets (Section 6)
+o A BGP Large Communities attribute SHALL be considered malformed if the length of the BGP Large Communities Attribute value, expressed in octets, is not a non-zero multiple of 12. (Section 6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -177,7 +177,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8092-6-3`](#rfc8092-6-3)
 
-Attribute shall not be considered malformed due to presence of duplicate Large Community values (Section 6)
+o A BGP Large Communities attribute SHALL NOT be considered malformed due to presence of duplicate Large Community values. (Section 6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -187,7 +187,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8092-6-4`](#rfc8092-6-4)
 
-A BGP UPDATE with malformed BGP Large Communities attribute shall be handled using "treat-as-withdraw" per RFC 7606 (Section 6)
+o A BGP UPDATE message with a malformed BGP Large Communities attribute SHALL be handled using the approach of "treat-as- withdraw" as described in Section 2 of [RFC7606]. (Section 6)
 
 Audit verdict: not audited: no reader has judged these tests
 

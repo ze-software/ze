@@ -310,7 +310,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze originates no ECS-bearing query; the stub resolver sets only the EDNS0 DO bit and adds no client-subnet option (internal/component/resolve/dns/resolver.go:261), so it never writes a query SCOPE PREFIX-LENGTH</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-6-2">RFC7871-6-2</code></td><td colspan="3"><span class="rfc-subject">ADDRESS MUST be truncated to the number of bits given by SOURCE PREFIX-LENGTH, padding with 0 bits to the end of the last octet needed. (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-6-2">RFC7871-6-2</code></td><td colspan="3"><span class="rfc-subject">o ADDRESS, variable number of octets, contains either an IPv4 or IPv6 address, depending on FAMILY, which MUST be truncated to the number of bits indicated by the SOURCE PREFIX-LENGTH field, padding with 0 bits to pad to the end of the last octet needed. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
@@ -319,7 +319,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no ECS option in any query or response; the stub resolver adds none (internal/component/resolve/dns/resolver.go:261) and geodns answers with only A/AAAA/SRV/SOA/NS records (internal/plugins/geodns/server.go:168), so it truncates no ADDRESS it built</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.1.1-2">RFC7871-7.1.1-2</code></td><td colspan="3"><span class="rfc-subject">If the triggering client query included an ECS option, it MUST be examined for its SOURCE PREFIX-LENGTH. (§7.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.1.1-2">RFC7871-7.1.1-2</code></td><td colspan="3"><span class="rfc-subject">If the triggering query included an ECS option itself, it MUST be examined for its SOURCE PREFIX-LENGTH. (§7.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1.1</td>
@@ -328,7 +328,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is no Recursive Resolver forming ECS-bearing outgoing queries; it reads an incoming ECS ADDRESS only for source selection (internal/core/dnsserver/client.go:21) and originates no ECS query to size (internal/component/resolve/dns/resolver.go:261)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.1.1-3">RFC7871-7.1.1-3</code></td><td colspan="3"><span class="rfc-subject">The Recursive Resolver&#39;s outgoing query MUST set SOURCE PREFIX-LENGTH to the shorter of the incoming query&#39;s SOURCE PREFIX-LENGTH or the server&#39;s maximum cacheable prefix length. (§7.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.1.1-3">RFC7871-7.1.1-3</code></td><td colspan="3"><span class="rfc-subject">The Recursive Resolver&#39;s outgoing query MUST then set SOURCE PREFIX-LENGTH to the shorter of the incoming query&#39;s SOURCE PREFIX-LENGTH or the server&#39;s maximum cacheable prefix length. (§7.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1.1</td>
@@ -346,7 +346,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze builds no ECS option, so it sizes no ADDRESS octet count (internal/component/resolve/dns/resolver.go:261)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.1.1-7">RFC7871-7.1.1-7</code></td><td colspan="3"><span class="rfc-subject">Subsequent queries to refresh the data MUST, if unrestricted by an incoming SOURCE PREFIX-LENGTH, specify the longest SOURCE PREFIX-LENGTH the Recursive Resolver is willing to cache, even if a previous response indicated a shorter prefix sufficed. (§7.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.1.1-7">RFC7871-7.1.1-7</code></td><td colspan="3"><span class="rfc-subject">Subsequent queries to refresh the data MUST, if unrestricted by an incoming SOURCE PREFIX-LENGTH, specify the longest SOURCE PREFIX- LENGTH that the Recursive Resolver is willing to cache, even if a previous response indicated that a shorter prefix length was sufficient. (§7.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1.1</td>
@@ -355,7 +355,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze issues no ECS-bearing refresh query and caches no ECS-scoped data to refresh (stub cache keyed by name+qtype at internal/component/resolve/dns/cache.go:16, no ECS query at internal/component/resolve/dns/resolver.go:261)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.1.2-2">RFC7871-7.1.2-2</code></td><td colspan="3"><span class="rfc-subject">An Intermediate Nameserver receiving a query that limits SOURCE PREFIX-LENGTH MUST NOT make queries that include more bits of client address than the originating query. (§7.1.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.1.2-2">RFC7871-7.1.2-2</code></td><td colspan="3"><span class="rfc-subject">An Intermediate Nameserver that receives such a query MUST NOT make queries that include more bits of client address than in the originating query. (§7.1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>7.1.2</td>
@@ -382,7 +382,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s stub resolver emits no ECS option, so it writes no SCOPE PREFIX-LENGTH (internal/component/resolve/dns/resolver.go:261)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.1.3-1">RFC7871-7.1.3-1</code></td><td colspan="3"><span class="rfc-subject">A Forwarding Resolver using this option MUST prepare it as described for Recursive Resolvers in §7.1.1. (§7.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.1.3-1">RFC7871-7.1.3-1</code></td><td colspan="3"><span class="rfc-subject">A Forwarding Resolver using this option MUST prepare it as described in Section 7.1.1, &#34;Recursive Resolvers&#34;. (§7.1.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1.3</td>
@@ -391,7 +391,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no Forwarding Resolver that prepares ECS options; geodns answers authoritatively (internal/plugins/geodns/server.go:221) and the stub resolver forwards no ECS (internal/component/resolve/dns/resolver.go:261)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.1.3-2">RFC7871-7.1.3-2</code></td><td colspan="3"><span class="rfc-subject">A Forwarding Resolver that implements this protocol MUST honor the SOURCE PREFIX-LENGTH restrictions indicated in the incoming query from its client. (§7.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.1.3-2">RFC7871-7.1.3-2</code></td><td colspan="3"><span class="rfc-subject">In particular, a Forwarding Resolver that implements this protocol MUST honor SOURCE PREFIX- LENGTH restrictions indicated in the incoming query from its client. (§7.1.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1.3</td>
@@ -400,7 +400,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze forwards no ECS-bearing client query, so it honors no incoming SOURCE PREFIX-LENGTH on a forward path (internal/component/resolve/dns/resolver.go:261)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.1.3-3">RFC7871-7.1.3-3</code></td><td colspan="3"><span class="rfc-subject">If a Forwarding Resolver receives a REFUSED response to a query that includes a non-zero ADDRESS, it MUST retry with no ADDRESS. (§7.1.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.1.3-3">RFC7871-7.1.3-3</code></td><td colspan="3"><span class="rfc-subject">If the Forwarding Resolver receives a REFUSED response when it sends a query that includes a non-zero ADDRESS, it MUST retry with no ADDRESS. (§7.1.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1.3</td>
@@ -409,7 +409,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze sends no ECS-bearing query that could draw a REFUSED needing an ADDRESS-stripped retry (internal/component/resolve/dns/resolver.go:261)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.2.1-2">RFC7871-7.2.1-2</code></td><td colspan="3"><span class="rfc-subject">A server that has not implemented or enabled ECS MUST NOT include an ECS option in replies to indicate lack of support. (§7.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.2.1-2">RFC7871-7.2.1-2</code></td><td colspan="3"><span class="rfc-subject">Such a server MUST NOT include an ECS option within replies to indicate lack of support for it. (§7.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>7.2.1</td>
@@ -445,7 +445,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> geodns uses the ECS ADDRESS to tailor answers (internal/core/dnsserver/client.go:21) but includes no ECS option in its response (internal/plugins/geodns/server.go:168), so it does not echo the option</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.2.1-7">RFC7871-7.2.1-7</code></td><td colspan="3"><span class="rfc-subject">If an ECS option was not included in the query, one MUST NOT be included in the response, even when the server provides a Tailored Response. (§7.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.2.1-7">RFC7871-7.2.1-7</code></td><td colspan="3"><span class="rfc-subject">(Note that the requirement in [RFC6891] to reserve space for the OPT record could mean that the Answer section of the response will be truncated and fall back to TCP indicated accordingly.) If an ECS option was not included in a query, one MUST NOT be included in the response even if the server is providing a Tailored Response -- presumably based on the address from which it received the query. (§7.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>7.2.1</td>
@@ -463,7 +463,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> geodns includes no ECS option in its response (internal/plugins/geodns/server.go:168), so there are no echoed FAMILY/SOURCE/ADDRESS fields that could fail to match the query; the missing echo itself is disclosed as the RFC7871-7.2.1-5 gap</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.2.1-12">RFC7871-7.2.1-12</code></td><td colspan="3"><span class="rfc-subject">An Authoritative Nameserver MUST NOT overlap prefixes among its Tailored Responses. (§7.2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.2.1-12">RFC7871-7.2.1-12</code></td><td colspan="3"><span class="rfc-subject">Because it can&#39;t be guaranteed that queries for all longer prefix lengths would arrive before one that would be answered by the shorter prefix length, an Authoritative Nameserver MUST NOT overlap prefixes. (§7.2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>7.2.1</td>
@@ -472,7 +472,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> geodns publishes no SCOPE-scoped Tailored Response whose prefixes a downstream cache could order-dependently overlap; its config source prefixes resolve deterministically by longest-prefix at lookup (internal/core/dnsserver/matcher.go:28)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.2.2-1">RFC7871-7.2.2-1</code></td><td colspan="3"><span class="rfc-subject">If the client query did not include an ECS option, the server MUST NOT provide one in its response. (§7.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.2.2-1">RFC7871-7.2.2-1</code></td><td colspan="3"><span class="rfc-subject">Because a client that did not use an ECS option might not be able to understand it, the server MUST NOT provide one in its response. (§7.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>7.2.2</td>
@@ -481,7 +481,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns includes no ECS option in any response (internal/plugins/geodns/server.go:168), so no negative case exists; internal/plugins/geodns/rfc7871_server_test.go asserts an ECS-less query draws an ECS-less response</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.2.2-2">RFC7871-7.2.2-2</code></td><td colspan="3"><span class="rfc-subject">If the client query did include the option, the server MUST include one in its response. (§7.2.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.2.2-2">RFC7871-7.2.2-2</code></td><td colspan="3"><span class="rfc-subject">If the client query did include the option, the server MUST include one in its response, especially as it could be talking to a Forwarding Resolver, which would need the information for its own caching. (§7.2.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.2.2</td>
@@ -490,7 +490,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> geodns consumes the query&#39;s ECS option to select an answer yet includes no ECS option in its response (internal/plugins/geodns/server.go:168)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.3-3">RFC7871-7.3-3</code></td><td colspan="3"><span class="rfc-subject">If FAMILY, SOURCE PREFIX-LENGTH, and the SOURCE PREFIX-LENGTH bits of ADDRESS in the response do not match the non-zero fields in the corresponding query, the full response MUST be dropped. (§7.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.3-3">RFC7871-7.3-3</code></td><td colspan="3"><span class="rfc-subject">If FAMILY, SOURCE PREFIX-LENGTH, and SOURCE PREFIX-LENGTH bits of ADDRESS in the response don&#39;t match the non-zero fields in the corresponding query, the full response MUST be dropped, as described in Section 11. (§7.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.3</td>
@@ -499,7 +499,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze issues no ECS-bearing query and so validates no ECS response for a FAMILY/SOURCE/ADDRESS mismatch to drop (internal/component/resolve/dns/resolver.go:261)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.3-4">RFC7871-7.3-4</code></td><td colspan="3"><span class="rfc-subject">In a response to a query that specified only SOURCE PREFIX-LENGTH for privacy masking, the FAMILY and ADDRESS fields MUST contain the appropriate non-zero information the Authoritative Nameserver used to generate the answer. (§7.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.3-4">RFC7871-7.3-4</code></td><td colspan="3"><span class="rfc-subject">In a response to a query that specified only SOURCE PREFIX-LENGTH for privacy masking, the FAMILY and ADDRESS fields MUST contain the appropriate non-zero information that the Authoritative Nameserver used to generate the answer, so that it can be cached accordingly. (§7.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.3</td>
@@ -526,7 +526,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze ties no cached record to a network; the DNS cache keys entries by name+qtype only (internal/component/resolve/dns/cache.go:16) and geodns answers each query fresh from config (internal/plugins/geodns/server.go:168)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.3.1-3">RFC7871-7.3.1-3</code></td><td colspan="3"><span class="rfc-subject">Records from the Additional and Authority sections MUST NOT be tied to a network. (§7.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.3.1-3">RFC7871-7.3.1-3</code></td><td colspan="3"><span class="rfc-subject">Any records from these sections MUST NOT be tied to a network. (§7.3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>7.3.1</td>
@@ -535,7 +535,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no network-scoped answer cache, so no Additional/Authority record is ever tied to a network (internal/component/resolve/dns/cache.go:16)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.3.1-4">RFC7871-7.3.1-4</code></td><td colspan="3"><span class="rfc-subject">Records cached as /0 because of a query&#39;s SOURCE PREFIX-LENGTH of 0 MUST be distinguished from those cached as /0 because of a response&#39;s SCOPE PREFIX-LENGTH of 0. (§7.3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.3.1-4">RFC7871-7.3.1-4</code></td><td colspan="3"><span class="rfc-subject">Records that are cached as /0 because of a query&#39;s SOURCE PREFIX- LENGTH of 0 MUST be distinguished from those that are cached as /0 because of a response&#39;s SCOPE PREFIX-LENGTH of 0. (§7.3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.3.1</td>
@@ -544,7 +544,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze caches no ECS-scoped answers, so it draws no distinction between a /0 from SOURCE 0 and a /0 from SCOPE 0 (internal/component/resolve/dns/cache.go:16)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.3.2-1">RFC7871-7.3.2-1</code></td><td colspan="3"><span class="rfc-subject">The appropriate RRset MUST be chosen based on longest-prefix matching. (§7.3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.3.2-1">RFC7871-7.3.2-1</code></td><td colspan="3"><span class="rfc-subject">Then, the appropriate RRset MUST be chosen based on the longest prefix matching. (§7.3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.3.2</td>
@@ -562,7 +562,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze keeps no ECS-response cache to miss; geodns answers authoritatively and, on no host-set match, returns a normal NOERROR negative rather than a cache fallthrough (internal/plugins/geodns/server.go:182)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.5-1">RFC7871-7.5-1</code></td><td colspan="3"><span class="rfc-subject">Any Intermediate Nameserver that forwards ECS options received from its clients MUST fully implement the caching behavior of §7.3. (§7.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.5-1">RFC7871-7.5-1</code></td><td colspan="3"><span class="rfc-subject">Any Intermediate Nameserver that forwards ECS options received from its clients MUST fully implement the caching behavior described in Section 7.3. (§7.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.5</td>
@@ -571,7 +571,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze forwards no client ECS option and keeps no section 7.3 network-scoped cache; it consumes the ADDRESS locally (internal/core/dnsserver/client.go:21) and the cache is keyed by name+qtype (internal/component/resolve/dns/cache.go:16)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.5-6">RFC7871-7.5-6</code></td><td colspan="3"><span class="rfc-subject">A query MUST NOT be refused solely because it provides 0 address bits. (§7.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-7.5-6">RFC7871-7.5-6</code></td><td colspan="3"><span class="rfc-subject">Note again that a query MUST NOT be refused solely because it provides 0 address bits. (§7.5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>7.5</td>
@@ -589,7 +589,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> geodns emits no RRSIG or DNSSEC records and no SCOPE-scoped Tailored Response; it synthesizes only unsigned A/AAAA/SRV/SOA/NS answers (internal/plugins/geodns/server.go:106)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-11.1-2">RFC7871-11.1-2</code></td><td colspan="3"><span class="rfc-subject">Recursive Resolvers forwarding the ECS option MUST NOT modify it to include the network address of the client. (§11.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-11.1-2">RFC7871-11.1-2</code></td><td colspan="3"><span class="rfc-subject">As described in previous sections, this option will be forwarded across all the Recursive Resolvers supporting ECS, which MUST NOT modify it to include the network address of the client. (§11.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>11.1</td>
@@ -607,7 +607,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is no Intermediate Nameserver validating an ECS response; it issues no ECS query whose response fields it would verify (internal/component/resolve/dns/resolver.go:261)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-11.3-4">RFC7871-11.3-4</code></td><td colspan="3"><span class="rfc-subject">Recursive Resolvers MUST NOT send an ECS option whose SOURCE PREFIX-LENGTH provides more bits of ADDRESS than they are willing to cache responses for. (§11.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-11.3-4">RFC7871-11.3-4</code></td><td colspan="3"><span class="rfc-subject">o Recursive Resolvers MUST NOT send an ECS option with SOURCE PREFIX-LENGTH providing more bits in ADDRESS than they are willing to cache responses for. (§11.3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>11.3</td>
@@ -616,7 +616,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze sends no ECS-bearing query, so it caps no outgoing SOURCE PREFIX-LENGTH by cache willingness (internal/component/resolve/dns/resolver.go:261)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-12.1-3">RFC7871-12.1-3</code></td><td colspan="3"><span class="rfc-subject">Probing, if implemented, MUST be repeated periodically (e.g., daily). (§12.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-12.1-3">RFC7871-12.1-3</code></td><td colspan="3"><span class="rfc-subject">Probing, if implemented, MUST be repeated periodically, e.g., daily. (§12.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>12.1</td>
@@ -625,7 +625,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze implements no ECS support-probing of authoritative servers, so no periodic-probe obligation arises; it consumes ECS only on the serving side (internal/core/dnsserver/client.go:21)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-12.1-4">RFC7871-12.1-4</code></td><td colspan="3"><span class="rfc-subject">An Authoritative Nameserver that uses ECS information for one of its zones MUST indicate support for the option in all of its responses to ECS queries. (§12.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-12.1-4">RFC7871-12.1-4</code></td><td colspan="3"><span class="rfc-subject">Likewise, an Authoritative Nameserver that uses ECS information for one of its zones MUST indicate support for the option in all of its responses to ECS queries. (§12.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>12.1</td>
@@ -634,7 +634,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> geodns uses ECS information for its zones (internal/core/dnsserver/client.go:21) but indicates support in none of its responses, emitting no ECS option (internal/plugins/geodns/server.go:168)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-12.1-5">RFC7871-12.1-5</code></td><td colspan="3"><span class="rfc-subject">If the option is supported but not actually used to generate a response, its SCOPE PREFIX-LENGTH MUST be set to 0. (§12.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7871-12.1-5">RFC7871-12.1-5</code></td><td colspan="3"><span class="rfc-subject">If the option is supported but not actually used for generating a response, its SCOPE PREFIX- LENGTH MUST be set to 0. (§12.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>12.1</td>
@@ -1124,15 +1124,15 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze originates no ECS-bearing query; the stub resolver sets only the EDNS0 DO bit and adds no client-subnet option (internal/component/resolve/dns/resolver.go:261), so it never writes a query SCOPE PREFIX-LENGTH</td>
 </tr>
-<tr><td><a href="#rfc7871-6-2"><code>RFC7871-6-2</code></a> ADDRESS MUST be truncated to the number of bits given by SOURCE PREFIX-LENGTH, padding with 0 bits to the end of the last octet needed. (§6)</td>
+<tr><td><a href="#rfc7871-6-2"><code>RFC7871-6-2</code></a> o ADDRESS, variable number of octets, contains either an IPv4 or IPv6 address, depending on FAMILY, which MUST be truncated to the number of bits indicated by the SOURCE PREFIX-LENGTH field, padding with 0 bits to pad to the end of the last octet needed. (§6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no ECS option in any query or response; the stub resolver adds none (internal/component/resolve/dns/resolver.go:261) and geodns answers with only A/AAAA/SRV/SOA/NS records (internal/plugins/geodns/server.go:168), so it truncates no ADDRESS it built</td>
 </tr>
-<tr><td><a href="#rfc7871-7.1.1-2"><code>RFC7871-7.1.1-2</code></a> If the triggering client query included an ECS option, it MUST be examined for its SOURCE PREFIX-LENGTH. (§7.1.1)</td>
+<tr><td><a href="#rfc7871-7.1.1-2"><code>RFC7871-7.1.1-2</code></a> If the triggering query included an ECS option itself, it MUST be examined for its SOURCE PREFIX-LENGTH. (§7.1.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is no Recursive Resolver forming ECS-bearing outgoing queries; it reads an incoming ECS ADDRESS only for source selection (internal/core/dnsserver/client.go:21) and originates no ECS query to size (internal/component/resolve/dns/resolver.go:261)</td>
 </tr>
-<tr><td><a href="#rfc7871-7.1.1-3"><code>RFC7871-7.1.1-3</code></a> The Recursive Resolver&#39;s outgoing query MUST set SOURCE PREFIX-LENGTH to the shorter of the incoming query&#39;s SOURCE PREFIX-LENGTH or the server&#39;s maximum cacheable prefix length. (§7.1.1)</td>
+<tr><td><a href="#rfc7871-7.1.1-3"><code>RFC7871-7.1.1-3</code></a> The Recursive Resolver&#39;s outgoing query MUST then set SOURCE PREFIX-LENGTH to the shorter of the incoming query&#39;s SOURCE PREFIX-LENGTH or the server&#39;s maximum cacheable prefix length. (§7.1.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze originates no ECS-bearing outgoing query, so it sets no outgoing SOURCE PREFIX-LENGTH (internal/component/resolve/dns/resolver.go:261)</td>
 </tr>
@@ -1140,11 +1140,11 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze builds no ECS option, so it sizes no ADDRESS octet count (internal/component/resolve/dns/resolver.go:261)</td>
 </tr>
-<tr><td><a href="#rfc7871-7.1.1-7"><code>RFC7871-7.1.1-7</code></a> Subsequent queries to refresh the data MUST, if unrestricted by an incoming SOURCE PREFIX-LENGTH, specify the longest SOURCE PREFIX-LENGTH the Recursive Resolver is willing to cache, even if a previous response indicated a shorter prefix sufficed. (§7.1.1)</td>
+<tr><td><a href="#rfc7871-7.1.1-7"><code>RFC7871-7.1.1-7</code></a> Subsequent queries to refresh the data MUST, if unrestricted by an incoming SOURCE PREFIX-LENGTH, specify the longest SOURCE PREFIX- LENGTH that the Recursive Resolver is willing to cache, even if a previous response indicated that a shorter prefix length was sufficient. (§7.1.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze issues no ECS-bearing refresh query and caches no ECS-scoped data to refresh (stub cache keyed by name+qtype at internal/component/resolve/dns/cache.go:16, no ECS query at internal/component/resolve/dns/resolver.go:261)</td>
 </tr>
-<tr><td><a href="#rfc7871-7.1.2-2"><code>RFC7871-7.1.2-2</code></a> An Intermediate Nameserver receiving a query that limits SOURCE PREFIX-LENGTH MUST NOT make queries that include more bits of client address than the originating query. (§7.1.2)</td>
+<tr><td><a href="#rfc7871-7.1.2-2"><code>RFC7871-7.1.2-2</code></a> An Intermediate Nameserver that receives such a query MUST NOT make queries that include more bits of client address than in the originating query. (§7.1.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is no Intermediate Nameserver forwarding ECS-bearing queries; it originates none (internal/component/resolve/dns/resolver.go:261)</td>
 </tr>
@@ -1156,19 +1156,19 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s stub resolver emits no ECS option, so it writes no SCOPE PREFIX-LENGTH (internal/component/resolve/dns/resolver.go:261)</td>
 </tr>
-<tr><td><a href="#rfc7871-7.1.3-1"><code>RFC7871-7.1.3-1</code></a> A Forwarding Resolver using this option MUST prepare it as described for Recursive Resolvers in §7.1.1. (§7.1.3)</td>
+<tr><td><a href="#rfc7871-7.1.3-1"><code>RFC7871-7.1.3-1</code></a> A Forwarding Resolver using this option MUST prepare it as described in Section 7.1.1, &#34;Recursive Resolvers&#34;. (§7.1.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no Forwarding Resolver that prepares ECS options; geodns answers authoritatively (internal/plugins/geodns/server.go:221) and the stub resolver forwards no ECS (internal/component/resolve/dns/resolver.go:261)</td>
 </tr>
-<tr><td><a href="#rfc7871-7.1.3-2"><code>RFC7871-7.1.3-2</code></a> A Forwarding Resolver that implements this protocol MUST honor the SOURCE PREFIX-LENGTH restrictions indicated in the incoming query from its client. (§7.1.3)</td>
+<tr><td><a href="#rfc7871-7.1.3-2"><code>RFC7871-7.1.3-2</code></a> In particular, a Forwarding Resolver that implements this protocol MUST honor SOURCE PREFIX- LENGTH restrictions indicated in the incoming query from its client. (§7.1.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze forwards no ECS-bearing client query, so it honors no incoming SOURCE PREFIX-LENGTH on a forward path (internal/component/resolve/dns/resolver.go:261)</td>
 </tr>
-<tr><td><a href="#rfc7871-7.1.3-3"><code>RFC7871-7.1.3-3</code></a> If a Forwarding Resolver receives a REFUSED response to a query that includes a non-zero ADDRESS, it MUST retry with no ADDRESS. (§7.1.3)</td>
+<tr><td><a href="#rfc7871-7.1.3-3"><code>RFC7871-7.1.3-3</code></a> If the Forwarding Resolver receives a REFUSED response when it sends a query that includes a non-zero ADDRESS, it MUST retry with no ADDRESS. (§7.1.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze sends no ECS-bearing query that could draw a REFUSED needing an ADDRESS-stripped retry (internal/component/resolve/dns/resolver.go:261)</td>
 </tr>
-<tr><td><a href="#rfc7871-7.2.1-2"><code>RFC7871-7.2.1-2</code></a> A server that has not implemented or enabled ECS MUST NOT include an ECS option in replies to indicate lack of support. (§7.2.1)</td>
+<tr><td><a href="#rfc7871-7.2.1-2"><code>RFC7871-7.2.1-2</code></a> Such a server MUST NOT include an ECS option within replies to indicate lack of support for it. (§7.2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: geodns emits no ECS option in any reply (internal/plugins/geodns/server.go:168), so it never sends one to signal lack of support; this prohibition targets servers with no ECS support</td>
 </tr>
@@ -1188,19 +1188,19 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: geodns includes no ECS option in its response (internal/plugins/geodns/server.go:168), so there are no echoed FAMILY/SOURCE/ADDRESS fields that could fail to match the query; the missing echo itself is disclosed as the RFC7871-7.2.1-5 gap</td>
 </tr>
-<tr><td><a href="#rfc7871-7.2.1-12"><code>RFC7871-7.2.1-12</code></a> An Authoritative Nameserver MUST NOT overlap prefixes among its Tailored Responses. (§7.2.1)</td>
+<tr><td><a href="#rfc7871-7.2.1-12"><code>RFC7871-7.2.1-12</code></a> Because it can&#39;t be guaranteed that queries for all longer prefix lengths would arrive before one that would be answered by the shorter prefix length, an Authoritative Nameserver MUST NOT overlap prefixes. (§7.2.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: geodns publishes no SCOPE-scoped Tailored Response whose prefixes a downstream cache could order-dependently overlap; its config source prefixes resolve deterministically by longest-prefix at lookup (internal/core/dnsserver/matcher.go:28)</td>
 </tr>
-<tr><td><a href="#rfc7871-7.2.2-2"><code>RFC7871-7.2.2-2</code></a> If the client query did include the option, the server MUST include one in its response. (§7.2.2)</td>
+<tr><td><a href="#rfc7871-7.2.2-2"><code>RFC7871-7.2.2-2</code></a> If the client query did include the option, the server MUST include one in its response, especially as it could be talking to a Forwarding Resolver, which would need the information for its own caching. (§7.2.2)</td>
 <td>{gap}, no test</td>
 <td>geodns consumes the query&#39;s ECS option to select an answer yet includes no ECS option in its response (internal/plugins/geodns/server.go:168)</td>
 </tr>
-<tr><td><a href="#rfc7871-7.3-3"><code>RFC7871-7.3-3</code></a> If FAMILY, SOURCE PREFIX-LENGTH, and the SOURCE PREFIX-LENGTH bits of ADDRESS in the response do not match the non-zero fields in the corresponding query, the full response MUST be dropped. (§7.3)</td>
+<tr><td><a href="#rfc7871-7.3-3"><code>RFC7871-7.3-3</code></a> If FAMILY, SOURCE PREFIX-LENGTH, and SOURCE PREFIX-LENGTH bits of ADDRESS in the response don&#39;t match the non-zero fields in the corresponding query, the full response MUST be dropped, as described in Section 11. (§7.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze issues no ECS-bearing query and so validates no ECS response for a FAMILY/SOURCE/ADDRESS mismatch to drop (internal/component/resolve/dns/resolver.go:261)</td>
 </tr>
-<tr><td><a href="#rfc7871-7.3-4"><code>RFC7871-7.3-4</code></a> In a response to a query that specified only SOURCE PREFIX-LENGTH for privacy masking, the FAMILY and ADDRESS fields MUST contain the appropriate non-zero information the Authoritative Nameserver used to generate the answer. (§7.3)</td>
+<tr><td><a href="#rfc7871-7.3-4"><code>RFC7871-7.3-4</code></a> In a response to a query that specified only SOURCE PREFIX-LENGTH for privacy masking, the FAMILY and ADDRESS fields MUST contain the appropriate non-zero information that the Authoritative Nameserver used to generate the answer, so that it can be cached accordingly. (§7.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: geodns emits no ECS option in its response (internal/plugins/geodns/server.go:168), so it carries no FAMILY/ADDRESS response fields; the absent echo is disclosed as the RFC7871-7.2.1-5 gap</td>
 </tr>
@@ -1212,15 +1212,15 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze ties no cached record to a network; the DNS cache keys entries by name+qtype only (internal/component/resolve/dns/cache.go:16) and geodns answers each query fresh from config (internal/plugins/geodns/server.go:168)</td>
 </tr>
-<tr><td><a href="#rfc7871-7.3.1-3"><code>RFC7871-7.3.1-3</code></a> Records from the Additional and Authority sections MUST NOT be tied to a network. (§7.3.1)</td>
+<tr><td><a href="#rfc7871-7.3.1-3"><code>RFC7871-7.3.1-3</code></a> Any records from these sections MUST NOT be tied to a network. (§7.3.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze runs no network-scoped answer cache, so no Additional/Authority record is ever tied to a network (internal/component/resolve/dns/cache.go:16)</td>
 </tr>
-<tr><td><a href="#rfc7871-7.3.1-4"><code>RFC7871-7.3.1-4</code></a> Records cached as /0 because of a query&#39;s SOURCE PREFIX-LENGTH of 0 MUST be distinguished from those cached as /0 because of a response&#39;s SCOPE PREFIX-LENGTH of 0. (§7.3.1)</td>
+<tr><td><a href="#rfc7871-7.3.1-4"><code>RFC7871-7.3.1-4</code></a> Records that are cached as /0 because of a query&#39;s SOURCE PREFIX- LENGTH of 0 MUST be distinguished from those that are cached as /0 because of a response&#39;s SCOPE PREFIX-LENGTH of 0. (§7.3.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze caches no ECS-scoped answers, so it draws no distinction between a /0 from SOURCE 0 and a /0 from SCOPE 0 (internal/component/resolve/dns/cache.go:16)</td>
 </tr>
-<tr><td><a href="#rfc7871-7.3.2-1"><code>RFC7871-7.3.2-1</code></a> The appropriate RRset MUST be chosen based on longest-prefix matching. (§7.3.2)</td>
+<tr><td><a href="#rfc7871-7.3.2-1"><code>RFC7871-7.3.2-1</code></a> Then, the appropriate RRset MUST be chosen based on the longest prefix matching. (§7.3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze selects no cached RRset by ECS longest-prefix; geodns&#39;s longest-prefix match runs over operator-configured source prefixes (internal/plugins/geodns/server.go:77, internal/core/dnsserver/matcher.go:40), an authoritative selection the RFC does not govern, not an ECS-response cache</td>
 </tr>
@@ -1228,7 +1228,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze keeps no ECS-response cache to miss; geodns answers authoritatively and, on no host-set match, returns a normal NOERROR negative rather than a cache fallthrough (internal/plugins/geodns/server.go:182)</td>
 </tr>
-<tr><td><a href="#rfc7871-7.5-1"><code>RFC7871-7.5-1</code></a> Any Intermediate Nameserver that forwards ECS options received from its clients MUST fully implement the caching behavior of §7.3. (§7.5)</td>
+<tr><td><a href="#rfc7871-7.5-1"><code>RFC7871-7.5-1</code></a> Any Intermediate Nameserver that forwards ECS options received from its clients MUST fully implement the caching behavior described in Section 7.3. (§7.5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze forwards no client ECS option and keeps no section 7.3 network-scoped cache; it consumes the ADDRESS locally (internal/core/dnsserver/client.go:21) and the cache is keyed by name+qtype (internal/component/resolve/dns/cache.go:16)</td>
 </tr>
@@ -1236,7 +1236,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: geodns emits no RRSIG or DNSSEC records and no SCOPE-scoped Tailored Response; it synthesizes only unsigned A/AAAA/SRV/SOA/NS answers (internal/plugins/geodns/server.go:106)</td>
 </tr>
-<tr><td><a href="#rfc7871-11.1-2"><code>RFC7871-11.1-2</code></a> Recursive Resolvers forwarding the ECS option MUST NOT modify it to include the network address of the client. (§11.1)</td>
+<tr><td><a href="#rfc7871-11.1-2"><code>RFC7871-11.1-2</code></a> As described in previous sections, this option will be forwarded across all the Recursive Resolvers supporting ECS, which MUST NOT modify it to include the network address of the client. (§11.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze forwards no ECS option, so it modifies none in flight; it reads the incoming ADDRESS only for local selection (internal/core/dnsserver/client.go:21)</td>
 </tr>
@@ -1244,19 +1244,19 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is no Intermediate Nameserver validating an ECS response; it issues no ECS query whose response fields it would verify (internal/component/resolve/dns/resolver.go:261)</td>
 </tr>
-<tr><td><a href="#rfc7871-11.3-4"><code>RFC7871-11.3-4</code></a> Recursive Resolvers MUST NOT send an ECS option whose SOURCE PREFIX-LENGTH provides more bits of ADDRESS than they are willing to cache responses for. (§11.3)</td>
+<tr><td><a href="#rfc7871-11.3-4"><code>RFC7871-11.3-4</code></a> o Recursive Resolvers MUST NOT send an ECS option with SOURCE PREFIX-LENGTH providing more bits in ADDRESS than they are willing to cache responses for. (§11.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze sends no ECS-bearing query, so it caps no outgoing SOURCE PREFIX-LENGTH by cache willingness (internal/component/resolve/dns/resolver.go:261)</td>
 </tr>
-<tr><td><a href="#rfc7871-12.1-3"><code>RFC7871-12.1-3</code></a> Probing, if implemented, MUST be repeated periodically (e.g., daily). (§12.1)</td>
+<tr><td><a href="#rfc7871-12.1-3"><code>RFC7871-12.1-3</code></a> Probing, if implemented, MUST be repeated periodically, e.g., daily. (§12.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze implements no ECS support-probing of authoritative servers, so no periodic-probe obligation arises; it consumes ECS only on the serving side (internal/core/dnsserver/client.go:21)</td>
 </tr>
-<tr><td><a href="#rfc7871-12.1-4"><code>RFC7871-12.1-4</code></a> An Authoritative Nameserver that uses ECS information for one of its zones MUST indicate support for the option in all of its responses to ECS queries. (§12.1)</td>
+<tr><td><a href="#rfc7871-12.1-4"><code>RFC7871-12.1-4</code></a> Likewise, an Authoritative Nameserver that uses ECS information for one of its zones MUST indicate support for the option in all of its responses to ECS queries. (§12.1)</td>
 <td>{gap}, no test</td>
 <td>geodns uses ECS information for its zones (internal/core/dnsserver/client.go:21) but indicates support in none of its responses, emitting no ECS option (internal/plugins/geodns/server.go:168)</td>
 </tr>
-<tr><td><a href="#rfc7871-12.1-5"><code>RFC7871-12.1-5</code></a> If the option is supported but not actually used to generate a response, its SCOPE PREFIX-LENGTH MUST be set to 0. (§12.1)</td>
+<tr><td><a href="#rfc7871-12.1-5"><code>RFC7871-12.1-5</code></a> If the option is supported but not actually used for generating a response, its SCOPE PREFIX- LENGTH MUST be set to 0. (§12.1)</td>
 <td>{gap}, no test</td>
 <td>geodns emits no ECS option in its response (internal/plugins/geodns/server.go:168), so it sets no SCOPE PREFIX-LENGTH to 0 to mark the option supported but unused</td>
 </tr>
@@ -1271,15 +1271,15 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-6-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-6-2"><code>RFC7871-6-2</code></a></h3>
-<p>ADDRESS MUST be truncated to the number of bits given by SOURCE PREFIX-LENGTH, padding with 0 bits to the end of the last octet needed. (§6)</p>
+<p>o ADDRESS, variable number of octets, contains either an IPv4 or IPv6 address, depending on FAMILY, which MUST be truncated to the number of bits indicated by the SOURCE PREFIX-LENGTH field, padding with 0 bits to pad to the end of the last octet needed. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-6-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.1.1-2"><code>RFC7871-7.1.1-2</code></a></h3>
-<p>If the triggering client query included an ECS option, it MUST be examined for its SOURCE PREFIX-LENGTH. (§7.1.1)</p>
+<p>If the triggering query included an ECS option itself, it MUST be examined for its SOURCE PREFIX-LENGTH. (§7.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.1.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.1.1-3"><code>RFC7871-7.1.1-3</code></a></h3>
-<p>The Recursive Resolver&#39;s outgoing query MUST set SOURCE PREFIX-LENGTH to the shorter of the incoming query&#39;s SOURCE PREFIX-LENGTH or the server&#39;s maximum cacheable prefix length. (§7.1.1)</p>
+<p>The Recursive Resolver&#39;s outgoing query MUST then set SOURCE PREFIX-LENGTH to the shorter of the incoming query&#39;s SOURCE PREFIX-LENGTH or the server&#39;s maximum cacheable prefix length. (§7.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.1.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.1.1-4"><code>RFC7871-7.1.1-4</code></a></h3>
@@ -1287,11 +1287,11 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.1.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.1.1-7"><code>RFC7871-7.1.1-7</code></a></h3>
-<p>Subsequent queries to refresh the data MUST, if unrestricted by an incoming SOURCE PREFIX-LENGTH, specify the longest SOURCE PREFIX-LENGTH the Recursive Resolver is willing to cache, even if a previous response indicated a shorter prefix sufficed. (§7.1.1)</p>
+<p>Subsequent queries to refresh the data MUST, if unrestricted by an incoming SOURCE PREFIX-LENGTH, specify the longest SOURCE PREFIX- LENGTH that the Recursive Resolver is willing to cache, even if a previous response indicated that a shorter prefix length was sufficient. (§7.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.1.1-7, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.1.2-2"><code>RFC7871-7.1.2-2</code></a></h3>
-<p>An Intermediate Nameserver receiving a query that limits SOURCE PREFIX-LENGTH MUST NOT make queries that include more bits of client address than the originating query. (§7.1.2)</p>
+<p>An Intermediate Nameserver that receives such a query MUST NOT make queries that include more bits of client address than in the originating query. (§7.1.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.1.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.1.2-3"><code>RFC7871-7.1.2-3</code></a></h3>
@@ -1303,19 +1303,19 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.1.2-5, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.1.3-1"><code>RFC7871-7.1.3-1</code></a></h3>
-<p>A Forwarding Resolver using this option MUST prepare it as described for Recursive Resolvers in §7.1.1. (§7.1.3)</p>
+<p>A Forwarding Resolver using this option MUST prepare it as described in Section 7.1.1, &#34;Recursive Resolvers&#34;. (§7.1.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.1.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.1.3-2"><code>RFC7871-7.1.3-2</code></a></h3>
-<p>A Forwarding Resolver that implements this protocol MUST honor the SOURCE PREFIX-LENGTH restrictions indicated in the incoming query from its client. (§7.1.3)</p>
+<p>In particular, a Forwarding Resolver that implements this protocol MUST honor SOURCE PREFIX- LENGTH restrictions indicated in the incoming query from its client. (§7.1.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.1.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.1.3-3"><code>RFC7871-7.1.3-3</code></a></h3>
-<p>If a Forwarding Resolver receives a REFUSED response to a query that includes a non-zero ADDRESS, it MUST retry with no ADDRESS. (§7.1.3)</p>
+<p>If the Forwarding Resolver receives a REFUSED response when it sends a query that includes a non-zero ADDRESS, it MUST retry with no ADDRESS. (§7.1.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.1.3-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.2.1-2"><code>RFC7871-7.2.1-2</code></a></h3>
-<p>A server that has not implemented or enabled ECS MUST NOT include an ECS option in replies to indicate lack of support. (§7.2.1)</p>
+<p>Such a server MUST NOT include an ECS option within replies to indicate lack of support for it. (§7.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.2.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.2.1-3"><code>RFC7871-7.2.1-3</code></a></h3>
@@ -1331,7 +1331,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.2.1-5, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.2.1-7"><code>RFC7871-7.2.1-7</code></a></h3>
-<p>If an ECS option was not included in the query, one MUST NOT be included in the response, even when the server provides a Tailored Response. (§7.2.1)</p>
+<p>(Note that the requirement in [RFC6891] to reserve space for the OPT record could mean that the Answer section of the response will be truncated and fall back to TCP indicated accordingly.) If an ECS option was not included in a query, one MUST NOT be included in the response even if the server is providing a Tailored Response -- presumably based on the address from which it received the query. (§7.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1350,11 +1350,11 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.2.1-8, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.2.1-12"><code>RFC7871-7.2.1-12</code></a></h3>
-<p>An Authoritative Nameserver MUST NOT overlap prefixes among its Tailored Responses. (§7.2.1)</p>
+<p>Because it can&#39;t be guaranteed that queries for all longer prefix lengths would arrive before one that would be answered by the shorter prefix length, an Authoritative Nameserver MUST NOT overlap prefixes. (§7.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.2.1-12, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.2.2-1"><code>RFC7871-7.2.2-1</code></a></h3>
-<p>If the client query did not include an ECS option, the server MUST NOT provide one in its response. (§7.2.2)</p>
+<p>Because a client that did not use an ECS option might not be able to understand it, the server MUST NOT provide one in its response. (§7.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1369,15 +1369,15 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 </table>
 </div>
 <h3><a href="#rfc7871-7.2.2-2"><code>RFC7871-7.2.2-2</code></a></h3>
-<p>If the client query did include the option, the server MUST include one in its response. (§7.2.2)</p>
+<p>If the client query did include the option, the server MUST include one in its response, especially as it could be talking to a Forwarding Resolver, which would need the information for its own caching. (§7.2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.2.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.3-3"><code>RFC7871-7.3-3</code></a></h3>
-<p>If FAMILY, SOURCE PREFIX-LENGTH, and the SOURCE PREFIX-LENGTH bits of ADDRESS in the response do not match the non-zero fields in the corresponding query, the full response MUST be dropped. (§7.3)</p>
+<p>If FAMILY, SOURCE PREFIX-LENGTH, and SOURCE PREFIX-LENGTH bits of ADDRESS in the response don&#39;t match the non-zero fields in the corresponding query, the full response MUST be dropped, as described in Section 11. (§7.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.3-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.3-4"><code>RFC7871-7.3-4</code></a></h3>
-<p>In a response to a query that specified only SOURCE PREFIX-LENGTH for privacy masking, the FAMILY and ADDRESS fields MUST contain the appropriate non-zero information the Authoritative Nameserver used to generate the answer. (§7.3)</p>
+<p>In a response to a query that specified only SOURCE PREFIX-LENGTH for privacy masking, the FAMILY and ADDRESS fields MUST contain the appropriate non-zero information that the Authoritative Nameserver used to generate the answer, so that it can be cached accordingly. (§7.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.3-4, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.3-6"><code>RFC7871-7.3-6</code></a></h3>
@@ -1389,15 +1389,15 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.3.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.3.1-3"><code>RFC7871-7.3.1-3</code></a></h3>
-<p>Records from the Additional and Authority sections MUST NOT be tied to a network. (§7.3.1)</p>
+<p>Any records from these sections MUST NOT be tied to a network. (§7.3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.3.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.3.1-4"><code>RFC7871-7.3.1-4</code></a></h3>
-<p>Records cached as /0 because of a query&#39;s SOURCE PREFIX-LENGTH of 0 MUST be distinguished from those cached as /0 because of a response&#39;s SCOPE PREFIX-LENGTH of 0. (§7.3.1)</p>
+<p>Records that are cached as /0 because of a query&#39;s SOURCE PREFIX- LENGTH of 0 MUST be distinguished from those that are cached as /0 because of a response&#39;s SCOPE PREFIX-LENGTH of 0. (§7.3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.3.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.3.2-1"><code>RFC7871-7.3.2-1</code></a></h3>
-<p>The appropriate RRset MUST be chosen based on longest-prefix matching. (§7.3.2)</p>
+<p>Then, the appropriate RRset MUST be chosen based on the longest prefix matching. (§7.3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.3.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.3.2-4"><code>RFC7871-7.3.2-4</code></a></h3>
@@ -1405,11 +1405,11 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.3.2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.5-1"><code>RFC7871-7.5-1</code></a></h3>
-<p>Any Intermediate Nameserver that forwards ECS options received from its clients MUST fully implement the caching behavior of §7.3. (§7.5)</p>
+<p>Any Intermediate Nameserver that forwards ECS options received from its clients MUST fully implement the caching behavior described in Section 7.3. (§7.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-7.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-7.5-6"><code>RFC7871-7.5-6</code></a></h3>
-<p>A query MUST NOT be refused solely because it provides 0 address bits. (§7.5)</p>
+<p>Note again that a query MUST NOT be refused solely because it provides 0 address bits. (§7.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1428,7 +1428,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-9-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-11.1-2"><code>RFC7871-11.1-2</code></a></h3>
-<p>Recursive Resolvers forwarding the ECS option MUST NOT modify it to include the network address of the client. (§11.1)</p>
+<p>As described in previous sections, this option will be forwarded across all the Recursive Resolvers supporting ECS, which MUST NOT modify it to include the network address of the client. (§11.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-11.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-11.2-1"><code>RFC7871-11.2-1</code></a></h3>
@@ -1436,19 +1436,19 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-11.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-11.3-4"><code>RFC7871-11.3-4</code></a></h3>
-<p>Recursive Resolvers MUST NOT send an ECS option whose SOURCE PREFIX-LENGTH provides more bits of ADDRESS than they are willing to cache responses for. (§11.3)</p>
+<p>o Recursive Resolvers MUST NOT send an ECS option with SOURCE PREFIX-LENGTH providing more bits in ADDRESS than they are willing to cache responses for. (§11.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-11.3-4, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-12.1-3"><code>RFC7871-12.1-3</code></a></h3>
-<p>Probing, if implemented, MUST be repeated periodically (e.g., daily). (§12.1)</p>
+<p>Probing, if implemented, MUST be repeated periodically, e.g., daily. (§12.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-12.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-12.1-4"><code>RFC7871-12.1-4</code></a></h3>
-<p>An Authoritative Nameserver that uses ECS information for one of its zones MUST indicate support for the option in all of its responses to ECS queries. (§12.1)</p>
+<p>Likewise, an Authoritative Nameserver that uses ECS information for one of its zones MUST indicate support for the option in all of its responses to ECS queries. (§12.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-12.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc7871-12.1-5"><code>RFC7871-12.1-5</code></a></h3>
-<p>If the option is supported but not actually used to generate a response, its SCOPE PREFIX-LENGTH MUST be set to 0. (§12.1)</p>
+<p>If the option is supported but not actually used for generating a response, its SCOPE PREFIX- LENGTH MUST be set to 0. (§12.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7871-12.1-5, so no unit is bound to it.</p>
 </section>
@@ -1758,7 +1758,7 @@ Six MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

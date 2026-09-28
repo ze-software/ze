@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4090 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 34 gated MUST-level requirements, 0 declared gaps, 25 with no test." />
+        <meta name="description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 34 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 4090 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 34 gated MUST-level requirements, 0 declared gaps, 25 with no test." />
+        <meta property="og:description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 34 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4090 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 34 gated MUST-level requirements, 0 declared gaps, 25 with no test." />
+        <meta name="twitter:description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 34 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,10 +116,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>26.5%</strong><b>9 of 34 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>97.1%</strong><b>33 of 34 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 34 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 34 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 26 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>56.6%</strong><b>43 of 76 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>73.5%</strong><b>25 of 34 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>2.9%</strong><b>1 of 34 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 34 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -212,25 +212,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>25</td>
+<td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>26</td>
+<td>76</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>26</td>
+<td>76</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>43</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4090.md</code></td>
@@ -253,7 +253,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>What the ledger says is covered:</strong></p>
 Facility backup behavior. A PATH carrying a DETOUR object is rejected with a PathErr, as Section 4.2 requires of an LSR without one-to-one backup.
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-One-to-one detour backup was explicitly split to later work; Section 6 permits it (&#34;A PLR MAY support the DETOUR object&#34;). The head-end MUSTs of Section 5 (<a href="#rfc4090-5-1"><code>RFC4090-5-1</code></a> to 5-4), the RRO flag MUSTs of Sections 4.4 and 6 (<a href="#rfc4090-4.4-5"><code>RFC4090-4.4-5</code></a> to 4.4-7, <a href="#rfc4090-6-1"><code>RFC4090-6-1</code></a> to 6-7), the PLR backup-signaling MUSTs of Sections 6.1 to 6.4 (<a href="#rfc4090-6.1-1"><code>RFC4090-6.1-1</code></a>, 6.2-1, 6.3-1, 6.4-1 to 6.4-3) and the merge-node MUSTs of Section 7 (<a href="#rfc4090-7.1-1"><code>RFC4090-7.1-1</code></a>, 7.1-2, 7.2-1, 7.2-2) are listed and carry no tagged test.
+PLRs now signal and refresh the protected PATH through the bypass, and an MP merges it into matching protected state (Sections 6.4.3, 6.4.4, 7.1.1). A head-end PLR uses a distinct assigned local sender address and a two-label ingress push (Section 6.1.1). Runtime and discrimination evidence must be regenerated for these producers. One-to-one detours remain absent; Section 6 states &#34;A PLR MAY support the DETOUR object&#34;. A bandwidth-guaranteed bypass is also absent (<a href="https://github.com/ze-software/ze/blob/main/plan/spec-rsvpte-bypass-bandwidth-protection.md" target="_blank" rel="noopener"><code>plan/spec-rsvpte-bypass-bandwidth-protection.md</code></a>). Those optional feature records require a scope decision and do not authorize implementation.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -262,11 +262,11 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>9</strong></td>
+<td><strong>33</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>0</strong></td>
+<td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -274,7 +274,7 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>25</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -289,8 +289,8 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (9):</strong> <a href="#rfc4090-4.1-1"><code>RFC4090-4.1-1</code></a>, <a href="#rfc4090-4.3-1"><code>RFC4090-4.3-1</code></a>, <a href="#rfc4090-4.4-1"><code>RFC4090-4.4-1</code></a>, <a href="#rfc4090-4.4-2"><code>RFC4090-4.4-2</code></a>, <a href="#rfc4090-4.4-3"><code>RFC4090-4.4-3</code></a>, <a href="#rfc4090-6.5-2"><code>RFC4090-6.5-2</code></a>, <a href="#rfc4090-3.2-1"><code>RFC4090-3.2-1</code></a>, <a href="#rfc4090-3.2-2"><code>RFC4090-3.2-2</code></a>, <a href="#rfc4090-4.2-1"><code>RFC4090-4.2-1</code></a></p>
-<p class="rfc-id-list"><strong>No test and no annotation (25):</strong> <a href="#rfc4090-4.1-3"><code>RFC4090-4.1-3</code></a>, <a href="#rfc4090-4.4-5"><code>RFC4090-4.4-5</code></a>, <a href="#rfc4090-4.4-6"><code>RFC4090-4.4-6</code></a>, <a href="#rfc4090-4.4-7"><code>RFC4090-4.4-7</code></a>, <a href="#rfc4090-5-1"><code>RFC4090-5-1</code></a>, <a href="#rfc4090-5-2"><code>RFC4090-5-2</code></a>, <a href="#rfc4090-5-3"><code>RFC4090-5-3</code></a>, <a href="#rfc4090-5-4"><code>RFC4090-5-4</code></a>, <a href="#rfc4090-6-1"><code>RFC4090-6-1</code></a>, <a href="#rfc4090-6-2"><code>RFC4090-6-2</code></a>, <a href="#rfc4090-6-3"><code>RFC4090-6-3</code></a>, <a href="#rfc4090-6-4"><code>RFC4090-6-4</code></a>, <a href="#rfc4090-6-5"><code>RFC4090-6-5</code></a>, <a href="#rfc4090-6-6"><code>RFC4090-6-6</code></a>, <a href="#rfc4090-6-7"><code>RFC4090-6-7</code></a>, <a href="#rfc4090-6.1-1"><code>RFC4090-6.1-1</code></a>, <a href="#rfc4090-6.2-1"><code>RFC4090-6.2-1</code></a>, <a href="#rfc4090-6.3-1"><code>RFC4090-6.3-1</code></a>, <a href="#rfc4090-6.4-1"><code>RFC4090-6.4-1</code></a>, <a href="#rfc4090-6.4-2"><code>RFC4090-6.4-2</code></a>, <a href="#rfc4090-6.4-3"><code>RFC4090-6.4-3</code></a>, <a href="#rfc4090-7.1-1"><code>RFC4090-7.1-1</code></a>, <a href="#rfc4090-7.1-2"><code>RFC4090-7.1-2</code></a>, <a href="#rfc4090-7.2-1"><code>RFC4090-7.2-1</code></a>, <a href="#rfc4090-7.2-2"><code>RFC4090-7.2-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (33):</strong> <a href="#rfc4090-4.1-1"><code>RFC4090-4.1-1</code></a>, <a href="#rfc4090-4.3-1"><code>RFC4090-4.3-1</code></a>, <a href="#rfc4090-4.4-1"><code>RFC4090-4.4-1</code></a>, <a href="#rfc4090-4.4-2"><code>RFC4090-4.4-2</code></a>, <a href="#rfc4090-4.4-3"><code>RFC4090-4.4-3</code></a>, <a href="#rfc4090-6.5-2"><code>RFC4090-6.5-2</code></a>, <a href="#rfc4090-3.2-1"><code>RFC4090-3.2-1</code></a>, <a href="#rfc4090-3.2-2"><code>RFC4090-3.2-2</code></a>, <a href="#rfc4090-4.2-1"><code>RFC4090-4.2-1</code></a>, <a href="#rfc4090-4.1-3"><code>RFC4090-4.1-3</code></a>, <a href="#rfc4090-4.4-6"><code>RFC4090-4.4-6</code></a>, <a href="#rfc4090-4.4-7"><code>RFC4090-4.4-7</code></a>, <a href="#rfc4090-5-1"><code>RFC4090-5-1</code></a>, <a href="#rfc4090-5-2"><code>RFC4090-5-2</code></a>, <a href="#rfc4090-5-3"><code>RFC4090-5-3</code></a>, <a href="#rfc4090-5-4"><code>RFC4090-5-4</code></a>, <a href="#rfc4090-6-1"><code>RFC4090-6-1</code></a>, <a href="#rfc4090-6-2"><code>RFC4090-6-2</code></a>, <a href="#rfc4090-6-3"><code>RFC4090-6-3</code></a>, <a href="#rfc4090-6-4"><code>RFC4090-6-4</code></a>, <a href="#rfc4090-6-5"><code>RFC4090-6-5</code></a>, <a href="#rfc4090-6-6"><code>RFC4090-6-6</code></a>, <a href="#rfc4090-6-7"><code>RFC4090-6-7</code></a>, <a href="#rfc4090-6.1-1"><code>RFC4090-6.1-1</code></a>, <a href="#rfc4090-6.2-1"><code>RFC4090-6.2-1</code></a>, <a href="#rfc4090-6.3-1"><code>RFC4090-6.3-1</code></a>, <a href="#rfc4090-6.4-1"><code>RFC4090-6.4-1</code></a>, <a href="#rfc4090-6.4-2"><code>RFC4090-6.4-2</code></a>, <a href="#rfc4090-6.4-3"><code>RFC4090-6.4-3</code></a>, <a href="#rfc4090-7.1-1"><code>RFC4090-7.1-1</code></a>, <a href="#rfc4090-7.1-2"><code>RFC4090-7.1-2</code></a>, <a href="#rfc4090-7.2-1"><code>RFC4090-7.2-1</code></a>, <a href="#rfc4090-7.2-2"><code>RFC4090-7.2-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc4090-4.4-5"><code>RFC4090-4.4-5</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -311,8 +311,8 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST</td>
 <td>4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L166" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathIncludesFastReroute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L181" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathNoProtection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L168" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathIncludesFastReroute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L183" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathNoProtection</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.3-2">RFC4090-4.3-2</code></td><td colspan="3"><span class="rfc-subject">&#34;If node protection is desired, the head-end LSR should set the &#39;node protection desired&#39; flag in the SESSION_ATTRIBUTE object; otherwise, this flag should be cleared&#34; (0x10) (S4.3, S5)</span></td></tr>
@@ -320,7 +320,7 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>SHOULD</td>
 <td>4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L168" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathIncludesFastReroute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L170" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathIncludesFastReroute</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L63" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestSessionAttributeProtectionFlags</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L91" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestSessionAttributeEmptyName</code></a></span></div>
 </div></td>
@@ -330,8 +330,8 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>SHOULD</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L161" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathIncludesFastReroute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L833" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestFastRerouteOneToOneMethodFlag</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L163" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathIncludesFastReroute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L852" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestFastRerouteOneToOneMethodFlag</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-1">RFC4090-4.4-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Whenever the PLR has a backup path available, the PLR MUST set the &#39;local protection available&#39; flag&#34; (0x01) (S4.4, S6)</span></td></tr>
@@ -339,8 +339,8 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST</td>
 <td>4.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L323" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestPLRArmsBypass</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L341" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestPLRNoBypassWithoutProtection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L333" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestPLRArmsBypass</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L351" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestPLRNoBypassWithoutProtection</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-2">RFC4090-4.4-2</code></td><td colspan="3"><span class="rfc-subject">During fast reroute &#34;the PLR MUST update the IPv4 or IPv6 sub-object it inserted into the RRO by setting the &#39;Local protection in use&#39; and &#39;Local Protection Available&#39; flags&#34; (S4.4, S6.5)</span></td></tr>
@@ -348,8 +348,8 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST</td>
 <td>4.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L857" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L849" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L876" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L868" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-3">RFC4090-4.4-3</code></td><td colspan="3"><span class="rfc-subject">&#34;the PLR MUST set this flag when the node protection is provided and the &#39;node protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (node protection, 0x08) (S4.4)</span></td></tr>
@@ -357,8 +357,8 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST</td>
 <td>4.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L862" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L851" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L881" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L870" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.5-1">RFC4090-6.5-1</code></td><td colspan="3"><span class="rfc-subject">&#34;the PLR SHOULD send a Path Error message with error code of &#39;Notify&#39; (Error code = 25) and an error value field of ss00 cccc cccc cccc, where ss=00 and the sub-code = 3 (&#39;Tunnel locally repaired&#39;)&#34; (S6.5, S6.5.1)</span></td></tr>
@@ -366,8 +366,8 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>SHOULD</td>
 <td>6.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L447" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairSendsNotify</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L469" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairFallsBackToTeardown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L457" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairSendsNotify</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L479" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairFallsBackToTeardown</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.5-2">RFC4090-6.5-2</code></td><td colspan="3"><span class="rfc-subject">On local repair the PLR MUST NOT tear down the protected LSP (S6.5)</span></td></tr>
@@ -375,8 +375,8 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST</td>
 <td>6.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L421" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairSwitchesFIB</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L465" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairFallsBackToTeardown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L431" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairSwitchesFIB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L475" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairFallsBackToTeardown</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-3.2-1">RFC4090-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Facility backup pushes the bypass label on top of the protected LSP label (label stacking) (S3.2)</span></td></tr>
@@ -384,8 +384,8 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-3.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L417" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairSwitchesFIB</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L462" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairFallsBackToTeardown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L427" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairSwitchesFIB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L472" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairFallsBackToTeardown</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-3.2-2">RFC4090-3.2-2</code></td><td colspan="3"><span class="rfc-subject">The merge point is the NHOP for link protection and the NNHOP for node protection (S3.2)</span></td></tr>
@@ -393,9 +393,9 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-3.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L750" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestNodeProtectionLocalRepair</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L307" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestPLRArmsBypass</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L791" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestNodeProtectionNeedsNodeBypass</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L769" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestNodeProtectionLocalRepair</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L312" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestPLRArmsBypass</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L810" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestNodeProtectionNeedsNodeBypass</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.2-1">RFC4090-4.2-1</code></td><td colspan="3"><span class="rfc-subject">An LSR that does not support the DETOUR object MUST reject any Path message containing a DETOUR object and send a PathErr to notify the PLR, generated as [RSVP] specifies for unknown objects with a Class-Num of the form &#34;0bbbbbbb&#34; (S4.2)</span></td></tr>
@@ -403,8 +403,8 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L885" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithDetourRejected</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L904" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithDetourRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L904" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithDetourRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L923" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithDetourRejected</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.5-3">RFC4090-6.5-3</code></td><td colspan="3"><span class="rfc-subject">Global revertive mode: &#34;The head-end LSR of each tunnel is responsible for reoptimizing the TE LSPs that used the failed resource&#34; after a Notify (S6.5, S6.5.2)</span></td></tr>
@@ -430,8 +430,8 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L81" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090TransitRelaysFastRerouteUnchanged</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L105" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090TransitInsertsNoFastReroute</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-5">RFC4090-4.4-5</code></td><td colspan="3"><span class="rfc-subject">&#34;the PLR MUST set this flag when the desired bandwidth is guaranteed and the &#39;bandwidth protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (bandwidth protection, 0x04) (S4.4)</span></td></tr>
@@ -441,15 +441,15 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.4-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a bypass reserves no bandwidth, so the flag has no positive input; plan/spec-rsvpte-bypass-bandwidth-protection.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-6">RFC4090-4.4-6</code></td><td colspan="3"><span class="rfc-subject">&#34;If the requested bandwidth is not guaranteed, the PLR MUST NOT set this flag&#34; (bandwidth protection, 0x04) (S4.4)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.4-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L214" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090BandwidthBitNeverClaimed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L213" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090BandwidthBitNeverClaimed</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-7">RFC4090-4.4-7</code></td><td colspan="3"><span class="rfc-subject">&#34;If node protection is not provided, the PLR MUST NOT set this flag&#34; (node protection, 0x08) (S4.4)</span></td></tr>
@@ -457,71 +457,72 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST NOT</td>
 <td>4.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.4-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L284" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090NodeBitSetWhenNodeProtected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L301" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090NodeBitClearWithoutNodeBypass</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-5-1">RFC4090-5-1</code></td><td colspan="3"><span class="rfc-subject">&#34;If a head-end LSR signals a FAST_REROUTE object, it MUST be stored for Path refreshes&#34; (S5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-5-1">RFC4090-5-1</code></td><td colspan="3"><span class="rfc-subject">If a head-end LSR signals a FAST_REROUTE object, it MUST be stored for Path refreshes. (S5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L388" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndStoresFastRerouteForRefresh</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L409" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndRefreshWithoutProtection</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-5-2">RFC4090-5-2</code></td><td colspan="3"><span class="rfc-subject">&#34;The head-end LSR of a protected LSP MUST set the &#39;label recording desired&#39; flag in the SESSION_ATTRIBUTE object&#34; (S5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-5-2">RFC4090-5-2</code></td><td colspan="3"><span class="rfc-subject">The head-end LSR of a protected LSP MUST set the &#34;label recording desired&#34; flag in the SESSION_ATTRIBUTE object. (S5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L423" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndSetsLabelRecordingDesired</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L434" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090UnprotectedPathRequestsNoLabelRecording</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-5-3">RFC4090-5-3</code></td><td colspan="3"><span class="rfc-subject">&#34;The head-end LSR of a protected LSP MUST support the additional flags defined in Section 4.4 being set or clear in the RRO IPv4 and IPv6 sub-objects&#34; (S5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-5-3">RFC4090-5-3</code></td><td colspan="3"><span class="rfc-subject">The head-end LSR of a protected LSP MUST support the additional flags defined in Section 4.4 being set or clear in the RRO IPv4 and IPv6 sub-objects. (S5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-5-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L490" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndAcceptsRROProtectionFlags</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L491" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndAcceptsRROProtectionFlags</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-5-4">RFC4090-5-4</code></td><td colspan="3"><span class="rfc-subject">&#34;The head-end LSR of a protected LSP MUST support the RRO Label sub-object&#34; (S5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-5-4">RFC4090-5-4</code></td><td colspan="3"><span class="rfc-subject">The head-end LSR of a protected LSP MUST support the RRO Label sub-object. (S5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-5-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L506" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndAcceptsRROLabelSubobject</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L507" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndAcceptsRROLabelSubobject</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-1">RFC4090-6-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Every LSR along a protected LSP (except the egress) MUST follow the PLR behavior described in this document&#34; (S6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-1">RFC4090-6-1</code></td><td colspan="3"><span class="rfc-subject">Every LSR along a protected LSP (except the egress) MUST follow the PLR behavior described in this document. (S6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L134" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090FastRerouteAloneRequestsProtection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L176" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090EgressDoesNotActAsPLR</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-2">RFC4090-6-2</code></td><td colspan="3"><span class="rfc-subject">&#34;A PLR MUST consider an LSP to have asked for local protection if the &#39;local protection desired&#39; flag is set in the SESSION_ATTRIBUTE object and/or the FAST_REROUTE object is included&#34; (S6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-2">RFC4090-6-2</code></td><td colspan="3"><span class="rfc-subject">A PLR MUST consider an LSP to have asked for local protection if the &#34;local protection desired&#34; flag is set in the SESSION_ATTRIBUTE object and/or the FAST_REROUTE object is included. (S6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L133" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090FastRerouteAloneRequestsProtection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L106" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090TransitInsertsNoFastReroute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L154" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090NoProtectionRequestArmsNothing</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-3">RFC4090-6-3</code></td><td colspan="3"><span class="rfc-subject">&#34;Until a PLR has a backup path available, the PLR MUST clear the relevant four flags in the corresponding RRO IPv4 or IPv6 sub-object&#34; (S6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-3">RFC4090-6-3</code></td><td colspan="3"><span class="rfc-subject">- Until a PLR has a backup path available, the PLR MUST clear the relevant four flags in the corresponding RRO IPv4 or IPv6 sub- object. (S6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L55" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090FlagsSetOnceBypassEstablished</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L47" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090FlagsClearUntilBypassEstablished</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-4">RFC4090-6-4</code></td><td colspan="3"><span class="rfc-subject">&#34;If no established one-to-one backup LSP or bypass tunnel exists, or if the one-to-one LSP and the bypass tunnel is in &#39;DOWN&#39; state, the PLR MUST clear the &#39;local protection available&#39; flag in its IPv4 (or IPv6) address sub-object of the RRO&#34; (S6)</span></td></tr>
@@ -529,17 +530,18 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L56" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090FlagsSetOnceBypassEstablished</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L48" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090FlagsClearUntilBypassEstablished</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L64" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090RefreshTracksBypassState</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-5">RFC4090-6-5</code></td><td colspan="3"><span class="rfc-subject">&#34;The PLR MUST clear the &#39;local protection in use&#39; flag unless it is actively redirecting traffic into the backup path instead of along the protected LSP&#34; (S6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-5">RFC4090-6-5</code></td><td colspan="3"><span class="rfc-subject">- The PLR MUST clear the &#34;local protection in use&#34; flag unless it is actively redirecting traffic into the backup path instead of along the protected LSP. (S6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L318" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090InUseOnlyWhileRedirecting</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L319" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090InUseOnlyWhileRedirecting</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-6">RFC4090-6-6</code></td><td colspan="3"><span class="rfc-subject">Setting or clearing the &#34;node protection&#34; flag to match the backup path &#34;MUST be done if the &#39;node protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (S6)</span></td></tr>
@@ -547,8 +549,8 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L285" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090NodeBitSetWhenNodeProtected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L302" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090NodeBitClearWithoutNodeBypass</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-7">RFC4090-6-7</code></td><td colspan="3"><span class="rfc-subject">Setting or clearing the &#34;bandwidth protection&#34; flag to match the backup path &#34;MUST be done if the &#39;bandwidth protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (S6)</span></td></tr>
@@ -556,17 +558,17 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L215" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090BandwidthBitNeverClaimed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L235" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090BandwidthDesiredWithoutBackup</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.1-1">RFC4090-6.1-1</code></td><td colspan="3"><span class="rfc-subject">&#34;If the head-end of a tunnel is also acting as the PLR, it MUST choose an IP address different from the one used in the SENDER_TEMPLATE of the original LSP tunnel&#34; (S6.1, S6.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.1-1">RFC4090-6.1-1</code></td><td colspan="3"><span class="rfc-subject">If the head-end of a tunnel is also acting as the PLR, it MUST choose an IP address different from the one used in the SENDER_TEMPLATE of the original LSP tunnel. (S6.1, S6.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L348" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndUsesDistinctSender</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L387" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndRequiresAlternateSender</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.2-1">RFC4090-6.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;For bypass tunnels (Section 7), the destination MUST be the address of the MP&#34; (S6.2)</span></td></tr>
@@ -574,17 +576,17 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST</td>
 <td>6.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L364" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090BypassDestinationIsMergePoint</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L365" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090BypassDestinationIsMergePoint</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.3-1">RFC4090-6.3-1</code></td><td colspan="3"><span class="rfc-subject">&#34;When the PLR detects a failure on the protected LSP, the PLR MUST rapidly switch packets to the protected LSP&#39;s backup LSP instead of to the protected LSP&#39;s normal out-segment&#34; (S6.3, S6.3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.3-1">RFC4090-6.3-1</code></td><td colspan="3"><span class="rfc-subject">When the PLR detects a failure on the protected LSP, the PLR MUST rapidly switch packets to the protected LSP&#39;s backup LSP instead of to the protected LSP&#39;s normal out-segment. (S6.3, S6.3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L342" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090FailureSwitchesToBackup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L343" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090FailureSwitchesToBackup</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.4-1">RFC4090-6.4-1</code></td><td colspan="3"><span class="rfc-subject">On the backup Path message &#34;the RSVP_HOP object MUST contain an IP source address belonging to the PLR&#34; (S6.4, S6.4.3)</span></td></tr>
@@ -592,8 +594,8 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST</td>
 <td>6.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L144" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090ProtectedPathSurvivesRepair</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L281" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090NoBackupPathBeforeRepair</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.4-2">RFC4090-6.4-2</code></td><td colspan="3"><span class="rfc-subject">On the backup Path message &#34;the PLR MUST generate an EXPLICIT_ROUTE object toward the egress&#34; (S6.4, S6.4.3)</span></td></tr>
@@ -601,8 +603,8 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST</td>
 <td>6.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L145" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090ProtectedPathSurvivesRepair</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L282" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090NoBackupPathBeforeRepair</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.4-3">RFC4090-6.4-3</code></td><td colspan="3"><span class="rfc-subject">Before sending a Path message via a bypass tunnel the PLR MUST &#34;remove all the sub-objects proceeding the first address belonging to the MP&#34; and &#34;replace this first MP address with an IP address of the MP&#34; (S6.4, S6.4.4)</span></td></tr>
@@ -610,44 +612,44 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>MUST</td>
 <td>6.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L146" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090ProtectedPathSurvivesRepair</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L283" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090NoBackupPathBeforeRepair</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-7.1-1">RFC4090-7.1-1</code></td><td colspan="3"><span class="rfc-subject">&#34;If merging occurs and one of the Path messages merged was for the protected LSP, then the final Path message to be sent MUST be that of the protected LSP&#34; (S7.1, S7.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-7.1-1">RFC4090-7.1-1</code></td><td colspan="3"><span class="rfc-subject">If merging occurs and one of the Path messages merged was for the protected LSP, then the final Path message to be sent MUST be that of the protected LSP. (S7.1, S7.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-7.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L147" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090ProtectedPathSurvivesRepair</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L298" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090DifferentPathsDoNotMerge</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-7.1-2">RFC4090-7.1-2</code></td><td colspan="3"><span class="rfc-subject">&#34;Once the final Path message has been identified, the MP MUST start to refresh it downstream periodically&#34; (S7.1, S7.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-7.1-2">RFC4090-7.1-2</code></td><td colspan="3"><span class="rfc-subject">Once the final Path message has been identified, the MP MUST start to refresh it downstream periodically. (S7.1, S7.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-7.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L148" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090ProtectedPathSurvivesRepair</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L299" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090DifferentPathsDoNotMerge</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-7.2-1">RFC4090-7.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;When a downstream LSR detects a local link failure, for any protected LSPs routed over the failed link, Path and Resv state MUST NOT be cleared, and PathTear and ResvErr messages MUST NOT be sent immediately&#34; (S7.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-7.2-1">RFC4090-7.2-1</code></td><td colspan="3"><span class="rfc-subject">When a downstream LSR detects a local link failure, for any protected LSPs routed over the failed link, Path and Resv state MUST NOT be cleared, and PathTear and ResvErr messages MUST NOT be sent immediately. (S7.2)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-7.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L553" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L554" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-7.2-2">RFC4090-7.2-2</code></td><td colspan="3"><span class="rfc-subject">&#34;State MUST be removed if it has not been refreshed before the refresh timer expires&#34; (S7.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-7.2-2">RFC4090-7.2-2</code></td><td colspan="3"><span class="rfc-subject">State MUST be removed if it has not been refreshed before the refresh timer expires. (S7.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-7.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L593" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090StateExpiresWithoutRefresh</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L594" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090StateExpiresWithoutRefresh</code></a></span></div>
 </div></td>
 </tr>
 </tbody>
@@ -659,105 +661,9 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc4090-4.1-3"><code>RFC4090-4.1-3</code></a> The FAST_REROUTE object &#34;MUST only be inserted into the PATH message by the head-end LER and MUST NOT be changed by downstream LSRs&#34; (S4.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
 <tr><td><a href="#rfc4090-4.4-5"><code>RFC4090-4.4-5</code></a> &#34;the PLR MUST set this flag when the desired bandwidth is guaranteed and the &#39;bandwidth protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (bandwidth protection, 0x04) (S4.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-4.4-6"><code>RFC4090-4.4-6</code></a> &#34;If the requested bandwidth is not guaranteed, the PLR MUST NOT set this flag&#34; (bandwidth protection, 0x04) (S4.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-4.4-7"><code>RFC4090-4.4-7</code></a> &#34;If node protection is not provided, the PLR MUST NOT set this flag&#34; (node protection, 0x08) (S4.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-5-1"><code>RFC4090-5-1</code></a> &#34;If a head-end LSR signals a FAST_REROUTE object, it MUST be stored for Path refreshes&#34; (S5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-5-2"><code>RFC4090-5-2</code></a> &#34;The head-end LSR of a protected LSP MUST set the &#39;label recording desired&#39; flag in the SESSION_ATTRIBUTE object&#34; (S5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-5-3"><code>RFC4090-5-3</code></a> &#34;The head-end LSR of a protected LSP MUST support the additional flags defined in Section 4.4 being set or clear in the RRO IPv4 and IPv6 sub-objects&#34; (S5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-5-4"><code>RFC4090-5-4</code></a> &#34;The head-end LSR of a protected LSP MUST support the RRO Label sub-object&#34; (S5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-6-1"><code>RFC4090-6-1</code></a> &#34;Every LSR along a protected LSP (except the egress) MUST follow the PLR behavior described in this document&#34; (S6)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-6-2"><code>RFC4090-6-2</code></a> &#34;A PLR MUST consider an LSP to have asked for local protection if the &#39;local protection desired&#39; flag is set in the SESSION_ATTRIBUTE object and/or the FAST_REROUTE object is included&#34; (S6)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-6-3"><code>RFC4090-6-3</code></a> &#34;Until a PLR has a backup path available, the PLR MUST clear the relevant four flags in the corresponding RRO IPv4 or IPv6 sub-object&#34; (S6)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-6-4"><code>RFC4090-6-4</code></a> &#34;If no established one-to-one backup LSP or bypass tunnel exists, or if the one-to-one LSP and the bypass tunnel is in &#39;DOWN&#39; state, the PLR MUST clear the &#39;local protection available&#39; flag in its IPv4 (or IPv6) address sub-object of the RRO&#34; (S6)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-6-5"><code>RFC4090-6-5</code></a> &#34;The PLR MUST clear the &#39;local protection in use&#39; flag unless it is actively redirecting traffic into the backup path instead of along the protected LSP&#34; (S6)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-6-6"><code>RFC4090-6-6</code></a> Setting or clearing the &#34;node protection&#34; flag to match the backup path &#34;MUST be done if the &#39;node protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (S6)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-6-7"><code>RFC4090-6-7</code></a> Setting or clearing the &#34;bandwidth protection&#34; flag to match the backup path &#34;MUST be done if the &#39;bandwidth protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (S6)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-6.1-1"><code>RFC4090-6.1-1</code></a> &#34;If the head-end of a tunnel is also acting as the PLR, it MUST choose an IP address different from the one used in the SENDER_TEMPLATE of the original LSP tunnel&#34; (S6.1, S6.1.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-6.2-1"><code>RFC4090-6.2-1</code></a> &#34;For bypass tunnels (Section 7), the destination MUST be the address of the MP&#34; (S6.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-6.3-1"><code>RFC4090-6.3-1</code></a> &#34;When the PLR detects a failure on the protected LSP, the PLR MUST rapidly switch packets to the protected LSP&#39;s backup LSP instead of to the protected LSP&#39;s normal out-segment&#34; (S6.3, S6.3.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-6.4-1"><code>RFC4090-6.4-1</code></a> On the backup Path message &#34;the RSVP_HOP object MUST contain an IP source address belonging to the PLR&#34; (S6.4, S6.4.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-6.4-2"><code>RFC4090-6.4-2</code></a> On the backup Path message &#34;the PLR MUST generate an EXPLICIT_ROUTE object toward the egress&#34; (S6.4, S6.4.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-6.4-3"><code>RFC4090-6.4-3</code></a> Before sending a Path message via a bypass tunnel the PLR MUST &#34;remove all the sub-objects proceeding the first address belonging to the MP&#34; and &#34;replace this first MP address with an IP address of the MP&#34; (S6.4, S6.4.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-7.1-1"><code>RFC4090-7.1-1</code></a> &#34;If merging occurs and one of the Path messages merged was for the protected LSP, then the final Path message to be sent MUST be that of the protected LSP&#34; (S7.1, S7.1.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-7.1-2"><code>RFC4090-7.1-2</code></a> &#34;Once the final Path message has been identified, the MP MUST start to refresh it downstream periodically&#34; (S7.1, S7.1.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-7.2-1"><code>RFC4090-7.2-1</code></a> &#34;When a downstream LSR detects a local link failure, for any protected LSPs routed over the failed link, Path and Resv state MUST NOT be cleared, and PathTear and ResvErr messages MUST NOT be sent immediately&#34; (S7.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc4090-7.2-2"><code>RFC4090-7.2-2</code></a> &#34;State MUST be removed if it has not been refreshed before the refresh timer expires&#34; (S7.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>a bypass reserves no bandwidth, so the flag has no positive input; plan/spec-rsvpte-bypass-bandwidth-protection.md</td>
 </tr>
 </tbody>
 </table>
@@ -793,12 +699,12 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L181" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathNoProtection</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L183" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathNoProtection</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L166" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathIncludesFastReroute</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L168" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathIncludesFastReroute</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -818,7 +724,7 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L168" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathIncludesFastReroute</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L170" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathIncludesFastReroute</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -838,12 +744,12 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L833" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestFastRerouteOneToOneMethodFlag</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L852" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestFastRerouteOneToOneMethodFlag</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L161" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathIncludesFastReroute</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L163" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathIncludesFastReroute</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -858,14 +764,14 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L341" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestPLRNoBypassWithoutProtection</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L351" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestPLRNoBypassWithoutProtection</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L323" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestPLRArmsBypass</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L333" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestPLRArmsBypass</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -878,12 +784,12 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L849" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L868" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L857" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L876" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -898,12 +804,12 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L851" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L870" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L862" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L881" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -918,12 +824,12 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L469" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairFallsBackToTeardown</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L479" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairFallsBackToTeardown</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L447" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairSendsNotify</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L457" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairSendsNotify</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -938,12 +844,12 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L465" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairFallsBackToTeardown</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L475" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairFallsBackToTeardown</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L421" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairSwitchesFIB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L431" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairSwitchesFIB</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -958,12 +864,12 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L462" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairFallsBackToTeardown</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L472" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairFallsBackToTeardown</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L417" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairSwitchesFIB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L427" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairSwitchesFIB</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -978,17 +884,17 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L791" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestNodeProtectionNeedsNodeBypass</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L810" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestNodeProtectionNeedsNodeBypass</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L750" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestNodeProtectionLocalRepair</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L769" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestNodeProtectionLocalRepair</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L307" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestPLRArmsBypass</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L312" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestPLRArmsBypass</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1003,12 +909,12 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L904" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithDetourRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L923" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithDetourRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L885" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithDetourRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L904" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithDetourRejected</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1018,7 +924,23 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <h3><a href="#rfc4090-4.1-3"><code>RFC4090-4.1-3</code></a></h3>
 <p>The FAST_REROUTE object &#34;MUST only be inserted into the PATH message by the head-end LER and MUST NOT be changed by downstream LSRs&#34; (S4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-4.1-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L105" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090TransitInsertsNoFastReroute</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L81" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090TransitRelaysFastRerouteUnchanged</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-4.4-5"><code>RFC4090-4.4-5</code></a></h3>
 <p>&#34;the PLR MUST set this flag when the desired bandwidth is guaranteed and the &#39;bandwidth protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (bandwidth protection, 0x04) (S4.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1026,95 +948,473 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
 <h3><a href="#rfc4090-4.4-6"><code>RFC4090-4.4-6</code></a></h3>
 <p>&#34;If the requested bandwidth is not guaranteed, the PLR MUST NOT set this flag&#34; (bandwidth protection, 0x04) (S4.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-4.4-6, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L213" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090BandwidthBitNeverClaimed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L214" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090BandwidthBitNeverClaimed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-4.4-7"><code>RFC4090-4.4-7</code></a></h3>
 <p>&#34;If node protection is not provided, the PLR MUST NOT set this flag&#34; (node protection, 0x08) (S4.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-4.4-7, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L301" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090NodeBitClearWithoutNodeBypass</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L284" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090NodeBitSetWhenNodeProtected</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-5-1"><code>RFC4090-5-1</code></a></h3>
-<p>&#34;If a head-end LSR signals a FAST_REROUTE object, it MUST be stored for Path refreshes&#34; (S5)</p>
+<p>If a head-end LSR signals a FAST_REROUTE object, it MUST be stored for Path refreshes. (S5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-5-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L409" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndRefreshWithoutProtection</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L388" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndStoresFastRerouteForRefresh</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-5-2"><code>RFC4090-5-2</code></a></h3>
-<p>&#34;The head-end LSR of a protected LSP MUST set the &#39;label recording desired&#39; flag in the SESSION_ATTRIBUTE object&#34; (S5)</p>
+<p>The head-end LSR of a protected LSP MUST set the &#34;label recording desired&#34; flag in the SESSION_ATTRIBUTE object. (S5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-5-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L434" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090UnprotectedPathRequestsNoLabelRecording</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L423" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndSetsLabelRecordingDesired</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-5-3"><code>RFC4090-5-3</code></a></h3>
-<p>&#34;The head-end LSR of a protected LSP MUST support the additional flags defined in Section 4.4 being set or clear in the RRO IPv4 and IPv6 sub-objects&#34; (S5)</p>
+<p>The head-end LSR of a protected LSP MUST support the additional flags defined in Section 4.4 being set or clear in the RRO IPv4 and IPv6 sub-objects. (S5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-5-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L491" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndAcceptsRROProtectionFlags</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L490" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndAcceptsRROProtectionFlags</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-5-4"><code>RFC4090-5-4</code></a></h3>
-<p>&#34;The head-end LSR of a protected LSP MUST support the RRO Label sub-object&#34; (S5)</p>
+<p>The head-end LSR of a protected LSP MUST support the RRO Label sub-object. (S5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-5-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L507" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndAcceptsRROLabelSubobject</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L506" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndAcceptsRROLabelSubobject</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-6-1"><code>RFC4090-6-1</code></a></h3>
-<p>&#34;Every LSR along a protected LSP (except the egress) MUST follow the PLR behavior described in this document&#34; (S6)</p>
+<p>Every LSR along a protected LSP (except the egress) MUST follow the PLR behavior described in this document. (S6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-6-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L176" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090EgressDoesNotActAsPLR</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L134" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090FastRerouteAloneRequestsProtection</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-6-2"><code>RFC4090-6-2</code></a></h3>
-<p>&#34;A PLR MUST consider an LSP to have asked for local protection if the &#39;local protection desired&#39; flag is set in the SESSION_ATTRIBUTE object and/or the FAST_REROUTE object is included&#34; (S6)</p>
+<p>A PLR MUST consider an LSP to have asked for local protection if the &#34;local protection desired&#34; flag is set in the SESSION_ATTRIBUTE object and/or the FAST_REROUTE object is included. (S6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-6-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L154" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090NoProtectionRequestArmsNothing</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L133" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090FastRerouteAloneRequestsProtection</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L106" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090TransitInsertsNoFastReroute</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-6-3"><code>RFC4090-6-3</code></a></h3>
-<p>&#34;Until a PLR has a backup path available, the PLR MUST clear the relevant four flags in the corresponding RRO IPv4 or IPv6 sub-object&#34; (S6)</p>
+<p>- Until a PLR has a backup path available, the PLR MUST clear the relevant four flags in the corresponding RRO IPv4 or IPv6 sub- object. (S6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-6-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L47" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090FlagsClearUntilBypassEstablished</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L55" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090FlagsSetOnceBypassEstablished</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-6-4"><code>RFC4090-6-4</code></a></h3>
 <p>&#34;If no established one-to-one backup LSP or bypass tunnel exists, or if the one-to-one LSP and the bypass tunnel is in &#39;DOWN&#39; state, the PLR MUST clear the &#39;local protection available&#39; flag in its IPv4 (or IPv6) address sub-object of the RRO&#34; (S6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-6-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L48" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090FlagsClearUntilBypassEstablished</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L64" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090RefreshTracksBypassState</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L56" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090FlagsSetOnceBypassEstablished</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-6-5"><code>RFC4090-6-5</code></a></h3>
-<p>&#34;The PLR MUST clear the &#39;local protection in use&#39; flag unless it is actively redirecting traffic into the backup path instead of along the protected LSP&#34; (S6)</p>
+<p>- The PLR MUST clear the &#34;local protection in use&#34; flag unless it is actively redirecting traffic into the backup path instead of along the protected LSP. (S6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-6-5, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L319" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090InUseOnlyWhileRedirecting</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L318" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090InUseOnlyWhileRedirecting</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-6-6"><code>RFC4090-6-6</code></a></h3>
 <p>Setting or clearing the &#34;node protection&#34; flag to match the backup path &#34;MUST be done if the &#39;node protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (S6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-6-6, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L302" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090NodeBitClearWithoutNodeBypass</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L285" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090NodeBitSetWhenNodeProtected</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-6-7"><code>RFC4090-6-7</code></a></h3>
 <p>Setting or clearing the &#34;bandwidth protection&#34; flag to match the backup path &#34;MUST be done if the &#39;bandwidth protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (S6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-6-7, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L235" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090BandwidthDesiredWithoutBackup</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L215" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090BandwidthBitNeverClaimed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-6.1-1"><code>RFC4090-6.1-1</code></a></h3>
-<p>&#34;If the head-end of a tunnel is also acting as the PLR, it MUST choose an IP address different from the one used in the SENDER_TEMPLATE of the original LSP tunnel&#34; (S6.1, S6.1.1)</p>
+<p>If the head-end of a tunnel is also acting as the PLR, it MUST choose an IP address different from the one used in the SENDER_TEMPLATE of the original LSP tunnel. (S6.1, S6.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-6.1-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L387" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndRequiresAlternateSender</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L348" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090HeadEndUsesDistinctSender</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-6.2-1"><code>RFC4090-6.2-1</code></a></h3>
 <p>&#34;For bypass tunnels (Section 7), the destination MUST be the address of the MP&#34; (S6.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-6.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L365" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090BypassDestinationIsMergePoint</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L364" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090BypassDestinationIsMergePoint</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-6.3-1"><code>RFC4090-6.3-1</code></a></h3>
-<p>&#34;When the PLR detects a failure on the protected LSP, the PLR MUST rapidly switch packets to the protected LSP&#39;s backup LSP instead of to the protected LSP&#39;s normal out-segment&#34; (S6.3, S6.3.3)</p>
+<p>When the PLR detects a failure on the protected LSP, the PLR MUST rapidly switch packets to the protected LSP&#39;s backup LSP instead of to the protected LSP&#39;s normal out-segment. (S6.3, S6.3.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-6.3-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L343" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090FailureSwitchesToBackup</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L342" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090FailureSwitchesToBackup</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-6.4-1"><code>RFC4090-6.4-1</code></a></h3>
 <p>On the backup Path message &#34;the RSVP_HOP object MUST contain an IP source address belonging to the PLR&#34; (S6.4, S6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-6.4-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L281" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090NoBackupPathBeforeRepair</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L144" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090ProtectedPathSurvivesRepair</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-6.4-2"><code>RFC4090-6.4-2</code></a></h3>
 <p>On the backup Path message &#34;the PLR MUST generate an EXPLICIT_ROUTE object toward the egress&#34; (S6.4, S6.4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-6.4-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L282" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090NoBackupPathBeforeRepair</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L145" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090ProtectedPathSurvivesRepair</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-6.4-3"><code>RFC4090-6.4-3</code></a></h3>
 <p>Before sending a Path message via a bypass tunnel the PLR MUST &#34;remove all the sub-objects proceeding the first address belonging to the MP&#34; and &#34;replace this first MP address with an IP address of the MP&#34; (S6.4, S6.4.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-6.4-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L283" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090NoBackupPathBeforeRepair</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L146" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090ProtectedPathSurvivesRepair</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-7.1-1"><code>RFC4090-7.1-1</code></a></h3>
-<p>&#34;If merging occurs and one of the Path messages merged was for the protected LSP, then the final Path message to be sent MUST be that of the protected LSP&#34; (S7.1, S7.1.1)</p>
+<p>If merging occurs and one of the Path messages merged was for the protected LSP, then the final Path message to be sent MUST be that of the protected LSP. (S7.1, S7.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-7.1-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L298" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090DifferentPathsDoNotMerge</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L147" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090ProtectedPathSurvivesRepair</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-7.1-2"><code>RFC4090-7.1-2</code></a></h3>
-<p>&#34;Once the final Path message has been identified, the MP MUST start to refresh it downstream periodically&#34; (S7.1, S7.1.1)</p>
+<p>Once the final Path message has been identified, the MP MUST start to refresh it downstream periodically. (S7.1, S7.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-7.1-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L299" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090DifferentPathsDoNotMerge</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_bypass_rfc4090_test.go#L148" title="internal/plugins/rsvpte/frr_bypass_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090ProtectedPathSurvivesRepair</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-7.2-1"><code>RFC4090-7.2-1</code></a></h3>
-<p>&#34;When a downstream LSR detects a local link failure, for any protected LSPs routed over the failed link, Path and Resv state MUST NOT be cleared, and PathTear and ResvErr messages MUST NOT be sent immediately&#34; (S7.2)</p>
+<p>When a downstream LSR detects a local link failure, for any protected LSPs routed over the failed link, Path and Resv state MUST NOT be cleared, and PathTear and ResvErr messages MUST NOT be sent immediately. (S7.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-7.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L554" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L553" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4090-7.2-2"><code>RFC4090-7.2-2</code></a></h3>
-<p>&#34;State MUST be removed if it has not been refreshed before the refresh timer expires&#34; (S7.2)</p>
+<p>State MUST be removed if it has not been refreshed before the refresh timer expires. (S7.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4090-7.2-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L594" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090StateExpiresWithoutRefresh</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_rfc4090_test.go#L593" title="internal/plugins/rsvpte/frr_rfc4090_test.go" target="_blank" rel="noopener"><code>TestRFC4090StateExpiresWithoutRefresh</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -1581,7 +1881,7 @@ One-to-one detour backup was explicitly split to later work; Section 6 permits i
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

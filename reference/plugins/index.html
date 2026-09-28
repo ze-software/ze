@@ -49,7 +49,7 @@
     <h1 id="plugin-catalog-title">Plugin catalog</h1>
     <p>Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>
 </div>
-                <p class="plugin-summary">Generated from 89 registry entries: 89 runtime plugins. Among runtime plugins, 71 declare configuration roots, 44 declare dependencies, and 73 ship YANG modules.</p>
+                <p class="plugin-summary">Generated from 91 registry entries: 91 runtime plugins. Among runtime plugins, 73 declare configuration roots, 45 declare dependencies, and 75 ship YANG modules.</p>
                 <div class="plugin-console" role="search" aria-label="Search plugins">
                     <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>
                     <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />
@@ -58,7 +58,7 @@
                             <label for="plugin-category">Category
                                 <select id="plugin-category" autocomplete="off">
                                     <option value="">All categories</option>
-                                    <option value="routing" data-label="Routing">Routing (37)</option>
+                                    <option value="routing" data-label="Routing">Routing (39)</option>
                                     <option value="security" data-label="Policy &amp; security">Policy &amp; security (25)</option>
                                     <option value="tunneling" data-label="Tunneling">Tunneling (7)</option>
                                     <option value="services" data-label="Network services">Network services (7)</option>
@@ -70,7 +70,7 @@
                                 <select id="plugin-family" autocomplete="off">
                                     <option value="" data-label="All areas">All areas</option>
                                     <optgroup label="Routing">
-                                    <option value="bgp" data-category="routing" data-label="BGP">BGP (19)</option>
+                                    <option value="bgp" data-category="routing" data-label="BGP">BGP (21)</option>
                                     <option value="bgp-nlri" data-category="routing" data-label="BGP NLRI">BGP NLRI (10)</option>
                                     <option value="bgp-redistribute" data-category="routing" data-label="BGP Redistribute">BGP Redistribute (1)</option>
                                     <option value="connected" data-category="routing" data-label="Connected">Connected (1)</option>
@@ -188,9 +188,9 @@
                 <section class="plugin-group" data-plugin-group data-family="bgp" data-category="routing" aria-labelledby="plugin-group-bgp">
                     <div class="plugin-group-head tone-gold">
                         <h2 id="plugin-group-bgp">BGP</h2>
-                        <span>19 plugins</span>
+                        <span>21 plugins</span>
                     </div>
-                    <p>Generated group for registry entries mapped to the BGP area. Config roots: <code>bgp</code>, <code>environment</code>. Source area: <code>internal/component/bgp</code>.</p>
+                    <p>Generated group for registry entries mapped to the BGP area. Config roots: <code>bgp</code>, <code>bgp-epe</code>, <code>bgp-ls-export</code>, <code>environment</code>. Source area: <code>internal/component/bgp</code>.</p>
                     <div class="cards plugin-grid">
 
                     <article class="card plugin-card tone-gold" id="plugin-bgp" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp BGP routing daemon BGP routing daemon internal/component/bgp/plugin BGP   bgp   internal/component/bgp/yang/ze-bgp-api.yang internal/component/bgp/yang/ze-bgp-conf.yang">
@@ -224,16 +224,16 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd>None</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card tone-gold" id="plugin-bgp-bmp" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-bmp BMP receiver and sender (RFC 7854, 8671) BMP receiver and sender (RFC 7854, 8671) internal/component/bgp/plugins/bmp BGP   bgp environment   internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang">
+                    <article class="card plugin-card tone-gold" id="plugin-bgp-bmp" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-bmp BMP receiver and sender (RFC 7854, 8671) BMP receiver and sender (RFC 7854, 8671) internal/component/bgp/plugins/bmp BGP   bgp environment/bmp   internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang">
                         <span class="cat">BGP</span>
                         <h3><a href="bgp-bmp/"><code>bgp-bmp</code></a></h3>
                         <p class="plugin-desc">BMP receiver and sender (RFC 7854, 8671)</p>
                         <div class="chips">
                             <span class="chip mode">config:bgp</span>
-                            <span class="chip mode">config:environment</span>
+                            <span class="chip mode">config:environment/bmp</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code>, <code>environment</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code>, <code>environment/bmp</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card tone-gold" id="plugin-bgp-capa" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-capa Core BGP capability decoding (multiprotocol, asn4, add-path, paths-limit, extended-nexthop, extended-message) Core BGP capability decoding (multiprotocol, asn4, add-path, paths-limit, extended-nexthop, extended-message) internal/component/bgp/plugins/capa BGP      ">
@@ -244,6 +244,17 @@
                             <span class="chip">no config</span>
                         </div>
                         <dl class="plugin-meta"><div><dt>Config</dt><dd>None</dd></div></dl>
+                    </article>
+
+                    <article class="card plugin-card tone-gold" id="plugin-bgp-epe" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-epe Native BGP Egress Peer Engineering segments Native BGP Egress Peer Engineering segments internal/component/bgp/plugins/epe BGP   bgp-epe   internal/component/bgp/plugins/epe/yang/ze-bgp-epe-conf.yang">
+                        <span class="cat">BGP</span>
+                        <h3><a href="bgp-epe/"><code>bgp-epe</code></a></h3>
+                        <p class="plugin-desc">Native BGP Egress Peer Engineering segments</p>
+                        <div class="chips">
+                            <span class="chip mode">config:bgp-epe</span>
+                            <span class="chip">YANG:1</span>
+                        </div>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp-epe</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card tone-gold" id="plugin-bgp-gr" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-gr Graceful Restart capability and mechanism plugin Graceful Restart capability and mechanism plugin internal/component/bgp/plugins/gr BGP   bgp bgp bgp-rib  internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang">
@@ -294,6 +305,18 @@
                             <span class="chip">YANG:1</span>
                         </div>
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                    </article>
+
+                    <article class="card plugin-card tone-gold" id="plugin-bgp-ls-export" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-ls-export Export native routing databases through BGP-LS Export native routing databases through BGP-LS internal/component/bgp/plugins/ls_export BGP   bgp-ls-export bgp-nlri-ls  internal/component/bgp/plugins/ls_export/yang/ze-bgp-ls-export-conf.yang">
+                        <span class="cat">BGP</span>
+                        <h3><a href="bgp-ls-export/"><code>bgp-ls-export</code></a></h3>
+                        <p class="plugin-desc">Export native routing databases through BGP-LS</p>
+                        <div class="chips">
+                            <span class="chip mode">config:bgp-ls-export</span>
+                            <span class="chip">needs:bgp-nlri-ls</span>
+                            <span class="chip">YANG:1</span>
+                        </div>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp-ls-export</code></dd></div><div><dt>Needs</dt><dd><code>bgp-nlri-ls</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card tone-gold" id="plugin-bgp-persist" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-persist Route Persistence Route Persistence internal/component/bgp/plugins/persist BGP      ">
@@ -366,27 +389,29 @@
                         <dl class="plugin-meta"><div><dt>Needs</dt><dd><code>bgp</code>, <code>bgp-rpki</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card tone-gold" id="plugin-bgp-rr" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-rr Route Reflector Route Reflector internal/component/bgp/plugins/rr BGP    bgp-adj-rib-in  internal/component/bgp/plugins/rr/yang/ze-rr-cmd.yang">
+                    <article class="card plugin-card tone-gold" id="plugin-bgp-rr" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-rr Route Reflector Route Reflector internal/component/bgp/plugins/rr BGP    bgp-adj-rib-in bgp-rib  internal/component/bgp/plugins/rr/yang/ze-rr-cmd.yang">
                         <span class="cat">BGP</span>
                         <h3><a href="bgp-rr/"><code>bgp-rr</code></a></h3>
                         <p class="plugin-desc">Route Reflector</p>
                         <div class="chips">
                             <span class="chip">needs:bgp-adj-rib-in</span>
+                            <span class="chip">needs:bgp-rib</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Needs</dt><dd><code>bgp-adj-rib-in</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Needs</dt><dd><code>bgp-adj-rib-in</code>, <code>bgp-rib</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card tone-gold" id="plugin-bgp-rs" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-rs Route Server Route Server internal/component/bgp/plugins/rs BGP   bgp  bgp-adj-rib-in internal/component/bgp/plugins/rs/yang/ze-rs-conf.yang">
+                    <article class="card plugin-card tone-gold" id="plugin-bgp-rs" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-rs Route Server Route Server internal/component/bgp/plugins/rs BGP   bgp bgp-rib bgp-adj-rib-in internal/component/bgp/plugins/rs/yang/ze-rs-conf.yang">
                         <span class="cat">BGP</span>
                         <h3><a href="bgp-rs/"><code>bgp-rs</code></a></h3>
                         <p class="plugin-desc">Route Server</p>
                         <div class="chips">
                             <span class="chip mode">config:bgp</span>
+                            <span class="chip">needs:bgp-rib</span>
                             <span class="chip">optional:bgp-adj-rib-in</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Optional</dt><dd><code>bgp-adj-rib-in</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp-rib</code></dd></div><div><dt>Optional</dt><dd><code>bgp-adj-rib-in</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card tone-gold" id="plugin-bgp-softver" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-softver Software Version capability (code 75) Software Version capability (code 75) internal/component/bgp/plugins/softver BGP   bgp bgp  internal/component/bgp/plugins/softver/yang/ze-softver.yang">
@@ -816,15 +841,15 @@
                     <p>Generated group for registry entries mapped to the Environment area. Config roots: <code>environment</code>. Source area: <code>internal/plugins/ntp</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card tone-lemon" id="plugin-ntp" data-plugin-card data-family="environment" data-category="services" data-search="ntp NTP client: system clock synchronization NTP client: system clock synchronization internal/plugins/ntp Environment   environment   internal/plugins/ntp/yang/ze-ntp-cmd.yang internal/plugins/ntp/yang/ze-ntp-conf.yang">
+                    <article class="card plugin-card tone-lemon" id="plugin-ntp" data-plugin-card data-family="environment" data-category="services" data-search="ntp NTP client: system clock synchronization NTP client: system clock synchronization internal/plugins/ntp Environment   environment/ntp   internal/plugins/ntp/yang/ze-ntp-cmd.yang internal/plugins/ntp/yang/ze-ntp-conf.yang">
                         <span class="cat">Environment</span>
                         <h3><a href="ntp/"><code>ntp</code></a></h3>
                         <p class="plugin-desc">NTP client: system clock synchronization</p>
                         <div class="chips">
-                            <span class="chip mode">config:environment</span>
+                            <span class="chip mode">config:environment/ntp</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>environment</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>environment/ntp</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -968,14 +993,15 @@
                     <p>Generated group for registry entries mapped to the Flowspec Firewall area. Source area: <code>internal/plugins/flowspec-firewall</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card tone-grape" id="plugin-flowspec-firewall" data-plugin-card data-family="flowspec-firewall" data-category="security" data-search="flowspec-firewall Translates BGP FlowSpec routes into nftables firewall rules Translates BGP FlowSpec routes into nftables firewall rules internal/plugins/flowspec-firewall Flowspec Firewall    firewall  ">
+                    <article class="card plugin-card tone-grape" id="plugin-flowspec-firewall" data-plugin-card data-family="flowspec-firewall" data-category="security" data-search="flowspec-firewall Translates BGP FlowSpec routes into nftables firewall rules Translates BGP FlowSpec routes into nftables firewall rules internal/plugins/flowspec-firewall Flowspec Firewall    firewall bgp-rib  ">
                         <span class="cat">Flowspec Firewall</span>
                         <h3><a href="flowspec-firewall/"><code>flowspec-firewall</code></a></h3>
                         <p class="plugin-desc">Translates BGP FlowSpec routes into nftables firewall rules</p>
                         <div class="chips">
                             <span class="chip">needs:firewall</span>
+                            <span class="chip">needs:bgp-rib</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Needs</dt><dd><code>firewall</code></dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Needs</dt><dd><code>firewall</code>, <code>bgp-rib</code></dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1221,17 +1247,18 @@
                     <p>Generated group for registry entries mapped to the RSVP TE area. Config roots: <code>rsvp-te</code>. Source area: <code>internal/plugins/rsvpte</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card tone-sky" id="plugin-rsvp-te" data-plugin-card data-family="rsvp-te" data-category="tunneling" data-search="rsvp-te RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) internal/plugins/rsvpte RSVP TE   rsvp-te fib-kernel sysctl  internal/plugins/rsvpte/yang/ze-rsvp-te-cmd.yang internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang">
+                    <article class="card plugin-card tone-sky" id="plugin-rsvp-te" data-plugin-card data-family="rsvp-te" data-category="tunneling" data-search="rsvp-te RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) internal/plugins/rsvpte RSVP TE   rsvp-te interface fib-kernel sysctl  internal/plugins/rsvpte/yang/ze-rsvp-te-cmd.yang internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang">
                         <span class="cat">RSVP TE</span>
                         <h3><a href="rsvp-te/"><code>rsvp-te</code></a></h3>
                         <p class="plugin-desc">RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209)</p>
                         <div class="chips">
                             <span class="chip mode">config:rsvp-te</span>
+                            <span class="chip">needs:interface</span>
                             <span class="chip">needs:fib-kernel</span>
                             <span class="chip">needs:sysctl</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>rsvp-te</code></dd></div><div><dt>Needs</dt><dd><code>fib-kernel</code>, <code>sysctl</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>rsvp-te</code></dd></div><div><dt>Needs</dt><dd><code>interface</code>, <code>fib-kernel</code>, <code>sysctl</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1577,7 +1604,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

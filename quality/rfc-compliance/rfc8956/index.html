@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8956 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8956: Dissemination of Flow Specification Rules for IPv6. 9 gated MUST-level requirements, 7 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 8956: Dissemination of Flow Specification Rules for IPv6. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 8956 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8956: Dissemination of Flow Specification Rules for IPv6. 9 gated MUST-level requirements, 7 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 8956: Dissemination of Flow Specification Rules for IPv6. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8956 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8956: Dissemination of Flow Specification Rules for IPv6. 9 gated MUST-level requirements, 7 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 8956: Dissemination of Flow Specification Rules for IPv6. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,10 +116,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>77.8%</strong><b>7 of 9 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>22.2%</strong><b>2 of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 3 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -129,11 +130,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>77.8%</strong><b>7 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -163,7 +159,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -212,7 +208,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>7</td>
+<td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
@@ -221,10 +217,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>3</td>
+<td>17</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>3</td>
+<td>17</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
@@ -246,18 +242,21 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Dissemination of Flow Specification Rules for IPv6: nine MUST-level requirements. Two are met in internal/component/bgp/plugins/nlri/flowspec: 2-1 (IPv6 FlowSpec negotiates the (AFI 2, SAFI 133) Multiprotocol capability) via a new test, and 2-2 (IPv6 FlowSpec uses AFI 2 with SAFI 133, and SAFI 134 for VPN) with explicit AFI/SAFI assertions -- both {single-polarity: positive}. Seven are {gap}: ze encodes and decodes IPv6 FlowSpec NLRI structurally but lacks the conformance guards -- 3.1-1 and 3.1-2 (prefix padding not zeroed on encode and not masked on decode), 3.1-3 (offset/length not validated and the pattern encoded from the address start, correct only for offset 0), 3.6-1 (minimal-octet encoding incidental), 3.6-2 and 3.6-3 (the Fragment component uses the RFC 8955 IPv4 bitmask layout and does not handle the IPv6 reserved bits), and 5-1 (no validation-against-unicast procedure). Disclosed in the docs/features/rfc-status.md RFC 8956 row.</p>
+<p>Enrolled: Dissemination of Flow Specification Rules for IPv6; native AFI 2 FlowSpec and VPN FlowSpec encoding, decoding, policy and retained-route validation are implemented in Ze&#39;s BGP path.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
 <ul class="rfc-prose">
-<li>IPv6 FlowSpec and FlowSpec VPN NLRI structural encode/decode (AFI 2, SAFI 133/134): prefix, numeric, bitmask and Flow Label components, round-trip, family registration, and (AFI 2, SAFI 133/134) Multiprotocol capability negotiation</li>
-<li>tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc8956.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc8956.md</code></a>.</li>
+<li>AFI 2 / SAFI 133 and 134 capability negotiation and native NLRI handling</li>
+<li>offset-aware prefix patterns with checked bounds and padding normalization</li>
+<li>family-specific fragment reserved-bit masking and single-octet encoding</li>
+<li>destination-offset-zero validation against the matching IPv6 unicast or VPN RIB. Source and regression carriers are present</li>
+<li>integration validation remains outstanding.</li>
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Seven MUST-level gaps, each annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc8956.md" target="_blank" rel="noopener"><code>rfc/short/rfc8956.md</code></a>: <a href="#rfc8956-3.1-1"><code>RFC8956-3.1-1</code></a> -- the prefix encoder does not zero sub-byte padding beyond the prefix length; <a href="#rfc8956-3.1-2"><code>RFC8956-3.1-2</code></a> -- the decoder retains padding bits without masking; <a href="#rfc8956-3.1-3"><code>RFC8956-3.1-3</code></a> -- offset/length (offset &lt; length &lt;= 128) is not validated and the pattern is encoded from the address start, correct only for offset 0; <a href="#rfc8956-3.6-1"><code>RFC8956-3.6-1</code></a> -- minimal single-octet encoding is incidental, not enforced; <a href="#rfc8956-3.6-2"><code>RFC8956-3.6-2</code></a> -- the Fragment component uses the RFC 8955 IPv4 bitmask layout and does not zero the IPv6 reserved bits on transmit; <a href="#rfc8956-3.6-3"><code>RFC8956-3.6-3</code></a> -- the Fragment decoder reads the raw byte without masking the IPv6 reserved bits; and <a href="#rfc8956-5-1"><code>RFC8956-5-1</code></a> -- no Section 5 / RFC 8955 Section 6 flowspec validation-against-unicast procedure is implemented.
+Linux firewall packet verification requires the privileged integration carrier. The global firewall bridge refuses unsupported predicates, including nonzero source offsets, fragments and Flow Labels, rather than installing a broader filter. VPN FlowSpec is validated and propagated but not installed in the global firewall. These disclosures are not a conformance or coverage-count claim.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -266,11 +265,11 @@ Seven MUST-level gaps, each annotated in <a href="https://github.com/ze-software
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>0</strong></td>
+<td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>9</strong></td>
+<td><strong>2</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -293,7 +292,8 @@ Seven MUST-level gaps, each annotated in <a href="https://github.com/ze-software
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Annotated instead of tested (9):</strong> <a href="#rfc8956-2-1"><code>RFC8956-2-1</code></a>, <a href="#rfc8956-2-2"><code>RFC8956-2-2</code></a>, <a href="#rfc8956-3.1-1"><code>RFC8956-3.1-1</code></a>, <a href="#rfc8956-3.1-2"><code>RFC8956-3.1-2</code></a>, <a href="#rfc8956-3.6-1"><code>RFC8956-3.6-1</code></a>, <a href="#rfc8956-3.6-2"><code>RFC8956-3.6-2</code></a>, <a href="#rfc8956-3.6-3"><code>RFC8956-3.6-3</code></a>, <a href="#rfc8956-3.1-3"><code>RFC8956-3.1-3</code></a>, <a href="#rfc8956-5-1"><code>RFC8956-5-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#rfc8956-3.1-1"><code>RFC8956-3.1-1</code></a>, <a href="#rfc8956-3.1-2"><code>RFC8956-3.1-2</code></a>, <a href="#rfc8956-3.6-1"><code>RFC8956-3.6-1</code></a>, <a href="#rfc8956-3.6-2"><code>RFC8956-3.6-2</code></a>, <a href="#rfc8956-3.6-3"><code>RFC8956-3.6-3</code></a>, <a href="#rfc8956-3.1-3"><code>RFC8956-3.1-3</code></a>, <a href="#rfc8956-5-1"><code>RFC8956-5-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (2):</strong> <a href="#rfc8956-2-1"><code>RFC8956-2-1</code></a>, <a href="#rfc8956-2-2"><code>RFC8956-2-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -324,63 +324,63 @@ Seven MUST-level gaps, each annotated in <a href="https://github.com/ze-software
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8956-3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s IPv6 flowspec prefix encoder (internal/component/bgp/plugins/nlri/flowspec/types_prefix.go:103-127 WriteTo) copies the address bytes without zeroing the sub-byte padding beyond the prefix length; padding-zero relies on a pre-masked caller value and is not enforced by the producer</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L11" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L12" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.1-2">RFC8956-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Padding bits in IPv6 prefix components MUST be ignored on decoding (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8956-3.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s IPv6 flowspec prefix decoder (internal/component/bgp/plugins/nlri/flowspec/types_prefix.go:148-201 parsePrefixComponent) retains the pattern bytes without masking the padding beyond the prefix length, so it neither zeroes nor validates the trailing bits</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L13" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L14" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></span></div>
+</div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.6-1">RFC8956-3.6-1</code></td><td colspan="3"><span class="rfc-subject">Type 12 (Fragment) component bitmask MUST be encoded as a single octet bitmask (bitmask_op len=00) (§3.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.6-1">RFC8956-3.6-1</code></td><td colspan="3"><span class="rfc-subject">The Type 12 component bitmask MUST be encoded as a single octet bitmask (bitmask_op len=00). (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8956-3.6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s IPv6 flowspec numeric encoder (internal/component/bgp/plugins/nlri/flowspec/types_numeric.go:238-264) selects a single octet only incidentally for small values and does not enforce the minimal-length encoding as a producer rule</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L10" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentSingleOctet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L11" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentSingleOctet</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.6-2">RFC8956-3.6-2</code></td><td colspan="3"><span class="rfc-subject">Fragment bitmask reserved bits (bits 0,1,2,3,7) MUST be set to 0 on NLRI encoding (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8956-3.6-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze encodes the Fragment component with the RFC 8955 IPv4 fragment bitmask layout (internal/component/bgp/plugins/nlri/flowspec/types.go:201-206) rather than the RFC 8956 IPv6 layout, and does not zero the IPv6 reserved bits on transmit</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L45" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentEncodingRespectsEnclosingFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L46" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentEncodingRespectsEnclosingFamily</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.6-3">RFC8956-3.6-3</code></td><td colspan="3"><span class="rfc-subject">Fragment bitmask reserved bits MUST be ignored during decoding (§3.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8956-3.6-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s Fragment decoder (internal/component/bgp/plugins/nlri/flowspec/types_numeric.go:291-343) reads the raw byte without masking the IPv6 fragment reserved bits, using the RFC 8955 IPv4 layout</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L69" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentDecodeIgnoresReservedBits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L70" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentDecodeIgnoresReservedBits</code></a></span></div>
+</div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.1-3">RFC8956-3.1-3</code></td><td colspan="3"><span class="rfc-subject">Destination prefix length/offset: length MUST be in the range offset &lt; length &lt; 129 unless length=0 and offset=0 (matching all); otherwise the component is malformed (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.1-3">RFC8956-3.1-3</code></td><td colspan="3"><span class="rfc-subject">If length = 0 and offset = 0, this component matches every address; otherwise, length MUST be in the range offset &lt; length &lt; 129 or the component is malformed. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8956-3.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s IPv6 flowspec prefix decoder (internal/component/bgp/plugins/nlri/flowspec/types_prefix.go:148-201) does not validate the offset/length relationship (offset &lt; length &lt;= 128) and feeds the length straight to netip.PrefixFrom, so a malformed offset/length is not rejected; additionally the pattern is encoded from the address start rather than from the offset, correct only for offset 0</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L44" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixRejectsMalformedBounds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L45" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixRejectsMalformedBounds</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-5-1">RFC8956-5-1</code></td><td colspan="3"><span class="rfc-subject">Destination prefix for validation: offset MUST be 0 to pass the validation procedure (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8956-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no RFC 8956 Section 5 / RFC 8955 Section 6 flowspec validation-against-unicast procedure; a received flowspec NLRI is decoded and installed without the origin/best-match validation</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L283" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L284" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8956-3.3-1">RFC8956-3.3-1</code></td><td colspan="3"><span class="rfc-subject">Type 3 (Upper-Layer Protocol) values SHOULD be encoded as a single octet (numeric_op len=00) (§3.3)</span></td></tr>
 <tr><td></td>
@@ -432,41 +432,7 @@ Seven MUST-level gaps, each annotated in <a href="https://github.com/ze-software
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
-<tbody>
-<tr><td><a href="#rfc8956-3.1-1"><code>RFC8956-3.1-1</code></a> Padding bits in IPv6 prefix components MUST be 0 on encoding (§3.1)</td>
-<td>{gap}, no test</td>
-<td>ze&#39;s IPv6 flowspec prefix encoder (internal/component/bgp/plugins/nlri/flowspec/types_prefix.go:103-127 WriteTo) copies the address bytes without zeroing the sub-byte padding beyond the prefix length; padding-zero relies on a pre-masked caller value and is not enforced by the producer</td>
-</tr>
-<tr><td><a href="#rfc8956-3.1-2"><code>RFC8956-3.1-2</code></a> Padding bits in IPv6 prefix components MUST be ignored on decoding (§3.1)</td>
-<td>{gap}, no test</td>
-<td>ze&#39;s IPv6 flowspec prefix decoder (internal/component/bgp/plugins/nlri/flowspec/types_prefix.go:148-201 parsePrefixComponent) retains the pattern bytes without masking the padding beyond the prefix length, so it neither zeroes nor validates the trailing bits</td>
-</tr>
-<tr><td><a href="#rfc8956-3.6-1"><code>RFC8956-3.6-1</code></a> Type 12 (Fragment) component bitmask MUST be encoded as a single octet bitmask (bitmask_op len=00) (§3.6)</td>
-<td>{gap}, no test</td>
-<td>ze&#39;s IPv6 flowspec numeric encoder (internal/component/bgp/plugins/nlri/flowspec/types_numeric.go:238-264) selects a single octet only incidentally for small values and does not enforce the minimal-length encoding as a producer rule</td>
-</tr>
-<tr><td><a href="#rfc8956-3.6-2"><code>RFC8956-3.6-2</code></a> Fragment bitmask reserved bits (bits 0,1,2,3,7) MUST be set to 0 on NLRI encoding (§3.6)</td>
-<td>{gap}, no test</td>
-<td>ze encodes the Fragment component with the RFC 8955 IPv4 fragment bitmask layout (internal/component/bgp/plugins/nlri/flowspec/types.go:201-206) rather than the RFC 8956 IPv6 layout, and does not zero the IPv6 reserved bits on transmit</td>
-</tr>
-<tr><td><a href="#rfc8956-3.6-3"><code>RFC8956-3.6-3</code></a> Fragment bitmask reserved bits MUST be ignored during decoding (§3.6)</td>
-<td>{gap}, no test</td>
-<td>ze&#39;s Fragment decoder (internal/component/bgp/plugins/nlri/flowspec/types_numeric.go:291-343) reads the raw byte without masking the IPv6 fragment reserved bits, using the RFC 8955 IPv4 layout</td>
-</tr>
-<tr><td><a href="#rfc8956-3.1-3"><code>RFC8956-3.1-3</code></a> Destination prefix length/offset: length MUST be in the range offset &lt; length &lt; 129 unless length=0 and offset=0 (matching all); otherwise the component is malformed (§3.1)</td>
-<td>{gap}, no test</td>
-<td>ze&#39;s IPv6 flowspec prefix decoder (internal/component/bgp/plugins/nlri/flowspec/types_prefix.go:148-201) does not validate the offset/length relationship (offset &lt; length &lt;= 128) and feeds the length straight to netip.PrefixFrom, so a malformed offset/length is not rejected; additionally the pattern is encoded from the address start rather than from the offset, correct only for offset 0</td>
-</tr>
-<tr><td><a href="#rfc8956-5-1"><code>RFC8956-5-1</code></a> Destination prefix for validation: offset MUST be 0 to pass the validation procedure (§5)</td>
-<td>{gap}, no test</td>
-<td>ze implements no RFC 8956 Section 5 / RFC 8955 Section 6 flowspec validation-against-unicast procedure; a received flowspec NLRI is decoded and installed without the origin/best-match validation</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>RFC 8956 declares no gap, and every gated MUST it carries has a test bound to it.</p>
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
@@ -508,31 +474,143 @@ Seven MUST-level gaps, each annotated in <a href="https://github.com/ze-software
 <h3><a href="#rfc8956-3.1-1"><code>RFC8956-3.1-1</code></a></h3>
 <p>Padding bits in IPv6 prefix components MUST be 0 on encoding (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8956-3.1-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L12" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L11" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8956-3.1-2"><code>RFC8956-3.1-2</code></a></h3>
 <p>Padding bits in IPv6 prefix components MUST be ignored on decoding (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8956-3.1-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L14" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L13" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixPatternAndPadding</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8956-3.6-1"><code>RFC8956-3.6-1</code></a></h3>
-<p>Type 12 (Fragment) component bitmask MUST be encoded as a single octet bitmask (bitmask_op len=00) (§3.6)</p>
+<p>The Type 12 component bitmask MUST be encoded as a single octet bitmask (bitmask_op len=00). (§3.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8956-3.6-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L11" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentSingleOctet</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L10" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentSingleOctet</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8956-3.6-2"><code>RFC8956-3.6-2</code></a></h3>
 <p>Fragment bitmask reserved bits (bits 0,1,2,3,7) MUST be set to 0 on NLRI encoding (§3.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8956-3.6-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L46" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentEncodingRespectsEnclosingFamily</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L45" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentEncodingRespectsEnclosingFamily</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8956-3.6-3"><code>RFC8956-3.6-3</code></a></h3>
 <p>Fragment bitmask reserved bits MUST be ignored during decoding (§3.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8956-3.6-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L70" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentDecodeIgnoresReservedBits</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go#L69" title="internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go" target="_blank" rel="noopener"><code>TestRFC8956FragmentDecodeIgnoresReservedBits</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8956-3.1-3"><code>RFC8956-3.1-3</code></a></h3>
-<p>Destination prefix length/offset: length MUST be in the range offset &lt; length &lt; 129 unless length=0 and offset=0 (matching all); otherwise the component is malformed (§3.1)</p>
+<p>If length = 0 and offset = 0, this component matches every address; otherwise, length MUST be in the range offset &lt; length &lt; 129 or the component is malformed. (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8956-3.1-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L45" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixRejectsMalformedBounds</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go#L44" title="internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go" target="_blank" rel="noopener"><code>TestIPv6FlowPrefixRejectsMalformedBounds</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8956-5-1"><code>RFC8956-5-1</code></a></h3>
 <p>Destination prefix for validation: offset MUST be 0 to pass the validation procedure (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8956-5-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L284" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L283" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -808,7 +886,7 @@ Seven MUST-level gaps, each annotated in <a href="https://github.com/ze-software
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

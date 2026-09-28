@@ -69,16 +69,16 @@
 <table>
 <thead><tr><th>Behavior</th><th>Files</th><th>Narrow run</th><th>Native suite</th></tr></thead>
 <tbody>
-<tr><td>BGP encode and route output</td><td><span class="ev-src"><span class="ev-ref"><code>test/encode/*.ci</code></span></span></td><td><code>bin/ze-test bgp encode NAME -v</code></td><td><code>./le functional encode-test</code></td></tr>
-<tr><td>BGP plugin behavior</td><td><span class="ev-src"><span class="ev-ref"><code>test/plugin/*.ci</code></span></span></td><td><code>bin/ze-test bgp plugin NAME -v</code></td><td><code>./le functional plugin-test</code></td></tr>
-<tr><td>Config parsing</td><td><span class="ev-src"><span class="ev-ref"><code>test/parse/*.ci</code></span></span></td><td><code>bin/ze-test bgp parse NAME -v</code></td><td><code>./le functional parse-test</code></td></tr>
-<tr><td>Decode command output</td><td><span class="ev-src"><span class="ev-ref"><code>test/decode/*.ci</code></span></span></td><td><code>bin/ze-test bgp decode NAME -v</code></td><td><code>./le functional decode-test</code></td></tr>
-<tr><td>Reload behavior</td><td><span class="ev-src"><span class="ev-ref"><code>test/reload/*.ci</code></span></span></td><td><code>bin/ze-test bgp reload NAME -v</code></td><td><code>./le functional reload-test</code></td></tr>
-<tr><td>CLI output</td><td><span class="ev-src"><span class="ev-ref"><code>test/ui/*.ci</code></span></span></td><td><code>bin/ze-test ui NAME -v</code></td><td><code>./le functional ui-test</code></td></tr>
-<tr><td>L2TP, firewall, policy, LDP, RSVP-TE, IS-IS, OSPF, OSPFv3, static, traffic, VPP, and install flows</td><td><code>test/&lt;suite&gt;/*.ci</code></td><td><code>bin/ze-test &lt;suite&gt; NAME -v</code></td><td><code>./le functional &lt;suite&gt;-test</code></td></tr>
+<tr><td>BGP encode and route output</td><td><span class="ev-src"><span class="ev-ref"><code>test/encode/*.ci</code></span></span></td><td><code>./le test bgp encode NAME -v</code></td><td><code>./le test functional encode-test</code></td></tr>
+<tr><td>BGP plugin behavior</td><td><span class="ev-src"><span class="ev-ref"><code>test/plugin/*.ci</code></span></span></td><td><code>./le test bgp plugin NAME -v</code></td><td><code>./le test functional plugin-test</code></td></tr>
+<tr><td>Config parsing</td><td><span class="ev-src"><span class="ev-ref"><code>test/parse/*.ci</code></span></span></td><td><code>./le test bgp parse NAME -v</code></td><td><code>./le test functional parse-test</code></td></tr>
+<tr><td>Decode command output</td><td><span class="ev-src"><span class="ev-ref"><code>test/decode/*.ci</code></span></span></td><td><code>./le test bgp decode NAME -v</code></td><td><code>./le test functional decode-test</code></td></tr>
+<tr><td>Reload behavior</td><td><span class="ev-src"><span class="ev-ref"><code>test/reload/*.ci</code></span></span></td><td><code>./le test bgp reload NAME -v</code></td><td><code>./le test functional reload-test</code></td></tr>
+<tr><td>CLI output</td><td><span class="ev-src"><span class="ev-ref"><code>test/ui/*.ci</code></span></span></td><td><code>./le test ui NAME -v</code></td><td><code>./le test functional ui-test</code></td></tr>
+<tr><td>L2TP, firewall, policy, LDP, RSVP-TE, IS-IS, OSPF, OSPFv3, static, traffic, VPP, and install flows</td><td><code>test/&lt;suite&gt;/*.ci</code></td><td><code>./le test &lt;suite&gt; NAME -v</code></td><td><code>./le test functional &lt;suite&gt;-test</code></td></tr>
 </tbody>
 </table>
-<p>Run <code>bin/ze-test bgp plugin --list</code> or the equivalent suite command before picking an id. The list output gives the exact test name, id, status, and rerun shape.</p>
+<p>Run <code>./le test bgp plugin --list</code> or the equivalent suite command before picking an id. The list output gives the exact test name, id, status, and rerun shape.</p>
 <h2 id="execution-model">Execution model</h2>
 <p>The runner has five stages. It parses the file into records, materializes embedded files in a temporary directory, starts background processes, waits for readiness, and then executes foreground commands and expectations in order. Each test owns its temporary directory and ports, so parallel runs do not share mutable state.</p>
 <p>Background commands are for daemons and peers. Foreground commands are for assertions that should complete, such as <code>ze cli</code>, <code>ze config</code>, <code>curl</code>, helper scripts, or packet checks. A foreground process can assert stdout, stderr, exit code, files, JSON, HTTP, and BGP messages without adding a second test harness.</p>
@@ -89,7 +89,7 @@ router bgp 65000
 EOF
 
 cmd=background:ze:bin/ze config.conf
-cmd=background:peer:bin/ze-peer --as 65001 --listen 127.0.0.1:$PORT1
+cmd=background:peer:le test peer --as 65001 --listen 127.0.0.1:$PORT1
 cmd=foreground:show:bin/ze cli -c "show bgp peer list"
 expect=stdout:show:contains=Established
 </code></pre>
@@ -112,14 +112,14 @@ expect=stdout:show:contains=Established
 <p>A <code>.ci</code> file that needs netlink, nftables, eBPF, PPP, L2TP, namespaces, kernel routing, or Linux-only sockets should say so directly:</p>
 <pre><code class="language-text">option=needs-linux
 </code></pre>
-<p>On macOS that test reports SKIP. Inside QEMU the option is inert and the same file runs for real. Use <code>./le qemu netns-test</code> for the curated Linux kernel suites. For one command or an interactive investigation, use <code>./le qemu run command '...' keep-alive</code>.</p>
+<p>On macOS that test reports SKIP. Inside QEMU the option is inert and the same file runs for real. Use <code>./le test qemu netns-test</code> for the curated Linux kernel suites. For one command or an interactive investigation, use <code>./le test qemu run command '...' keep-alive</code>.</p>
 <h2 id="failure-reading">Failure reading</h2>
 <p>A good <code>.ci</code> failure tells you the file, step, line, assertion, process output, temporary directory, and rerun command. With <code>-v</code>, the runner keeps enough detail to see command stdout and stderr. BGP mismatches are decoded before display, which turns a wire failure into protocol fields.</p>
-<pre><code class="language-bash">bin/ze-test bgp plugin 42 -v
-ZE_TEST_KEEP_TMP=1 bin/ze-test bgp plugin 42 -v
-ze.log.bgp.reactor.peer=debug bin/ze-test bgp plugin 42 -v
+<pre><code class="language-bash">./le test bgp plugin 42 -v
+ZE_TEST_KEEP_TMP=1 ./le test bgp plugin 42 -v
+ze.log.bgp.reactor.peer=debug ./le test bgp plugin 42 -v
 </code></pre>
-<p>If the failure only reproduces under Linux, rerun it through <code>./le qemu run</code> rather than adding sleeps or Darwin-only skips.</p>
+<p>If the failure only reproduces under Linux, rerun it through <code>./le test qemu run</code> rather than adding sleeps or Darwin-only skips.</p>
 
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
@@ -150,7 +150,7 @@ ze.log.bgp.reactor.peer=debug bin/ze-test bgp plugin 42 -v
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

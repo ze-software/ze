@@ -1,6 +1,6 @@
 # RFC 7950 - The YANG 1.1 Data Modeling Language
 
-No row in the public ledger. Every requirement this repository extracted from RFC 7950, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Partial. Every requirement this repository extracted from RFC 7950, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
 
 ## Overview
 
@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 5.3% | 4 of 76 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 76 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 28.9% | 22 of 76 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 1.3% | 1 of 76 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 76 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 10.0% | 2 of 20 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 69.0% | 40 of 58 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -33,7 +33,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 88.2% | 67 of 76 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 63.2% | 48 of 76 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 7 shares marked as a part above are the whole of the 76 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -57,128 +57,140 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Field | Value |
 |---|---|
-| Public status | No row in the public ledger |
+| Public status | Partial |
 | Enrolment | Enrolled |
 | Requirements | 77 |
 | Gated MUST-level | 76 |
 | Not applicable, so out of scope | 5 |
-| Declared gaps | 0 |
-| Gated with no test | 67 |
+| Declared gaps | 48 |
+| Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 20 |
-| Tagged units | 20 |
+| Test tags | 58 |
+| Tagged units | 58 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 2 |
+| Discrimination records | 40 |
 | Summary | `rfc/short/rfc7950.md` |
 | Requirement shard | `rfc/requirements/rfc7950.md` |
 | RFC text | `rfc/full/rfc7950.txt` |
 
 ## Enrolment
 
-Enrolled: The YANG 1.1 Data Modeling Language (ze config validator). The extraction walk of 2026-09-21 read all 227 MUST sites and rewrote this ledger: it added 67 MUST rows the checklist did not carry, covering module and submodule structure, identifier and prefix scoping, typedef and leaf definition rules, list keys and unique constraints, choice, grouping, augment, identity, feature, deviation, status and when rules, the Section 8.1 validity conditions and the Section 8.3 enforcement windows, the built-in type restrictions of Section 9, the module update rules of Section 11 and the YANG 1/1.1 coexistence rules of Section 12. None of the added rows carries a tagged test, so each is an untested MUST on this ledger. Of the nine rows that stood before the walk, four are met with positive+negative tags in internal/component/config: 8.3.1-1 (a value violating a range, length, or pattern restriction is an error), 9.6-1 (an enum value must be one of the defined enums), 9.12-1 (a union value must match at least one member type), and 7.6.5-1 (a missing mandatory node is an error). Five are {not-applicable}: 7.5.3-1 (ze uses no must XPath statements and enforces cross-field constraints with Go validators instead), 9.2.4-1 (derived-type narrowing is resolved by goyang at module-processing time with no runtime surface), 9.4.5-1 (no ze type carries multiple pattern statements), x-1 (ze's models declare no yang-version and default to YANG 1.0, using no 1.1-only construct), and x-2 (no cross-revision position-stability tooling; critical enum values are pinned with explicit value statements). The walk excluded 32 sites as the NETCONF protocol binding, the XML encoding and the YIN syntax, none of which ze uses: ze serves its YANG-modeled config over gNMI and its own CLI, and no Go file in internal/ references NETCONF except a port-name table. Three further sites delegate module-name and namespace assignment to the IANA procedure of the earlier YANG specification they cite.
+Enrolled: The YANG 1.1 Data Modeling Language (ze config validator). The extraction walk of 2026-09-21 read all 227 MUST sites and rewrote this ledger: it added 67 MUST rows the checklist did not carry, covering module and submodule structure, identifier and prefix scoping, typedef and leaf definition rules, list keys and unique constraints, choice, grouping, augment, identity, feature, deviation, status and when rules, the Section 8.1 validity conditions and the Section 8.3 enforcement windows, the built-in type restrictions of Section 9, the module update rules of Section 11 and the YANG 1/1.1 coexistence rules of Section 12. On 2026-09-21 twelve of the added rows gained positive and negative tags (seven at the loader boundary in internal/component/config/yang/loader_rfc7950_test.go, decimal64 and default validation in the validator and the schema builder), one is single-polarity, and the forty-eight left carry {gap} rows naming their specs. Of the nine rows that stood before the walk, four are met with positive+negative tags in internal/component/config: 8.3.1-1 (a value violating a range, length, or pattern restriction is an error), 9.6-1 (an enum value must be one of the defined enums), 9.12-1 (a union value must match at least one member type), and 7.6.5-1 (a missing mandatory node is an error). Five are {not-applicable}: 7.5.3-1 (ze uses no must XPath statements and enforces cross-field constraints with Go validators instead), 9.2.4-1 (derived-type narrowing is resolved by goyang at module-processing time with no runtime surface), 9.4.5-1 (no ze type carries multiple pattern statements), x-1 (ze's models declare no yang-version and default to YANG 1.0, using no 1.1-only construct), and x-2 (no cross-revision position-stability tooling; critical enum values are pinned with explicit value statements). The walk excluded 32 sites as the NETCONF protocol binding, the XML encoding and the YIN syntax, none of which ze uses: ze serves its YANG-modeled config over gNMI and its own CLI, and no Go file in internal/ references NETCONF except a port-name table. Three further sites delegate module-name and namespace assignment to the IANA procedure of the earlier YANG specification they cite.
 
 ## What the public ledger says
 
-No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 7950.
+**Status:** Partial
+
+**What the ledger says is covered**
+
+- Config schema loaded from Ze's own YANG modules through goyang
+- value validation for string (length, pattern), the integer types (range, with negative bounds), decimal64 (lexical form, fraction-digits, range), boolean, enumeration and union
+- mandatory leaves
+- min-elements and max-elements
+- leaf and typedef defaults validated against their type at schema build
+- the loader refuses a bad escape, an unprefixed external reference, a leaf or typedef without a type, an extension with a non-YANG substatement, a descending or non-numeric range, a negative or descending length, a decimal64 without fraction-digits, and an enum value that is duplicated, beyond int32 or missing after the maximum.
+
+
+**What the ledger says remains**
+
+Forty-eight MUST rows carry {gap}, each naming its spec. Ze's loader adds no check of its own where goyang accepts a violating module (circular imports, duplicate typedefs and groupings, a shared import prefix, a typedef named after a built-in type, a shared child name across choice cases, an action or notification under a keyless list, an augment adding a duplicate, an overlapping range, an empty enumeration or union, a restricted enumeration adding a name; a self-referencing grouping or identity and an augment targeting a leaf crash goyang instead of being refused): [`plan/pre-release/spec-config-yang-loader-structural-checks.md`](https://github.com/ze-software/ze/blob/main/plan/pre-release/spec-config-yang-loader-structural-checks.md). The validator evaluates no when, unique or choice: [`plan/pre-release/spec-config-yang-when-unique-choice.md`](https://github.com/ze-software/ze/blob/main/plan/pre-release/spec-config-yang-when-unique-choice.md). A config list without a key is tolerated, leaf-list values are not deduplicated and leaf-list defaults are not applied: [`plan/pre-release/spec-config-yang-list-key-leaf-list.md`](https://github.com/ze-software/ze/blob/main/plan/pre-release/spec-config-yang-list-key-leaf-list.md). RPC input and output mandatory and defaults are read by no invocation path: [`plan/pre-release/spec-config-yang-rpc-mandatory-defaults.md`](https://github.com/ze-software/ze/blob/main/plan/pre-release/spec-config-yang-rpc-mandatory-defaults.md). No repository check reads module namespaces or revisions: [`plan/spec-config-yang-authoring-checks.md`](https://github.com/ze-software/ze/blob/main/plan/spec-config-yang-authoring-checks.md). Ze offers no bits, leafref, identityref or instance-identifier type, no feature or if-feature, no deviation, no yang-version declaration and no submodule: one plan/spec-config-yang-*.md each, for the owner to decline or schedule.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 4 | one part of the gated population |
-| Annotated instead of tested | 5 | one part of the gated population |
+| Positive and negative tests | 22 | one part of the gated population |
+| Annotated instead of tested | 54 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 67 | one part of the gated population |
+| No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **76** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (4):** [`RFC7950-8.3.1-1`](#rfc7950-8.3.1-1), [`RFC7950-9.6-1`](#rfc7950-9.6-1), [`RFC7950-9.12-1`](#rfc7950-9.12-1), [`RFC7950-7.6.5-1`](#rfc7950-7.6.5-1)
+**Positive and negative tests (22):** [`RFC7950-8.3.1-1`](#rfc7950-8.3.1-1), [`RFC7950-9.6-1`](#rfc7950-9.6-1), [`RFC7950-9.12-1`](#rfc7950-9.12-1), [`RFC7950-7.6.5-1`](#rfc7950-7.6.5-1), [`RFC7950-6.1.3-1`](#rfc7950-6.1.3-1), [`RFC7950-6.5-1`](#rfc7950-6.5-1), [`RFC7950-7.3.4-1`](#rfc7950-7.3.4-1), [`RFC7950-7.6.1-1`](#rfc7950-7.6.1-1), [`RFC7950-7.6.3-1`](#rfc7950-7.6.3-1), [`RFC7950-7.6.4-2`](#rfc7950-7.6.4-2), [`RFC7950-7.7.4-1`](#rfc7950-7.7.4-1), [`RFC7950-7.7.5-1`](#rfc7950-7.7.5-1), [`RFC7950-7.19-1`](#rfc7950-7.19-1), [`RFC7950-8.1-2`](#rfc7950-8.1-2), [`RFC7950-8.3-1`](#rfc7950-8.3-1), [`RFC7950-8.3.3-1`](#rfc7950-8.3.3-1), [`RFC7950-9.1-1`](#rfc7950-9.1-1), [`RFC7950-9.3.2-1`](#rfc7950-9.3.2-1), [`RFC7950-9.3.4-1`](#rfc7950-9.3.4-1), [`RFC7950-9.4.4-1`](#rfc7950-9.4.4-1), [`RFC7950-9.5.1-1`](#rfc7950-9.5.1-1), [`RFC7950-9.6.4.2-1`](#rfc7950-9.6.4.2-1)
 
-**Annotated instead of tested (5):** [`RFC7950-7.5.3-1`](#rfc7950-7.5.3-1), [`RFC7950-9.2.4-1`](#rfc7950-9.2.4-1), [`RFC7950-9.4.5-1`](#rfc7950-9.4.5-1), [`RFC7950-x-1`](#rfc7950-x-1), [`RFC7950-x-2`](#rfc7950-x-2)
-
-**No test and no annotation (67):** [`RFC7950-5.1-1`](#rfc7950-5.1-1), [`RFC7950-5.3-1`](#rfc7950-5.3-1), [`RFC7950-5.5-1`](#rfc7950-5.5-1), [`RFC7950-5.6.5-1`](#rfc7950-5.6.5-1), [`RFC7950-6.1.3-1`](#rfc7950-6.1.3-1), [`RFC7950-6.2-1`](#rfc7950-6.2-1), [`RFC7950-6.2.1-1`](#rfc7950-6.2.1-1), [`RFC7950-6.3.1-1`](#rfc7950-6.3.1-1), [`RFC7950-6.4-1`](#rfc7950-6.4-1), [`RFC7950-6.4-2`](#rfc7950-6.4-2), [`RFC7950-6.5-1`](#rfc7950-6.5-1), [`RFC7950-7.1.4-1`](#rfc7950-7.1.4-1), [`RFC7950-7.3-1`](#rfc7950-7.3-1), [`RFC7950-7.3.4-1`](#rfc7950-7.3.4-1), [`RFC7950-7.6.1-1`](#rfc7950-7.6.1-1), [`RFC7950-7.6.3-1`](#rfc7950-7.6.3-1), [`RFC7950-7.6.4-2`](#rfc7950-7.6.4-2), [`RFC7950-7.7-1`](#rfc7950-7.7-1), [`RFC7950-7.7.2-1`](#rfc7950-7.7.2-1), [`RFC7950-7.7.4-1`](#rfc7950-7.7.4-1), [`RFC7950-7.7.5-1`](#rfc7950-7.7.5-1), [`RFC7950-7.8.2-1`](#rfc7950-7.8.2-1), [`RFC7950-7.8.3-1`](#rfc7950-7.8.3-1), [`RFC7950-7.9.2-1`](#rfc7950-7.9.2-1), [`RFC7950-7.9.3-1`](#rfc7950-7.9.3-1), [`RFC7950-7.9.4-1`](#rfc7950-7.9.4-1), [`RFC7950-7.12-1`](#rfc7950-7.12-1), [`RFC7950-7.14.2-1`](#rfc7950-7.14.2-1), [`RFC7950-7.14.3-1`](#rfc7950-7.14.3-1), [`RFC7950-7.15-1`](#rfc7950-7.15-1), [`RFC7950-7.16-1`](#rfc7950-7.16-1), [`RFC7950-7.17-1`](#rfc7950-7.17-1), [`RFC7950-7.18.2-1`](#rfc7950-7.18.2-1), [`RFC7950-7.19-1`](#rfc7950-7.19-1), [`RFC7950-7.20.1-1`](#rfc7950-7.20.1-1), [`RFC7950-7.20.2-1`](#rfc7950-7.20.2-1), [`RFC7950-7.20.3-1`](#rfc7950-7.20.3-1), [`RFC7950-7.20.3.2-1`](#rfc7950-7.20.3.2-1), [`RFC7950-7.21.2-1`](#rfc7950-7.21.2-1), [`RFC7950-7.21.5-1`](#rfc7950-7.21.5-1), [`RFC7950-8.1-1`](#rfc7950-8.1-1), [`RFC7950-8.1-2`](#rfc7950-8.1-2), [`RFC7950-8.3-1`](#rfc7950-8.3-1), [`RFC7950-8.3.1-2`](#rfc7950-8.3.1-2), [`RFC7950-8.3.2-1`](#rfc7950-8.3.2-1), [`RFC7950-8.3.3-1`](#rfc7950-8.3.3-1), [`RFC7950-9.1-1`](#rfc7950-9.1-1), [`RFC7950-9.2.4-2`](#rfc7950-9.2.4-2), [`RFC7950-9.3.2-1`](#rfc7950-9.3.2-1), [`RFC7950-9.3.4-1`](#rfc7950-9.3.4-1), [`RFC7950-9.4.4-1`](#rfc7950-9.4.4-1), [`RFC7950-9.5.1-1`](#rfc7950-9.5.1-1), [`RFC7950-9.6.4-1`](#rfc7950-9.6.4-1), [`RFC7950-9.6.4-2`](#rfc7950-9.6.4-2), [`RFC7950-9.6.4.2-1`](#rfc7950-9.6.4.2-1), [`RFC7950-9.7-1`](#rfc7950-9.7-1), [`RFC7950-9.7.4-1`](#rfc7950-9.7.4-1), [`RFC7950-9.7.4.2-1`](#rfc7950-9.7.4.2-1), [`RFC7950-9.9-1`](#rfc7950-9.9-1), [`RFC7950-9.9.2-1`](#rfc7950-9.9.2-1), [`RFC7950-9.9.3-1`](#rfc7950-9.9.3-1), [`RFC7950-9.10.2-1`](#rfc7950-9.10.2-1), [`RFC7950-9.10.3-1`](#rfc7950-9.10.3-1), [`RFC7950-9.12-2`](#rfc7950-9.12-2), [`RFC7950-9.13-1`](#rfc7950-9.13-1), [`RFC7950-11-1`](#rfc7950-11-1), [`RFC7950-12-1`](#rfc7950-12-1)
+**Annotated instead of tested (54):** [`RFC7950-7.5.3-1`](#rfc7950-7.5.3-1), [`RFC7950-9.2.4-1`](#rfc7950-9.2.4-1), [`RFC7950-9.4.5-1`](#rfc7950-9.4.5-1), [`RFC7950-x-1`](#rfc7950-x-1), [`RFC7950-x-2`](#rfc7950-x-2), [`RFC7950-5.1-1`](#rfc7950-5.1-1), [`RFC7950-5.3-1`](#rfc7950-5.3-1), [`RFC7950-5.5-1`](#rfc7950-5.5-1), [`RFC7950-5.6.5-1`](#rfc7950-5.6.5-1), [`RFC7950-6.2-1`](#rfc7950-6.2-1), [`RFC7950-6.2.1-1`](#rfc7950-6.2.1-1), [`RFC7950-6.3.1-1`](#rfc7950-6.3.1-1), [`RFC7950-6.4-1`](#rfc7950-6.4-1), [`RFC7950-6.4-2`](#rfc7950-6.4-2), [`RFC7950-7.1.4-1`](#rfc7950-7.1.4-1), [`RFC7950-7.3-1`](#rfc7950-7.3-1), [`RFC7950-7.7-1`](#rfc7950-7.7-1), [`RFC7950-7.7.2-1`](#rfc7950-7.7.2-1), [`RFC7950-7.8.2-1`](#rfc7950-7.8.2-1), [`RFC7950-7.8.3-1`](#rfc7950-7.8.3-1), [`RFC7950-7.9.2-1`](#rfc7950-7.9.2-1), [`RFC7950-7.9.3-1`](#rfc7950-7.9.3-1), [`RFC7950-7.9.4-1`](#rfc7950-7.9.4-1), [`RFC7950-7.12-1`](#rfc7950-7.12-1), [`RFC7950-7.14.2-1`](#rfc7950-7.14.2-1), [`RFC7950-7.14.3-1`](#rfc7950-7.14.3-1), [`RFC7950-7.15-1`](#rfc7950-7.15-1), [`RFC7950-7.16-1`](#rfc7950-7.16-1), [`RFC7950-7.17-1`](#rfc7950-7.17-1), [`RFC7950-7.18.2-1`](#rfc7950-7.18.2-1), [`RFC7950-7.20.1-1`](#rfc7950-7.20.1-1), [`RFC7950-7.20.2-1`](#rfc7950-7.20.2-1), [`RFC7950-7.20.3-1`](#rfc7950-7.20.3-1), [`RFC7950-7.20.3.2-1`](#rfc7950-7.20.3.2-1), [`RFC7950-7.21.2-1`](#rfc7950-7.21.2-1), [`RFC7950-7.21.5-1`](#rfc7950-7.21.5-1), [`RFC7950-8.1-1`](#rfc7950-8.1-1), [`RFC7950-8.3.1-2`](#rfc7950-8.3.1-2), [`RFC7950-8.3.2-1`](#rfc7950-8.3.2-1), [`RFC7950-9.2.4-2`](#rfc7950-9.2.4-2), [`RFC7950-9.6.4-1`](#rfc7950-9.6.4-1), [`RFC7950-9.6.4-2`](#rfc7950-9.6.4-2), [`RFC7950-9.7-1`](#rfc7950-9.7-1), [`RFC7950-9.7.4-1`](#rfc7950-9.7.4-1), [`RFC7950-9.7.4.2-1`](#rfc7950-9.7.4.2-1), [`RFC7950-9.9-1`](#rfc7950-9.9-1), [`RFC7950-9.9.2-1`](#rfc7950-9.9.2-1), [`RFC7950-9.9.3-1`](#rfc7950-9.9.3-1), [`RFC7950-9.10.2-1`](#rfc7950-9.10.2-1), [`RFC7950-9.10.3-1`](#rfc7950-9.10.3-1), [`RFC7950-9.12-2`](#rfc7950-9.12-2), [`RFC7950-9.13-1`](#rfc7950-9.13-1), [`RFC7950-11-1`](#rfc7950-11-1), [`RFC7950-12-1`](#rfc7950-12-1)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7950-8.3.1-1` | If a leaf data value does not match type constraints (range, length, pattern), server must reply with an invalid-value error (Section 8.3.1) | MUST | 8.3.1 | **positive:** `unit/verify` [`TestValidator_HoldTimeRange`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L893). **positive:** `unit/verify` [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L844). **negative:** `unit/verify` [`TestValidateTree_LengthViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L411). **negative:** `unit/verify` [`TestValidateTree_PatternViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L310). **negative:** `unit/verify` [`TestValidateTree_RangeViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L169). **negative:** `unit/verify` [`TestValidator_HoldTimeRange`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L894). **negative:** `unit/verify` [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L845) |
-| `RFC7950-9.6-1` | An enumeration value must be one of the values specified in the type's enum statements (Section 9.6) | MUST | 9.6 | **positive:** `unit/verify` [`TestISISAuthAlgorithmEnumAcceptsAll`](https://github.com/ze-software/ze/blob/main/internal/component/config/isis_auth_algorithm_enum_test.go#L64). **positive:** `unit/verify` [`TestRadiusAuthMethodEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/radius_auth_method_enum_test.go#L53). **positive:** `unit/verify` [`TestValidateTree_AddPathDirectionEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L612). **positive:** `unit/verify` [`TestValidateTree_FamilyModeEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L546). **negative:** `unit/verify` [`TestISISAuthAlgorithmEnumAcceptsAll`](https://github.com/ze-software/ze/blob/main/internal/component/config/isis_auth_algorithm_enum_test.go#L81). **negative:** `unit/verify` [`TestRadiusAuthMethodEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/radius_auth_method_enum_test.go#L64). **negative:** `unit/verify` [`TestValidateTree_AddPathDirectionEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L613). **negative:** `unit/verify` [`TestValidateTree_FamilyModeEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L547) |
-| `RFC7950-9.12-1` | A union value must match at least one member type (Section 9.12) | MUST | 9.12 | **positive:** `unit/verify` [`TestValidateTree_ValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L46). **negative:** `unit/verify` [`TestValidateTree_UnionViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L360) |
-| `RFC7950-7.6.5-1` | If a mandatory node does not exist, server must reply with a missing-element error (Section 7.6.5) | MUST | 7.6.5 | **positive:** `unit/verify` [`TestValidator_MandatoryField`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L928). **negative:** `unit/verify` [`TestValidateTree_MandatoryMissing`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L332). **negative:** `unit/verify` [`TestValidator_MandatoryField`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L929) |
+| `RFC7950-8.3.1-1` | If a leaf data value does not match type constraints (range, length, pattern), server must reply with an invalid-value error (Section 8.3.1) | MUST | 8.3.1 | **positive:** `unit/verify` [`TestValidator_HoldTimeRange`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L899). **positive:** `unit/verify` [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L850). **negative:** `unit/verify` [`TestValidateTree_LengthViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L417). **negative:** `unit/verify` [`TestValidateTree_PatternViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L316). **negative:** `unit/verify` [`TestValidateTree_RangeViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L175). **negative:** `unit/verify` [`TestValidator_HoldTimeRange`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L900). **negative:** `unit/verify` [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L851) |
+| `RFC7950-9.6-1` | An enumeration value must be one of the values specified in the type's enum statements (Section 9.6) | MUST | 9.6 | **positive:** `unit/verify` [`TestISISAuthAlgorithmEnumAcceptsAll`](https://github.com/ze-software/ze/blob/main/internal/component/config/isis_auth_algorithm_enum_test.go#L64). **positive:** `unit/verify` [`TestRadiusAuthMethodEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/radius_auth_method_enum_test.go#L53). **positive:** `unit/verify` [`TestValidateTree_AddPathDirectionEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L618). **positive:** `unit/verify` [`TestValidateTree_FamilyModeEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L552). **negative:** `unit/verify` [`TestISISAuthAlgorithmEnumAcceptsAll`](https://github.com/ze-software/ze/blob/main/internal/component/config/isis_auth_algorithm_enum_test.go#L81). **negative:** `unit/verify` [`TestRadiusAuthMethodEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/radius_auth_method_enum_test.go#L64). **negative:** `unit/verify` [`TestValidateTree_AddPathDirectionEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L619). **negative:** `unit/verify` [`TestValidateTree_FamilyModeEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L553) |
+| `RFC7950-9.12-1` | A union value must match at least one member type (Section 9.12) | MUST | 9.12 | **positive:** `unit/verify` [`TestValidateTree_ValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L46). **negative:** `unit/verify` [`TestValidateTree_UnionViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L366) |
+| `RFC7950-7.6.5-1` | If a mandatory node does not exist, server must reply with a missing-element error (Section 7.6.5) | MUST | 7.6.5 | **positive:** `unit/verify` [`TestValidator_MandatoryField`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L934). **negative:** `unit/verify` [`TestValidateTree_MandatoryMissing`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L338). **negative:** `unit/verify` [`TestValidator_MandatoryField`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L935) |
 | `RFC7950-7.5.3-1` | If a must expression evaluates to false, the data is not valid (Section 7.5.3) | MUST | 7.5.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze uses zero YANG must statements (a grep of the .yang models finds must only inside a description); it parses via goyang which evaluates no XPath, and enforces cross-field constraints with Go ze:validate functions (internal/component/config/yang/validator.go:756 applyCustomValidators) instead, so there is no must-XPath code path |
 | `RFC7950-9.2.4-1` | All range, length, and pattern restrictions must be more restrictive than or equal to the base type's restrictions (Section 9.2.4) | MUST | 9.2.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this is a schema-authoring-time narrowing constraint resolved by goyang during module processing (internal/component/config/yang/loader.go); ze authors valid narrowings and has no runtime enforcement surface for it |
 | `RFC7950-9.4.5-1` | Multiple pattern statements on the same type are combined as logical AND (Section 9.4.5) | MUST | 9.4.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** no ze type carries two or more pattern statements (a scan of the .yang models finds none); the validator loop (internal/component/config/yang/validator.go:268) AND-combines patterns if present, but the multi-pattern construct is unused |
 | `RFC7950-x-1` | YANG modules must declare yang-version 1.1 (Core Constructs) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's YANG models declare no yang-version statement and default to YANG 1.0 in goyang; they use no YANG-1.1-only construct that would require the 1.1 declaration, so the version-declaration obligation has no applicable module |
 | `RFC7950-x-2` | Enum integer positions must not change across revisions (Type System) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's modules carry no consumed revision statements and there is no cross-revision position-stability tooling; ze pins the values that matter with explicit value statements (e.g. role.yang, ze-types.yang afi/safi) but enforces no automated cross-revision check |
-| `RFC7950-5.1-1` | Module names are unique within a server; a module includes all its submodules; a submodule is included only by the module it belongs to or by another submodule of that module, never imports its own module, and never includes a submodule of another module; a submodule includes the same submodule revisions its module includes and no submodule is included at two revisions; an external module is imported before its definitions are referenced, with no circular chains of imports; a reference to an external definition uses a locally defined prefix followed by a colon (Section 5.1, Section 7.1.6, Section 7.2.2) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-5.3-1` | Choose namespace URIs so they cannot collide with standard or other enterprise namespaces, for example by using the enterprise or organization name in the namespace (Section 5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-5.5-1` | A scoped definition does not shadow a definition at a higher scope (Section 5.5) | MUST | 5.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-5.6.5-1` | Implement no more than one revision of a module, and where a supported augment or path statement uses a node from an imported module, implement a revision of that module that carries the node (Section 5.6.5) | MUST | 5.6.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-6.1.3-1` | In a double-quoted string a backslash is followed only by one of the characters the escape rules define (Section 6.1.3) | MUST | 6.1.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-6.2-1` | Support identifiers up to 64 characters in length (Section 6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-6.2.1-1` | All identifiers defined in one namespace are unique: a descendant node defines no typedef and no grouping whose name is already visible from an ancestor (Section 6.2.1) | MUST | 6.2.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-6.3.1-1` | Qualify an extension keyword with the prefix of the module that defines it, including inside that module, and process a supported extension in accordance with the specification governing it (Section 6.3.1) | MUST | 6.3.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-6.4-1` | Enforce the requirements the data model encodes, whether or not an XPath interpreter is implemented (Section 6.4) | MUST | 6.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-6.4-2` | XPath expressions are syntactically correct and every prefix they use is present in the XPath context (Section 6.4) | MUST | 6.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-6.5-1` | Qualify a reference to an identifier defined in an external module with the appropriate prefix (Section 6.5) | MUST | 6.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.1.4-1` | All prefixes, the module's own included, are unique within the module or submodule, and where two imported modules define the same prefix at least one is imported under a different prefix (Section 7.1.4) | MUST | 7.1.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.3-1` | A typedef's argument is followed by a block of substatements, its type substatement is present, its name is not one of the YANG built-in types, and a top-level typedef name is unique within the module (Section 7.3, Section 7.3.2) | MUST | 7.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.3.4-1` | A typedef's default value is valid according to its type, and a derived type or leaf whose restrictions invalidate the inherited default specifies a new compatible default (Section 7.3.4) | MUST | 7.3.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.6.1-1` | Use a leaf's default value when the leaf is not set and its ancestry allows it, and behave operationally as if the leaf were present in the data tree with that value (Section 7.6.1) | MUST | 7.6.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.6.3-1` | A leaf's type statement is present (Section 7.6.3) | MUST | 7.6.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.6.4-2` | A leaf's default value is valid according to the leaf's type, is absent where mandatory is true, and is not marked with an if-feature statement (Section 7.6.4) | MUST | 7.6.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.7-1` | In configuration data the values in a leaf-list are unique, the definitions of default values carry no if-feature statement, and the values in the data tree are in canonical form (Section 7.7) | MUST | 7.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.7.2-1` | Use a leaf-list's default values when it is not set and its ancestry allows it, and behave operationally as if the leaf-list were present in the data tree with those values (Section 7.7.2) | MUST | 7.7.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.7.4-1` | A leaf-list's default value is valid according to its type and is absent where min-elements is one or more (Section 7.7.4) | MUST | 7.7.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.7.5-1` | A valid leaf-list or list has at least min-elements entries (Section 7.7.5) | MUST | 7.7.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.8.2-1` | A list that represents configuration carries a key statement; each key leaf identifier appears once, refers to a child leaf of the list, is given a value when a list entry is created, and has the same config value as the list (Section 7.8.2) | MUST | 7.8.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.8.3-1` | A unique argument names descendant-form schema node identifiers that each refer to a leaf; where one referenced leaf represents configuration all of them do, and the combined values are unique across all list entries in which every referenced leaf exists (Section 7.8.3) | MUST | 7.8.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.9.2-1` | Child node identifiers are unique across all cases of a choice, a case identifier is unique within its choice, and a schema node identifier always includes the case node identifier (Section 7.9.2) | MUST | 7.9.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.9.3-1` | A choice carries no default statement where mandatory is true, and the default case holds no mandatory node (Section 7.9.3) | MUST | 7.9.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.9.4-1` | Where a choice is mandatory, at least one node from exactly one of its case branches exists (Section 7.9.4) | MUST | 7.9.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.12-1` | A grouping never references itself, directly or through a chain of groupings, and a top-level grouping identifier is unique within the module (Section 7.12) | MUST | 7.12 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.14.2-1` | In an RPC or action invocation a mandatory input leaf is present, the server uses the input defaults in the cases Sections 7.6.1 and 7.7.2 describe and behaves as if the defaulted node were present, and no node whose when statement evaluates to false is present (Section 7.14.2) | MUST | 7.14.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.14.3-1` | In an RPC or action reply a mandatory output leaf is present, the client uses the output defaults in the cases Sections 7.6.1 and 7.7.2 describe and behaves as if the defaulted node were present, and no node whose when statement evaluates to false is present (Section 7.14.3) | MUST | 7.14.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.15-1` | An action is not defined within an rpc, another action or a notification, and has no ancestor node that is a list without a key statement (Section 7.15) | MUST | 7.15 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.16-1` | A notification is not defined within an rpc, an action or another notification, has no ancestor node that is a list without a key statement, carries its mandatory leafs, and its receiver uses the notification's default values in the cases Sections 7.6.1 and 7.7.2 describe (Section 7.16) | MUST | 7.16 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.17-1` | An augment target is a container, list, choice, case, input, output or notification node; a top-level augment uses the absolute form of a schema node identifier and an augment under uses the descendant form; an augment adds no two nodes of the same name from the same module to one target; and an augment that adds mandatory configuration nodes to another module's target is made conditional with a when statement (Section 7.17) | MUST | 7.17 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.18.2-1` | A base argument names an identity defined in the current module or an included submodule, and an identity never references itself, directly or through a chain of identities (Section 7.18.2) | MUST | 7.18.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.19-1` | The substatements of an extension usage are YANG statements, extensions included, and follow the syntactical rules of Section 14 (Section 7.19) | MUST | 7.19 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.20.1-1` | A feature never references itself, and a server that supports a feature supports every feature that feature depends on (Section 7.20.1) | MUST | 7.20.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.20.2-1` | An if-feature argument names a feature defined in the current module or an included submodule, and a leaf that is a list key carries no if-feature statement (Section 7.20.2) | MUST | 7.20.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.20.3-1` | A deviation is never part of a published standard, a server deviation is used only as a last resort, and the data model that results from applying all of a server's deviations in any order is still valid (Section 7.20.3) | MUST | 7.20.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.20.3.2-1` | A deviate add does not add a property that can appear only once and already exists in the target node; the properties a deviate replace names exist in the target node; and a deviate delete substatement matches the target node's keyword and argument string (Section 7.20.3.2) | MUST | 7.20.3.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.21.2-1` | A current definition references no deprecated or obsolete definition within the same module, and a deprecated definition references no obsolete definition within the same module (Section 7.21.2) | MUST | 7.21.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-7.21.5-1` | A leaf that is a list key carries no when statement and neither does a uses statement that brings a key leaf into a list; when expressions on referenced nodes are evaluated first; and there are no circular dependencies among when expressions (Section 7.21.5) | MUST | 7.21.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-8.1-1` | A valid data tree satisfies every Section 8.1 constraint: every leaf value matches its type constraints including range, length and pattern; all key leafs are present for every list entry; nodes are present for at most one case branch of a choice; no node tagged with an if-feature whose expression is false and no node tagged with a when whose condition is false is present; every path referential-integrity constraint is satisfied; every unique constraint is satisfied; mandatory is enforced for leafs and choices; and the constraint holds for configuration data, state data, notification content, and RPC or action input and output (Section 8.1) | MUST | 8.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-8.1-2` | The running configuration datastore is always valid (Section 8.1) | MUST | 8.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-8.3-1` | Enforce configuration constraints in each of the three windows Section 8.3 defines (Section 8.3) | MUST | 8.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-8.3.1-2` | Reject content that carries data for more than one case branch of a choice, or data for a node whose if-feature expression or when condition evaluates to false, answering with the error the management protocol defines (a bad-element or unknown-element error-tag under NETCONF) (Section 8.3.1) | MUST | 8.3.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-8.3.2-1` | While processing a datastore modification, detect data for a node whose if-feature expression or when condition evaluates to false and reject it (Section 8.3.2) | MUST | 8.3.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-8.3.3-1` | When datastore processing is complete the final contents obey every validation constraint, enforced at the end of the operation for the running and startup datastores (Section 8.3.3) | MUST | 8.3.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.1-1` | Support all the lexical representations this specification defines, and where a type has no canonical form the value's format matches the type's lexical representation (Section 9.1) | MUST | 9.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.2.4-2` | The values and ranges of a range restriction are disjoint and in ascending order, and every explicit value and range boundary matches the type being restricted or is one of the special values min and max (Section 9.2.4) | MUST | 9.2.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.3.2-1` | A decimal64 value carries at least one digit before and after the decimal point, with no leading or trailing zeros (Section 9.3.2) | MUST | 9.3.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.3.4-1` | The fraction-digits statement is present where the type is decimal64 (Section 9.3.4) | MUST | 9.3.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.4.4-1` | Length-restricting values are never negative, and the values and ranges of a length restriction are disjoint and in ascending order (Section 9.4.4) | MUST | 9.4.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.5.1-1` | Represent a boolean value as the lowercase string true or false (Section 9.5.1) | MUST | 9.5.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.6.4-1` | The enum statement is present where the type is enumeration; an assigned name is not zero-length and carries no leading or trailing whitespace; and all assigned names in an enumeration are unique (Section 9.6.4) | MUST | 9.6.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.6.4-2` | When an existing enumeration type is restricted, the new type's assigned names are a subset of the base type's and the value of an assigned name is not changed (Section 9.6.4) | MUST | 9.6.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.6.4.2-1` | An enum value is in the range -2147483648 to 2147483647 and unique within the enumeration type; once the highest value reaches 2147483647 a value is given explicitly for the enum substatements that follow; and a restricted enumeration either repeats the base type's value or omits the value statement (Section 9.6.4.2) | MUST | 9.6.4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.7-1` | When an existing bits type is restricted, the new type's assigned names are a subset of the base type's and the bit position of an assigned name is not changed (Section 9.7) | MUST | 9.7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.7.4-1` | The bit statement is present where the type is bits, and all assigned names in a bits type are unique (Section 9.7.4) | MUST | 9.7.4 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.7.4.2-1` | A bit position is in the range 0 to 4294967295 and unique within the bits type; once the highest position reaches 4294967295 a position is given explicitly for the bit substatements that follow; and a restricted bits type either repeats the base type's position or omits the position statement (Section 9.7.4.2) | MUST | 9.7.4.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.9-1` | Where require-instance is true the node a leafref refers to exists; a leafref that represents configuration refers to configuration; there are no circular chains of leafrefs; and a leafref to a feature-conditional leaf is itself conditional on at least the same features (Section 9.9) | MUST | 9.9 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.9.2-1` | The path statement is present where the type is leafref, its argument refers to a leaf or leaf-list node, and where require-instance is true the node set it selects is non-empty (Section 9.9.2) | MUST | 9.9.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.9.3-1` | Where require-instance is true, the instance being referred to exists for the data to be valid (Section 9.9.3) | MUST | 9.9.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.10.2-1` | The base statement is present at least once where the type is identityref, and its argument names an identity defined in the current module or an included submodule (Section 9.10.2) | MUST | 9.10.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.10.3-1` | An identityref value names an identity defined in the current module or one of its submodules (Section 9.10.3) | MUST | 9.10.3 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.12-2` | The type statement is present where the type is union (Section 9.12) | MUST | 9.12 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-9.13-1` | An instance-identifier gives one equality-test predicate per key of a list entry; where it represents configuration and require-instance is true the node it refers to represents configuration; and the nodes it references exist for the data to be valid (Section 9.13) | MUST | 9.13 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-11-1` | When a module is updated a new revision statement is placed in front of the existing ones, or added where none exist; the organization and contact metadata statements are updated as needed; the module name and the namespace statement are never changed; obsolete definitions are never removed from a published module; a change to the semantics of a definition is made through a new definition; and data definition substatements are never reordered (Section 11) | MUST | 11 | **positive:** no positive test. **negative:** no negative test |
-| `RFC7950-12-1` | A YANG 1.1 module includes no YANG 1 submodule and a YANG 1 module includes no YANG 1.1 submodule, and a YANG 1 module or submodule does not import a YANG 1.1 module by revision (Section 12) | MUST | 12 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7950-5.1-1` | Module names are unique within a server; a module includes all its submodules; a submodule is included only by the module it belongs to or by another submodule of that module, never imports its own module, and never includes a submodule of another module; a submodule includes the same submodule revisions its module includes and no submodule is included at two revisions; an external module is imported before its definitions are referenced, with no circular chains of imports; a reference to an external definition uses a locally defined prefix followed by a colon (Section 5.1, Section 7.1.6, Section 7.2.2) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-5.3-1` | Namespace URIs MUST be chosen so they cannot collide with standard or other enterprise namespaces -- for example, by using the enterprise or organization name in the namespace. (Section 5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no repository check reads the namespace or the revision history of the embedded modules; plan/spec-config-yang-authoring-checks.md |
+| `RFC7950-5.5-1` | A scoped definition does not shadow a definition at a higher scope (Section 5.5) | MUST | 5.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-5.6.5-1` | Implement no more than one revision of a module, and where a supported augment or path statement uses a node from an imported module, implement a revision of that module that carries the node (Section 5.6.5) | MUST | 5.6.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-6.1.3-1` | In a double-quoted string a backslash is followed only by one of the characters the escape rules define (Section 6.1.3) | MUST | 6.1.3 | **positive:** `unit/verify` [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L114). **negative:** `unit/verify` [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L65) |
+| `RFC7950-6.2-1` | Support identifiers up to 64 characters in length (Section 6.2) | MUST | 6.2 | **positive:** `unit/verify` [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L116). **negative:** no negative test. **{single-polarity}:** the RFC binds an implementation to accept an identifier of up to 64 characters and MAY accept longer, so no identifier length exists that Ze must refuse |
+| `RFC7950-6.2.1-1` | All identifiers defined in one namespace are unique: a descendant node defines no typedef and no grouping whose name is already visible from an ancestor (Section 6.2.1) | MUST | 6.2.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-6.3.1-1` | Qualify an extension keyword with the prefix of the module that defines it, including inside that module, and process a supported extension in accordance with the specification governing it (Section 6.3.1) | MUST | 6.3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-6.4-1` | An implementation is not required to implement an XPath interpreter but MUST ensure that the requirements encoded in the data model are enforced. (Section 6.4) | MUST | 6.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md |
+| `RFC7950-6.4-2` | XPath expressions are syntactically correct and every prefix they use is present in the XPath context (Section 6.4) | MUST | 6.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md |
+| `RFC7950-6.5-1` | Qualify a reference to an identifier defined in an external module with the appropriate prefix (Section 6.5) | MUST | 6.5 | **positive:** `unit/verify` [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L121). **negative:** `unit/verify` [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L68) |
+| `RFC7950-7.1.4-1` | All prefixes, the module's own included, are unique within the module or submodule, and where two imported modules define the same prefix at least one is imported under a different prefix (Section 7.1.4) | MUST | 7.1.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-7.3-1` | A typedef's argument is followed by a block of substatements, its type substatement is present, its name is not one of the YANG built-in types, and a top-level typedef name is unique within the module (Section 7.3, Section 7.3.2) | MUST | 7.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-7.3.4-1` | A typedef's default value is valid according to its type, and a derived type or leaf whose restrictions invalidate the inherited default specifies a new compatible default (Section 7.3.4) | MUST | 7.3.4 | **positive:** `unit/verify` [`TestRFC7950DefaultValidForType`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang_schema_defaults_rfc7950_test.go#L32). **negative:** `unit/verify` [`TestRFC7950DefaultInvalidForType`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang_schema_defaults_rfc7950_test.go#L47) |
+| `RFC7950-7.6.1-1` | Use a leaf's default value when the leaf is not set and its ancestry allows it, and behave operationally as if the leaf were present in the data tree with that value (Section 7.6.1) | MUST | 7.6.1 | **positive:** `unit/verify` [`TestRFC7950LeafDefaultUsedWhenAbsent`](https://github.com/ze-software/ze/blob/main/internal/component/config/schema_defaults_rfc7950_test.go#L14). **negative:** `unit/verify` [`TestRFC7950LeafDefaultNotUsedWhenSet`](https://github.com/ze-software/ze/blob/main/internal/component/config/schema_defaults_rfc7950_test.go#L42) |
+| `RFC7950-7.6.3-1` | The "type" statement, which MUST be present, takes as an argument the name of an existing built-in or derived type. (Section 7.6.3) | MUST | 7.6.3 | **positive:** `unit/verify` [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L128). **negative:** `unit/verify` [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L74) |
+| `RFC7950-7.6.4-2` | A leaf's default value is valid according to the leaf's type, is absent where mandatory is true, and is not marked with an if-feature statement (Section 7.6.4) | MUST | 7.6.4 | **positive:** `unit/verify` [`TestRFC7950DefaultValidForType`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang_schema_defaults_rfc7950_test.go#L33). **negative:** `unit/verify` [`TestRFC7950DefaultInvalidForType`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang_schema_defaults_rfc7950_test.go#L48) |
+| `RFC7950-7.7-1` | In configuration data the values in a leaf-list are unique, the definitions of default values carry no if-feature statement, and the values in the data tree are in canonical form (Section 7.7) | MUST | 7.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** yangToList tolerates a keyless config list and leaf-lists are neither deduplicated nor defaulted; plan/pre-release/spec-config-yang-list-key-leaf-list.md |
+| `RFC7950-7.7.2-1` | Use a leaf-list's default values when it is not set and its ancestry allows it, and behave operationally as if the leaf-list were present in the data tree with those values (Section 7.7.2) | MUST | 7.7.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** yangToList tolerates a keyless config list and leaf-lists are neither deduplicated nor defaulted; plan/pre-release/spec-config-yang-list-key-leaf-list.md |
+| `RFC7950-7.7.4-1` | A leaf-list's default value is valid according to its type and is absent where min-elements is one or more (Section 7.7.4) | MUST | 7.7.4 | **positive:** `unit/verify` [`TestRFC7950DefaultValidForType`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang_schema_defaults_rfc7950_test.go#L34). **negative:** `unit/verify` [`TestRFC7950DefaultInvalidForType`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang_schema_defaults_rfc7950_test.go#L49) |
+| `RFC7950-7.7.5-1` | A valid leaf-list or list MUST have at least min-elements entries. (Section 7.7.5) | MUST | 7.7.5 | **positive:** `unit/verify` [`TestRFC7950MinElementsMet`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/validator_rfc7950_test.go#L48). **negative:** `unit/verify` [`TestRFC7950MinElementsViolated`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/validator_rfc7950_test.go#L67) |
+| `RFC7950-7.8.2-1` | A list that represents configuration carries a key statement; each key leaf identifier appears once, refers to a child leaf of the list, is given a value when a list entry is created, and has the same config value as the list (Section 7.8.2) | MUST | 7.8.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** yangToList tolerates a keyless config list and leaf-lists are neither deduplicated nor defaulted; plan/pre-release/spec-config-yang-list-key-leaf-list.md |
+| `RFC7950-7.8.3-1` | A unique argument names descendant-form schema node identifiers that each refer to a leaf; where one referenced leaf represents configuration all of them do, and the combined values are unique across all list entries in which every referenced leaf exists (Section 7.8.3) | MUST | 7.8.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md |
+| `RFC7950-7.9.2-1` | Child node identifiers are unique across all cases of a choice, a case identifier is unique within its choice, and a schema node identifier always includes the case node identifier (Section 7.9.2) | MUST | 7.9.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-7.9.3-1` | A choice carries no default statement where mandatory is true, and the default case holds no mandatory node (Section 7.9.3) | MUST | 7.9.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-7.9.4-1` | If "mandatory" is "true", at least one node from exactly one of the choice's case branches MUST exist. (Section 7.9.4) | MUST | 7.9.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md |
+| `RFC7950-7.12-1` | A grouping never references itself, directly or through a chain of groupings, and a top-level grouping identifier is unique within the module (Section 7.12) | MUST | 7.12 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-7.14.2-1` | In an RPC or action invocation a mandatory input leaf is present, the server uses the input defaults in the cases Sections 7.6.1 and 7.7.2 describe and behaves as if the defaulted node were present, and no node whose when statement evaluates to false is present (Section 7.14.2) | MUST | 7.14.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no invocation or reply path reads mandatory or default on rpc input and output; plan/pre-release/spec-config-yang-rpc-mandatory-defaults.md |
+| `RFC7950-7.14.3-1` | In an RPC or action reply a mandatory output leaf is present, the client uses the output defaults in the cases Sections 7.6.1 and 7.7.2 describe and behaves as if the defaulted node were present, and no node whose when statement evaluates to false is present (Section 7.14.3) | MUST | 7.14.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no invocation or reply path reads mandatory or default on rpc input and output; plan/pre-release/spec-config-yang-rpc-mandatory-defaults.md |
+| `RFC7950-7.15-1` | An action is not defined within an rpc, another action or a notification, and has no ancestor node that is a list without a key statement (Section 7.15) | MUST | 7.15 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-7.16-1` | A notification is not defined within an rpc, an action or another notification, has no ancestor node that is a list without a key statement, carries its mandatory leafs, and its receiver uses the notification's default values in the cases Sections 7.6.1 and 7.7.2 describe (Section 7.16) | MUST | 7.16 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-7.17-1` | An augment target is a container, list, choice, case, input, output or notification node; a top-level augment uses the absolute form of a schema node identifier and an augment under uses the descendant form; an augment adds no two nodes of the same name from the same module to one target; and an augment that adds mandatory configuration nodes to another module's target is made conditional with a when statement (Section 7.17) | MUST | 7.17 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-7.18.2-1` | A base argument names an identity defined in the current module or an included submodule, and an identity never references itself, directly or through a chain of identities (Section 7.18.2) | MUST | 7.18.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-7.19-1` | The substatements of an extension usage are YANG statements, extensions included, and follow the syntactical rules of Section 14 (Section 7.19) | MUST | 7.19 | **positive:** `unit/verify` [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L136). **negative:** `unit/verify` [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L81) |
+| `RFC7950-7.20.1-1` | A feature never references itself, and a server that supports a feature supports every feature that feature depends on (Section 7.20.1) | MUST | 7.20.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze evaluates no if-feature and declares no feature; plan/spec-config-yang-if-feature.md |
+| `RFC7950-7.20.2-1` | An if-feature argument names a feature defined in the current module or an included submodule, and a leaf that is a list key carries no if-feature statement (Section 7.20.2) | MUST | 7.20.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze evaluates no if-feature and declares no feature; plan/spec-config-yang-if-feature.md |
+| `RFC7950-7.20.3-1` | A deviation is never part of a published standard, a server deviation is used only as a last resort, and the data model that results from applying all of a server's deviations in any order is still valid (Section 7.20.3) | MUST | 7.20.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze reads no deviation; plan/spec-config-yang-deviation.md |
+| `RFC7950-7.20.3.2-1` | A deviate add does not add a property that can appear only once and already exists in the target node; the properties a deviate replace names exist in the target node; and a deviate delete substatement matches the target node's keyword and argument string (Section 7.20.3.2) | MUST | 7.20.3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze reads no deviation; plan/spec-config-yang-deviation.md |
+| `RFC7950-7.21.2-1` | A current definition references no deprecated or obsolete definition within the same module, and a deprecated definition references no obsolete definition within the same module (Section 7.21.2) | MUST | 7.21.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-7.21.5-1` | A leaf that is a list key carries no when statement and neither does a uses statement that brings a key leaf into a list; when expressions on referenced nodes are evaluated first; and there are no circular dependencies among when expressions (Section 7.21.5) | MUST | 7.21.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md |
+| `RFC7950-8.1-1` | A valid data tree satisfies every Section 8.1 constraint: every leaf value matches its type constraints including range, length and pattern; all key leafs are present for every list entry; nodes are present for at most one case branch of a choice; no node tagged with an if-feature whose expression is false and no node tagged with a when whose condition is false is present; every path referential-integrity constraint is satisfied; every unique constraint is satisfied; mandatory is enforced for leafs and choices; and the constraint holds for configuration data, state data, notification content, and RPC or action input and output (Section 8.1) | MUST | 8.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md |
+| `RFC7950-8.1-2` | The running configuration datastore MUST always be valid. (Section 8.1) | MUST | 8.1 | **positive:** `unit/verify` [`TestRFC7950RunningDatastoreAcceptsAValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/datastore_rfc7950_test.go#L33). **negative:** `unit/verify` [`TestRFC7950RunningDatastoreRefusesAViolationAfterParse`](https://github.com/ze-software/ze/blob/main/internal/component/config/datastore_rfc7950_test.go#L77) |
+| `RFC7950-8.3-1` | Enforce configuration constraints in each of the three windows Section 8.3 defines (Section 8.3) | MUST | 8.3 | **positive:** `unit/verify` [`TestRFC7950RunningDatastoreAcceptsAValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/datastore_rfc7950_test.go#L34). **negative:** `unit/verify` [`TestRFC7950RunningDatastoreRefusesAViolationAfterParse`](https://github.com/ze-software/ze/blob/main/internal/component/config/datastore_rfc7950_test.go#L78). **negative:** `unit/verify` [`TestRFC7950RunningDatastoreRefusesAViolationAtParse`](https://github.com/ze-software/ze/blob/main/internal/component/config/datastore_rfc7950_test.go#L53) |
+| `RFC7950-8.3.1-2` | Reject content that carries data for more than one case branch of a choice, or data for a node whose if-feature expression or when condition evaluates to false, answering with the error the management protocol defines (a bad-element or unknown-element error-tag under NETCONF) (Section 8.3.1) | MUST | 8.3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md |
+| `RFC7950-8.3.2-1` | While processing a datastore modification, detect data for a node whose if-feature expression or when condition evaluates to false and reject it (Section 8.3.2) | MUST | 8.3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md |
+| `RFC7950-8.3.3-1` | When datastore processing is complete the final contents obey every validation constraint, enforced at the end of the operation for the running and startup datastores (Section 8.3.3) | MUST | 8.3.3 | **positive:** `unit/verify` [`TestRFC7950RunningDatastoreAcceptsAValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/datastore_rfc7950_test.go#L35). **negative:** `unit/verify` [`TestRFC7950RunningDatastoreRefusesAViolationAfterParse`](https://github.com/ze-software/ze/blob/main/internal/component/config/datastore_rfc7950_test.go#L79) |
+| `RFC7950-9.1-1` | Support all the lexical representations this specification defines, and where a type has no canonical form the value's format matches the type's lexical representation (Section 9.1) | MUST | 9.1 | **positive:** `unit/verify` [`TestRFC7950Decimal64Accepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/validator_decimal64_rfc7950_test.go#L25). **negative:** `unit/verify` [`TestRFC7950Decimal64Refused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/validator_decimal64_rfc7950_test.go#L40) |
+| `RFC7950-9.2.4-2` | The values and ranges of a range restriction are disjoint and in ascending order, and every explicit value and range boundary matches the type being restricted or is one of the special values min and max (Section 9.2.4) | MUST | 9.2.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-9.3.2-1` | A decimal64 value carries at least one digit before and after the decimal point, with no leading or trailing zeros (Section 9.3.2) | MUST | 9.3.2 | **positive:** `unit/verify` [`TestRFC7950Decimal64Accepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/validator_decimal64_rfc7950_test.go#L26). **negative:** `unit/verify` [`TestRFC7950Decimal64Refused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/validator_decimal64_rfc7950_test.go#L41) |
+| `RFC7950-9.3.4-1` | The "fraction-digits" statement, which is a substatement to the "type" statement, MUST be present if the type is "decimal64". (Section 9.3.4) | MUST | 9.3.4 | **positive:** `unit/verify` [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L139). **negative:** `unit/verify` [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L85) |
+| `RFC7950-9.4.4-1` | Length-restricting values are never negative, and the values and ranges of a length restriction are disjoint and in ascending order (Section 9.4.4) | MUST | 9.4.4 | **positive:** `unit/verify` [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L141). **negative:** `unit/verify` [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L88) |
+| `RFC7950-9.5.1-1` | Represent a boolean value as the lowercase string true or false (Section 9.5.1) | MUST | 9.5.1 | **positive:** `unit/verify` [`TestRFC7950BooleanLowercaseAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/validator_rfc7950_test.go#L93). **negative:** `unit/verify` [`TestRFC7950BooleanNotLowercaseRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/validator_rfc7950_test.go#L104) |
+| `RFC7950-9.6.4-1` | The enum statement is present where the type is enumeration; an assigned name is not zero-length and carries no leading or trailing whitespace; and all assigned names in an enumeration are unique (Section 9.6.4) | MUST | 9.6.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-9.6.4-2` | When an existing enumeration type is restricted, the new type's assigned names are a subset of the base type's and the value of an assigned name is not changed (Section 9.6.4) | MUST | 9.6.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-9.6.4.2-1` | An enum value is in the range -2147483648 to 2147483647 and unique within the enumeration type; once the highest value reaches 2147483647 a value is given explicitly for the enum substatements that follow; and a restricted enumeration either repeats the base type's value or omits the value statement (Section 9.6.4.2) | MUST | 9.6.4.2 | **positive:** `unit/verify` [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L145). **negative:** `unit/verify` [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L92) |
+| `RFC7950-9.7-1` | When an existing bits type is restricted, the new type's assigned names are a subset of the base type's and the bit position of an assigned name is not changed (Section 9.7) | MUST | 9.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze offers no bits type; plan/spec-config-yang-type-bits.md |
+| `RFC7950-9.7.4-1` | The bit statement is present where the type is bits, and all assigned names in a bits type are unique (Section 9.7.4) | MUST | 9.7.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze offers no bits type; plan/spec-config-yang-type-bits.md |
+| `RFC7950-9.7.4.2-1` | A bit position is in the range 0 to 4294967295 and unique within the bits type; once the highest position reaches 4294967295 a position is given explicitly for the bit substatements that follow; and a restricted bits type either repeats the base type's position or omits the position statement (Section 9.7.4.2) | MUST | 9.7.4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze offers no bits type; plan/spec-config-yang-type-bits.md |
+| `RFC7950-9.9-1` | Where require-instance is true the node a leafref refers to exists; a leafref that represents configuration refers to configuration; there are no circular chains of leafrefs; and a leafref to a feature-conditional leaf is itself conditional on at least the same features (Section 9.9) | MUST | 9.9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze offers no leafref type; plan/spec-config-yang-type-leafref.md |
+| `RFC7950-9.9.2-1` | The path statement is present where the type is leafref, its argument refers to a leaf or leaf-list node, and where require-instance is true the node set it selects is non-empty (Section 9.9.2) | MUST | 9.9.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze offers no leafref type; plan/spec-config-yang-type-leafref.md |
+| `RFC7950-9.9.3-1` | If "require-instance" is "true", it means that the instance being referred to MUST exist for the data to be valid. (Section 9.9.3) | MUST | 9.9.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze offers no leafref type; plan/spec-config-yang-type-leafref.md |
+| `RFC7950-9.10.2-1` | The base statement is present at least once where the type is identityref, and its argument names an identity defined in the current module or an included submodule (Section 9.10.2) | MUST | 9.10.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze offers no identityref type; plan/spec-config-yang-type-identityref.md |
+| `RFC7950-9.10.3-1` | Otherwise, an identity with the matching name MUST be defined in the current module or one of its submodules. (Section 9.10.3) | MUST | 9.10.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze offers no identityref type; plan/spec-config-yang-type-identityref.md |
+| `RFC7950-9.12-2` | When the type is "union", the "type" statement (Section 7.4) MUST be present. (Section 9.12) | MUST | 9.12 | **positive:** no positive test. **negative:** no negative test. **{gap}:** goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| `RFC7950-9.13-1` | An instance-identifier gives one equality-test predicate per key of a list entry; where it represents configuration and require-instance is true the node it refers to represents configuration; and the nodes it references exist for the data to be valid (Section 9.13) | MUST | 9.13 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze offers no instance-identifier type; plan/spec-config-yang-type-instance-identifier.md |
+| `RFC7950-11-1` | When a module is updated a new revision statement is placed in front of the existing ones, or added where none exist; the organization and contact metadata statements are updated as needed; the module name and the namespace statement are never changed; obsolete definitions are never removed from a published module; a change to the semantics of a definition is made through a new definition; and data definition substatements are never reordered (Section 11) | MUST | 11 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no repository check reads the namespace or the revision history of the embedded modules; plan/spec-config-yang-authoring-checks.md |
+| `RFC7950-12-1` | A YANG 1.1 module includes no YANG 1 submodule and a YANG 1 module includes no YANG 1.1 submodule, and a YANG 1 module or submodule does not import a YANG 1.1 module by revision (Section 12) | MUST | 12 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no Ze module declares yang-version and none is a submodule; plan/spec-config-yang-version-submodule.md |
 | `RFC7950-7.6.4-1` | If a leaf has a default value and the leaf is not set, the default value should be used (Section 7.6.4) | SHOULD | 7.6.4 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
@@ -190,73 +202,54 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | [`RFC7950-9.4.5-1`](#rfc7950-9.4.5-1) Multiple pattern statements on the same type are combined as logical AND (Section 9.4.5) | no test | no test carries this requirement id; annotated {not-applicable}: no ze type carries two or more pattern statements (a scan of the .yang models finds none); the validator loop (internal/component/config/yang/validator.go:268) AND-combines patterns if present, but the multi-pattern construct is unused |
 | [`RFC7950-x-1`](#rfc7950-x-1) YANG modules must declare yang-version 1.1 (Core Constructs) | no test | no test carries this requirement id; annotated {not-applicable}: ze's YANG models declare no yang-version statement and default to YANG 1.0 in goyang; they use no YANG-1.1-only construct that would require the 1.1 declaration, so the version-declaration obligation has no applicable module |
 | [`RFC7950-x-2`](#rfc7950-x-2) Enum integer positions must not change across revisions (Type System) | no test | no test carries this requirement id; annotated {not-applicable}: ze's modules carry no consumed revision statements and there is no cross-revision position-stability tooling; ze pins the values that matter with explicit value statements (e.g. role.yang, ze-types.yang afi/safi) but enforces no automated cross-revision check |
-| [`RFC7950-5.1-1`](#rfc7950-5.1-1) Module names are unique within a server; a module includes all its submodules; a submodule is included only by the module it belongs to or by another submodule of that module, never imports its own module, and never includes a submodule of another module; a submodule includes the same submodule revisions its module includes and no submodule is included at two revisions; an external module is imported before its definitions are referenced, with no circular chains of imports; a reference to an external definition uses a locally defined prefix followed by a colon (Section 5.1, Section 7.1.6, Section 7.2.2) | no test | no test carries this requirement id |
-| [`RFC7950-5.3-1`](#rfc7950-5.3-1) Choose namespace URIs so they cannot collide with standard or other enterprise namespaces, for example by using the enterprise or organization name in the namespace (Section 5.3) | no test | no test carries this requirement id |
-| [`RFC7950-5.5-1`](#rfc7950-5.5-1) A scoped definition does not shadow a definition at a higher scope (Section 5.5) | no test | no test carries this requirement id |
-| [`RFC7950-5.6.5-1`](#rfc7950-5.6.5-1) Implement no more than one revision of a module, and where a supported augment or path statement uses a node from an imported module, implement a revision of that module that carries the node (Section 5.6.5) | no test | no test carries this requirement id |
-| [`RFC7950-6.1.3-1`](#rfc7950-6.1.3-1) In a double-quoted string a backslash is followed only by one of the characters the escape rules define (Section 6.1.3) | no test | no test carries this requirement id |
-| [`RFC7950-6.2-1`](#rfc7950-6.2-1) Support identifiers up to 64 characters in length (Section 6.2) | no test | no test carries this requirement id |
-| [`RFC7950-6.2.1-1`](#rfc7950-6.2.1-1) All identifiers defined in one namespace are unique: a descendant node defines no typedef and no grouping whose name is already visible from an ancestor (Section 6.2.1) | no test | no test carries this requirement id |
-| [`RFC7950-6.3.1-1`](#rfc7950-6.3.1-1) Qualify an extension keyword with the prefix of the module that defines it, including inside that module, and process a supported extension in accordance with the specification governing it (Section 6.3.1) | no test | no test carries this requirement id |
-| [`RFC7950-6.4-1`](#rfc7950-6.4-1) Enforce the requirements the data model encodes, whether or not an XPath interpreter is implemented (Section 6.4) | no test | no test carries this requirement id |
-| [`RFC7950-6.4-2`](#rfc7950-6.4-2) XPath expressions are syntactically correct and every prefix they use is present in the XPath context (Section 6.4) | no test | no test carries this requirement id |
-| [`RFC7950-6.5-1`](#rfc7950-6.5-1) Qualify a reference to an identifier defined in an external module with the appropriate prefix (Section 6.5) | no test | no test carries this requirement id |
-| [`RFC7950-7.1.4-1`](#rfc7950-7.1.4-1) All prefixes, the module's own included, are unique within the module or submodule, and where two imported modules define the same prefix at least one is imported under a different prefix (Section 7.1.4) | no test | no test carries this requirement id |
-| [`RFC7950-7.3-1`](#rfc7950-7.3-1) A typedef's argument is followed by a block of substatements, its type substatement is present, its name is not one of the YANG built-in types, and a top-level typedef name is unique within the module (Section 7.3, Section 7.3.2) | no test | no test carries this requirement id |
-| [`RFC7950-7.3.4-1`](#rfc7950-7.3.4-1) A typedef's default value is valid according to its type, and a derived type or leaf whose restrictions invalidate the inherited default specifies a new compatible default (Section 7.3.4) | no test | no test carries this requirement id |
-| [`RFC7950-7.6.1-1`](#rfc7950-7.6.1-1) Use a leaf's default value when the leaf is not set and its ancestry allows it, and behave operationally as if the leaf were present in the data tree with that value (Section 7.6.1) | no test | no test carries this requirement id |
-| [`RFC7950-7.6.3-1`](#rfc7950-7.6.3-1) A leaf's type statement is present (Section 7.6.3) | no test | no test carries this requirement id |
-| [`RFC7950-7.6.4-2`](#rfc7950-7.6.4-2) A leaf's default value is valid according to the leaf's type, is absent where mandatory is true, and is not marked with an if-feature statement (Section 7.6.4) | no test | no test carries this requirement id |
-| [`RFC7950-7.7-1`](#rfc7950-7.7-1) In configuration data the values in a leaf-list are unique, the definitions of default values carry no if-feature statement, and the values in the data tree are in canonical form (Section 7.7) | no test | no test carries this requirement id |
-| [`RFC7950-7.7.2-1`](#rfc7950-7.7.2-1) Use a leaf-list's default values when it is not set and its ancestry allows it, and behave operationally as if the leaf-list were present in the data tree with those values (Section 7.7.2) | no test | no test carries this requirement id |
-| [`RFC7950-7.7.4-1`](#rfc7950-7.7.4-1) A leaf-list's default value is valid according to its type and is absent where min-elements is one or more (Section 7.7.4) | no test | no test carries this requirement id |
-| [`RFC7950-7.7.5-1`](#rfc7950-7.7.5-1) A valid leaf-list or list has at least min-elements entries (Section 7.7.5) | no test | no test carries this requirement id |
-| [`RFC7950-7.8.2-1`](#rfc7950-7.8.2-1) A list that represents configuration carries a key statement; each key leaf identifier appears once, refers to a child leaf of the list, is given a value when a list entry is created, and has the same config value as the list (Section 7.8.2) | no test | no test carries this requirement id |
-| [`RFC7950-7.8.3-1`](#rfc7950-7.8.3-1) A unique argument names descendant-form schema node identifiers that each refer to a leaf; where one referenced leaf represents configuration all of them do, and the combined values are unique across all list entries in which every referenced leaf exists (Section 7.8.3) | no test | no test carries this requirement id |
-| [`RFC7950-7.9.2-1`](#rfc7950-7.9.2-1) Child node identifiers are unique across all cases of a choice, a case identifier is unique within its choice, and a schema node identifier always includes the case node identifier (Section 7.9.2) | no test | no test carries this requirement id |
-| [`RFC7950-7.9.3-1`](#rfc7950-7.9.3-1) A choice carries no default statement where mandatory is true, and the default case holds no mandatory node (Section 7.9.3) | no test | no test carries this requirement id |
-| [`RFC7950-7.9.4-1`](#rfc7950-7.9.4-1) Where a choice is mandatory, at least one node from exactly one of its case branches exists (Section 7.9.4) | no test | no test carries this requirement id |
-| [`RFC7950-7.12-1`](#rfc7950-7.12-1) A grouping never references itself, directly or through a chain of groupings, and a top-level grouping identifier is unique within the module (Section 7.12) | no test | no test carries this requirement id |
-| [`RFC7950-7.14.2-1`](#rfc7950-7.14.2-1) In an RPC or action invocation a mandatory input leaf is present, the server uses the input defaults in the cases Sections 7.6.1 and 7.7.2 describe and behaves as if the defaulted node were present, and no node whose when statement evaluates to false is present (Section 7.14.2) | no test | no test carries this requirement id |
-| [`RFC7950-7.14.3-1`](#rfc7950-7.14.3-1) In an RPC or action reply a mandatory output leaf is present, the client uses the output defaults in the cases Sections 7.6.1 and 7.7.2 describe and behaves as if the defaulted node were present, and no node whose when statement evaluates to false is present (Section 7.14.3) | no test | no test carries this requirement id |
-| [`RFC7950-7.15-1`](#rfc7950-7.15-1) An action is not defined within an rpc, another action or a notification, and has no ancestor node that is a list without a key statement (Section 7.15) | no test | no test carries this requirement id |
-| [`RFC7950-7.16-1`](#rfc7950-7.16-1) A notification is not defined within an rpc, an action or another notification, has no ancestor node that is a list without a key statement, carries its mandatory leafs, and its receiver uses the notification's default values in the cases Sections 7.6.1 and 7.7.2 describe (Section 7.16) | no test | no test carries this requirement id |
-| [`RFC7950-7.17-1`](#rfc7950-7.17-1) An augment target is a container, list, choice, case, input, output or notification node; a top-level augment uses the absolute form of a schema node identifier and an augment under uses the descendant form; an augment adds no two nodes of the same name from the same module to one target; and an augment that adds mandatory configuration nodes to another module's target is made conditional with a when statement (Section 7.17) | no test | no test carries this requirement id |
-| [`RFC7950-7.18.2-1`](#rfc7950-7.18.2-1) A base argument names an identity defined in the current module or an included submodule, and an identity never references itself, directly or through a chain of identities (Section 7.18.2) | no test | no test carries this requirement id |
-| [`RFC7950-7.19-1`](#rfc7950-7.19-1) The substatements of an extension usage are YANG statements, extensions included, and follow the syntactical rules of Section 14 (Section 7.19) | no test | no test carries this requirement id |
-| [`RFC7950-7.20.1-1`](#rfc7950-7.20.1-1) A feature never references itself, and a server that supports a feature supports every feature that feature depends on (Section 7.20.1) | no test | no test carries this requirement id |
-| [`RFC7950-7.20.2-1`](#rfc7950-7.20.2-1) An if-feature argument names a feature defined in the current module or an included submodule, and a leaf that is a list key carries no if-feature statement (Section 7.20.2) | no test | no test carries this requirement id |
-| [`RFC7950-7.20.3-1`](#rfc7950-7.20.3-1) A deviation is never part of a published standard, a server deviation is used only as a last resort, and the data model that results from applying all of a server's deviations in any order is still valid (Section 7.20.3) | no test | no test carries this requirement id |
-| [`RFC7950-7.20.3.2-1`](#rfc7950-7.20.3.2-1) A deviate add does not add a property that can appear only once and already exists in the target node; the properties a deviate replace names exist in the target node; and a deviate delete substatement matches the target node's keyword and argument string (Section 7.20.3.2) | no test | no test carries this requirement id |
-| [`RFC7950-7.21.2-1`](#rfc7950-7.21.2-1) A current definition references no deprecated or obsolete definition within the same module, and a deprecated definition references no obsolete definition within the same module (Section 7.21.2) | no test | no test carries this requirement id |
-| [`RFC7950-7.21.5-1`](#rfc7950-7.21.5-1) A leaf that is a list key carries no when statement and neither does a uses statement that brings a key leaf into a list; when expressions on referenced nodes are evaluated first; and there are no circular dependencies among when expressions (Section 7.21.5) | no test | no test carries this requirement id |
-| [`RFC7950-8.1-1`](#rfc7950-8.1-1) A valid data tree satisfies every Section 8.1 constraint: every leaf value matches its type constraints including range, length and pattern; all key leafs are present for every list entry; nodes are present for at most one case branch of a choice; no node tagged with an if-feature whose expression is false and no node tagged with a when whose condition is false is present; every path referential-integrity constraint is satisfied; every unique constraint is satisfied; mandatory is enforced for leafs and choices; and the constraint holds for configuration data, state data, notification content, and RPC or action input and output (Section 8.1) | no test | no test carries this requirement id |
-| [`RFC7950-8.1-2`](#rfc7950-8.1-2) The running configuration datastore is always valid (Section 8.1) | no test | no test carries this requirement id |
-| [`RFC7950-8.3-1`](#rfc7950-8.3-1) Enforce configuration constraints in each of the three windows Section 8.3 defines (Section 8.3) | no test | no test carries this requirement id |
-| [`RFC7950-8.3.1-2`](#rfc7950-8.3.1-2) Reject content that carries data for more than one case branch of a choice, or data for a node whose if-feature expression or when condition evaluates to false, answering with the error the management protocol defines (a bad-element or unknown-element error-tag under NETCONF) (Section 8.3.1) | no test | no test carries this requirement id |
-| [`RFC7950-8.3.2-1`](#rfc7950-8.3.2-1) While processing a datastore modification, detect data for a node whose if-feature expression or when condition evaluates to false and reject it (Section 8.3.2) | no test | no test carries this requirement id |
-| [`RFC7950-8.3.3-1`](#rfc7950-8.3.3-1) When datastore processing is complete the final contents obey every validation constraint, enforced at the end of the operation for the running and startup datastores (Section 8.3.3) | no test | no test carries this requirement id |
-| [`RFC7950-9.1-1`](#rfc7950-9.1-1) Support all the lexical representations this specification defines, and where a type has no canonical form the value's format matches the type's lexical representation (Section 9.1) | no test | no test carries this requirement id |
-| [`RFC7950-9.2.4-2`](#rfc7950-9.2.4-2) The values and ranges of a range restriction are disjoint and in ascending order, and every explicit value and range boundary matches the type being restricted or is one of the special values min and max (Section 9.2.4) | no test | no test carries this requirement id |
-| [`RFC7950-9.3.2-1`](#rfc7950-9.3.2-1) A decimal64 value carries at least one digit before and after the decimal point, with no leading or trailing zeros (Section 9.3.2) | no test | no test carries this requirement id |
-| [`RFC7950-9.3.4-1`](#rfc7950-9.3.4-1) The fraction-digits statement is present where the type is decimal64 (Section 9.3.4) | no test | no test carries this requirement id |
-| [`RFC7950-9.4.4-1`](#rfc7950-9.4.4-1) Length-restricting values are never negative, and the values and ranges of a length restriction are disjoint and in ascending order (Section 9.4.4) | no test | no test carries this requirement id |
-| [`RFC7950-9.5.1-1`](#rfc7950-9.5.1-1) Represent a boolean value as the lowercase string true or false (Section 9.5.1) | no test | no test carries this requirement id |
-| [`RFC7950-9.6.4-1`](#rfc7950-9.6.4-1) The enum statement is present where the type is enumeration; an assigned name is not zero-length and carries no leading or trailing whitespace; and all assigned names in an enumeration are unique (Section 9.6.4) | no test | no test carries this requirement id |
-| [`RFC7950-9.6.4-2`](#rfc7950-9.6.4-2) When an existing enumeration type is restricted, the new type's assigned names are a subset of the base type's and the value of an assigned name is not changed (Section 9.6.4) | no test | no test carries this requirement id |
-| [`RFC7950-9.6.4.2-1`](#rfc7950-9.6.4.2-1) An enum value is in the range -2147483648 to 2147483647 and unique within the enumeration type; once the highest value reaches 2147483647 a value is given explicitly for the enum substatements that follow; and a restricted enumeration either repeats the base type's value or omits the value statement (Section 9.6.4.2) | no test | no test carries this requirement id |
-| [`RFC7950-9.7-1`](#rfc7950-9.7-1) When an existing bits type is restricted, the new type's assigned names are a subset of the base type's and the bit position of an assigned name is not changed (Section 9.7) | no test | no test carries this requirement id |
-| [`RFC7950-9.7.4-1`](#rfc7950-9.7.4-1) The bit statement is present where the type is bits, and all assigned names in a bits type are unique (Section 9.7.4) | no test | no test carries this requirement id |
-| [`RFC7950-9.7.4.2-1`](#rfc7950-9.7.4.2-1) A bit position is in the range 0 to 4294967295 and unique within the bits type; once the highest position reaches 4294967295 a position is given explicitly for the bit substatements that follow; and a restricted bits type either repeats the base type's position or omits the position statement (Section 9.7.4.2) | no test | no test carries this requirement id |
-| [`RFC7950-9.9-1`](#rfc7950-9.9-1) Where require-instance is true the node a leafref refers to exists; a leafref that represents configuration refers to configuration; there are no circular chains of leafrefs; and a leafref to a feature-conditional leaf is itself conditional on at least the same features (Section 9.9) | no test | no test carries this requirement id |
-| [`RFC7950-9.9.2-1`](#rfc7950-9.9.2-1) The path statement is present where the type is leafref, its argument refers to a leaf or leaf-list node, and where require-instance is true the node set it selects is non-empty (Section 9.9.2) | no test | no test carries this requirement id |
-| [`RFC7950-9.9.3-1`](#rfc7950-9.9.3-1) Where require-instance is true, the instance being referred to exists for the data to be valid (Section 9.9.3) | no test | no test carries this requirement id |
-| [`RFC7950-9.10.2-1`](#rfc7950-9.10.2-1) The base statement is present at least once where the type is identityref, and its argument names an identity defined in the current module or an included submodule (Section 9.10.2) | no test | no test carries this requirement id |
-| [`RFC7950-9.10.3-1`](#rfc7950-9.10.3-1) An identityref value names an identity defined in the current module or one of its submodules (Section 9.10.3) | no test | no test carries this requirement id |
-| [`RFC7950-9.12-2`](#rfc7950-9.12-2) The type statement is present where the type is union (Section 9.12) | no test | no test carries this requirement id |
-| [`RFC7950-9.13-1`](#rfc7950-9.13-1) An instance-identifier gives one equality-test predicate per key of a list entry; where it represents configuration and require-instance is true the node it refers to represents configuration; and the nodes it references exist for the data to be valid (Section 9.13) | no test | no test carries this requirement id |
-| [`RFC7950-11-1`](#rfc7950-11-1) When a module is updated a new revision statement is placed in front of the existing ones, or added where none exist; the organization and contact metadata statements are updated as needed; the module name and the namespace statement are never changed; obsolete definitions are never removed from a published module; a change to the semantics of a definition is made through a new definition; and data definition substatements are never reordered (Section 11) | no test | no test carries this requirement id |
-| [`RFC7950-12-1`](#rfc7950-12-1) A YANG 1.1 module includes no YANG 1 submodule and a YANG 1 module includes no YANG 1.1 submodule, and a YANG 1 module or submodule does not import a YANG 1.1 module by revision (Section 12) | no test | no test carries this requirement id |
+| [`RFC7950-5.1-1`](#rfc7950-5.1-1) Module names are unique within a server; a module includes all its submodules; a submodule is included only by the module it belongs to or by another submodule of that module, never imports its own module, and never includes a submodule of another module; a submodule includes the same submodule revisions its module includes and no submodule is included at two revisions; an external module is imported before its definitions are referenced, with no circular chains of imports; a reference to an external definition uses a locally defined prefix followed by a colon (Section 5.1, Section 7.1.6, Section 7.2.2) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-5.3-1`](#rfc7950-5.3-1) Namespace URIs MUST be chosen so they cannot collide with standard or other enterprise namespaces -- for example, by using the enterprise or organization name in the namespace. (Section 5.3) | {gap}, no test | no repository check reads the namespace or the revision history of the embedded modules; plan/spec-config-yang-authoring-checks.md |
+| [`RFC7950-5.5-1`](#rfc7950-5.5-1) A scoped definition does not shadow a definition at a higher scope (Section 5.5) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-5.6.5-1`](#rfc7950-5.6.5-1) Implement no more than one revision of a module, and where a supported augment or path statement uses a node from an imported module, implement a revision of that module that carries the node (Section 5.6.5) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-6.2.1-1`](#rfc7950-6.2.1-1) All identifiers defined in one namespace are unique: a descendant node defines no typedef and no grouping whose name is already visible from an ancestor (Section 6.2.1) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-6.3.1-1`](#rfc7950-6.3.1-1) Qualify an extension keyword with the prefix of the module that defines it, including inside that module, and process a supported extension in accordance with the specification governing it (Section 6.3.1) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-6.4-1`](#rfc7950-6.4-1) An implementation is not required to implement an XPath interpreter but MUST ensure that the requirements encoded in the data model are enforced. (Section 6.4) | {gap}, no test | walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md |
+| [`RFC7950-6.4-2`](#rfc7950-6.4-2) XPath expressions are syntactically correct and every prefix they use is present in the XPath context (Section 6.4) | {gap}, no test | walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md |
+| [`RFC7950-7.1.4-1`](#rfc7950-7.1.4-1) All prefixes, the module's own included, are unique within the module or submodule, and where two imported modules define the same prefix at least one is imported under a different prefix (Section 7.1.4) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-7.3-1`](#rfc7950-7.3-1) A typedef's argument is followed by a block of substatements, its type substatement is present, its name is not one of the YANG built-in types, and a top-level typedef name is unique within the module (Section 7.3, Section 7.3.2) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-7.7-1`](#rfc7950-7.7-1) In configuration data the values in a leaf-list are unique, the definitions of default values carry no if-feature statement, and the values in the data tree are in canonical form (Section 7.7) | {gap}, no test | yangToList tolerates a keyless config list and leaf-lists are neither deduplicated nor defaulted; plan/pre-release/spec-config-yang-list-key-leaf-list.md |
+| [`RFC7950-7.7.2-1`](#rfc7950-7.7.2-1) Use a leaf-list's default values when it is not set and its ancestry allows it, and behave operationally as if the leaf-list were present in the data tree with those values (Section 7.7.2) | {gap}, no test | yangToList tolerates a keyless config list and leaf-lists are neither deduplicated nor defaulted; plan/pre-release/spec-config-yang-list-key-leaf-list.md |
+| [`RFC7950-7.8.2-1`](#rfc7950-7.8.2-1) A list that represents configuration carries a key statement; each key leaf identifier appears once, refers to a child leaf of the list, is given a value when a list entry is created, and has the same config value as the list (Section 7.8.2) | {gap}, no test | yangToList tolerates a keyless config list and leaf-lists are neither deduplicated nor defaulted; plan/pre-release/spec-config-yang-list-key-leaf-list.md |
+| [`RFC7950-7.8.3-1`](#rfc7950-7.8.3-1) A unique argument names descendant-form schema node identifiers that each refer to a leaf; where one referenced leaf represents configuration all of them do, and the combined values are unique across all list entries in which every referenced leaf exists (Section 7.8.3) | {gap}, no test | walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md |
+| [`RFC7950-7.9.2-1`](#rfc7950-7.9.2-1) Child node identifiers are unique across all cases of a choice, a case identifier is unique within its choice, and a schema node identifier always includes the case node identifier (Section 7.9.2) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-7.9.3-1`](#rfc7950-7.9.3-1) A choice carries no default statement where mandatory is true, and the default case holds no mandatory node (Section 7.9.3) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-7.9.4-1`](#rfc7950-7.9.4-1) If "mandatory" is "true", at least one node from exactly one of the choice's case branches MUST exist. (Section 7.9.4) | {gap}, no test | walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md |
+| [`RFC7950-7.12-1`](#rfc7950-7.12-1) A grouping never references itself, directly or through a chain of groupings, and a top-level grouping identifier is unique within the module (Section 7.12) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-7.14.2-1`](#rfc7950-7.14.2-1) In an RPC or action invocation a mandatory input leaf is present, the server uses the input defaults in the cases Sections 7.6.1 and 7.7.2 describe and behaves as if the defaulted node were present, and no node whose when statement evaluates to false is present (Section 7.14.2) | {gap}, no test | no invocation or reply path reads mandatory or default on rpc input and output; plan/pre-release/spec-config-yang-rpc-mandatory-defaults.md |
+| [`RFC7950-7.14.3-1`](#rfc7950-7.14.3-1) In an RPC or action reply a mandatory output leaf is present, the client uses the output defaults in the cases Sections 7.6.1 and 7.7.2 describe and behaves as if the defaulted node were present, and no node whose when statement evaluates to false is present (Section 7.14.3) | {gap}, no test | no invocation or reply path reads mandatory or default on rpc input and output; plan/pre-release/spec-config-yang-rpc-mandatory-defaults.md |
+| [`RFC7950-7.15-1`](#rfc7950-7.15-1) An action is not defined within an rpc, another action or a notification, and has no ancestor node that is a list without a key statement (Section 7.15) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-7.16-1`](#rfc7950-7.16-1) A notification is not defined within an rpc, an action or another notification, has no ancestor node that is a list without a key statement, carries its mandatory leafs, and its receiver uses the notification's default values in the cases Sections 7.6.1 and 7.7.2 describe (Section 7.16) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-7.17-1`](#rfc7950-7.17-1) An augment target is a container, list, choice, case, input, output or notification node; a top-level augment uses the absolute form of a schema node identifier and an augment under uses the descendant form; an augment adds no two nodes of the same name from the same module to one target; and an augment that adds mandatory configuration nodes to another module's target is made conditional with a when statement (Section 7.17) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-7.18.2-1`](#rfc7950-7.18.2-1) A base argument names an identity defined in the current module or an included submodule, and an identity never references itself, directly or through a chain of identities (Section 7.18.2) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-7.20.1-1`](#rfc7950-7.20.1-1) A feature never references itself, and a server that supports a feature supports every feature that feature depends on (Section 7.20.1) | {gap}, no test | Ze evaluates no if-feature and declares no feature; plan/spec-config-yang-if-feature.md |
+| [`RFC7950-7.20.2-1`](#rfc7950-7.20.2-1) An if-feature argument names a feature defined in the current module or an included submodule, and a leaf that is a list key carries no if-feature statement (Section 7.20.2) | {gap}, no test | Ze evaluates no if-feature and declares no feature; plan/spec-config-yang-if-feature.md |
+| [`RFC7950-7.20.3-1`](#rfc7950-7.20.3-1) A deviation is never part of a published standard, a server deviation is used only as a last resort, and the data model that results from applying all of a server's deviations in any order is still valid (Section 7.20.3) | {gap}, no test | Ze reads no deviation; plan/spec-config-yang-deviation.md |
+| [`RFC7950-7.20.3.2-1`](#rfc7950-7.20.3.2-1) A deviate add does not add a property that can appear only once and already exists in the target node; the properties a deviate replace names exist in the target node; and a deviate delete substatement matches the target node's keyword and argument string (Section 7.20.3.2) | {gap}, no test | Ze reads no deviation; plan/spec-config-yang-deviation.md |
+| [`RFC7950-7.21.2-1`](#rfc7950-7.21.2-1) A current definition references no deprecated or obsolete definition within the same module, and a deprecated definition references no obsolete definition within the same module (Section 7.21.2) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-7.21.5-1`](#rfc7950-7.21.5-1) A leaf that is a list key carries no when statement and neither does a uses statement that brings a key leaf into a list; when expressions on referenced nodes are evaluated first; and there are no circular dependencies among when expressions (Section 7.21.5) | {gap}, no test | walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md |
+| [`RFC7950-8.1-1`](#rfc7950-8.1-1) A valid data tree satisfies every Section 8.1 constraint: every leaf value matches its type constraints including range, length and pattern; all key leafs are present for every list entry; nodes are present for at most one case branch of a choice; no node tagged with an if-feature whose expression is false and no node tagged with a when whose condition is false is present; every path referential-integrity constraint is satisfied; every unique constraint is satisfied; mandatory is enforced for leafs and choices; and the constraint holds for configuration data, state data, notification content, and RPC or action input and output (Section 8.1) | {gap}, no test | walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md |
+| [`RFC7950-8.3.1-2`](#rfc7950-8.3.1-2) Reject content that carries data for more than one case branch of a choice, or data for a node whose if-feature expression or when condition evaluates to false, answering with the error the management protocol defines (a bad-element or unknown-element error-tag under NETCONF) (Section 8.3.1) | {gap}, no test | walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md |
+| [`RFC7950-8.3.2-1`](#rfc7950-8.3.2-1) While processing a datastore modification, detect data for a node whose if-feature expression or when condition evaluates to false and reject it (Section 8.3.2) | {gap}, no test | walkTree evaluates no when, unique or choice; plan/pre-release/spec-config-yang-when-unique-choice.md |
+| [`RFC7950-9.2.4-2`](#rfc7950-9.2.4-2) The values and ranges of a range restriction are disjoint and in ascending order, and every explicit value and range boundary matches the type being restricted or is one of the special values min and max (Section 9.2.4) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-9.6.4-1`](#rfc7950-9.6.4-1) The enum statement is present where the type is enumeration; an assigned name is not zero-length and carries no leading or trailing whitespace; and all assigned names in an enumeration are unique (Section 9.6.4) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-9.6.4-2`](#rfc7950-9.6.4-2) When an existing enumeration type is restricted, the new type's assigned names are a subset of the base type's and the value of an assigned name is not changed (Section 9.6.4) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-9.7-1`](#rfc7950-9.7-1) When an existing bits type is restricted, the new type's assigned names are a subset of the base type's and the bit position of an assigned name is not changed (Section 9.7) | {gap}, no test | Ze offers no bits type; plan/spec-config-yang-type-bits.md |
+| [`RFC7950-9.7.4-1`](#rfc7950-9.7.4-1) The bit statement is present where the type is bits, and all assigned names in a bits type are unique (Section 9.7.4) | {gap}, no test | Ze offers no bits type; plan/spec-config-yang-type-bits.md |
+| [`RFC7950-9.7.4.2-1`](#rfc7950-9.7.4.2-1) A bit position is in the range 0 to 4294967295 and unique within the bits type; once the highest position reaches 4294967295 a position is given explicitly for the bit substatements that follow; and a restricted bits type either repeats the base type's position or omits the position statement (Section 9.7.4.2) | {gap}, no test | Ze offers no bits type; plan/spec-config-yang-type-bits.md |
+| [`RFC7950-9.9-1`](#rfc7950-9.9-1) Where require-instance is true the node a leafref refers to exists; a leafref that represents configuration refers to configuration; there are no circular chains of leafrefs; and a leafref to a feature-conditional leaf is itself conditional on at least the same features (Section 9.9) | {gap}, no test | Ze offers no leafref type; plan/spec-config-yang-type-leafref.md |
+| [`RFC7950-9.9.2-1`](#rfc7950-9.9.2-1) The path statement is present where the type is leafref, its argument refers to a leaf or leaf-list node, and where require-instance is true the node set it selects is non-empty (Section 9.9.2) | {gap}, no test | Ze offers no leafref type; plan/spec-config-yang-type-leafref.md |
+| [`RFC7950-9.9.3-1`](#rfc7950-9.9.3-1) If "require-instance" is "true", it means that the instance being referred to MUST exist for the data to be valid. (Section 9.9.3) | {gap}, no test | Ze offers no leafref type; plan/spec-config-yang-type-leafref.md |
+| [`RFC7950-9.10.2-1`](#rfc7950-9.10.2-1) The base statement is present at least once where the type is identityref, and its argument names an identity defined in the current module or an included submodule (Section 9.10.2) | {gap}, no test | Ze offers no identityref type; plan/spec-config-yang-type-identityref.md |
+| [`RFC7950-9.10.3-1`](#rfc7950-9.10.3-1) Otherwise, an identity with the matching name MUST be defined in the current module or one of its submodules. (Section 9.10.3) | {gap}, no test | Ze offers no identityref type; plan/spec-config-yang-type-identityref.md |
+| [`RFC7950-9.12-2`](#rfc7950-9.12-2) When the type is "union", the "type" statement (Section 7.4) MUST be present. (Section 9.12) | {gap}, no test | goyang accepts the violating module and Ze adds no check of its own; plan/pre-release/spec-config-yang-loader-structural-checks.md |
+| [`RFC7950-9.13-1`](#rfc7950-9.13-1) An instance-identifier gives one equality-test predicate per key of a list entry; where it represents configuration and require-instance is true the node it refers to represents configuration; and the nodes it references exist for the data to be valid (Section 9.13) | {gap}, no test | Ze offers no instance-identifier type; plan/spec-config-yang-type-instance-identifier.md |
+| [`RFC7950-11-1`](#rfc7950-11-1) When a module is updated a new revision statement is placed in front of the existing ones, or added where none exist; the organization and contact metadata statements are updated as needed; the module name and the namespace statement are never changed; obsolete definitions are never removed from a published module; a change to the semantics of a definition is made through a new definition; and data definition substatements are never reordered (Section 11) | {gap}, no test | no repository check reads the namespace or the revision history of the embedded modules; plan/spec-config-yang-authoring-checks.md |
+| [`RFC7950-12-1`](#rfc7950-12-1) A YANG 1.1 module includes no YANG 1 submodule and a YANG 1 module includes no YANG 1.1 submodule, and a YANG 1 module or submodule does not import a YANG 1.1 module by revision (Section 12) | {gap}, no test | no Ze module declares yang-version and none is a submodule; plan/spec-config-yang-version-submodule.md |
 
 ## Proof state
 
@@ -270,13 +263,13 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestValidateTree_LengthViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L411) | unit/verify | unproven |
-| negative | [`TestValidateTree_PatternViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L310) | unit/verify | unproven |
-| negative | [`TestValidateTree_RangeViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L169) | unit/verify | unproven |
-| negative | [`TestValidator_HoldTimeRange`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L894) | unit/verify | unproven |
-| negative | [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L845) | unit/verify | unproven |
-| positive | [`TestValidator_HoldTimeRange`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L893) | unit/verify | unproven |
-| positive | [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L844) | unit/verify | unproven |
+| negative | [`TestValidateTree_LengthViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L417) | unit/verify | unproven |
+| negative | [`TestValidateTree_PatternViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L316) | unit/verify | unproven |
+| negative | [`TestValidateTree_RangeViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L175) | unit/verify | unproven |
+| negative | [`TestValidator_HoldTimeRange`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L900) | unit/verify | unproven |
+| negative | [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L851) | unit/verify | unproven |
+| positive | [`TestValidator_HoldTimeRange`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L899) | unit/verify | unproven |
+| positive | [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L850) | unit/verify | unproven |
 
 ### [`RFC7950-9.6-1`](#rfc7950-9.6-1)
 
@@ -288,12 +281,12 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | negative | [`TestISISAuthAlgorithmEnumAcceptsAll`](https://github.com/ze-software/ze/blob/main/internal/component/config/isis_auth_algorithm_enum_test.go#L81) | unit/verify | unproven |
 | negative | [`TestRadiusAuthMethodEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/radius_auth_method_enum_test.go#L64) | unit/verify | revert, verified |
-| negative | [`TestValidateTree_AddPathDirectionEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L613) | unit/verify | unproven |
-| negative | [`TestValidateTree_FamilyModeEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L547) | unit/verify | unproven |
+| negative | [`TestValidateTree_AddPathDirectionEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L619) | unit/verify | unproven |
+| negative | [`TestValidateTree_FamilyModeEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L553) | unit/verify | unproven |
 | positive | [`TestISISAuthAlgorithmEnumAcceptsAll`](https://github.com/ze-software/ze/blob/main/internal/component/config/isis_auth_algorithm_enum_test.go#L64) | unit/verify | unproven |
 | positive | [`TestRadiusAuthMethodEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/radius_auth_method_enum_test.go#L53) | unit/verify | revert, verified |
-| positive | [`TestValidateTree_AddPathDirectionEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L612) | unit/verify | unproven |
-| positive | [`TestValidateTree_FamilyModeEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L546) | unit/verify | unproven |
+| positive | [`TestValidateTree_AddPathDirectionEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L618) | unit/verify | unproven |
+| positive | [`TestValidateTree_FamilyModeEnum`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L552) | unit/verify | unproven |
 
 ### [`RFC7950-9.12-1`](#rfc7950-9.12-1)
 
@@ -303,7 +296,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestValidateTree_UnionViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L360) | unit/verify | unproven |
+| negative | [`TestValidateTree_UnionViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L366) | unit/verify | unproven |
 | positive | [`TestValidateTree_ValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L46) | unit/verify | unproven |
 
 ### [`RFC7950-7.6.5-1`](#rfc7950-7.6.5-1)
@@ -314,9 +307,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestValidateTree_MandatoryMissing`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L332) | unit/verify | unproven |
-| negative | [`TestValidator_MandatoryField`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L929) | unit/verify | unproven |
-| positive | [`TestValidator_MandatoryField`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L928) | unit/verify | unproven |
+| negative | [`TestValidateTree_MandatoryMissing`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L338) | unit/verify | unproven |
+| negative | [`TestValidator_MandatoryField`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L935) | unit/verify | unproven |
+| positive | [`TestValidator_MandatoryField`](https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L934) | unit/verify | unproven |
 
 ### [`RFC7950-7.5.3-1`](#rfc7950-7.5.3-1)
 
@@ -368,7 +361,7 @@ No test carries RFC7950-5.1-1, so no unit is bound to it.
 
 ### [`RFC7950-5.3-1`](#rfc7950-5.3-1)
 
-Choose namespace URIs so they cannot collide with standard or other enterprise namespaces, for example by using the enterprise or organization name in the namespace (Section 5.3)
+Namespace URIs MUST be chosen so they cannot collide with standard or other enterprise namespaces -- for example, by using the enterprise or organization name in the namespace. (Section 5.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -396,7 +389,10 @@ In a double-quoted string a backslash is followed only by one of the characters 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-6.1.3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L65) | unit/verify | revert, verified |
+| positive | [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L114) | unit/verify | revert, verified |
 
 ### [`RFC7950-6.2-1`](#rfc7950-6.2-1)
 
@@ -404,7 +400,9 @@ Support identifiers up to 64 characters in length (Section 6.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-6.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L116) | unit/verify | revert, verified |
 
 ### [`RFC7950-6.2.1-1`](#rfc7950-6.2.1-1)
 
@@ -424,7 +422,7 @@ No test carries RFC7950-6.3.1-1, so no unit is bound to it.
 
 ### [`RFC7950-6.4-1`](#rfc7950-6.4-1)
 
-Enforce the requirements the data model encodes, whether or not an XPath interpreter is implemented (Section 6.4)
+An implementation is not required to implement an XPath interpreter but MUST ensure that the requirements encoded in the data model are enforced. (Section 6.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -444,7 +442,10 @@ Qualify a reference to an identifier defined in an external module with the appr
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-6.5-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L68) | unit/verify | revert, verified |
+| positive | [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L121) | unit/verify | revert, verified |
 
 ### [`RFC7950-7.1.4-1`](#rfc7950-7.1.4-1)
 
@@ -468,7 +469,10 @@ A typedef's default value is valid according to its type, and a derived type or 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-7.3.4-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950DefaultInvalidForType`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang_schema_defaults_rfc7950_test.go#L47) | unit/verify | revert, verified |
+| positive | [`TestRFC7950DefaultValidForType`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang_schema_defaults_rfc7950_test.go#L32) | unit/verify | revert, verified |
 
 ### [`RFC7950-7.6.1-1`](#rfc7950-7.6.1-1)
 
@@ -476,15 +480,21 @@ Use a leaf's default value when the leaf is not set and its ancestry allows it, 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-7.6.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950LeafDefaultNotUsedWhenSet`](https://github.com/ze-software/ze/blob/main/internal/component/config/schema_defaults_rfc7950_test.go#L42) | unit/verify | revert, verified |
+| positive | [`TestRFC7950LeafDefaultUsedWhenAbsent`](https://github.com/ze-software/ze/blob/main/internal/component/config/schema_defaults_rfc7950_test.go#L14) | unit/verify | revert, verified |
 
 ### [`RFC7950-7.6.3-1`](#rfc7950-7.6.3-1)
 
-A leaf's type statement is present (Section 7.6.3)
+The "type" statement, which MUST be present, takes as an argument the name of an existing built-in or derived type. (Section 7.6.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-7.6.3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L74) | unit/verify | revert, verified |
+| positive | [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L128) | unit/verify | revert, verified |
 
 ### [`RFC7950-7.6.4-2`](#rfc7950-7.6.4-2)
 
@@ -492,7 +502,10 @@ A leaf's default value is valid according to the leaf's type, is absent where ma
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-7.6.4-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950DefaultInvalidForType`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang_schema_defaults_rfc7950_test.go#L48) | unit/verify | revert, verified |
+| positive | [`TestRFC7950DefaultValidForType`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang_schema_defaults_rfc7950_test.go#L33) | unit/verify | revert, verified |
 
 ### [`RFC7950-7.7-1`](#rfc7950-7.7-1)
 
@@ -516,15 +529,21 @@ A leaf-list's default value is valid according to its type and is absent where m
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-7.7.4-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950DefaultInvalidForType`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang_schema_defaults_rfc7950_test.go#L49) | unit/verify | revert, verified |
+| positive | [`TestRFC7950DefaultValidForType`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang_schema_defaults_rfc7950_test.go#L34) | unit/verify | revert, verified |
 
 ### [`RFC7950-7.7.5-1`](#rfc7950-7.7.5-1)
 
-A valid leaf-list or list has at least min-elements entries (Section 7.7.5)
+A valid leaf-list or list MUST have at least min-elements entries. (Section 7.7.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-7.7.5-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950MinElementsViolated`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/validator_rfc7950_test.go#L67) | unit/verify | revert, verified |
+| positive | [`TestRFC7950MinElementsMet`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/validator_rfc7950_test.go#L48) | unit/verify | revert, verified |
 
 ### [`RFC7950-7.8.2-1`](#rfc7950-7.8.2-1)
 
@@ -560,7 +579,7 @@ No test carries RFC7950-7.9.3-1, so no unit is bound to it.
 
 ### [`RFC7950-7.9.4-1`](#rfc7950-7.9.4-1)
 
-Where a choice is mandatory, at least one node from exactly one of its case branches exists (Section 7.9.4)
+If "mandatory" is "true", at least one node from exactly one of the choice's case branches MUST exist. (Section 7.9.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -628,7 +647,10 @@ The substatements of an extension usage are YANG statements, extensions included
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-7.19-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L81) | unit/verify | revert, verified |
+| positive | [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L136) | unit/verify | revert, verified |
 
 ### [`RFC7950-7.20.1-1`](#rfc7950-7.20.1-1)
 
@@ -688,11 +710,14 @@ No test carries RFC7950-8.1-1, so no unit is bound to it.
 
 ### [`RFC7950-8.1-2`](#rfc7950-8.1-2)
 
-The running configuration datastore is always valid (Section 8.1)
+The running configuration datastore MUST always be valid. (Section 8.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-8.1-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950RunningDatastoreRefusesAViolationAfterParse`](https://github.com/ze-software/ze/blob/main/internal/component/config/datastore_rfc7950_test.go#L77) | unit/verify | revert, verified |
+| positive | [`TestRFC7950RunningDatastoreAcceptsAValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/datastore_rfc7950_test.go#L33) | unit/verify | revert, verified |
 
 ### [`RFC7950-8.3-1`](#rfc7950-8.3-1)
 
@@ -700,7 +725,11 @@ Enforce configuration constraints in each of the three windows Section 8.3 defin
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-8.3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950RunningDatastoreRefusesAViolationAfterParse`](https://github.com/ze-software/ze/blob/main/internal/component/config/datastore_rfc7950_test.go#L78) | unit/verify | revert, verified |
+| negative | [`TestRFC7950RunningDatastoreRefusesAViolationAtParse`](https://github.com/ze-software/ze/blob/main/internal/component/config/datastore_rfc7950_test.go#L53) | unit/verify | revert, verified |
+| positive | [`TestRFC7950RunningDatastoreAcceptsAValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/datastore_rfc7950_test.go#L34) | unit/verify | revert, verified |
 
 ### [`RFC7950-8.3.1-2`](#rfc7950-8.3.1-2)
 
@@ -724,7 +753,10 @@ When datastore processing is complete the final contents obey every validation c
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-8.3.3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950RunningDatastoreRefusesAViolationAfterParse`](https://github.com/ze-software/ze/blob/main/internal/component/config/datastore_rfc7950_test.go#L79) | unit/verify | revert, verified |
+| positive | [`TestRFC7950RunningDatastoreAcceptsAValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/datastore_rfc7950_test.go#L35) | unit/verify | revert, verified |
 
 ### [`RFC7950-9.1-1`](#rfc7950-9.1-1)
 
@@ -732,7 +764,10 @@ Support all the lexical representations this specification defines, and where a 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-9.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950Decimal64Refused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/validator_decimal64_rfc7950_test.go#L40) | unit/verify | revert, verified |
+| positive | [`TestRFC7950Decimal64Accepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/validator_decimal64_rfc7950_test.go#L25) | unit/verify | revert, verified |
 
 ### [`RFC7950-9.2.4-2`](#rfc7950-9.2.4-2)
 
@@ -748,15 +783,21 @@ A decimal64 value carries at least one digit before and after the decimal point,
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-9.3.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950Decimal64Refused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/validator_decimal64_rfc7950_test.go#L41) | unit/verify | revert, verified |
+| positive | [`TestRFC7950Decimal64Accepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/validator_decimal64_rfc7950_test.go#L26) | unit/verify | revert, verified |
 
 ### [`RFC7950-9.3.4-1`](#rfc7950-9.3.4-1)
 
-The fraction-digits statement is present where the type is decimal64 (Section 9.3.4)
+The "fraction-digits" statement, which is a substatement to the "type" statement, MUST be present if the type is "decimal64". (Section 9.3.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-9.3.4-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L85) | unit/verify | revert, verified |
+| positive | [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L139) | unit/verify | revert, verified |
 
 ### [`RFC7950-9.4.4-1`](#rfc7950-9.4.4-1)
 
@@ -764,7 +805,10 @@ Length-restricting values are never negative, and the values and ranges of a len
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-9.4.4-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L88) | unit/verify | revert, verified |
+| positive | [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L141) | unit/verify | revert, verified |
 
 ### [`RFC7950-9.5.1-1`](#rfc7950-9.5.1-1)
 
@@ -772,7 +816,10 @@ Represent a boolean value as the lowercase string true or false (Section 9.5.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-9.5.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950BooleanNotLowercaseRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/validator_rfc7950_test.go#L104) | unit/verify | revert, verified |
+| positive | [`TestRFC7950BooleanLowercaseAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/validator_rfc7950_test.go#L93) | unit/verify | revert, verified |
 
 ### [`RFC7950-9.6.4-1`](#rfc7950-9.6.4-1)
 
@@ -796,7 +843,10 @@ An enum value is in the range -2147483648 to 2147483647 and unique within the en
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC7950-9.6.4.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L92) | unit/verify | revert, verified |
+| positive | [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/loader_rfc7950_test.go#L145) | unit/verify | revert, verified |
 
 ### [`RFC7950-9.7-1`](#rfc7950-9.7-1)
 
@@ -840,7 +890,7 @@ No test carries RFC7950-9.9.2-1, so no unit is bound to it.
 
 ### [`RFC7950-9.9.3-1`](#rfc7950-9.9.3-1)
 
-Where require-instance is true, the instance being referred to exists for the data to be valid (Section 9.9.3)
+If "require-instance" is "true", it means that the instance being referred to MUST exist for the data to be valid. (Section 9.9.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -856,7 +906,7 @@ No test carries RFC7950-9.10.2-1, so no unit is bound to it.
 
 ### [`RFC7950-9.10.3-1`](#rfc7950-9.10.3-1)
 
-An identityref value names an identity defined in the current module or one of its submodules (Section 9.10.3)
+Otherwise, an identity with the matching name MUST be defined in the current module or one of its submodules. (Section 9.10.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -864,7 +914,7 @@ No test carries RFC7950-9.10.3-1, so no unit is bound to it.
 
 ### [`RFC7950-9.12-2`](#rfc7950-9.12-2)
 
-The type statement is present where the type is union (Section 9.12)
+When the type is "union", the "type" statement (Section 7.4) MUST be present. (Section 9.12)
 
 Audit verdict: not audited: no reader has judged these tests
 

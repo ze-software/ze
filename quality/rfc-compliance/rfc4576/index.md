@@ -92,19 +92,19 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC4576-4-1` | "When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set." (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not run OSPF as a BGP/MPLS-VPN PE-CE protocol -- it has no L3VPN OSPF code path (no VPN OSPF route redistribution, no sham links, no PE-CE OSPF; grep for sham-link / PE-CE / vpn-ospf / domain-id across internal/plugins/ospf/ finds nothing). Ze runs OSPF only as a plain IGP, so it never originates a type 3/5/7 LSA "from a PE to a CE" and has no code path that would set the RFC 4576 DN bit. |
-| `RFC4576-4-2` | "The DN bit MUST be clear in all other LSA types." (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze is not an MPLS-VPN PE and originates no LSAs in a VPN PE-CE context, so it never sets the DN bit on any LSA type; the "DN bit clear in all other LSA types" transmission rule governs a PE role Ze does not implement. |
-| `RFC4576-4-3` | "The DN bit MUST be ignored in all other LSA types." (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** This governs a VPN PE's receive processing of the DN bit. Ze runs plain (non-VPN) OSPF with no PE-CE role: its OSPFv3 prefix codec merely decodes the DN bit as a field (internal/plugins/ospf/v3/types/prefix.go:68 Down()) and Ze performs no VPN loop-prevention that acts on it, so the PE-CE DN-bit handling this requirement defines has no applicable code path. |
-| `RFC4576-4-4` | "When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation." (§4) | MUST NOT | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** This governs a VPN PE ignoring a CE's DN-bit-set LSA during OSPF route calculation. Ze is not an MPLS-VPN PE and runs no OSPF PE-CE / VPN OSPF route calculation, so there is no code path in which a PE would consume a CE's DN-bit-set LSA. |
+| `RFC4576-4-1` | When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze does not run OSPF as a BGP/MPLS-VPN PE-CE protocol -- it has no L3VPN OSPF code path (no VPN OSPF route redistribution, no sham links, no PE-CE OSPF; grep for sham-link / PE-CE / vpn-ospf / domain-id across internal/plugins/ospf/ finds nothing). Ze runs OSPF only as a plain IGP, so it never originates a type 3/5/7 LSA "from a PE to a CE" and has no code path that would set the RFC 4576 DN bit. |
+| `RFC4576-4-2` | The DN bit MUST be clear in all other LSA types. +-------------------------------------+ \| DN \| * \| DC \| EA \| N/P \| MC \| E \| * \| +-------------------------------------+ (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** Ze is not an MPLS-VPN PE and originates no LSAs in a VPN PE-CE context, so it never sets the DN bit on any LSA type; the "DN bit clear in all other LSA types" transmission rule governs a PE role Ze does not implement. |
+| `RFC4576-4-3` | The DN bit MUST be ignored in all other LSA types. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** This governs a VPN PE's receive processing of the DN bit. Ze runs plain (non-VPN) OSPF with no PE-CE role: its OSPFv3 prefix codec merely decodes the DN bit as a field (internal/plugins/ospf/v3/types/prefix.go:68 Down()) and Ze performs no VPN loop-prevention that acts on it, so the PE-CE DN-bit handling this requirement defines has no applicable code path. |
+| `RFC4576-4-4` | When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation. (§4) | MUST NOT | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** This governs a VPN PE ignoring a CE's DN-bit-set LSA during OSPF route calculation. Ze is not an MPLS-VPN PE and runs no OSPF PE-CE / VPN OSPF route calculation, so there is no code path in which a PE would consume a CE's DN-bit-set LSA. |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC4576-4-1`](#rfc4576-4-1) "When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set." (§4) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not run OSPF as a BGP/MPLS-VPN PE-CE protocol -- it has no L3VPN OSPF code path (no VPN OSPF route redistribution, no sham links, no PE-CE OSPF; grep for sham-link / PE-CE / vpn-ospf / domain-id across internal/plugins/ospf/ finds nothing). Ze runs OSPF only as a plain IGP, so it never originates a type 3/5/7 LSA "from a PE to a CE" and has no code path that would set the RFC 4576 DN bit. |
-| [`RFC4576-4-2`](#rfc4576-4-2) "The DN bit MUST be clear in all other LSA types." (§4) | no test | no test carries this requirement id; annotated {not-applicable}: Ze is not an MPLS-VPN PE and originates no LSAs in a VPN PE-CE context, so it never sets the DN bit on any LSA type; the "DN bit clear in all other LSA types" transmission rule governs a PE role Ze does not implement. |
-| [`RFC4576-4-3`](#rfc4576-4-3) "The DN bit MUST be ignored in all other LSA types." (§4) | no test | no test carries this requirement id; annotated {not-applicable}: This governs a VPN PE's receive processing of the DN bit. Ze runs plain (non-VPN) OSPF with no PE-CE role: its OSPFv3 prefix codec merely decodes the DN bit as a field (internal/plugins/ospf/v3/types/prefix.go:68 Down()) and Ze performs no VPN loop-prevention that acts on it, so the PE-CE DN-bit handling this requirement defines has no applicable code path. |
-| [`RFC4576-4-4`](#rfc4576-4-4) "When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation." (§4) | no test | no test carries this requirement id; annotated {not-applicable}: This governs a VPN PE ignoring a CE's DN-bit-set LSA during OSPF route calculation. Ze is not an MPLS-VPN PE and runs no OSPF PE-CE / VPN OSPF route calculation, so there is no code path in which a PE would consume a CE's DN-bit-set LSA. |
+| [`RFC4576-4-1`](#rfc4576-4-1) When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set. (§4) | no test | no test carries this requirement id; annotated {not-applicable}: Ze does not run OSPF as a BGP/MPLS-VPN PE-CE protocol -- it has no L3VPN OSPF code path (no VPN OSPF route redistribution, no sham links, no PE-CE OSPF; grep for sham-link / PE-CE / vpn-ospf / domain-id across internal/plugins/ospf/ finds nothing). Ze runs OSPF only as a plain IGP, so it never originates a type 3/5/7 LSA "from a PE to a CE" and has no code path that would set the RFC 4576 DN bit. |
+| [`RFC4576-4-2`](#rfc4576-4-2) The DN bit MUST be clear in all other LSA types. +-------------------------------------+ \| DN \| * \| DC \| EA \| N/P \| MC \| E \| * \| +-------------------------------------+ (§4) | no test | no test carries this requirement id; annotated {not-applicable}: Ze is not an MPLS-VPN PE and originates no LSAs in a VPN PE-CE context, so it never sets the DN bit on any LSA type; the "DN bit clear in all other LSA types" transmission rule governs a PE role Ze does not implement. |
+| [`RFC4576-4-3`](#rfc4576-4-3) The DN bit MUST be ignored in all other LSA types. (§4) | no test | no test carries this requirement id; annotated {not-applicable}: This governs a VPN PE's receive processing of the DN bit. Ze runs plain (non-VPN) OSPF with no PE-CE role: its OSPFv3 prefix codec merely decodes the DN bit as a field (internal/plugins/ospf/v3/types/prefix.go:68 Down()) and Ze performs no VPN loop-prevention that acts on it, so the PE-CE DN-bit handling this requirement defines has no applicable code path. |
+| [`RFC4576-4-4`](#rfc4576-4-4) When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation. (§4) | no test | no test carries this requirement id; annotated {not-applicable}: This governs a VPN PE ignoring a CE's DN-bit-set LSA during OSPF route calculation. Ze is not an MPLS-VPN PE and runs no OSPF PE-CE / VPN OSPF route calculation, so there is no code path in which a PE would consume a CE's DN-bit-set LSA. |
 
 ## Proof state
 
@@ -112,7 +112,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC4576-4-1`](#rfc4576-4-1)
 
-"When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set." (§4)
+When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -120,7 +120,7 @@ No test carries RFC4576-4-1, so no unit is bound to it.
 
 ### [`RFC4576-4-2`](#rfc4576-4-2)
 
-"The DN bit MUST be clear in all other LSA types." (§4)
+The DN bit MUST be clear in all other LSA types. +-------------------------------------+ | DN | * | DC | EA | N/P | MC | E | * | +-------------------------------------+ (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -128,7 +128,7 @@ No test carries RFC4576-4-2, so no unit is bound to it.
 
 ### [`RFC4576-4-3`](#rfc4576-4-3)
 
-"The DN bit MUST be ignored in all other LSA types." (§4)
+The DN bit MUST be ignored in all other LSA types. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -136,7 +136,7 @@ No test carries RFC4576-4-3, so no unit is bound to it.
 
 ### [`RFC4576-4-4`](#rfc4576-4-4)
 
-"When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation." (§4)
+When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 

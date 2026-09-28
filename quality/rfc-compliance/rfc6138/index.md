@@ -92,7 +92,7 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC6138-4-1` | If the interface is a "cut-edge", updating of the LSA MUST NOT be delayed by LDP's operational state (the link is advertised immediately, regardless of LDP) (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L360). **negative:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L363) |
+| `RFC6138-4-1` | If the interface is a "cut-edge", then the updating of the LSA MUST NOT be delayed by LDP's operational state. (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L360). **negative:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L363) |
 | `RFC6138-x-1` | If an SPF run was scheduled but is pending execution, that SPF must be executed immediately before any procedure checks whether an interface is a "cut-edge" (Appendix A) | MUST | x | **positive:** `unit/verify` [`TestLDPSyncCutEdgeUsesFreshSPF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/ldp_sync_cutedge_test.go#L57). **negative:** `unit/verify` [`TestLDPSyncCutEdgeUsesFreshSPF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/ldp_sync_cutedge_test.go#L60) |
 
 ## Gaps and untested MUSTs
@@ -105,7 +105,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC6138-4-1`](#rfc6138-4-1)
 
-If the interface is a "cut-edge", updating of the LSA MUST NOT be delayed by LDP's operational state (the link is advertised immediately, regardless of LDP) (§4)
+If the interface is a "cut-edge", then the updating of the LSA MUST NOT be delayed by LDP's operational state. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 

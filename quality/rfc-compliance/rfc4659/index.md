@@ -109,22 +109,22 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport ([`RFC4659-3.2.1.2-1`](#rfc4659-
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC4659-3.2-1` | PE routers MUST assign and distribute MPLS labels with the IPv6 VPN routes (Section 3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestVPNv6WireRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/vpn/vpn_test.go#L47). **negative:** `unit/verify` [`TestVPNv6RejectsLabellessEncode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/vpn/vpn_test.go#L83) |
+| `RFC4659-3.2-1` | When distributing IPv6 VPN routes, the advertising PE router MUST assign and distribute MPLS labels with the IPv6 VPN routes. (Section 3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestVPNv6WireRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/vpn/vpn_test.go#L47). **negative:** `unit/verify` [`TestVPNv6RejectsLabellessEncode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/vpn/vpn_test.go#L83) |
 | `RFC4659-3.2-2` | AFI and SAFI fields MUST be set to AFI=2, SAFI=128 (Section 3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestUpdateBuilder_BuildVPN_IPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L597). **negative:** no negative test. **{single-polarity}:** the obligation is to SET AFI=2/SAFI=128 when advertising a VPNv6 route, so the only conforming assertion is that the emitted fields equal 2/128 and a MUST-NOT-set-other-values companion is degenerate (internal/component/bgp/message/update_build_vpn.go:221, internal/component/bgp/plugins/nlri/vpn/types.go:37) |
 | `RFC4659-3.4-1` | Two PEs MUST use BGP Capabilities Negotiation (capability code 1, AFI=2, SAFI=128) to ensure both can process VPN-IPv6 NLRIs (Section 3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestOpenAdvertisesVPNv6Capability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L171). **negative:** `unit/verify` [`TestNegotiateWith_VPNv6NotActiveWithoutPeerCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L216) |
 | `RFC4659-4-1` | The ingress PE Router MUST tunnel IPv6 VPN data over the backbone towards the Egress PE router (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this is an ingress-PE data-plane forwarding behavior; ze is a BGP control-plane speaker with no VPNv6 VRF-to-backbone tunneling path |
-| `RFC4659-4-2` | When Next Hop is an IPv4-mapped IPv6 address, ingress PE MUST use IPv4 tunneling unless explicitly configured otherwise (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a data-plane transport-selection decision for a forwarding PE; ze performs no VPNv6 data-plane forwarding, and no IPv4-mapped detection exists in the BGP path |
-| `RFC4659-4-3` | When Next Hop is not an IPv4-mapped IPv6 address, ingress PE MUST use IPv6 tunneling (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a data-plane transport-selection decision for a forwarding PE, a role ze does not perform |
+| `RFC4659-4-2` | When the 16-octet IPv6 address contained in the BGP Next Hop field is encoded as an IPv4-mapped IPv6 address (see Section 3.2.1.2), the ingress PE MUST use IPv4 tunneling unless explicitly configured to do otherwise. (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a data-plane transport-selection decision for a forwarding PE; ze performs no VPNv6 data-plane forwarding, and no IPv4-mapped detection exists in the BGP path |
+| `RFC4659-4-3` | When the 16-octet IPv6 address contained in the BGP Next Hop field is not encoded as an IPv4-mapped address (see Section 3.2.1.1), the ingress PE MUST use IPv6 tunneling. (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a data-plane transport-selection decision for a forwarding PE, a role ze does not perform |
 | `RFC4659-4-4` | When tunneling using IPv4, MUST use the IPv4 address encoded in the IPv4-mapped field as the tunnel destination (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a data-plane encapsulation behavior; ze installs no VPNv6 IPv4-tunnel forwarding entries |
 | `RFC4659-4-5` | When tunneling using IPv6, MUST use the IPv6 address from the Next Hop as the tunnel destination (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** a data-plane encapsulation behavior; ze installs no VPNv6 IPv6-tunnel forwarding entries |
-| `RFC4659-4-6` | When tunneling using MPLS LSPs, MUST directly push the LSP tunnel label on the label stack (no IP header) (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** an MPLS data-plane label-imposition behavior for a forwarding PE; ze has no VPNv6 VRF-to-LSP forwarding path |
-| `RFC4659-4-7` | All systems MUST support tunneling using MPLS LSPs established by LDP (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** binds the ingress-PE VPN-data-over-LDP-LSP forwarding role; ze has LDP label distribution and an MPLS FIB but performs no VPNv6 customer-data forwarding |
+| `RFC4659-4-6` | When tunneling is done using MPLS LSPs, the ingress PE Router MUST directly push the LSP tunnel label on the label stack of the labeled IPv6 VPN packet (i.e., without prepending any IPv4 or IPv6 header). (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** an MPLS data-plane label-imposition behavior for a forwarding PE; ze has no VPNv6 VRF-to-LSP forwarding path |
+| `RFC4659-4-7` | To ensure interoperability among systems that implement this VPN architecture, all such systems MUST support tunneling using MPLS LSPs established by LDP [LDP]. (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** binds the ingress-PE VPN-data-over-LDP-LSP forwarding role; ze has LDP label distribution and an MPLS FIB but performs no VPNv6 customer-data forwarding |
 | `RFC4659-8-1` | Multi-AS approach (a): Exchange of IPv6 routes MUST be carried out as per RFC 2545 (Section 8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the inter-provider option-A back-to-back-VRF ASBR role; ze has no per-VPN VRF inter-AS exchange, and the referenced RFC 2545 IPv6 next-hop wire behavior is enrolled under its own RFC |
 | `RFC4659-8-2` | Multi-AS approach (b): Exchange of labeled VPN-IPv6 routes MUST be carried out as per RFC 2545 and RFC 3107 (Section 8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the inter-provider option-B ASBR label-swap/redistribution role; ze implements the VPNv6 NLRI and next-hop encodings but performs no inter-AS VPN ASBR redistribution |
 | `RFC4659-8-3` | Multi-AS approach (b) with IPv6 tunneling: Next Hop Field MUST contain global IPv6 address; when ASBRs share IPv6 subnet, MUST include both global and link-local (Section 8, Section 3.2.1.1) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's VPNv6 next-hop encoder emits only the single global-IPv6 24-octet form and never the 48-octet global+link-local next-hop, so the shared-subnet clause is unmet (internal/component/bgp/message/update_build_vpn.go:229; no 48-octet producer exists) |
-| `RFC4659-3.2.1.1-1` | When requesting IPv6 transport, BGP speaker SHALL advertise a Next Hop containing a VPN-IPv6 address with zero RD and global IPv6 address (Section 3.2.1.1) | SHALL | 3.2.1.1 | **positive:** `unit/verify` [`TestUpdateBuilder_BuildVPN_IPv6_NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L646). **negative:** no negative test. **{single-polarity}:** the obligation is to EMIT a 24-octet zero-RD + global-IPv6 next-hop, which ze produces for a VPNv6 route with an IPv6 next-hop; the decode side is not RD-aware and is not a gated obligation (internal/component/bgp/message/update_build_vpn.go:246, internal/component/bgp/rib/commit.go:498) |
+| `RFC4659-3.2.1.1-1` | When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv6 tunneling (e.g., IPv6 MPLS LSPs, IPsec-protected IPv6 tunnels), the BGP speaker SHALL advertise a Next Hop Network Address field containing a VPN-IPv6 address (Section 3.2.1.1) | SHALL | 3.2.1.1 | **positive:** `unit/verify` [`TestUpdateBuilder_BuildVPN_IPv6_NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L646). **negative:** no negative test. **{single-polarity}:** the obligation is to EMIT a 24-octet zero-RD + global-IPv6 next-hop, which ze produces for a VPNv6 route with an IPv6 next-hop; the decode side is not RD-aware and is not a gated obligation (internal/component/bgp/message/update_build_vpn.go:246, internal/component/bgp/rib/commit.go:498) |
 | `RFC4659-3.2.1.2-1` | When requesting IPv4 transport, BGP speaker SHALL advertise a Next Hop containing a VPN-IPv6 address with zero RD and IPv4-mapped IPv6 address (Section 3.2.1.2) | SHALL | 3.2.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze constructs no IPv4-mapped-IPv6 next-hop for VPNv6 -- a plain IPv4 next-hop on a VPNv6 route emits a non-conformant 12-octet zero-RD+IPv4 next-hop, and no ::ffff:a.b.c.d mapping exists in the BGP path (internal/component/bgp/message/update_build_vpn.go:229; Is4In6 appears only in ISIS/OSPF) |
-| `RFC4659-8-4` | Multi-AS approach (b) with IPv4 tunneling: Next Hop Field SHALL contain an IPv4-mapped IPv6 address (Section 8) | SHALL | 8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the same missing IPv4-mapped-IPv6 next-hop construction as RFC4659-3.2.1.2-1; ze never emits a zero-RD + ::ffff:a.b.c.d VPNv6 next-hop (internal/component/bgp/message/update_build_vpn.go:246; no IPv4-mapped VPNv6 next-hop producer) |
+| `RFC4659-8-4` | When the VPN-IPv6 traffic is to be transported using IPv4 tunneling, the BGP Next Hop Field SHALL contain an IPv4 address encoded as an IPv4-mapped IPv6 address. (Section 8) | SHALL | 8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the same missing IPv4-mapped-IPv6 next-hop construction as RFC4659-3.2.1.2-1; ze never emits a zero-RD + ::ffff:a.b.c.d VPNv6 next-hop (internal/component/bgp/message/update_build_vpn.go:246; no IPv4-mapped VPNv6 next-hop producer) |
 | `RFC4659-3.2.1.1-2` | "As a consequence, a BGP speaker that advertises a route to an internal peer may modify the Network Address of Next Hop field by removing the link-local IPv6 address of the next hop" (Section 3.2.1.1) | MAY | 3.2.1.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4659-1-1` | Same single set of MP-BGP peering relationships and same PE-PE tunnel mesh MAY be used for both IPv4 and IPv6 VPNs (Section 1) | MAY | 1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4659-2-1` | Same RD MAY be used for IPv6 and IPv4 addresses from the same site (Section 2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
@@ -137,17 +137,17 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport ([`RFC4659-3.2.1.2-1`](#rfc4659-
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC4659-4-1`](#rfc4659-4-1) The ingress PE Router MUST tunnel IPv6 VPN data over the backbone towards the Egress PE router (Section 4) | no test | no test carries this requirement id; annotated {not-applicable}: this is an ingress-PE data-plane forwarding behavior; ze is a BGP control-plane speaker with no VPNv6 VRF-to-backbone tunneling path |
-| [`RFC4659-4-2`](#rfc4659-4-2) When Next Hop is an IPv4-mapped IPv6 address, ingress PE MUST use IPv4 tunneling unless explicitly configured otherwise (Section 4) | no test | no test carries this requirement id; annotated {not-applicable}: a data-plane transport-selection decision for a forwarding PE; ze performs no VPNv6 data-plane forwarding, and no IPv4-mapped detection exists in the BGP path |
-| [`RFC4659-4-3`](#rfc4659-4-3) When Next Hop is not an IPv4-mapped IPv6 address, ingress PE MUST use IPv6 tunneling (Section 4) | no test | no test carries this requirement id; annotated {not-applicable}: a data-plane transport-selection decision for a forwarding PE, a role ze does not perform |
+| [`RFC4659-4-2`](#rfc4659-4-2) When the 16-octet IPv6 address contained in the BGP Next Hop field is encoded as an IPv4-mapped IPv6 address (see Section 3.2.1.2), the ingress PE MUST use IPv4 tunneling unless explicitly configured to do otherwise. (Section 4) | no test | no test carries this requirement id; annotated {not-applicable}: a data-plane transport-selection decision for a forwarding PE; ze performs no VPNv6 data-plane forwarding, and no IPv4-mapped detection exists in the BGP path |
+| [`RFC4659-4-3`](#rfc4659-4-3) When the 16-octet IPv6 address contained in the BGP Next Hop field is not encoded as an IPv4-mapped address (see Section 3.2.1.1), the ingress PE MUST use IPv6 tunneling. (Section 4) | no test | no test carries this requirement id; annotated {not-applicable}: a data-plane transport-selection decision for a forwarding PE, a role ze does not perform |
 | [`RFC4659-4-4`](#rfc4659-4-4) When tunneling using IPv4, MUST use the IPv4 address encoded in the IPv4-mapped field as the tunnel destination (Section 4) | no test | no test carries this requirement id; annotated {not-applicable}: a data-plane encapsulation behavior; ze installs no VPNv6 IPv4-tunnel forwarding entries |
 | [`RFC4659-4-5`](#rfc4659-4-5) When tunneling using IPv6, MUST use the IPv6 address from the Next Hop as the tunnel destination (Section 4) | no test | no test carries this requirement id; annotated {not-applicable}: a data-plane encapsulation behavior; ze installs no VPNv6 IPv6-tunnel forwarding entries |
-| [`RFC4659-4-6`](#rfc4659-4-6) When tunneling using MPLS LSPs, MUST directly push the LSP tunnel label on the label stack (no IP header) (Section 4) | no test | no test carries this requirement id; annotated {not-applicable}: an MPLS data-plane label-imposition behavior for a forwarding PE; ze has no VPNv6 VRF-to-LSP forwarding path |
-| [`RFC4659-4-7`](#rfc4659-4-7) All systems MUST support tunneling using MPLS LSPs established by LDP (Section 4) | no test | no test carries this requirement id; annotated {not-applicable}: binds the ingress-PE VPN-data-over-LDP-LSP forwarding role; ze has LDP label distribution and an MPLS FIB but performs no VPNv6 customer-data forwarding |
+| [`RFC4659-4-6`](#rfc4659-4-6) When tunneling is done using MPLS LSPs, the ingress PE Router MUST directly push the LSP tunnel label on the label stack of the labeled IPv6 VPN packet (i.e., without prepending any IPv4 or IPv6 header). (Section 4) | no test | no test carries this requirement id; annotated {not-applicable}: an MPLS data-plane label-imposition behavior for a forwarding PE; ze has no VPNv6 VRF-to-LSP forwarding path |
+| [`RFC4659-4-7`](#rfc4659-4-7) To ensure interoperability among systems that implement this VPN architecture, all such systems MUST support tunneling using MPLS LSPs established by LDP [LDP]. (Section 4) | no test | no test carries this requirement id; annotated {not-applicable}: binds the ingress-PE VPN-data-over-LDP-LSP forwarding role; ze has LDP label distribution and an MPLS FIB but performs no VPNv6 customer-data forwarding |
 | [`RFC4659-8-1`](#rfc4659-8-1) Multi-AS approach (a): Exchange of IPv6 routes MUST be carried out as per RFC 2545 (Section 8) | no test | no test carries this requirement id; annotated {not-applicable}: the inter-provider option-A back-to-back-VRF ASBR role; ze has no per-VPN VRF inter-AS exchange, and the referenced RFC 2545 IPv6 next-hop wire behavior is enrolled under its own RFC |
 | [`RFC4659-8-2`](#rfc4659-8-2) Multi-AS approach (b): Exchange of labeled VPN-IPv6 routes MUST be carried out as per RFC 2545 and RFC 3107 (Section 8) | no test | no test carries this requirement id; annotated {not-applicable}: the inter-provider option-B ASBR label-swap/redistribution role; ze implements the VPNv6 NLRI and next-hop encodings but performs no inter-AS VPN ASBR redistribution |
 | [`RFC4659-8-3`](#rfc4659-8-3) Multi-AS approach (b) with IPv6 tunneling: Next Hop Field MUST contain global IPv6 address; when ASBRs share IPv6 subnet, MUST include both global and link-local (Section 8, Section 3.2.1.1) | {gap}, no test | ze's VPNv6 next-hop encoder emits only the single global-IPv6 24-octet form and never the 48-octet global+link-local next-hop, so the shared-subnet clause is unmet (internal/component/bgp/message/update_build_vpn.go:229; no 48-octet producer exists) |
 | [`RFC4659-3.2.1.2-1`](#rfc4659-3.2.1.2-1) When requesting IPv4 transport, BGP speaker SHALL advertise a Next Hop containing a VPN-IPv6 address with zero RD and IPv4-mapped IPv6 address (Section 3.2.1.2) | {gap}, no test | ze constructs no IPv4-mapped-IPv6 next-hop for VPNv6 -- a plain IPv4 next-hop on a VPNv6 route emits a non-conformant 12-octet zero-RD+IPv4 next-hop, and no ::ffff:a.b.c.d mapping exists in the BGP path (internal/component/bgp/message/update_build_vpn.go:229; Is4In6 appears only in ISIS/OSPF) |
-| [`RFC4659-8-4`](#rfc4659-8-4) Multi-AS approach (b) with IPv4 tunneling: Next Hop Field SHALL contain an IPv4-mapped IPv6 address (Section 8) | {gap}, no test | the same missing IPv4-mapped-IPv6 next-hop construction as RFC4659-3.2.1.2-1; ze never emits a zero-RD + ::ffff:a.b.c.d VPNv6 next-hop (internal/component/bgp/message/update_build_vpn.go:246; no IPv4-mapped VPNv6 next-hop producer) |
+| [`RFC4659-8-4`](#rfc4659-8-4) When the VPN-IPv6 traffic is to be transported using IPv4 tunneling, the BGP Next Hop Field SHALL contain an IPv4 address encoded as an IPv4-mapped IPv6 address. (Section 8) | {gap}, no test | the same missing IPv4-mapped-IPv6 next-hop construction as RFC4659-3.2.1.2-1; ze never emits a zero-RD + ::ffff:a.b.c.d VPNv6 next-hop (internal/component/bgp/message/update_build_vpn.go:246; no IPv4-mapped VPNv6 next-hop producer) |
 
 ## Proof state
 
@@ -155,7 +155,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC4659-3.2-1`](#rfc4659-3.2-1)
 
-PE routers MUST assign and distribute MPLS labels with the IPv6 VPN routes (Section 3.2)
+When distributing IPv6 VPN routes, the advertising PE router MUST assign and distribute MPLS labels with the IPv6 VPN routes. (Section 3.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -195,7 +195,7 @@ No test carries RFC4659-4-1, so no unit is bound to it.
 
 ### [`RFC4659-4-2`](#rfc4659-4-2)
 
-When Next Hop is an IPv4-mapped IPv6 address, ingress PE MUST use IPv4 tunneling unless explicitly configured otherwise (Section 4)
+When the 16-octet IPv6 address contained in the BGP Next Hop field is encoded as an IPv4-mapped IPv6 address (see Section 3.2.1.2), the ingress PE MUST use IPv4 tunneling unless explicitly configured to do otherwise. (Section 4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -203,7 +203,7 @@ No test carries RFC4659-4-2, so no unit is bound to it.
 
 ### [`RFC4659-4-3`](#rfc4659-4-3)
 
-When Next Hop is not an IPv4-mapped IPv6 address, ingress PE MUST use IPv6 tunneling (Section 4)
+When the 16-octet IPv6 address contained in the BGP Next Hop field is not encoded as an IPv4-mapped address (see Section 3.2.1.1), the ingress PE MUST use IPv6 tunneling. (Section 4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -227,7 +227,7 @@ No test carries RFC4659-4-5, so no unit is bound to it.
 
 ### [`RFC4659-4-6`](#rfc4659-4-6)
 
-When tunneling using MPLS LSPs, MUST directly push the LSP tunnel label on the label stack (no IP header) (Section 4)
+When tunneling is done using MPLS LSPs, the ingress PE Router MUST directly push the LSP tunnel label on the label stack of the labeled IPv6 VPN packet (i.e., without prepending any IPv4 or IPv6 header). (Section 4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -235,7 +235,7 @@ No test carries RFC4659-4-6, so no unit is bound to it.
 
 ### [`RFC4659-4-7`](#rfc4659-4-7)
 
-All systems MUST support tunneling using MPLS LSPs established by LDP (Section 4)
+To ensure interoperability among systems that implement this VPN architecture, all such systems MUST support tunneling using MPLS LSPs established by LDP [LDP]. (Section 4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -267,7 +267,7 @@ No test carries RFC4659-8-3, so no unit is bound to it.
 
 ### [`RFC4659-3.2.1.1-1`](#rfc4659-3.2.1.1-1)
 
-When requesting IPv6 transport, BGP speaker SHALL advertise a Next Hop containing a VPN-IPv6 address with zero RD and global IPv6 address (Section 3.2.1.1)
+When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv6 tunneling (e.g., IPv6 MPLS LSPs, IPsec-protected IPv6 tunnels), the BGP speaker SHALL advertise a Next Hop Network Address field containing a VPN-IPv6 address (Section 3.2.1.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -285,7 +285,7 @@ No test carries RFC4659-3.2.1.2-1, so no unit is bound to it.
 
 ### [`RFC4659-8-4`](#rfc4659-8-4)
 
-Multi-AS approach (b) with IPv4 tunneling: Next Hop Field SHALL contain an IPv4-mapped IPv6 address (Section 8)
+When the VPN-IPv6 traffic is to be transported using IPv4 tunneling, the BGP Next Hop Field SHALL contain an IPv4 address encoded as an IPv4-mapped IPv6 address. (Section 8)
 
 Audit verdict: not audited: no reader has judged these tests
 

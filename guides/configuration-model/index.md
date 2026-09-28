@@ -18,6 +18,24 @@ Ze uses a JUNOS-like hierarchical configuration format.
 Indentation is not significant. Unknown keys are rejected with a suggestion for the closest valid key.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- BGP config YANG schema; internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
 
+A plugin that registers no schema at build time has its schema selected at
+startup with `--plugin`, for example `ze --plugin ze.<name> ...`. The schemas of
+the internal plugins, `bgp-ls-export` and `bgp-epe` among them, are always loaded,
+so their configuration needs no selection. Reload verification retains that selection,
+including when a configuration removes and later restores the plugin's root.
+It does not enable schemas for other optional plugins.
+<!-- source: internal/component/config/loader.go -- LoadConfig -->
+<!-- source: internal/component/bgp/config/loader_create.go -- createReloadFunc -->
+
+Commands that assign a schema-marked secret are masked before they enter a CLI
+transcript, command accounting, or the dispatcher's refusal and audit output.
+The mask covers the entire value, including quoted words, while execution and
+authorization receive the original arguments. A configuration path the schema
+cannot resolve is redacted in full after `set`.
+<!-- source: internal/component/config/mask.go -- DisplayCommand -->
+<!-- source: internal/component/cli/transcript.go -- TranscriptWriter.Record -->
+<!-- source: internal/component/plugin/server/command.go -- BeginAccounting, unauthorizedError, recordCommandAudit -->
+
 ## File Format
 
 ```
@@ -98,7 +116,7 @@ AS is internal when it equals Ze's own AS, and also when it equals a configured
 either ASN of a migrating pair an iBGP peer, so the Section 2.2 identifier check
 binds it exactly as it binds a peer in the same AS.
 
-<!-- source: internal/component/bgp/reactor/session_open_validation.go — validateOpenIdentifier; internal/component/bgp/reactor/peer.go — sessionPeerAS; internal/component/bgp/reactor/session_as_migration.go — isIBGPWith; internal/component/bgp/message/open.go — ValidateBGPIdentifier; internal/component/bgp/reactor/session.go — DetectCollision; internal/component/bgp/reactor/config.go — parseRouterID -->
+<!-- source: internal/component/bgp/reactor/session_open_validation.go — validateOpenIdentifier; internal/component/bgp/reactor/peer.go — sessionPeerAS; internal/component/bgp/reactor/session_as_migration.go — isIBGPWith; internal/component/bgp/message/open.go — ValidateBGPIdentifier; internal/component/bgp/reactor/session.go — detectCollision; internal/component/bgp/reactor/config.go — parseRouterID -->
 
 ## OSPF
 
@@ -1097,7 +1115,7 @@ example `reconnect never` beside `idle-timeout 30`.
 
 Ze can write every message a peer sends to a file, together with the config
 operations applied while the capture runs. Replay the file on a developer
-machine with `ze-test replay <file>` to drive the same state machine over the
+machine with `le test replay <file>` to drive the same state machine over the
 same input. Capture is off by default. Turn it on for one peer when you need to
 reproduce a session bug, and turn it off again.
 
@@ -1274,7 +1292,7 @@ peer transit-a {
         receive [ update-received state ];
     }
     attach process rpki {
-        receive [ update-received ];
+        receive [ update-received state ];
     }
 }
 ```
@@ -2397,6 +2415,11 @@ gives the default route it learns, which is the same ranking decision on another
 vendor. That distance is not a Linux metric, and ze does not read it: 254 is the
 metric ze writes to the kernel.
 
+These distances also apply to routes installed through plugin RPCs. The engine
+selects `ebgp` or `ibgp` from the BGP path's session flags before choosing the
+Loc-RIB winner; both retain `bgp` as their route owner.
+<!-- source: internal/component/plugin/server/dispatch_route.go -- applyRouteInstall -->
+
 Beside `distance`, the `rib` block takes a `fib-withhold` leaf-list. It names
 the protocols ze withholds from the FIB, which is a later stage. See
 [FIB Programming](#fib-programming).
@@ -3493,18 +3516,18 @@ startup uses the tree beside the file, with no `ze.config.dir` pin.
 The native restart fixture performs an NTP exchange with its own loopback UDP
 server, then restarts Ze without a server and checks the restored system clock.
 It changes the clock and therefore belongs in a disposable QEMU guest. With
-the guest's `ze` and `ze-test` binaries on `PATH`, its explicit action from a
+the guest's `ze` and `le test` binaries on `PATH`, its explicit action from a
 scratch directory is:
 
 ```sh
-ZE_STORAGE_CLOCK_TEST=1 ze-test fixture storage/consumer-restart ntp
+ZE_STORAGE_CLOCK_TEST=1 le test fixture storage/consumer-restart ntp
 ```
 
 The fixture refuses to run without that opt-in. Its suite carrier,
 `test/plugin/storage-ntp-restart.ci`, passes the opt-in and is gated
 `option=needs-linux:caps=sys-time`: a process without `CAP_SYS_TIME` skips it,
 so an unprivileged developer host keeps its clock and the QEMU guest
-(`./le qemu all-tests`) runs it.
+(`./le test qemu all-tests`) runs it.
 <!-- source: internal/test/fixture/storage_consumer_restart.go -- storageNTPRestart, storageNTPServer -->
 
 <!-- source: internal/plugins/ntp/yang/ze-ntp-conf.yang -- NTP config schema -->
@@ -3872,7 +3895,7 @@ local interface or the connection fails with `cannot assign requested address`.
 | Service | Config location | Leaf | Transport |
 |---------|-----------------|------|-----------|
 | BMP | `bgp bmp sender collector <name>` | `source-address` | TCP |
-| RPKI/RTR | `bgp rpki cache-server <addr>` | `source-address` | TCP |
+| RPKI/RTR | `bgp rpki cache-server <addr>` | `source-address` | Mutual TLS, or explicitly trusted TCP |
 | Flow Export | `flow-export collector <name>` | `source-address` | UDP |
 | IRR (filter) | `bgp policy irr` | `source-address` | TCP |
 | Managed hub | `plugin hub client <name>` | `source-address` | TLS |

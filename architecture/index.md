@@ -106,13 +106,13 @@ Selected routes move through a shared route-decision pipeline:
 
 ## Programs
 
-| Binary | Purpose |
+| Binary or command | Purpose |
 | --- | --- |
 | `ze` | Network OS: BGP, CLI, config, hub, interface, ExaBGP migration, plugin, schema, signal, completion |
-| `ze-chaos` | Chaos testing orchestrator: fault injection, scheduling |
-| `ze-perf` | Performance benchmarking: UPDATE throughput tracking |
-| `ze-analyze` | MRT/RIB analysis: attributes, communities, density, dump |
-| `ze-test` | Functional test runner: BGP, editor, peer, MCP, web, RPKI, managed |
+| `le chaos run` | Chaos testing orchestrator: fault injection, scheduling |
+| `le perf` | Performance benchmarking: UPDATE throughput tracking |
+| `le mrt` | MRT/RIB analysis: attributes, communities, density, dump |
+| `le test` | Functional test runner: BGP, editor, peer, MCP, web, RPKI, managed |
 
 ## Source Layout
 
@@ -122,7 +122,7 @@ Selected routes move through a shared route-decision pipeline:
 | BGP engine | `internal/component/bgp/` (reactor, FSM, wire, message, capability) |
 | Plugin implementations | `internal/plugins/` and `internal/component/bgp/plugins/` |
 | Plugin infrastructure | `internal/component/plugin/` (registry, process, hub, SDK) |
-| Programs | `cmd/ze/` (build tags: `ze_core`, `ze_test`, `ze_chaos`, `ze_perf`, `ze_analyze`) |
+| Programs | `cmd/ze/` (build tags: `ze_core`, `ze_setup`, `ze_distro`, `ze_appliance`, `ze_le`) |
 | Public SDKs | `pkg/plugin/sdk/`, `pkg/plugin/rpc/`, `pkg/zefs/` |
 | Tests | `test/` (.ci files), `*_test.go` |
 

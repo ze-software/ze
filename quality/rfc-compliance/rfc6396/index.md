@@ -109,19 +109,19 @@ One MUST gap gated in [`rfc/short/rfc6396.md`](https://github.com/ze-software/ze
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC6396-4.2-1` | TABLE_DUMP: AS_PATH attribute must only consist of 2-byte AS numbers (§4.2) | MUST | 4.2 - TABLE_DUMP Type | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's RIB export always emits TABLE_DUMP_V2 (the Section 4.2 mandate) and never operationally writes TABLE_DUMP, so the 2-byte-AS_PATH-in-TABLE_DUMP obligation binds a writer role ze does not play (internal/mrt/encode.go:185 has no production caller) |
+| `RFC6396-4.2-1` | The AS_PATH attribute MUST only consist of 2-byte AS numbers. (§4.2) | MUST | 4.2 - TABLE_DUMP Type | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's RIB export always emits TABLE_DUMP_V2 (the Section 4.2 mandate) and never operationally writes TABLE_DUMP, so the 2-byte-AS_PATH-in-TABLE_DUMP obligation binds a writer role ze does not play (internal/mrt/encode.go:185 has no production caller) |
 | `RFC6396-4.2-2` | TABLE_DUMP_V2 must be used when 4-byte AS numbers are needed or when peer/prefix AFI differ (§4.2) | MUST | 4.2 - TABLE_DUMP Type | **positive:** `unit/verify` [`TestRibSubtype`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L17). **negative:** no negative test. **{single-polarity}:** ze's RIB dumper unconditionally emits TABLE_DUMP_V2 with AS4 peer entries, so it always satisfies the use-V2 mandate and there is no path that emits TABLE_DUMP to reject (internal/plugins/mrt/dump.go:113, :206) |
 | `RFC6396-4.3.1-1` | TABLE_DUMP_V2 PEER_INDEX_TABLE: View Name Length must be set to 0 if no view name is present (§4.3.1) | MUST | 4.3.1 - PEER_INDEX_TABLE Subtype | **positive:** `unit/verify` [`TestPeerIndexTableEmptyViewName`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L162). **negative:** no negative test. **{single-polarity}:** the encoder writes View Name Length as len(viewName) and the producer always passes an empty name, so the length is 0 by construction (internal/mrt/encode.go:48, internal/plugins/mrt/dump.go:199) |
-| `RFC6396-4.3.1-2` | TABLE_DUMP_V2 PEER_INDEX_TABLE: View Name encoding must follow UTF-8 (RFC 3629) (§4.3.1) | MUST | 4.3.1 - PEER_INDEX_TABLE Subtype | **positive:** `unit/verify` [`TestPeerIndexTableEmptyViewName`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L167). **negative:** no negative test. **{single-polarity}:** ze's PEER_INDEX_TABLE writer always emits an empty view name, which is trivially valid UTF-8, and no code path produces a non-UTF-8 view name (internal/plugins/mrt/dump.go:199, internal/mrt/encode.go:48-50) |
+| `RFC6396-4.3.1-2` | The View Name encoding MUST follow the UTF-8 transformation format [RFC3629]. 0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| Collector BGP ID \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| View Name Length \| View Name (variable) \| +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ \| Peer Count \| Peer Entries (variable) +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ (§4.3.1) | MUST | 4.3.1 - PEER_INDEX_TABLE Subtype | **positive:** `unit/verify` [`TestPeerIndexTableEmptyViewName`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L167). **negative:** no negative test. **{single-polarity}:** ze's PEER_INDEX_TABLE writer always emits an empty view name, which is trivially valid UTF-8, and no code path produces a non-UTF-8 view name (internal/plugins/mrt/dump.go:199, internal/mrt/encode.go:48-50) |
 | `RFC6396-4.3.1-3` | TABLE_DUMP_V2: RIB entry MRT records must immediately follow the PEER_INDEX_TABLE MRT record (§4.3.1) | MUST | 4.3.1 - PEER_INDEX_TABLE Subtype | **positive:** `unit/verify` [`TestDumpV2PeerIndexBeforeFirstRIBEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L213). **negative:** no negative test. **{single-polarity}:** the RIB dump writes the PEER_INDEX_TABLE on the first OnRoute callback, before that route's RIB entry and before any other RIB record, guaranteeing the ordering (internal/plugins/mrt/dump.go:149-152) |
 | `RFC6396-4.3.4-1` | TABLE_DUMP_V2 RIB entries: all AS numbers in the AS_PATH attribute must be encoded as 4-byte AS numbers (§4.3.4) | MUST | 4.3.4 - RIB Entries | **positive:** `unit/verify` [`TestDumpV2RIBEntryASPathIs4Byte`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L244). **positive:** `unit/verify` [`TestRFC6396RIBEntryASPathStoredFourByte`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L595). **negative:** `unit/verify` [`TestRFC6396RIBEntryASPathFourByteSessionUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L623) |
 | `RFC6396-4.3.4-2` | TABLE_DUMP_V2 RIB entries: MP_REACH_NLRI attribute must only include Next Hop Address Length and Next Hop Address fields (AFI, SAFI, NLRI, Reserved omitted) (§4.3.4) | MUST | 4.3.4 - RIB Entries | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's TABLE_DUMP_V2 RIB writer reconstructs a NEXT_HOP (type 3) attribute and never emits an MP_REACH_NLRI attribute in RIB entries, so the abbreviation obligation never binds ze's producer (internal/component/bgp/plugins/rib/rib_mrt.go:127-153) |
 | `RFC6396-4.4.2-1` | BGP4MP_MESSAGE: AS_PATH must only consist of 2-byte AS numbers (§4.4.2) | MUST | 4.4.2 - BGP4MP_MESSAGE Subtype | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's live capture unconditionally emits the AS4 BGP4MP message subtype and never writes the 2-byte BGP4MP_MESSAGE (subtype 1), so the 2-byte-AS_PATH obligation binds a writer variant ze does not produce (internal/plugins/mrt/dump.go:240-250) |
-| `RFC6396-4.4.2-2` | BGP4MP_MESSAGE: only one BGP message shall be encoded per record (§4.4.2) | MUST | 4.4.2 - BGP4MP_MESSAGE Subtype | **positive:** `unit/verify` [`TestOneBGPMessagePerBGP4MPRecord`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/component_test.go#L84). **negative:** no negative test. **{single-polarity}:** OnBGPMessage is invoked once per BGP message and writes exactly one message into each BGP4MP record, so records always carry a single message (internal/plugins/mrt/component.go:99-142) |
-| `RFC6396-4.4.3-1` | BGP4MP_MESSAGE_AS4: AS_PATH must only consist of 4-byte AS numbers (§4.4.3) | MUST | 4.4.3 - BGP4MP_MESSAGE_AS4 Subtype | **positive:** no positive test. **negative:** no negative test. **{gap}:** the live writer hardcodes the AS4 subtype and copies the on-wire message verbatim without checking negotiated AS4 capability, so a 2-byte (OLD-peer) session's 2-byte AS_PATH is mislabeled as AS4 (internal/plugins/mrt/dump.go:240-250, component.go:123; ze supports 2-byte sessions per internal/component/bgp/plugins/rib/storage/attrparse.go:18-24) |
+| `RFC6396-4.4.2-2` | Only one BGP message SHALL be encoded in the BGP4MP_MESSAGE Subtype. (§4.4.2) | MUST | 4.4.2 - BGP4MP_MESSAGE Subtype | **positive:** `unit/verify` [`TestOneBGPMessagePerBGP4MPRecord`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/component_test.go#L84). **negative:** no negative test. **{single-polarity}:** OnBGPMessage is invoked once per BGP message and writes exactly one message into each BGP4MP record, so records always carry a single message (internal/plugins/mrt/component.go:99-142) |
+| `RFC6396-4.4.3-1` | The AS_PATH in these messages MUST only consist of 4-byte AS numbers. (§4.4.3) | MUST | 4.4.3 - BGP4MP_MESSAGE_AS4 Subtype | **positive:** no positive test. **negative:** no negative test. **{gap}:** the live writer hardcodes the AS4 subtype and copies the on-wire message verbatim without checking negotiated AS4 capability, so a 2-byte (OLD-peer) session's 2-byte AS_PATH is mislabeled as AS4 (internal/plugins/mrt/dump.go:240-250, component.go:123; ze supports 2-byte sessions per internal/component/bgp/plugins/rib/storage/attrparse.go:18-24) |
 | `RFC6396-1-1` | All multi-octet numeric values must be encoded in network byte order (big-endian) (§1) | MUST | 1 - Introduction | **positive:** `unit/verify` [`TestCommonHeaderRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L24). **negative:** no negative test. **{single-polarity}:** all MRT encode and decode use binary.BigEndian throughout and round-trip byte-for-byte, with no alternate-endianness path (internal/mrt/encode.go:7, decode.go) |
-| `RFC6396-5.1-1` | New Type Codes must be allocated starting at 65 (§5.1) | MUST | 5.1 - Type Codes | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this is an IANA registry allocation policy binding specification and registry authors; ze does not allocate MRT type codes |
-| `RFC6396-B.1-1` | Deprecated informational types: message string encoding must follow UTF-8 (§B.1) | MUST | B.1 - Deprecated MRT Informational Types | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze does not define or produce the deprecated informational types (codes 0-4); its type table starts at OSPFv2 (11) (internal/mrt/types.go:6-16) |
+| `RFC6396-5.1-1` | New Type Codes MUST be allocated starting at 65. (§5.1) | MUST | 5.1 - Type Codes | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this is an IANA registry allocation policy binding specification and registry authors; ze does not allocate MRT type codes |
+| `RFC6396-B.1-1` | The message string encoding MUST follow the UTF-8 transformation format [RFC3629]. (§B.1) | MUST | B.1 - Deprecated MRT Informational Types | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze does not define or produce the deprecated informational types (codes 0-4); its type table starts at OSPFv2 (11) (internal/mrt/types.go:6-16) |
 | `RFC6396-4.2-3` | New implementations should use TABLE_DUMP_V2 instead of TABLE_DUMP (§4.2) | SHOULD | 4.2 - TABLE_DUMP Type | **positive:** no positive test. **negative:** no negative test |
 | `RFC6396-4.2-4` | TABLE_DUMP: Sequence Number should wrap back to zero when exceeding 16-bit bounds (§4.2) | SHOULD | 4.2 - TABLE_DUMP Type | **positive:** no positive test. **negative:** no negative test |
 | `RFC6396-4.2-5` | TABLE_DUMP: Status field should be set to 1 (§4.2) | SHOULD | 4.2 - TABLE_DUMP Type | **positive:** no positive test. **negative:** no negative test |
@@ -139,12 +139,12 @@ One MUST gap gated in [`rfc/short/rfc6396.md`](https://github.com/ze-software/ze
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC6396-4.2-1`](#rfc6396-4.2-1) TABLE_DUMP: AS_PATH attribute must only consist of 2-byte AS numbers (§4.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze's RIB export always emits TABLE_DUMP_V2 (the Section 4.2 mandate) and never operationally writes TABLE_DUMP, so the 2-byte-AS_PATH-in-TABLE_DUMP obligation binds a writer role ze does not play (internal/mrt/encode.go:185 has no production caller) |
+| [`RFC6396-4.2-1`](#rfc6396-4.2-1) The AS_PATH attribute MUST only consist of 2-byte AS numbers. (§4.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze's RIB export always emits TABLE_DUMP_V2 (the Section 4.2 mandate) and never operationally writes TABLE_DUMP, so the 2-byte-AS_PATH-in-TABLE_DUMP obligation binds a writer role ze does not play (internal/mrt/encode.go:185 has no production caller) |
 | [`RFC6396-4.3.4-2`](#rfc6396-4.3.4-2) TABLE_DUMP_V2 RIB entries: MP_REACH_NLRI attribute must only include Next Hop Address Length and Next Hop Address fields (AFI, SAFI, NLRI, Reserved omitted) (§4.3.4) | no test | no test carries this requirement id; annotated {not-applicable}: ze's TABLE_DUMP_V2 RIB writer reconstructs a NEXT_HOP (type 3) attribute and never emits an MP_REACH_NLRI attribute in RIB entries, so the abbreviation obligation never binds ze's producer (internal/component/bgp/plugins/rib/rib_mrt.go:127-153) |
 | [`RFC6396-4.4.2-1`](#rfc6396-4.4.2-1) BGP4MP_MESSAGE: AS_PATH must only consist of 2-byte AS numbers (§4.4.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze's live capture unconditionally emits the AS4 BGP4MP message subtype and never writes the 2-byte BGP4MP_MESSAGE (subtype 1), so the 2-byte-AS_PATH obligation binds a writer variant ze does not produce (internal/plugins/mrt/dump.go:240-250) |
-| [`RFC6396-4.4.3-1`](#rfc6396-4.4.3-1) BGP4MP_MESSAGE_AS4: AS_PATH must only consist of 4-byte AS numbers (§4.4.3) | {gap}, no test | the live writer hardcodes the AS4 subtype and copies the on-wire message verbatim without checking negotiated AS4 capability, so a 2-byte (OLD-peer) session's 2-byte AS_PATH is mislabeled as AS4 (internal/plugins/mrt/dump.go:240-250, component.go:123; ze supports 2-byte sessions per internal/component/bgp/plugins/rib/storage/attrparse.go:18-24) |
-| [`RFC6396-5.1-1`](#rfc6396-5.1-1) New Type Codes must be allocated starting at 65 (§5.1) | no test | no test carries this requirement id; annotated {not-applicable}: this is an IANA registry allocation policy binding specification and registry authors; ze does not allocate MRT type codes |
-| [`RFC6396-B.1-1`](#rfc6396-b.1-1) Deprecated informational types: message string encoding must follow UTF-8 (§B.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze does not define or produce the deprecated informational types (codes 0-4); its type table starts at OSPFv2 (11) (internal/mrt/types.go:6-16) |
+| [`RFC6396-4.4.3-1`](#rfc6396-4.4.3-1) The AS_PATH in these messages MUST only consist of 4-byte AS numbers. (§4.4.3) | {gap}, no test | the live writer hardcodes the AS4 subtype and copies the on-wire message verbatim without checking negotiated AS4 capability, so a 2-byte (OLD-peer) session's 2-byte AS_PATH is mislabeled as AS4 (internal/plugins/mrt/dump.go:240-250, component.go:123; ze supports 2-byte sessions per internal/component/bgp/plugins/rib/storage/attrparse.go:18-24) |
+| [`RFC6396-5.1-1`](#rfc6396-5.1-1) New Type Codes MUST be allocated starting at 65. (§5.1) | no test | no test carries this requirement id; annotated {not-applicable}: this is an IANA registry allocation policy binding specification and registry authors; ze does not allocate MRT type codes |
+| [`RFC6396-B.1-1`](#rfc6396-b.1-1) The message string encoding MUST follow the UTF-8 transformation format [RFC3629]. (§B.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze does not define or produce the deprecated informational types (codes 0-4); its type table starts at OSPFv2 (11) (internal/mrt/types.go:6-16) |
 
 ## Proof state
 
@@ -152,7 +152,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC6396-4.2-1`](#rfc6396-4.2-1)
 
-TABLE_DUMP: AS_PATH attribute must only consist of 2-byte AS numbers (§4.2)
+The AS_PATH attribute MUST only consist of 2-byte AS numbers. (§4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -180,7 +180,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC6396-4.3.1-2`](#rfc6396-4.3.1-2)
 
-TABLE_DUMP_V2 PEER_INDEX_TABLE: View Name encoding must follow UTF-8 (RFC 3629) (§4.3.1)
+The View Name encoding MUST follow the UTF-8 transformation format [RFC3629]. 0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Collector BGP ID | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | View Name Length | View Name (variable) | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Peer Count | Peer Entries (variable) +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ (§4.3.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -228,7 +228,7 @@ No test carries RFC6396-4.4.2-1, so no unit is bound to it.
 
 ### [`RFC6396-4.4.2-2`](#rfc6396-4.4.2-2)
 
-BGP4MP_MESSAGE: only one BGP message shall be encoded per record (§4.4.2)
+Only one BGP message SHALL be encoded in the BGP4MP_MESSAGE Subtype. (§4.4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -238,7 +238,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC6396-4.4.3-1`](#rfc6396-4.4.3-1)
 
-BGP4MP_MESSAGE_AS4: AS_PATH must only consist of 4-byte AS numbers (§4.4.3)
+The AS_PATH in these messages MUST only consist of 4-byte AS numbers. (§4.4.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -256,7 +256,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC6396-5.1-1`](#rfc6396-5.1-1)
 
-New Type Codes must be allocated starting at 65 (§5.1)
+New Type Codes MUST be allocated starting at 65. (§5.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -264,7 +264,7 @@ No test carries RFC6396-5.1-1, so no unit is bound to it.
 
 ### [`RFC6396-B.1-1`](#rfc6396-b.1-1)
 
-Deprecated informational types: message string encoding must follow UTF-8 (§B.1)
+The message string encoding MUST follow the UTF-8 transformation format [RFC3629]. (§B.1)
 
 Audit verdict: not audited: no reader has judged these tests
 

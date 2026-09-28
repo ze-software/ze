@@ -287,7 +287,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9319-5-1">RFC9319-5-1</code></td><td colspan="3"><span class="rfc-subject">Operators adopting minimal ROAs MUST perform a review of existing ROAs, especially those using maxLength, to ensure the set of included prefixes is minimal with respect to current BGP origination and routing policies (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9319-5-1">RFC9319-5-1</code></td><td colspan="3"><span class="rfc-subject">Operators that implement these recommendations and have existing ROAs published in the RPKI system MUST perform a review of such objects, especially where they make use of the maxLength attribute, to ensure that the set of included prefixes is &#34;minimal&#34; with respect to the current BGP origination and routing policies. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -305,7 +305,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> Directed at the operator/CA that publishes ROAs. Ze issues and publishes no ROAs -- it maintains only a read-only VRP cache populated from RTR (internal/component/bgp/plugins/rpki/roa_cache.go). Replacing published ROAs is a ROA-issuer action that a Relying Party does not perform.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9319-5-3">RFC9319-5-3</code></td><td colspan="3"><span class="rfc-subject">Review MUST be repeated whenever the operator makes changes to origination or routing policy (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9319-5-3">RFC9319-5-3</code></td><td colspan="3"><span class="rfc-subject">Such an exercise MUST be repeated whenever the operator makes changes to either policy. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -314,7 +314,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> An operator review-cadence obligation for a ROA issuer. Ze issues no ROAs and holds no origination/routing-policy-driven ROA set to re-review; as a Relying Party it only re-validates its own received routes when the VRP cache changes (RFC 6811 Section 4, internal/component/bgp/plugins/rpki/origin_tracker.go), which is governed by RFC 6811, not this operator BCP.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9319-6-1">RFC9319-6-1</code></td><td colspan="3"><span class="rfc-subject">Operators providing RTDR filtering MUST NOT make the creation of non-minimal ROAs a pre-requisite for its use (§6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9319-6-1">RFC9319-6-1</code></td><td colspan="3"><span class="rfc-subject">* Operators providing a means for operators of neighboring autonomous systems to advertise RTDR routes via BGP MUST NOT make the creation of non-minimal ROAs a pre-requisite for its use. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6</td>
@@ -395,7 +395,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc9319-5-1"><code>RFC9319-5-1</code></a> Operators adopting minimal ROAs MUST perform a review of existing ROAs, especially those using maxLength, to ensure the set of included prefixes is minimal with respect to current BGP origination and routing policies (§5)</td>
+<tr><td><a href="#rfc9319-5-1"><code>RFC9319-5-1</code></a> Operators that implement these recommendations and have existing ROAs published in the RPKI system MUST perform a review of such objects, especially where they make use of the maxLength attribute, to ensure that the set of included prefixes is &#34;minimal&#34; with respect to the current BGP origination and routing policies. (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Directed at RPKI OPERATORS who create and manage ROAs. Ze is an RPKI Relying Party: it consumes Validated ROA Payloads received over RTR (internal/component/bgp/plugins/rpki/roa_cache.go, aspa_cache.go &#34;received via RTR&#34;) and validates route origins against them, including the maxLength bound (internal/component/bgp/plugins/rpki/validate.go:45), but it never issues, publishes, or reviews ROAs. The ROA-review obligation has no applicable code path in Ze.</td>
 </tr>
@@ -403,11 +403,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Directed at the operator/CA that publishes ROAs. Ze issues and publishes no ROAs -- it maintains only a read-only VRP cache populated from RTR (internal/component/bgp/plugins/rpki/roa_cache.go). Replacing published ROAs is a ROA-issuer action that a Relying Party does not perform.</td>
 </tr>
-<tr><td><a href="#rfc9319-5-3"><code>RFC9319-5-3</code></a> Review MUST be repeated whenever the operator makes changes to origination or routing policy (§5)</td>
+<tr><td><a href="#rfc9319-5-3"><code>RFC9319-5-3</code></a> Such an exercise MUST be repeated whenever the operator makes changes to either policy. (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: An operator review-cadence obligation for a ROA issuer. Ze issues no ROAs and holds no origination/routing-policy-driven ROA set to re-review; as a Relying Party it only re-validates its own received routes when the VRP cache changes (RFC 6811 Section 4, internal/component/bgp/plugins/rpki/origin_tracker.go), which is governed by RFC 6811, not this operator BCP.</td>
 </tr>
-<tr><td><a href="#rfc9319-6-1"><code>RFC9319-6-1</code></a> Operators providing RTDR filtering MUST NOT make the creation of non-minimal ROAs a pre-requisite for its use (§6)</td>
+<tr><td><a href="#rfc9319-6-1"><code>RFC9319-6-1</code></a> * Operators providing a means for operators of neighboring autonomous systems to advertise RTDR routes via BGP MUST NOT make the creation of non-minimal ROAs a pre-requisite for its use. (§6)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Directed at operators PROVIDING Route Origin Validation (RTDR) filtering as a service. Ze provides no RTDR filtering service to third parties and gates no feature on the creation of non-minimal ROAs; it only validates its own received routes against the VRP set it consumes (RFC 6811, internal/component/bgp/plugins/rpki/validate.go). There is no code path in Ze that could impose a non-minimal-ROA pre-requisite.</td>
 </tr>
@@ -418,7 +418,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc9319-5-1"><code>RFC9319-5-1</code></a></h3>
-<p>Operators adopting minimal ROAs MUST perform a review of existing ROAs, especially those using maxLength, to ensure the set of included prefixes is minimal with respect to current BGP origination and routing policies (§5)</p>
+<p>Operators that implement these recommendations and have existing ROAs published in the RPKI system MUST perform a review of such objects, especially where they make use of the maxLength attribute, to ensure that the set of included prefixes is &#34;minimal&#34; with respect to the current BGP origination and routing policies. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9319-5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9319-5-2"><code>RFC9319-5-2</code></a></h3>
@@ -426,11 +426,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9319-5-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9319-5-3"><code>RFC9319-5-3</code></a></h3>
-<p>Review MUST be repeated whenever the operator makes changes to origination or routing policy (§5)</p>
+<p>Such an exercise MUST be repeated whenever the operator makes changes to either policy. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9319-5-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9319-6-1"><code>RFC9319-6-1</code></a></h3>
-<p>Operators providing RTDR filtering MUST NOT make the creation of non-minimal ROAs a pre-requisite for its use (§6)</p>
+<p>* Operators providing a means for operators of neighboring autonomous systems to advertise RTDR routes via BGP MUST NOT make the creation of non-minimal ROAs a pre-requisite for its use. (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9319-6-1, so no unit is bound to it.</p>
 </section>
@@ -623,7 +623,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

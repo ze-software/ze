@@ -1527,7 +1527,7 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td class="cell-yes">✓</td>
 <td class="cell-partial">∿</td>
 <td class="cell-yes">✓</td>
-<td>Ze has <code>ze-perf</code>; VyOS inspected source has <code>iperf</code> operational testing.</td>
+<td>Ze has <code>le perf</code>; VyOS inspected source has <code>iperf</code> operational testing.</td>
 </tr>
 <tr>
 <td>Verify/release evidence gates</td>
@@ -2877,7 +2877,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Build system</td>
 <td>Compile-time feature selection</td>
-<td>Ze build tags differentiate distro and appliance builds. <code>internal/le/gotoolchain</code> derives complete tag sets for native builds; adds the functional-test personality. <span class="ev-src"><span class="ev-ref"><code>internal/le/featuretags.DaemonTags</code>, <code>feature-gates.txt</code></span><span class="ev-ref"><code>internal/test/runner.TestBuildTags</code></span></span></td>
+<td>Ze build tags differentiate distro and appliance builds. <code>internal/le/go/toolchain</code> derives complete tag sets for native builds; adds the functional-test personality. <span class="ev-src"><span class="ev-ref"><code>internal/le/repo/featuretags.DaemonTags</code>, <code>feature-gates.txt</code></span><span class="ev-ref"><code>internal/test/runner.TestBuildTags</code></span></span></td>
 <td>not found in inspected sources for equivalent compile-time product variants. VyOS uses package/dependency selection and XML generation, not source-level build tags in inspected files.</td>
 <td>not found in inspected sources for equivalent compile-time feature gates.</td>
 <td>Ze is the only inspected tree with explicit compile-out tags in the main build.</td>
@@ -2885,7 +2885,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Build system</td>
 <td>Generated registries or schema artifacts</td>
-<td>Native generators own YANG glue, plugin imports, and derived feature tags: <code>internal/le/yangglue</code>, <code>internal/le/pluginimports</code>, and <code>internal/le/featuretags</code>. Their <code>check</code> and <code>write</code> actions share the same Go implementation.</td>
+<td>Native generators own YANG glue, plugin imports, and derived feature tags: <code>internal/le/yangglue</code>, <code>internal/le/pluginimports</code>, and <code>internal/le/repo/featuretags</code>. Their <code>check</code> and <code>write</code> actions share the same Go implementation.</td>
 <td>VyOS transcludes XML and builds node templates and caches: <code>scripts/transclude-template</code> in <code>build-command-templates</code> and <code>generate_cache.py</code> in <code>build-command-op-templates</code> and <code>generate_op_cache.py</code> in. <span class="ev-src"><span class="ev-ref"><code>Makefile:18-25</code></span><span class="ev-ref"><code>Makefile:34-40</code></span><span class="ev-ref"><code>Makefile:58-64</code></span></span></td>
 <td>not found in inspected sources.</td>
 <td>Ze and VyOS both generate runtime command/schema artifacts, but with different stacks.</td>
@@ -3013,7 +3013,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>OS integration</td>
 <td>Environment/runtime config</td>
-<td>Ze's native toolchain puts Go and golangci-lint caches under the checkout (<code>internal/le/gotoolchain</code>). Runtime socket resolution is in; appliance credential and passphrase environment keys are registered in. <span class="ev-src"><span class="ev-ref"><code>internal/component/config/environment.go</code></span><span class="ev-ref"><code>internal/appliance/cmd_init.go</code></span></span></td>
+<td>Ze's native toolchain puts Go and golangci-lint caches under the checkout (<code>internal/le/go/toolchain</code>). Runtime socket resolution is in; appliance credential and passphrase environment keys are registered in. <span class="ev-src"><span class="ev-ref"><code>internal/component/config/environment.go</code></span><span class="ev-ref"><code>internal/appliance/cmd_init.go</code></span></span></td>
 <td>VyOS uses environment variables for installer credentials passed to download scripts; config defaults in include reboot-on-upgrade-failure and syslog defaults. <span class="ev-src"><span class="ev-ref"><code>image_installer.py:692-703</code></span><span class="ev-ref"><code>data/config.boot.default:43-52</code></span></span></td>
 <td>Docker entrypoint uses <code>ENV FREERTR_HOSTNAME</code> and <code>FREERTR_INTF_LIST</code> in consumes those flags and starts Java. <span class="ev-src"><span class="ev-ref"><code>misc/docker/Dockerfile:32-35</code></span><span class="ev-ref"><code>misc/docker/scripts/freertr.sh:1-83</code></span></span></td>
 <td>All three have env/runtime config, but Ze's env registry is more typed.</td>
@@ -3021,7 +3021,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Kernel/sysctl</td>
 <td>Kernel command line tuning</td>
-<td>Ze runtime and installer kernel profiles are documented in selects the target and profile, <code>internal/appliance/kernelbuilder</code> builds it, and <code>internal/le/qemu</code> owns runtime-kernel proofs. Specific sysctl defaults are not enumerated here. <span class="ev-src"><span class="ev-ref"><code>docs/guide/ze-install.md:122-142</code></span><span class="ev-ref"><code>internal/appliance/cmd_kernel.go</code></span></span></td>
+<td>Ze runtime and installer kernel profiles are documented in selects the target and profile, <code>internal/appliance/kernelbuilder</code> builds it, and <code>internal/le/test/qemu</code> owns runtime-kernel proofs. Specific sysctl defaults are not enumerated here. <span class="ev-src"><span class="ev-ref"><code>docs/guide/ze-install.md:122-142</code></span><span class="ev-ref"><code>internal/appliance/cmd_kernel.go</code></span></span></td>
 <td>VyOS maps config options to GRUB kernel cmdline: <code>image_installer.py</code> <code>532-576</code> include mitigations, power saving, panic, CPU isolate/nohz/rcu_nocbs/NMI watchdog; the runtime counterpart renders the same cmdline in. <span class="ev-src"><span class="ev-ref"><code>src/conf_mode/system_option.py:307-369</code></span></span></td>
 <td><code>net.ipv6.conf.*.disable_ipv6=1</code> and <code>kernel.panic=10</code>, and edits <code>/etc/default/grub</code> to add <code>panic=10 nomodeset nofb</code> and lower timeout. <span class="ev-src"><span class="ev-ref"><code>misc/service/c.sh:10-15</code></span></span></td>
 <td>VyOS and freeRtr have direct kernel/sysctl tuning evidence. Ze has kernel build evidence and a runtime sysctl component. <span class="ev-src"><span class="ev-ref"><code>internal/component/sysctl/</code></span></span></td>
@@ -3085,7 +3085,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Testing harness</td>
 <td>Image/QEMU tests</td>
-<td><code>internal/le/qemu</code> owns the host VM harness, full guest suite, installer HTTP/ISO/scenario/Ventoy proofs, and Linux network-namespace labs. <code>internal/appliance</code> owns image and kernel construction for amd64 and arm64.</td>
+<td><code>internal/le/test/qemu</code> owns the host VM harness, full guest suite, installer HTTP/ISO/scenario/Ventoy proofs, and Linux network-namespace labs. <code>internal/appliance</code> owns image and kernel construction for amd64 and arm64.</td>
 <td>CI builds ISO and passes to test jobs; builds and uploads ISO. README says runtime tests execute inside QEMU and smoketests are placed into <code>vyos-1x-smoketest</code>. <span class="ev-src"><span class="ev-ref"><code>.github/workflows/package-smoketest.yml:167-193</code></span><span class="ev-ref"><code>README.md:70-72</code></span></span></td>
 <td><code>rtr.jar test image</code> for dsk and gns image recipes; lists image/test output dirs; defines qemu target. <span class="ev-src"><span class="ev-ref"><code>misc/image/ci.sh:1-3</code></span><span class="ev-ref"><code>readme.md:36-44</code></span><span class="ev-ref"><code>platform.mips32:1-8</code></span></span></td>
 <td>Ze has the richest QEMU matrix in inspected source.</td>
@@ -3093,7 +3093,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Cross-compilation and architecture</td>
 <td>Target architectures</td>
-<td>builds installers for linux/amd64 and linux/arm64; <code>cmd_kernel.go</code> accepts the same two kernel architectures; <code>internal/le/qemu</code> drives their virtual-machine proofs. <span class="ev-src"><span class="ev-ref"><code>internal/appliance/cmd_initrd.go</code></span></span></td>
+<td>builds installers for linux/amd64 and linux/arm64; <code>cmd_kernel.go</code> accepts the same two kernel architectures; <code>internal/le/test/qemu</code> drives their virtual-machine proofs. <span class="ev-src"><span class="ev-ref"><code>internal/appliance/cmd_initrd.go</code></span></span></td>
 <td>Debian package <code>Architecture: amd64 arm64</code> in; CI ISO build passes <code>--architecture amd64</code> in; installer compatibility compares current/new architecture in. <span class="ev-src"><span class="ev-ref"><code>debian/control:38-43</code></span><span class="ev-ref"><code>.github/workflows/package-smoketest.yml:167-176</code></span><span class="ev-ref"><code>image_installer.py:886-929</code></span></span></td>
 <td>shows mips32/mipsel descriptors; many files; Docker pulls <code>rtr-$(uname -m).tgz</code> in; native dependencies are documented in. <span class="ev-src"><span class="ev-ref"><code>misc/image/platform.mips32:1-8</code></span><span class="ev-ref"><code>misc/image/platform.*</code></span><span class="ev-ref"><code>misc/docker/Dockerfile:15-18</code></span><span class="ev-ref"><code>readme.md:28-35</code></span></span></td>
 <td>Ze and VyOS explicitly support amd64/arm64 in inspected build/package files. freeRtr image descriptors show broader platform concept, with at least mips32 read.</td>
@@ -3268,7 +3268,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>MRT/BMP/log export</td>
 <td>MRT analysis and BMP export</td>
-<td><code>ze-analyze export bmp</code> sends MRT BGP4MP records as BMP v3 route monitoring to a collector, parses target and peer filters <code>:42-76</code>, reads MRT and writes BMP frames <code>:90-116</code>; <code>ze-analyze convert pcap/json</code>, filter, inject, dump found in. <span class="ev-src"><span class="ev-ref"><code>internal/analyze/export_bmp.go:16-39</code></span><span class="ev-ref"><code>internal/analyze/convert.go:17-30</code>, <code>:49-68</code>, <code>:81-109</code></span></span></td>
+<td><code>le mrt export bmp</code> sends MRT BGP4MP records as BMP v3 route monitoring to a collector, parses target and peer filters <code>:42-76</code>, reads MRT and writes BMP frames <code>:90-116</code>; <code>le mrt convert pcap/json</code>, filter, inject, dump found in. <span class="ev-src"><span class="ev-ref"><code>internal/analyze/export_bmp.go:16-39</code></span><span class="ev-ref"><code>internal/analyze/convert.go:17-30</code>, <code>:49-68</code>, <code>:81-109</code></span></span></td>
 <td>BMP config validation in BGP checks that <code>bgpd</code> runs with <code>bmp</code> module and target address exists; NetFlow, sFlow and VPP IPFIX are present. MRT tooling not found in inspected sources. <span class="ev-src"><span class="ev-ref"><code>src/conf_mode/protocols_bgp.py:217-228</code></span><span class="ev-ref"><code>src/conf_mode/system_flow-accounting.py:75-100</code></span><span class="ev-ref"><code>src/conf_mode/system_sflow.py:41-84</code></span><span class="ev-ref"><code>src/conf_mode/vpp_ipfix.py:32-41</code>, <code>:81-102</code>, <code>:171-174</code></span></span></td>
 <td>BMP-to-MRT service documented in class comment as RFC 7854 BMP to RFC 6396 MRT toolkit; supports file output/rotation, listeners for BMP/RIS/BGP, relays and rate controls, <code>:86-144</code>, <code>:166-223</code>; config tests. <span class="ev-src"><span class="ev-ref"><code>src/org/freertr/serv/servBmp2mrt.java:24-31</code></span><span class="ev-ref"><code>cfg/serv-bmp01.tst</code></span><span class="ev-ref"><code>cfg/serv-bmp02.tst</code></span></span></td>
 <td>Ze has offline analysis and BMP export. freeRtr has an online BMP-to-MRT service. VyOS relies on FRR BMP plus flow exporters.</td>
@@ -3284,7 +3284,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Testing</td>
 <td>Unit tests</td>
-<td>Go unit tests run in five race-instrumented groups declared by and dispatched by describes the groups. <span class="ev-src"><span class="ev-ref"><code>internal/le/testunit/groups.go</code></span><span class="ev-ref"><code>internal/le/testunit/actions.go</code></span><span class="ev-ref"><code>docs/functional-tests.md:202-222</code></span></span></td>
+<td>Go unit tests run in five race-instrumented groups declared by and dispatched by describes the groups. <span class="ev-src"><span class="ev-ref"><code>internal/le/test/unit/groups.go</code></span><span class="ev-ref"><code>internal/le/test/unit/actions.go</code></span><span class="ev-ref"><code>docs/functional-tests.md:202-222</code></span></span></td>
 <td>Makefile <code>test</code> compiles all Python and runs <code>nose2</code>, files. <span class="ev-src"><span class="ev-ref"><code>Makefile:104-107</code></span><span class="ev-ref"><code>src/tests/test_*.py</code></span></span></td>
 <td>Source readme states <code>cfg</code> contains self tests and <code>t.sh</code> selftest, <code>userTester</code> is process image tester. <span class="ev-src"><span class="ev-ref"><code>readme.md:50-60</code>, <code>:98-99</code></span><span class="ev-ref"><code>src/org/freertr/user/userTester.java:18-30</code></span></span></td>
 <td>Ze has the clearest source-grounded native unit action structure.</td>
@@ -3292,7 +3292,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Testing</td>
 <td>Functional and smoke tests</td>
-<td>is the native functional-suite catalog; <code>actions.go</code> derives one action per suite and the bare command runs every gating suite. The docs enumerate gating and non-gating suites in. <span class="ev-src"><span class="ev-ref"><code>internal/le/functional/suites.go</code></span><span class="ev-ref"><code>docs/functional-tests.md</code></span></span></td>
+<td>is the native functional-suite catalog; <code>actions.go</code> derives one action per suite and the bare command runs every gating suite. The docs enumerate gating and non-gating suites in. <span class="ev-src"><span class="ev-ref"><code>internal/le/test/functional/suites.go</code></span><span class="ev-ref"><code>docs/functional-tests.md</code></span></span></td>
 <td>Runtime tests are QEMU-based smoketests in <code>smoketest</code>, README says QEMU CI and <code>vyos-1x-smoketest</code> package; smoketest shim snapshots/restores config and checks FRR mgmtd continuity; workflow builds ISO and runs CLI smoketests. <span class="ev-src"><span class="ev-ref"><code>README.md:70-72</code></span><span class="ev-ref"><code>smoketest/scripts/cli/base_vyostest_shim.py:31-41</code>, <code>:52-68</code></span><span class="ev-ref"><code>.github/workflows/package-smoketest.yml:166-183</code>, <code>:192-218</code></span></span></td>
 <td><code>userTester</code> supports parallel workers, retries, result tracking, summaries, HTML/CSV/FTR, <code>binTmp output of testing</code>. <span class="ev-src"><span class="ev-ref"><code>src/org/freertr/user/userTester.java:96-103</code>, <code>:170-180</code>, <code>:1098-1146</code>, <code>:1167-1185</code></span><span class="ev-ref"><code>readme.md:55-60</code></span></span></td>
 <td>Ze and VyOS both have explicit release/smoke gates. freeRtr has a custom test harness.</td>
@@ -3308,7 +3308,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Performance</td>
 <td>Benchmarks and performance tools</td>
-<td><code>ze-perf</code> implements sender/DUT/receiver benchmarking, repeats and warmups, outlier handling, JSON/HTML/Markdown reports, and regression checks (<code>internal/perf/cli</code>, <code>internal/perf/report</code>). <code>cmd/ze-perf-run</code> and <code>internal/test/perfrunner</code> own the multi-DUT Docker run.</td>
+<td><code>le perf</code> implements sender/DUT/receiver benchmarking, repeats and warmups, outlier handling, JSON/HTML/Markdown reports, and regression checks (<code>internal/perf/cli</code>, <code>internal/perf/report</code>). <code>le perf run</code> and <code>internal/test/perfrunner</code> own the multi-DUT Docker run.</td>
 <td>Bandwidth test wraps <code>iperf</code>, choosing IPv6 option based on address/FQDN; no benchmark harness found in inspected sources. <span class="ev-src"><span class="ev-ref"><code>src/op_mode/execute_bandwidth_test.sh:16-32</code></span></span></td>
 <td>Native dataplane benchmark script runs <code>p4bench.bin</code> for IPv4, IPv6, VLAN, PPPoE, MPLS, <code>misc/tests</code> as volumetric generators and native dataplanes. <span class="ev-src"><span class="ev-ref"><code>misc/native/p4emu_bench.sh:1-13</code></span><span class="ev-ref"><code>readme.md:64-85</code></span></span></td>
 <td>Ze has most complete benchmark and regression tooling.</td>
@@ -3316,7 +3316,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>CI helpers</td>
 <td>Verify, status, release evidence</td>
-<td><code>./le verify current mode full</code> writes per-stage logs, a failure index, and a status fingerprint (<code>internal/le/verifyengine</code>). <code>./le evidence release-candidate</code> runs the same gate over a clean checkout in Docker (<code>internal/le/evidence</code>).</td>
+<td><code>./le verify current mode full</code> writes per-stage logs, a failure index, and a status fingerprint (<code>internal/le/verifyengine</code>). <code>./le verify evidence release-candidate</code> runs the same gate over a clean checkout in Docker (<code>internal/le/evidence</code>).</td>
 <td>Make <code>all</code> includes pylint, tests, j2lint, XML definitions, OCaml; GitHub workflow builds ISO, uploads artifact, runs smoketests and comments. <span class="ev-src"><span class="ev-ref"><code>Makefile:86-87</code></span><span class="ev-ref"><code>.github/workflows/package-smoketest.yml:150-183</code>, <code>:192-223</code>, <code>:225-255</code></span></span></td>
 <td>Shell scripts <code>c.sh</code>, <code>r.sh</code>, <code>t.sh</code> for compile/run/selftest; tester writes summaries and result files. <span class="ev-src"><span class="ev-ref"><code>readme.md:95-99</code></span><span class="ev-ref"><code>userTester.java:1138-1185</code></span></span></td>
 <td>Ze and VyOS have more explicit CI helper evidence in inspected source.</td>
@@ -3324,7 +3324,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Lint and static gates</td>
 <td>Lint gates</td>
-<td><code>.golangci.yml</code> enables diagnostic, style, and performance checks and forbids the legacy log package. <code>internal/le/verifylint</code> runs <code>./le verify lint run</code> across the shipped feature matrix with native CPU and memory limits; installs golangci-lint and agent-browser. <span class="ev-src"><span class="ev-ref"><code>.woodpecker/verify.yml</code></span></span></td>
+<td><code>.golangci.yml</code> enables diagnostic, style, and performance checks and forbids the legacy log package. <code>internal/le/verifylint</code> runs <code>./le go lint run</code> across the shipped feature matrix with native CPU and memory limits; installs golangci-lint and agent-browser. <span class="ev-src"><span class="ev-ref"><code>.woodpecker/verify.yml</code></span></span></td>
 <td>Makefile <code>pylint</code> and <code>j2lint</code>; GitHub reusable darker/ruff lint workflow. <span class="ev-src"><span class="ev-ref"><code>Makefile:115-127</code></span><span class="ev-ref"><code>.github/workflows/darker-ruff-lint.yml:1-13</code></span></span></td>
 <td>freeRtr runs CodeQL static-analysis code-scanning on push/PR and weekly cron for C/Java/Python. No style linter was found; the readme notes shell-script builds only. <span class="ev-src"><span class="ev-ref"><code>.github/workflows/codeql.yml:20-45</code>, <code>:69-72</code></span><span class="ev-ref"><code>readme.md:95-99</code></span></span></td>
 <td>VyOS and Ze have visible lint/static gates.</td>
@@ -3332,7 +3332,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Mutation testing</td>
 <td>Mutation</td>
-<td>gomu runs as a native Go command for incremental, package, JSON, and HTML mutation reports; <code>.gomuignore</code> excludes build-tagged and platform paths. <code>internal/le/mutation</code> combines JSON reports and records package history.</td>
+<td>gomu runs as a native Go command for incremental, package, JSON, and HTML mutation reports; <code>.gomuignore</code> excludes build-tagged and platform paths. <code>internal/le/test/mutation</code> combines JSON reports and records package history.</td>
 <td>not found in inspected sources.</td>
 <td>not found in inspected sources.</td>
 <td>Ze only.</td>
@@ -3621,7 +3621,7 @@ about non-BGP router OS breadth.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

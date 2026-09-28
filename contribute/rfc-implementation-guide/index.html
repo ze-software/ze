@@ -144,6 +144,12 @@
 </ol></li>
 <li><a href="#rfc-implementation-examples">RFC Implementation Examples</a></li>
 </ol></nav>
+<p>The implementation boundary is the owner's agreed capability scope. Completing
+started code includes its callers, error paths and documentation; it does not
+commission every absent feature in the RFC. Keep unimplemented requirements
+visible as gaps and leave unstarted specs in the backlog. Source inspection,
+executed tests and remaining verification must be reported separately.
+See <code>ai/rules/rfc-compliance.md</code> and <code>docs/contributing/spec-workflow.md</code>.</p>
 <h2 id="overview">Overview</h2>
 <p>An RFC implementation typically touches these areas (not all apply to every RFC):</p>
 <table>
@@ -606,6 +612,8 @@ the defect the record exists to refuse.</li>
 <p>Evidence has two axes: KIND (which layer the test exercises) and TIER (whether
 anything executes it). Both are DERIVED from the carrier table rather than
 declared by the test.</p>
+<p>The scanner includes command tests under <code>cmd/</code>, including tests of daemon listeners.</p>
+<!-- source: internal/le/rfc/rfc.go -- testRoots -->
 <table>
 <thead>
 <tr>
@@ -619,49 +627,49 @@ declared by the test.</p>
 <tr>
 <td><code>*_test.go</code> outside. <span class="ev-src"><span class="ev-ref"><code>internal/le/</code></span></span></td>
 <td><code>unit</code></td>
-<td><code>./le test-unit all</code></td>
+<td><code>./le test unit all</code></td>
 <td><code>verify</code>, on every push</td>
 </tr>
 <tr>
 <td><code>test/&lt;suite&gt;/*.ci</code> from <code>suiteCarriers</code></td>
 <td><code>functional</code></td>
-<td><code>./le functional gating</code></td>
+<td><code>./le test functional gating</code></td>
 <td><code>verify</code> for each suite in <code>functional.GatingNames</code>. Other directories need a separately registered carrier; is skipped entirely. <span class="ev-src"><span class="ev-ref"><code>test/draft/</code></span></span></td>
 </tr>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>test/exabgp-compat/*.ci</code></span></span></td>
 <td><code>functional</code></td>
-<td><code>./le functional exabgp-test</code></td>
+<td><code>./le test functional exabgp-test</code></td>
 <td><code>verify</code>, through the full verifier's separate ExaBGP stage</td>
 </tr>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>test/editor/*.et</code></span></span></td>
 <td><code>editor</code></td>
-<td><code>./le functional editor</code></td>
+<td><code>./le test functional editor</code></td>
 <td><code>verify</code>, on the same earned-per-suite basis</td>
 </tr>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>internal/le/interoplab/bgp/*.go</code></span></span></td>
 <td><code>interop</code></td>
-<td><code>./le integration interop</code></td>
+<td><code>./le test integration interop</code></td>
 <td><code>nightly</code> when a scheduled workflow names that runner, <code>unrun</code> otherwise</td>
 </tr>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>internal/le/interoplab/ipsec/*.go</code></span></span></td>
 <td><code>interop</code></td>
-<td><code>./le integration interop-ipsec</code></td>
+<td><code>./le test integration interop-ipsec</code></td>
 <td>same derivation</td>
 </tr>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>internal/le/interoplab/l2tp/*.go</code></span></span></td>
 <td><code>interop</code></td>
-<td><code>./le deployment docker-l2tp-ppp-test</code></td>
+<td><code>./le test deployment docker-l2tp-ppp-test</code></td>
 <td>same derivation</td>
 </tr>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>internal/le/interoplab/pppoe/*.go</code></span></span></td>
 <td><code>interop</code></td>
-<td><code>./le deployment docker-pppoe-accel-test</code></td>
+<td><code>./le test deployment docker-pppoe-accel-test</code></td>
 <td>same derivation</td>
 </tr>
 </tbody>
@@ -789,7 +797,7 @@ answer from the owner behind
 it is a forgery, not a shortcut, so the reason names what the owner approved
 and why the tagged requirement is still proven after the change, quoting the
 requirement id.</p>
-<!-- source: internal/le/testweakened/proposed.go -- RFC-tagged carrier approval -->
+<!-- source: internal/le/test/weakened/proposed.go -- RFC-tagged carrier approval -->
 <!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->
 <p>Full rules: <code>ai/skills/ze-rfc.md</code>; audit method: <code>ai/skills/ze-rfc-audit.md</code>.</p>
 <pre><code>[ ] Every MUST-level line in rfc/short/rfcNNNN.md has an id (allocated by /ze-rfc)
@@ -822,9 +830,9 @@ requirement id.</p>
 <p>The checklist above proves the requirements you WROTE DOWN are enforced. Nothing
 in it bounds what the summary MISSED, and a green <code>./le rfc check</code> is bounded
 by what was extracted. Record the walk in an artifact the gate re-checks:</p>
-<pre><code>./le rfc extraction-create stem rfcNNNN   # skeleton to session scratch, never to rfc/extraction/
-                                          # classify every site and section by hand,
-                                          # then move the file in as the command says
+<pre><code>./le rfc extraction-create stem rfcNNNN   # derive the inventory and preserve matching decisions
+                                          # an unclassified skeleton stays in session scratch;
+                                          # a fully classified refresh may replace the artifact
 ./le rfc extraction-classify decisions &lt;path&gt;  # or write the decisions in one file and apply them
 ./le rfc check                            # re-derives the inventory and judges it
 </code></pre>
@@ -834,6 +842,10 @@ each section is <code>walked</code> or <code>skipped</code>. An unclassified sit
 generating the skeleton cannot produce a sign-off, only the walk can. Enrolling
 a stem that was not enrolled at HEAD REQUIRES this artifact. Contract and field
 reference: <code>rfc/extraction/README.md</code>.</p>
+<p>Only the native writer derives source hashes and locators. A source revision
+requires a new walk of changed sites and sections; retaining an older artifact
+preserves history but does not sign off the revised document.</p>
+<!-- source: internal/le/rfc/extraction_create.go -- deriveExtractionDocument, placeExtractionDocument -->
 <p>One exclusion kind does not dismiss its sentence. <code>relocated-to-spec</code> says the
 obligation is owed by a named spec, under an id reserved there, because an owner
 ruling moved it out of the summary. It authors <code>relocated-to</code>
@@ -846,9 +858,9 @@ unless that spec exists and still names that id.</p>
 <hr>
 <h2 id="final-checklist">Final Checklist</h2>
 <p>Before marking implementation complete:</p>
-<pre><code>[ ] Pre-commit verification passes: ./le verify current mode full
-[ ] Fuzz targets pass: ./le fuzz run
-[ ] Functional tests pass: ./le functional gating
+<pre><code>[ ] Verify the agreed implementation boundary through ./le verify worktree
+[ ] Fuzz targets pass: ./le test fuzz run
+[ ] Functional tests pass: ./le test functional gating
 [ ] RFC MUST tests have both polarities: ./le rfc check
 [ ] RFC section comments on all protocol code
 [ ] RFC constraint comments with quoted requirements
@@ -856,8 +868,8 @@ unless that spec exists and still names that id.</p>
 [ ] No backwards-compatibility shims (Ze rule)
 [ ] No version numbers in config (Ze rule)
 [ ] Architecture docs updated
-[ ] Write learned summary to plan/learned/NNN-&lt;name&gt;.md
-[ ] All changes in single commit
+[ ] Complete the independent review and native closure steps in docs/contributing/spec-workflow.md
+[ ] Preserve the completed spec with the implementation in commit A; remove it only in commit B
 </code></pre>
 <hr>
 <h2 id="quick-reference-common-patterns">Quick Reference: Common Patterns</h2>
@@ -979,7 +991,7 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

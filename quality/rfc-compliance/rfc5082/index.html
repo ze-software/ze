@@ -318,7 +318,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L359" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-3-3">RFC5082-3-3</code></td><td colspan="3"><span class="rfc-subject">The TTL of GTSM-enabled sessions MUST NOT be decremented by the forwarding plane (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-3-3">RFC5082-3-3</code></td><td colspan="3"><span class="rfc-subject">The TTL of GTSM-enabled sessions MUST NOT be decremented. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3 - GTSM Procedure</td>
@@ -327,7 +327,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L111" title="internal/core/network/ttl_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedTTLReportsTheValueSet</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-3-4">RFC5082-3-4</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST NOT drop, as part of GTSM processing, packets classified as Trusted or Unknown (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-3-4">RFC5082-3-4</code></td><td colspan="3"><span class="rfc-subject">+ MUST NOT drop (as part of GTSM processing) packets classified as Trusted or Unknown. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>3 - GTSM Procedure</td>
@@ -471,7 +471,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 </table>
 </div>
 <h3><a href="#rfc5082-3-3"><code>RFC5082-3-3</code></a></h3>
-<p>The TTL of GTSM-enabled sessions MUST NOT be decremented by the forwarding plane (§3)</p>
+<p>The TTL of GTSM-enabled sessions MUST NOT be decremented. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -491,7 +491,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
 </table>
 </div>
 <h3><a href="#rfc5082-3-4"><code>RFC5082-3-4</code></a></h3>
-<p>Implementations MUST NOT drop, as part of GTSM processing, packets classified as Trusted or Unknown (§3)</p>
+<p>+ MUST NOT drop (as part of GTSM processing) packets classified as Trusted or Unknown. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -750,7 +750,7 @@ Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <co
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

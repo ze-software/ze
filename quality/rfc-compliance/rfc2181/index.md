@@ -111,46 +111,46 @@ One MUST gap ([`RFC2181-5.1-1`](#rfc2181-5.1-1)): GeoDNS and AS112 never set the
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2181-4.1-1` | When responding to a query over UDP, a server must send the reply with the IP source address set to the address that was in the destination address field of the query packet. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L315). **negative:** no negative test. **{single-polarity}:** each UDP listener binds one specific IP at internal/core/dnsserver/manager.go:160 so the kernel sources every reply from the query destination address, and ze has no wildcard-bind or explicit-source path that could send from another address |
-| `RFC2181-4.2-1` | Replies to all queries must be directed to the port from which they were sent. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L320). **negative:** no negative test. **{single-polarity}:** the reply is written on the same socket the query arrived on via internal/core/dnsserver/handler.go:62 so miekg/dns directs it to the query source port, a property ze cannot violate |
-| `RFC2181-4.2-2` | For queries received by UDP, the server must take note of the source port and use it as the destination port in the response. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L325). **negative:** no negative test. **{single-polarity}:** miekg/dns ServeUDP records the datagram source port and uses it as the reply destination for the write at internal/core/dnsserver/handler.go:62, so ze always answers to the query source port |
-| `RFC2181-5.1-1` | The response must be marked "truncated" if the entire RRSet will not fit in the response. (§5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** geodns and as112 never set the TC bit or call miekg Truncate, and miekg WriteMsg at vendor/github.com/miekg/dns/server.go:747 packs and sends without auto-truncating, so an oversized RRSet would be sent unmarked |
-| `RFC2181-5.2-1` | The TTLs of all RRs in an RRSet must be the same; in no case may a server send an RRSet with TTLs not all equal. (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestRFC2181_RRSetEqualTTL`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L367). **negative:** no negative test. **{single-polarity}:** geodns assigns one TTL per host record set at internal/plugins/geodns/config.go:271 and as112 uses fixed per-zone TTL constants, so an emitted RRSet never carries unequal TTLs and no code path can produce one |
-| `RFC2181-5.3.1-2` | Where SIG records are returned in the answer section (a query for SIG records, or type=ANY), the entire SIG RRSet must be included, as for any other RR type. (§5.3.1) | MUST | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze serves no SIG or DNSSEC records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so there is no SIG RRSet to include |
-| `RFC2181-5.3.1-3` | A server receiving SIG records in the authority section (or, probably incorrectly, as additional data) must understand that the entire RRSet has almost certainly not been included. (§5.3.1) | MUST | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's stub resolver extracts only answer-section A/AAAA/TXT/PTR/CNAME/MX/NS/SRV at internal/component/resolve/dns/resolver.go:299 and processes no SIG records, so there is no partial SIG RRSet to reason about |
+| `RFC2181-4.1-1` | To avoid these problems, servers when responding to queries using UDP must cause the reply to be sent with the source address field in the IP header set to the address that was in the destination address field of the IP header of the packet containing the query causing the response. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L345). **negative:** no negative test. **{single-polarity}:** each UDP listener binds one specific IP at internal/core/dnsserver/manager.go:160 so the kernel sources every reply from the query destination address, and ze has no wildcard-bind or explicit-source path that could send from another address |
+| `RFC2181-4.2-1` | Replies to all queries must be directed to the port from which they were sent. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L350). **negative:** no negative test. **{single-polarity}:** the reply is written on the same socket the query arrived on via internal/core/dnsserver/handler.go:62 so miekg/dns directs it to the query source port, a property ze cannot violate |
+| `RFC2181-4.2-2` | For queries received by UDP the server must take note of the source port and use that as the destination port in the response. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L355). **negative:** no negative test. **{single-polarity}:** miekg/dns ServeUDP records the datagram source port and uses it as the reply destination for the write at internal/core/dnsserver/handler.go:62, so ze always answers to the query source port |
+| `RFC2181-5.1-1` | The response must be marked as "truncated" if the entire RRSet will not fit in the response. (§5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** geodns and as112 never set the TC bit or call miekg Truncate, and miekg WriteMsg at vendor/github.com/miekg/dns/server.go:747 packs and sends without auto-truncating, so an oversized RRSet would be sent unmarked |
+| `RFC2181-5.2-1` | The TTLs of all RRs in an RRSet must be the same; in no case may a server send an RRSet with TTLs not all equal. (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestRFC2181_RRSetEqualTTL`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L397). **negative:** no negative test. **{single-polarity}:** geodns assigns one TTL per host record set at internal/plugins/geodns/config.go:271 and as112 uses fixed per-zone TTL constants, so an emitted RRSet never carries unequal TTLs and no code path can produce one |
+| `RFC2181-5.3.1-2` | However, where SIG records are being returned in the answer section, in response to a query for SIG records, or a query for all records associated with a name (type=ANY) the entire SIG RRSet must be included, as for any other RR type. (§5.3.1) | MUST | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze serves no SIG or DNSSEC records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so there is no SIG RRSet to include |
+| `RFC2181-5.3.1-3` | Servers that receive responses containing SIG records in the authority section, or (probably incorrectly) as additional data, must understand that the entire RRSet has almost certainly not been included. (§5.3.1) | MUST | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's stub resolver extracts only answer-section A/AAAA/TXT/PTR/CNAME/MX/NS/SRV at internal/component/resolve/dns/resolver.go:299 and processes no SIG records, so there is no partial SIG RRSet to reason about |
 | `RFC2181-5.3.1-4` | Such a server must not cache that SIG record in a way that would permit it to be returned in response to a query for SIG records. (§5.3.1) | MUST NOT | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the resolver caches only records it extracted from the answer section at internal/component/resolve/dns/resolver.go:299 and never handles SIG, so an authority-section SIG can never be cached or returned |
 | `RFC2181-5.4-1` | Servers must never merge RRs from a response with RRs in their cache to form an RRSet. (§5.4) | MUST NOT | 5.4 | **positive:** `unit/verify` [`TestRFC2181_CacheReplacesRRSetNoMerge`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/cache_test.go#L226). **negative:** no negative test. **{single-polarity}:** the resolver cache replaces the whole RRSet for a name+type at internal/component/resolve/dns/cache.go:145 by removing the existing entry before storing the new records, so response RRs are never merged with cached ones |
-| `RFC2181-5.4-2` | When a response would form an RRSet with cached data, the server must either ignore the response RRs or discard the entire cached RRSet, as appropriate. (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestRFC2181_CacheReplacesRRSetNoMerge`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/cache_test.go#L234). **negative:** no negative test. **{single-polarity}:** put discards the entire cached RRSet before storing the new answer at internal/component/resolve/dns/cache.go:145, taking the discard-cached branch of the rule rather than merging |
+| `RFC2181-5.4-2` | If a response contains data that would form an RRSet with data in a server's cache the server must either ignore the RRs in the response, or discard the entire RRSet currently in the cache, as appropriate. (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestRFC2181_CacheReplacesRRSetNoMerge`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/cache_test.go#L234). **negative:** no negative test. **{single-polarity}:** put discards the entire cached RRSet before storing the new answer at internal/component/resolve/dns/cache.go:145, taking the discard-cached branch of the rule rather than merging |
 | `RFC2181-5.4.1-3` | Data trustworthiness shall rank, most to least: primary zone file (non-glue), zone transfer (non-glue), authoritative answer-section data, authority-section data of an authoritative answer, glue, non-authoritative answer data, then additional information and non-authoritative authority-section data. (§5.4.1) | SHALL | 5.4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's resolver is a stub forwarder to one configured upstream at internal/component/resolve/dns/resolver.go:263 with a single-source cache keyed by name+type, so it never ranks data from competing trustworthiness sources |
-| `RFC2181-5.4.1-8` | When DNS security is in use and an authenticated reply has been received and verified, the authenticated data shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1) | SHALL | 5.4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the stub resolver performs no per-record trust ranking -- it relies on a validating upstream returning SERVFAIL at internal/component/resolve/dns/resolver.go:99 rather than comparing authenticated against unauthenticated data |
-| `RFC2181-5.4.1-9` | DNSSEC-aware servers must still correctly set the AA bit in responses, to enable correct operation with servers that are not security aware. (§5.4.1) | MUST | 5.4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's authoritative servers implement no DNSSEC signing so the DNSSEC-aware precondition does not hold; the AA bit is nonetheless always set at internal/core/dnsserver/handler.go:73 |
-| `RFC2181-5.5-4` | Where a duplicate RRSet is required (e.g. the SOA at the first and last record of an AXFR), the TTL transmitted in each case must be the same. (§5.5) | MUST | 5.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze serves no AXFR -- the geodns YANG notes this at internal/plugins/geodns/yang/ze-geodns-conf.yang:95 and no plugin emits an SOA twice in one message, so no duplicate RRSet arises |
+| `RFC2181-5.4.1-8` | When DNS security [RFC2065] is in use, and an authenticated reply has been received and verified, the data thus authenticated shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1) | SHALL | 5.4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the stub resolver performs no per-record trust ranking -- it relies on a validating upstream returning SERVFAIL at internal/component/resolve/dns/resolver.go:99 rather than comparing authenticated against unauthenticated data |
+| `RFC2181-5.4.1-9` | However DNSSEC aware servers must still correctly set the AA bit in responses to enable correct operation with servers that are not security aware (almost all currently). (§5.4.1) | MUST | 5.4.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's authoritative servers implement no DNSSEC signing so the DNSSEC-aware precondition does not hold; the AA bit is nonetheless always set at internal/core/dnsserver/handler.go:73 |
+| `RFC2181-5.5-4` | Where duplicates are required this way, the TTL transmitted in each case must be the same. (§5.5) | MUST | 5.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze serves no AXFR -- the geodns YANG notes this at internal/plugins/geodns/yang/ze-geodns-conf.yang:95 and no plugin emits an SOA twice in one message, so no duplicate RRSet arises |
 | `RFC2181-8-1` | A TTL is an unsigned number in the range 0..2147483647 (2^31 - 1); when transmitted it shall be encoded in the less significant 31 bits of the 32-bit TTL field, with the most significant (sign) bit set to zero. (§8) | SHALL | 8 | **positive:** `unit/verify` [`TestRFC2181_TTLSignBitBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L225). **negative:** `unit/verify` [`TestRFC2181_TTLSignBitBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L238) |
 | `RFC2181-10.1-4` | An alias (the label of a CNAME record) may have no data other than SIG, NXT, and KEY RRs; a CNAME must not coexist with any other data. (§10.1) | MUST NOT | 10.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze serves no CNAME records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so no CNAME can coexist with other data |
-| `RFC2181-10.1.1-1` | Care must be taken to be very clear whether the label or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1) | MUST | 10.1.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze authors no CNAME records at internal/plugins/geodns/record.go:10, so there is no label-versus-canonical-name ambiguity for an implementation to resolve |
-| `RFC2181-10.2-1` | The value of a PTR record must not be an alias; it should be a canonical name. (§10.2) | MUST NOT | 10.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze authors no PTR records -- geodns serves A/AAAA/SRV and as112 reverse zones return NODATA with the SOA at internal/plugins/as112/zones.go:273 rather than any PTR, so no PTR value can be an alias |
-| `RFC2181-10.3-1` | The domain name used as the value of an NS record, or as part of the value of an MX record, must not be an alias, and must never have a CNAME RR. (§10.3) | MUST NOT | 10.3 | **positive:** `unit/verify` [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L407). **negative:** no negative test. **{single-polarity}:** geodns synthesizes NS targets as canonical ns<n>.<zone> names at internal/plugins/geodns/server.go:154 and as112 uses fixed canonical names, so ze never emits a CNAME as an NS or MX value and serves no MX at all |
-| `RFC2181-10.3-2` | That domain name must have as its value one or more address records. (§10.3) | MUST | 10.3 | **positive:** `unit/verify` [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L424). **negative:** no negative test. **{single-polarity}:** geodns emits A glue for every synthesized NS target at internal/plugins/geodns/server.go:161, and as112 NS targets are canonical names whose address records are authoritative elsewhere, so the target name always has address records |
-| `RFC2181-11-1` | Any one label is limited to between 1 and 63 octets; a full domain name is limited to 255 octets, including the separators. (§11) | MUST | 11 | **positive:** `unit/verify` [`TestRFC2181_WireNameLimits`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L451). **negative:** no negative test. **{single-polarity}:** the DNS wire codec ze packs and unpacks through rejects a label of 64+ octets at vendor/github.com/miekg/dns/msg.go:281 and caps a name at 255, and geodns/as112 emit only short synthetic names, so no over-limit name is produced |
+| `RFC2181-10.1.1-1` | Care must therefore be taken to be very clear whether the label, or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1) | MUST | 10.1.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze authors no CNAME records at internal/plugins/geodns/record.go:10, so there is no label-versus-canonical-name ambiguity for an implementation to resolve |
+| `RFC2181-10.2-1` | Note that while the value of a PTR record must not be an alias, there is no requirement that the process of resolving a PTR record not encounter any aliases. (§10.2) | MUST NOT | 10.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze authors no PTR records -- geodns serves A/AAAA/SRV and as112 reverse zones return NODATA with the SOA at internal/plugins/as112/zones.go:273 rather than any PTR, so no PTR value can be an alias |
+| `RFC2181-10.3-1` | The domain name used as the value of a NS resource record, or part of the value of a MX resource record must not be an alias. (§10.3) | MUST NOT | 10.3 | **positive:** `unit/verify` [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L437). **negative:** no negative test. **{single-polarity}:** geodns synthesizes NS targets as canonical ns<n>.<zone> names at internal/plugins/geodns/server.go:154 and as112 uses fixed canonical names, so ze never emits a CNAME as an NS or MX value and serves no MX at all |
+| `RFC2181-10.3-2` | This domain name must have as its value one or more address records. (§10.3) | MUST | 10.3 | **positive:** `unit/verify` [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L454). **negative:** no negative test. **{single-polarity}:** geodns emits A glue for every synthesized NS target at internal/plugins/geodns/server.go:161, and as112 NS targets are canonical names whose address records are authoritative elsewhere, so the target name always has address records |
+| `RFC2181-11-1` | Any one label is limited to between 1 and 63 octets; a full domain name is limited to 255 octets, including the separators. (§11) | MUST | 11 | **positive:** `unit/verify` [`TestRFC2181_WireNameLimits`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L481). **negative:** no negative test. **{single-polarity}:** the DNS wire codec ze packs and unpacks through rejects a label of 64+ octets at vendor/github.com/miekg/dns/msg.go:281 and caps a name at 255, and geodns/as112 emit only short synthetic names, so no over-limit name is produced |
 | `RFC2181-11-2` | Implementations of the DNS protocols must not place any restrictions on the labels that can be used. (§11) | MUST NOT | 11 | **positive:** `unit/verify` [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L271). **negative:** no negative test. **{single-polarity}:** geodns applies no label-content restriction -- parseHost at internal/plugins/geodns/config.go:270 accepts any label characters and only requires a configured-zone suffix, so underscore and other non-hostname labels are served |
 | `RFC2181-11-3` | DNS servers must not refuse to serve a zone because it contains labels that might not be acceptable to some DNS client programs. (§11) | MUST NOT | 11 | **positive:** `unit/verify` [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L260). **negative:** no negative test. **{single-polarity}:** geodns never refuses a zone for questionable labels -- config parsing at internal/plugins/geodns/config.go:246 rejects only a missing zone suffix or an invalid IP, never label characters |
 | `RFC2181-4.1-3` | If the required source address is not permitted for this purpose, the legal source address chosen should be one that maximises the possibility that the client can use it for further queries. (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-4.2-3` | Replies should always be sent from the port to which they were directed. (§4.2) | SHOULD | 4.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-5-1` | Servers should suppress duplicate RRs (equal label, class, type, and data) if encountered. (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-5.2-2` | A client that receives a response containing an RRSet whose RRs have differing TTLs should treat this as an error. (§5.2) | SHOULD | 5.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2181-5.2-3` | If such an RRSet is from a non-authoritative source, the client should ignore the RRSet and, if the values are required, seek to acquire them from an authoritative source. (§5.2) | SHOULD | 5.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2181-5.2-3` | If the RRSet concerned is from a non-authoritative source for this data, the client should simply ignore the RRSet, and if the values were required, seek to acquire them from an authoritative source. (§5.2) | SHOULD | 5.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-5.2-4` | Clients configured to send all queries to one or more particular servers should treat those servers as authoritative for this purpose. (§5.2) | SHOULD | 5.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-5.2-5` | Should an authoritative source send such a malformed RRSet, the client should treat all its RRs as if every TTL had been set to the value of the lowest TTL in the RRSet. (§5.2) | SHOULD | 5.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-5.4-4` | A server should update a cached RRSet's TTL from an identical received answer only if that answer would be considered more authoritative than the previously cached answer. (§5.4) | SHOULD | 5.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-5.4.1-1` | When deciding whether to accept a reply's RRSet or retain one already cached, a server should consider the relative likely trustworthiness of the various data. (§5.4.1) | SHOULD | 5.4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-5.4.1-2` | An authoritative answer from a reply should replace cached data that had been obtained from additional information in an earlier reply. (§5.4.1) | SHOULD | 5.4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-5.4.1-4` | Clients should assume that records other than the alias record in an authoritative answer may have come from the server's cache. (§5.4.1) | SHOULD | 5.4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2181-5.4.1-5` | Where authoritative answers are required, the client should query again using the canonical name associated with the alias. (§5.4.1) | SHOULD | 5.4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2181-5.4.1-5` | Where authoritative answers are required, the client should query again, using the canonical name associated with the alias. (§5.4.1) | SHOULD | 5.4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-5.4.1-6` | Unauthenticated RRs cached from the least trustworthy groupings (additional data, and the authority section of a non-authoritative answer) should not be cached in such a way that they would ever be returned as answers to a received query. (§5.4.1) | SHOULD NOT | 5.4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-5.4.1-10` | Where glue for the same name exists in multiple zones and differs in value, the nameserver should select data from a primary zone file in preference to secondary. (§5.4.1) | SHOULD | 5.4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-5.4.1-12` | Where a server can detect from two zone files that one or more are incorrectly configured so as to create conflicts, it should refuse to load the zones determined to be erroneous and issue suitable diagnostics. (§5.4.1) | SHOULD | 5.4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-5.5-1` | A Resource Record Set should only be included once in any DNS reply. (§5.5) | SHOULD | 5.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2181-5.5-3` | An RRSet should not be repeated in the same or any other section, except where explicitly required by a specification. (§5.5) | SHOULD NOT | 5.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2181-5.5-3` | However it should not be repeated in the same, or any other, section, except where explicitly required by a specification. (§5.5) | SHOULD NOT | 5.5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-6.1-1` | A server for a zone should not return authoritative answers for queries related to names in another zone (including the NS, and perhaps A, records at a zone cut) unless it also happens to be a server for the other zone. (§6.1) | SHOULD NOT | 6.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-6.1-2` | Servers should ignore data other than NS records, and the A records necessary to locate the servers listed in those NS records, that may happen to be configured in a zone at a zone cut. (§6.1) | SHOULD | 6.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-6.2-2` | Where a subzone is secure, its KEY and SIG records should also always be present in the parent zone (if secure). (§6.2) | SHOULD | 6.2 | **positive:** no positive test. **negative:** no negative test |
@@ -159,7 +159,7 @@ One MUST gap ([`RFC2181-5.1-1`](#rfc2181-5.1-1)): GeoDNS and AS112 never set the
 | `RFC2181-7.3-1` | The MNAME field of the SOA record should contain the name of the primary (master) server for the zone identified by the SOA. (§7.3) | SHOULD | 7.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-7.3-2` | The SOA MNAME field should not contain the name of the zone itself. (§7.3) | SHOULD NOT | 7.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-8-2` | Implementations should treat TTL values received with the most significant bit set as if the entire value received was zero. (§8) | SHOULD | 8 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2181-9-1` | The TC bit should be set in responses only when an RRSet is required as part of the response but could not be included in its entirety. (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2181-9-1` | The TC bit should be set in responses only when an RRSet is required as a part of the response, but could not be included in its entirety. (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-9-2` | The TC bit should not be set merely because some extra information (including additional-section processing) could have been included but there was insufficient room. (§9) | SHOULD NOT | 9 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-9-3` | In such cases the entire RRSet that will not fit should be omitted and the reply sent as is, with the TC bit clear. (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-9-5` | When a client receives a reply with TC set, it should ignore that response and query again using a mechanism, such as a TCP connection, that will permit larger replies. (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
@@ -172,8 +172,8 @@ One MUST gap ([`RFC2181-5.1-1`](#rfc2181-5.1-1)): GeoDNS and AS112 never set the
 | `RFC2181-5.4-3` | When a received answer contains an RRSet identical to the cached one except for the TTL value, the server may optionally update the TTL in its cache with the TTL of the received answer. (§5.4) | MAY | 5.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-5.4.1-7` | Such untrustworthy RRs may be returned as additional information where appropriate. (§5.4.1) | MAY | 5.4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-5.4.1-11` | Where conflicting glue exists, the nameserver may otherwise choose any single set of such data. (§5.4.1) | MAY | 5.4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2181-5.5-2` | An RRSet may occur in any of the Answer, Authority, or Additional Information sections, as required. (§5.5) | MAY | 5.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2181-6.2-1` | Servers may, but are not required to, retain all differing NXT records they receive, regardless of the rules in section 5.4. (§6.2) | MAY | 6.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2181-5.5-2` | It may occur in any of the Answer, Authority, or Additional Information sections, as required. (§5.5) | MAY | 5.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2181-6.2-1` | Since NXT records are intended to be automatically generated, rather than configured by DNS operators, servers may, but are not required to, retain all differing NXT records they receive regardless of the rules in section 5.4. (§6.2) | MAY | 6.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-7.1-1` | The authority section of an authoritative answer may contain the SOA record for the zone; SOA records, if added, are to be placed in the authority section. (§7.1) | MAY | 7.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-7.2-2` | Implementations are not required to send SOA records with a TTL of zero (they may send a non-zero SOA TTL). (§7.2) | MAY | 7.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2181-8-3` | Implementations are always free to place an upper bound on any received TTL and treat any larger values as if they were that upper bound. (§8) | MAY | 8 | **positive:** no positive test. **negative:** no negative test |
@@ -186,17 +186,17 @@ One MUST gap ([`RFC2181-5.1-1`](#rfc2181-5.1-1)): GeoDNS and AS112 never set the
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC2181-5.1-1`](#rfc2181-5.1-1) The response must be marked "truncated" if the entire RRSet will not fit in the response. (§5.1) | {gap}, no test | geodns and as112 never set the TC bit or call miekg Truncate, and miekg WriteMsg at vendor/github.com/miekg/dns/server.go:747 packs and sends without auto-truncating, so an oversized RRSet would be sent unmarked |
-| [`RFC2181-5.3.1-2`](#rfc2181-5.3.1-2) Where SIG records are returned in the answer section (a query for SIG records, or type=ANY), the entire SIG RRSet must be included, as for any other RR type. (§5.3.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze serves no SIG or DNSSEC records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so there is no SIG RRSet to include |
-| [`RFC2181-5.3.1-3`](#rfc2181-5.3.1-3) A server receiving SIG records in the authority section (or, probably incorrectly, as additional data) must understand that the entire RRSet has almost certainly not been included. (§5.3.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze's stub resolver extracts only answer-section A/AAAA/TXT/PTR/CNAME/MX/NS/SRV at internal/component/resolve/dns/resolver.go:299 and processes no SIG records, so there is no partial SIG RRSet to reason about |
+| [`RFC2181-5.1-1`](#rfc2181-5.1-1) The response must be marked as "truncated" if the entire RRSet will not fit in the response. (§5.1) | {gap}, no test | geodns and as112 never set the TC bit or call miekg Truncate, and miekg WriteMsg at vendor/github.com/miekg/dns/server.go:747 packs and sends without auto-truncating, so an oversized RRSet would be sent unmarked |
+| [`RFC2181-5.3.1-2`](#rfc2181-5.3.1-2) However, where SIG records are being returned in the answer section, in response to a query for SIG records, or a query for all records associated with a name (type=ANY) the entire SIG RRSet must be included, as for any other RR type. (§5.3.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze serves no SIG or DNSSEC records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so there is no SIG RRSet to include |
+| [`RFC2181-5.3.1-3`](#rfc2181-5.3.1-3) Servers that receive responses containing SIG records in the authority section, or (probably incorrectly) as additional data, must understand that the entire RRSet has almost certainly not been included. (§5.3.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze's stub resolver extracts only answer-section A/AAAA/TXT/PTR/CNAME/MX/NS/SRV at internal/component/resolve/dns/resolver.go:299 and processes no SIG records, so there is no partial SIG RRSet to reason about |
 | [`RFC2181-5.3.1-4`](#rfc2181-5.3.1-4) Such a server must not cache that SIG record in a way that would permit it to be returned in response to a query for SIG records. (§5.3.1) | no test | no test carries this requirement id; annotated {not-applicable}: the resolver caches only records it extracted from the answer section at internal/component/resolve/dns/resolver.go:299 and never handles SIG, so an authority-section SIG can never be cached or returned |
 | [`RFC2181-5.4.1-3`](#rfc2181-5.4.1-3) Data trustworthiness shall rank, most to least: primary zone file (non-glue), zone transfer (non-glue), authoritative answer-section data, authority-section data of an authoritative answer, glue, non-authoritative answer data, then additional information and non-authoritative authority-section data. (§5.4.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze's resolver is a stub forwarder to one configured upstream at internal/component/resolve/dns/resolver.go:263 with a single-source cache keyed by name+type, so it never ranks data from competing trustworthiness sources |
-| [`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8) When DNS security is in use and an authenticated reply has been received and verified, the authenticated data shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1) | no test | no test carries this requirement id; annotated {not-applicable}: the stub resolver performs no per-record trust ranking -- it relies on a validating upstream returning SERVFAIL at internal/component/resolve/dns/resolver.go:99 rather than comparing authenticated against unauthenticated data |
-| [`RFC2181-5.4.1-9`](#rfc2181-5.4.1-9) DNSSEC-aware servers must still correctly set the AA bit in responses, to enable correct operation with servers that are not security aware. (§5.4.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze's authoritative servers implement no DNSSEC signing so the DNSSEC-aware precondition does not hold; the AA bit is nonetheless always set at internal/core/dnsserver/handler.go:73 |
-| [`RFC2181-5.5-4`](#rfc2181-5.5-4) Where a duplicate RRSet is required (e.g. the SOA at the first and last record of an AXFR), the TTL transmitted in each case must be the same. (§5.5) | no test | no test carries this requirement id; annotated {not-applicable}: ze serves no AXFR -- the geodns YANG notes this at internal/plugins/geodns/yang/ze-geodns-conf.yang:95 and no plugin emits an SOA twice in one message, so no duplicate RRSet arises |
+| [`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8) When DNS security [RFC2065] is in use, and an authenticated reply has been received and verified, the data thus authenticated shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1) | no test | no test carries this requirement id; annotated {not-applicable}: the stub resolver performs no per-record trust ranking -- it relies on a validating upstream returning SERVFAIL at internal/component/resolve/dns/resolver.go:99 rather than comparing authenticated against unauthenticated data |
+| [`RFC2181-5.4.1-9`](#rfc2181-5.4.1-9) However DNSSEC aware servers must still correctly set the AA bit in responses to enable correct operation with servers that are not security aware (almost all currently). (§5.4.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze's authoritative servers implement no DNSSEC signing so the DNSSEC-aware precondition does not hold; the AA bit is nonetheless always set at internal/core/dnsserver/handler.go:73 |
+| [`RFC2181-5.5-4`](#rfc2181-5.5-4) Where duplicates are required this way, the TTL transmitted in each case must be the same. (§5.5) | no test | no test carries this requirement id; annotated {not-applicable}: ze serves no AXFR -- the geodns YANG notes this at internal/plugins/geodns/yang/ze-geodns-conf.yang:95 and no plugin emits an SOA twice in one message, so no duplicate RRSet arises |
 | [`RFC2181-10.1-4`](#rfc2181-10.1-4) An alias (the label of a CNAME record) may have no data other than SIG, NXT, and KEY RRs; a CNAME must not coexist with any other data. (§10.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze serves no CNAME records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so no CNAME can coexist with other data |
-| [`RFC2181-10.1.1-1`](#rfc2181-10.1.1-1) Care must be taken to be very clear whether the label or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze authors no CNAME records at internal/plugins/geodns/record.go:10, so there is no label-versus-canonical-name ambiguity for an implementation to resolve |
-| [`RFC2181-10.2-1`](#rfc2181-10.2-1) The value of a PTR record must not be an alias; it should be a canonical name. (§10.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze authors no PTR records -- geodns serves A/AAAA/SRV and as112 reverse zones return NODATA with the SOA at internal/plugins/as112/zones.go:273 rather than any PTR, so no PTR value can be an alias |
+| [`RFC2181-10.1.1-1`](#rfc2181-10.1.1-1) Care must therefore be taken to be very clear whether the label, or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze authors no CNAME records at internal/plugins/geodns/record.go:10, so there is no label-versus-canonical-name ambiguity for an implementation to resolve |
+| [`RFC2181-10.2-1`](#rfc2181-10.2-1) Note that while the value of a PTR record must not be an alias, there is no requirement that the process of resolving a PTR record not encounter any aliases. (§10.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze authors no PTR records -- geodns serves A/AAAA/SRV and as112 reverse zones return NODATA with the SOA at internal/plugins/as112/zones.go:273 rather than any PTR, so no PTR value can be an alias |
 
 ## Proof state
 
@@ -204,13 +204,13 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC2181-4.1-1`](#rfc2181-4.1-1)
 
-When responding to a query over UDP, a server must send the reply with the IP source address set to the address that was in the destination address field of the query packet. (§4.1)
+To avoid these problems, servers when responding to queries using UDP must cause the reply to be sent with the source address field in the IP header set to the address that was in the destination address field of the IP header of the packet containing the query causing the response. (§4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L315) | unit/verify | unproven |
+| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L345) | unit/verify | unproven |
 
 ### [`RFC2181-4.2-1`](#rfc2181-4.2-1)
 
@@ -220,21 +220,21 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L320) | unit/verify | unproven |
+| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L350) | unit/verify | unproven |
 
 ### [`RFC2181-4.2-2`](#rfc2181-4.2-2)
 
-For queries received by UDP, the server must take note of the source port and use it as the destination port in the response. (§4.2)
+For queries received by UDP the server must take note of the source port and use that as the destination port in the response. (§4.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L325) | unit/verify | unproven |
+| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L355) | unit/verify | unproven |
 
 ### [`RFC2181-5.1-1`](#rfc2181-5.1-1)
 
-The response must be marked "truncated" if the entire RRSet will not fit in the response. (§5.1)
+The response must be marked as "truncated" if the entire RRSet will not fit in the response. (§5.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -248,11 +248,11 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_RRSetEqualTTL`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L367) | unit/verify | unproven |
+| positive | [`TestRFC2181_RRSetEqualTTL`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L397) | unit/verify | unproven |
 
 ### [`RFC2181-5.3.1-2`](#rfc2181-5.3.1-2)
 
-Where SIG records are returned in the answer section (a query for SIG records, or type=ANY), the entire SIG RRSet must be included, as for any other RR type. (§5.3.1)
+However, where SIG records are being returned in the answer section, in response to a query for SIG records, or a query for all records associated with a name (type=ANY) the entire SIG RRSet must be included, as for any other RR type. (§5.3.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -260,7 +260,7 @@ No test carries RFC2181-5.3.1-2, so no unit is bound to it.
 
 ### [`RFC2181-5.3.1-3`](#rfc2181-5.3.1-3)
 
-A server receiving SIG records in the authority section (or, probably incorrectly, as additional data) must understand that the entire RRSet has almost certainly not been included. (§5.3.1)
+Servers that receive responses containing SIG records in the authority section, or (probably incorrectly) as additional data, must understand that the entire RRSet has almost certainly not been included. (§5.3.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -286,7 +286,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC2181-5.4-2`](#rfc2181-5.4-2)
 
-When a response would form an RRSet with cached data, the server must either ignore the response RRs or discard the entire cached RRSet, as appropriate. (§5.4)
+If a response contains data that would form an RRSet with data in a server's cache the server must either ignore the RRs in the response, or discard the entire RRSet currently in the cache, as appropriate. (§5.4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -304,7 +304,7 @@ No test carries RFC2181-5.4.1-3, so no unit is bound to it.
 
 ### [`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8)
 
-When DNS security is in use and an authenticated reply has been received and verified, the authenticated data shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1)
+When DNS security [RFC2065] is in use, and an authenticated reply has been received and verified, the data thus authenticated shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -312,7 +312,7 @@ No test carries RFC2181-5.4.1-8, so no unit is bound to it.
 
 ### [`RFC2181-5.4.1-9`](#rfc2181-5.4.1-9)
 
-DNSSEC-aware servers must still correctly set the AA bit in responses, to enable correct operation with servers that are not security aware. (§5.4.1)
+However DNSSEC aware servers must still correctly set the AA bit in responses to enable correct operation with servers that are not security aware (almost all currently). (§5.4.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -320,7 +320,7 @@ No test carries RFC2181-5.4.1-9, so no unit is bound to it.
 
 ### [`RFC2181-5.5-4`](#rfc2181-5.5-4)
 
-Where a duplicate RRSet is required (e.g. the SOA at the first and last record of an AXFR), the TTL transmitted in each case must be the same. (§5.5)
+Where duplicates are required this way, the TTL transmitted in each case must be the same. (§5.5)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -347,7 +347,7 @@ No test carries RFC2181-10.1-4, so no unit is bound to it.
 
 ### [`RFC2181-10.1.1-1`](#rfc2181-10.1.1-1)
 
-Care must be taken to be very clear whether the label or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1)
+Care must therefore be taken to be very clear whether the label, or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -355,7 +355,7 @@ No test carries RFC2181-10.1.1-1, so no unit is bound to it.
 
 ### [`RFC2181-10.2-1`](#rfc2181-10.2-1)
 
-The value of a PTR record must not be an alias; it should be a canonical name. (§10.2)
+Note that while the value of a PTR record must not be an alias, there is no requirement that the process of resolving a PTR record not encounter any aliases. (§10.2)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -363,23 +363,23 @@ No test carries RFC2181-10.2-1, so no unit is bound to it.
 
 ### [`RFC2181-10.3-1`](#rfc2181-10.3-1)
 
-The domain name used as the value of an NS record, or as part of the value of an MX record, must not be an alias, and must never have a CNAME RR. (§10.3)
+The domain name used as the value of a NS resource record, or part of the value of a MX resource record must not be an alias. (§10.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L407) | unit/verify | unproven |
+| positive | [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L437) | unit/verify | unproven |
 
 ### [`RFC2181-10.3-2`](#rfc2181-10.3-2)
 
-That domain name must have as its value one or more address records. (§10.3)
+This domain name must have as its value one or more address records. (§10.3)
 
 Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L424) | unit/verify | unproven |
+| positive | [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L454) | unit/verify | unproven |
 
 ### [`RFC2181-11-1`](#rfc2181-11-1)
 
@@ -389,7 +389,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2181_WireNameLimits`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L451) | unit/verify | unproven |
+| positive | [`TestRFC2181_WireNameLimits`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L481) | unit/verify | unproven |
 
 ### [`RFC2181-11-2`](#rfc2181-11-2)
 

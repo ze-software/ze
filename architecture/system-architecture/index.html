@@ -167,12 +167,20 @@ session. About one call in sixteen compares the binary with the build inputs,
 after the command has answered. It prints one stderr line when a file git holds
 unmodified is newer.</p>
 <!-- source: le -- the --name option; cmd/ze/le_build_name.go -- refuseWrongBuildName -->
+<p>The same selection lets <code>le</code> run inside a container. The perf runner
+cross-builds <code>le</code> for linux with <code>CGO_ENABLED=0</code> and the tags of the launcher's
+build, and mounts it at <code>/usr/local/bin/le</code> in the sender container, where
+<code>le perf send</code> measures the DUT. The file is named <code>le</code>, so it selects root
+<code>le</code>. The container starts with no launcher environment, so
+<code>ZE_LE_BUILD_NAME</code> is unset and <code>refuseWrongBuildName</code> answers 0.</p>
+<!-- source: internal/test/perfrunner/run.go -- buildLinuxBinary -->
+<!-- source: internal/test/perfrunner/run.go -- runPerf -->
 <p>Both personalities use the command registry and pipe engine. Their composition
 roots remain separate: a normal <code>ze</code> build imports no <code>internal/le</code> package,
 while the non-default <code>ze_le</code> build companion imports <code>internal/le/register.go</code>
 and exposes its inventory under <code>ze le</code>. Shipped builds do not enable <code>ze_le</code>.</p>
 <!-- source: cmd/ze/ze_le_register.go -->
-<!-- source: internal/le/leroot/dispatch.go -- Dispatch -->
+<!-- source: internal/le/le/root/dispatch.go -- Dispatch -->
 <hr>
 <h2 id="overview">Overview</h2>
 <p>Ze supports two operating modes:</p>
@@ -982,7 +990,7 @@ $ kill -TERM $(pgrep -f "ze start config.conf")
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

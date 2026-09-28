@@ -13,7 +13,7 @@ BMP receiver and sender (RFC 7854, 8671)
 
 ## Configuration
 
-`bgp`, `environment`
+`bgp`, `environment/bmp`
 
 ## Dependencies
 

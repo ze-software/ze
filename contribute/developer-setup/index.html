@@ -200,6 +200,10 @@ of the two is absent.</p>
 <td><code>gopls</code></td>
 <td>Go language server behind the agent LSP tool (via <code>go install</code>)</td>
 </tr>
+<tr>
+<td><code>govulncheck</code></td>
+<td>Dependency vulnerability scanner for the verification gate, built from the vendored copy (via <code>go install</code>)</td>
+</tr>
 </tbody>
 </table>
 <p>Regenerate the checked-in protobuf Go files after you change
@@ -210,7 +214,7 @@ of the two is absent.</p>
 <code>protoc</code>, and applies explicit <code>json_name</code> options to Go struct tags.</p>
 <!-- source: internal/le/setup/proto_generate.go -- protoGenerator.run -->
 <p>Run the installed checker through the repository gate:</p>
-<pre><code class="language-bash">./le staticcheck-feature-matrix check
+<pre><code class="language-bash">./le go staticcheck check
 </code></pre>
 <p>The target and its checked feature population are documented in
 <code>docs/contributing/testing.md</code>.</p>
@@ -350,7 +354,7 @@ checks this as <code>kvm-access</code> and, in install mode, runs:</p>
 <p>Group membership is fixed at login, so an existing shell keeps the old groups
 even after the command succeeds. Log out and back in, or run one command with
 the new group:</p>
-<pre><code class="language-bash">sg kvm -c './le qemu vpp-hugepages-test'
+<pre><code class="language-bash">sg kvm -c './le test qemu vpp-hugepages-test'
 </code></pre>
 <p>Setup distinguishes the two states: <code>kvm-access</code> reports <code>pending</code> when the
 group database lists you but the running session predates it, and <code>missing</code>
@@ -358,7 +362,7 @@ when the group is not granted at all. A host with no <code>/dev/kvm</code> (no h
 virtualisation, or a VM without nested virt) reports <code>n/a</code>: QEMU runs under
 <code>tcg</code> there, only slower. macOS has no <code>/dev/kvm</code> and needs no group; the
 native QEMU actions select the Apple hypervisor (<code>hvf</code>) by platform.</p>
-<!-- source: internal/le/qemu/actions.go -- Answer -->
+<!-- source: internal/le/test/qemu/actions.go -- Answer -->
 <p><strong>Loopback addresses.</strong> The functional fixtures give each end of a BGP session
 its own address: RFC 4271 Section 5.1.3 forbids a peer its own address as
 NEXT_HOP, so a session whose two ends share one address has every originated
@@ -407,7 +411,7 @@ preventing the lists from drifting apart.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

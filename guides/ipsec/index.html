@@ -53,6 +53,7 @@
 <li><a href="#configuration">Configuration</a></li>
 <li><a href="#which-edits-restart-a-tunnel">Which edits restart a tunnel</a></li>
 <li><a href="#ike-features">IKE features</a></li>
+<li><a href="#mobike-endpoint-movement">MOBIKE endpoint movement</a></li>
 <li><a href="#ikev2-responder-role">IKEv2 responder role</a></li>
 <li><a href="#pre-shared-secret-encoding">Pre-shared secret encoding</a></li>
 <li><a href="#remote-identity">Remote identity</a>
@@ -77,7 +78,10 @@
 <ol>
 <li><a href="#spd-ordering">SPD ordering</a></li>
 </ol></li>
-<li><a href="#security-policy-database-entries">Security Policy Database entries</a></li>
+<li><a href="#security-policy-database-entries">Security Policy Database entries</a>
+<ol>
+<li><a href="#the-catch-all-entry">The catch-all entry</a></li>
+</ol></li>
 <li><a href="#both-esp-wire-forms">Both ESP wire forms</a></li>
 <li><a href="#traffic-selectors-and-narrowing">Traffic selectors and narrowing</a></li>
 <li><a href="#transport-mode">Transport mode</a>
@@ -264,7 +268,7 @@ come up.</p>
 </tr>
 <tr>
 <td>MOBIKE, RFC 4555</td>
-<td>Not implemented; an endpoint address change requires the SA to be re-established</td>
+<td>Tunnel-mode endpoint movement as initiator or responder, with authenticated return-routability checks; requires the Linux atomic XFRM state-migration API</td>
 </tr>
 <tr>
 <td>Denial-of-service</td>
@@ -280,6 +284,32 @@ come up.</p>
 </tr>
 </tbody>
 </table>
+<h2 id="mobike-endpoint-movement">MOBIKE endpoint movement</h2>
+<p>IPv4 tunnel peers negotiate MOBIKE automatically when the dataplane can migrate a
+live ESP state without resetting its sequence number or replay window. The Linux
+backend requires Linux 7.2's <code>XFRM_MSG_MIGRATE_STATE</code> API and <code>CONFIG_XFRM_MIGRATE</code>.
+Kernels without that API, other backends and transport-mode peers do not advertise
+MOBIKE; their existing IKE and IPsec behavior is unchanged.</p>
+<p>The initiator keeps the configured responder address. If its local address disappears,
+it selects the routed source address and sends an authenticated address update. The
+responder accepts explicit updates from that initiator. Both roles require a matching
+COOKIE2 return-routability response before moving the Child SA. The IKE and Child
+SPIs, keys and inner traffic selectors remain the same. An invalid COOKIE2 closes the
+IKE SA rather than installing an unverified path.</p>
+<p>MOBIKE uses UDP 4500 even without a NAT. This alone does not enable outbound ESP-in-UDP;
+the NAT detection result still controls ESP encapsulation. The per-peer
+<code>nat-traversal</code> policy defaults to <code>allow</code>, preserving existing NAT tunnels.
+Set <code>vpn ipsec site-to-site peer &lt;name&gt; nat-traversal</code> to <code>prohibit</code> to reject
+translated paths. This protects the first IKE_AUTH and every address update with
+<code>NO_NATS_ALLOWED</code>. A prohibiting peer also refuses an unprotected MOBIKE address
+update from its correspondent; configure the corresponding prohibition there.
+NAT detection remains active to detect forbidden translation, and UDP 4500
+capability does not override the prohibition.</p>
+<p>There is no separate MOBIKE enable leaf. An operator configuration edit, including
+a NAT-policy change, restarts the peer. Mobility handles a live network address
+change, not a configuration replacement.</p>
+<!-- source: internal/component/ike/engine/mobike.go -- negotiation, path selection and return routability -->
+<!-- source: internal/component/ike/dataplane/dataplane.go -- TunnelMigrator -->
 <h2 id="ikev2-responder-role">IKEv2 responder role</h2>
 <p>Ze can act as an IKEv2 responder or initiator. A peer with <code>connection-type respond</code> waits for an unsolicited inbound IKE_SA_INIT from its configured <code>remote-address</code>, answers IKE_AUTH, and installs the first Child SA. <code>connection-type initiate</code>, the default, starts the exchange. The UDP transport always listens, so responder mode does not need a separate listen switch.</p>
 <p>As responder, Ze authenticates with a pre-shared key, X.509 certificate, or EAP. For EAP it acts as the EAP-MSCHAPv2 or EAP-TLS server for a road-warrior client. It presents its own certificate or PSK first, runs the EAP method, and derives session keys from the EAP MSK.</p>
@@ -1105,6 +1135,43 @@ disposition of every installed policy, including one another daemon installed.</
 <p>Ze installs these entries when the configuration is applied and removes them
 when the entry leaves the configuration or the engine stops. They need no peer,
 no key and no negotiation, so they are in force whether or not any tunnel is up.</p>
+<h3 id="the-catch-all-entry">The catch-all entry</h3>
+<p>RFC 4301 Section 5: "If no policy is found in the SPD that matches a packet
+(for either inbound or outbound traffic), the packet MUST be discarded." The
+Linux kernel does the opposite with no matching policy: it passes the packet in
+the clear. So Ze installs a last entry itself, a wildcard selector in every
+direction (in, out and forward) for IPv4 and IPv6, at the largest priority the
+kernel holds, so every entry above is searched first. Its disposition is one
+leaf:</p>
+<pre><code>set vpn ipsec unmatched discard
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bypass</code> (default)</td>
+<td>Traffic no entry matches crosses the boundary in the clear, which is what the kernel did before the entry existed</td>
+</tr>
+<tr>
+<td><code>discard</code></td>
+<td>Traffic no entry matches is dropped, the disposition Section 5 names</td>
+</tr>
+</tbody>
+</table>
+<p>The default is <code>bypass</code> because a router's own control plane (BGP, SSH, DNS)
+crosses the IPsec boundary in the clear, and a default of <code>discard</code> would stop
+it the moment <code>vpn ipsec</code> was configured. With <code>discard</code>, write a <code>bypass</code>
+entry under <code>policy</code> for every flow that must still cross in the clear. The IKE
+control-plane bypass at order 100 is installed either way, so the tunnels can
+still be negotiated. The entry is re-asserted on every apply and removed when
+the engine stops.</p>
+<!-- source: internal/component/ike/ipsec/config.go -- parseUnmatched -->
+<!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched -->
 <!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDPolicy, parseSPDPolicy, ValidateSPDPolicies -->
 <!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, installSPDPolicies -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmPolicyAction -->
@@ -1441,7 +1508,7 @@ the two gauges together separate a lost session from a session with no ESP.</p>
 <h2 id="interop-testing">Interop testing</h2>
 <p>The IKE implementation includes interop tests against strongSwan, from the Alpine 3.21 test
 image. The infrastructure in <code>test/interop-ipsec/</code> drives strongSwan containers as remote
-IKE peers. Twenty-four scenarios run today:</p>
+IKE peers. The scenarios cover:</p>
 <table>
 <thead>
 <tr>
@@ -1475,6 +1542,10 @@ IKE peers. Twenty-four scenarios run today:</p>
 <td>Transport mode and tunnel mode with ESP in UDP 4500, each measuring what Ze's stack does with the inner TCP and UDP checksum after decapsulation (RFC 3948 Section 3.1.2)</td>
 </tr>
 <tr>
+<td>MOBIKE</td>
+<td><code>mobike-initiator</code> and <code>mobike-responder</code> remove the mobile peer's original outer address, retain the same IKE and Child SPIs, and require encrypted traffic in both directions after migration</td>
+</tr>
+<tr>
 <td>Traffic selectors</td>
 <td>Child SA rekey narrowing, an answer that narrows the initiator's proposal, ESN offered both ways, and a peer reload that narrows</td>
 </tr>
@@ -1483,10 +1554,9 @@ IKE peers. Twenty-four scenarios run today:</p>
 <p>There is no certificate-only (<code>mode x509</code>) scenario. The certificate paths are proven by
 unit tests and by the EAP-TLS scenarios, which authenticate both ends with certificates.</p>
 <!-- source: test/interop-ipsec/scenarios -- the strongSwan scenario directories -->
-<p>Ze holds every gated MUST-level requirement extracted from RFC 7296 in
-<code>rfc/short/rfc7296.md</code>. That is 222 of the summary's 227 rows, each proven in both
-directions by <code>RFC requirement:</code> tagged tests. The remaining five rows are SHOULD-level and
-ungated.</p>
+<p><code>rfc/short/rfc7296.md</code> records the extracted requirements and their tagged-test
+status. Those unit checks and the independent-peer scenarios cover different
+boundaries; neither is a claim that every IKE extension is implemented.</p>
 <h2 id="see-also">See also</h2>
 <ul>
 <li>The generated <a href="https://ze-software.net/reference/configuration/#ipsec-vpn">configuration reference</a> covers every IPsec and XFRM configuration leaf.</li>
@@ -1541,7 +1611,7 @@ ungated.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

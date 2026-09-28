@@ -4,7 +4,7 @@
 <!-- source: cmd/ze/help_ai.go -- ze help ai machine-readable reference -->
 <!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
 <!-- source: ai/rules/repo-maintenance.md -- Current Discovery Surfaces -->
-<!-- source: internal/le/inventory/register.go -- inventory command registration -->
+<!-- source: internal/le/repo/inventory/register.go -- inventory command registration -->
 
 Ze is built around a single command and discovery surface. Commands,
 configuration nodes, RPCs, events, and plugin metadata are registered once, then
@@ -45,7 +45,7 @@ from the plugin registry, YANG schemas, and RPC registrations -- it cannot go st
 it is generated from code, not written by hand.
 
 `ze help command` is the human-facing catalog. The native
-`./le wiki-catalog update file <destination>` action renders the corresponding
+`./le cli catalog update file <destination>` action renders the corresponding
 Markdown from the live registries.
 
 ## Structured Diagnostics
@@ -94,8 +94,8 @@ page for verification and usage.
 <!-- source: ai/rules/repo-maintenance.md -- Required Discovery Artifacts -->
 
 Agents should use the existing inventory and verification surfaces:
-`./le inventory`, `./le command list`, `./le doc check verify`,
-`./le docs-to-code update`, and `./le doc wiring`.
+`./le repo inventory`, `./le cli list`, `./le doc check verify`,
+`./le doc index write`, and `./le doc wiring`.
 
 Commit preparation uses `internal/le/commit.Answer`: agents pass the vetted
 subject, body, and explicit file list, and the helper creates the session ID,

@@ -310,7 +310,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L64" title="internal/component/bfd/packet/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880VersionNotOneDiscarded</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-4.1-2">RFC5880-4.1-2</code></td><td colspan="3"><span class="rfc-subject">Multipoint (M) bit must be zero on both transmit and receipt (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-4.1-2">RFC5880-4.1-2</code></td><td colspan="3"><span class="rfc-subject">It MUST be zero on both transmit and receipt. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1 - Generic BFD Control Packet Format</td>
@@ -328,7 +328,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L90" title="internal/component/bfd/engine/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-1">RFC5880-6.8.1-1</code></td><td colspan="3"><span class="rfc-subject">bfd.SessionState must be initialized to Down (§6.8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-1">RFC5880-6.8.1-1</code></td><td colspan="3"><span class="rfc-subject">This variable MUST be initialized to Down. (§6.8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.1 - State Variables</td>
@@ -337,7 +337,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> Init assigns bfd.SessionState = Down unconditionally (internal/component/bfd/session/session.go:246) before any packet can be exchanged, so no non-conformant input exists to reject</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-2">RFC5880-6.8.1-2</code></td><td colspan="3"><span class="rfc-subject">bfd.RemoteSessionState must be initialized to Down (§6.8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-2">RFC5880-6.8.1-2</code></td><td colspan="3"><span class="rfc-subject">This variable MUST be initialized to Down. (§6.8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.1 - State Variables</td>
@@ -346,7 +346,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> Init assigns bfd.RemoteSessionState = Down unconditionally (internal/component/bfd/session/session.go:247), so there is no non-conformant input to reject</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-3">RFC5880-6.8.1-3</code></td><td colspan="3"><span class="rfc-subject">bfd.LocalDiscr must be unique across all BFD sessions on the system, and nonzero (§6.8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-3">RFC5880-6.8.1-3</code></td><td colspan="3"><span class="rfc-subject">It MUST be unique across all BFD sessions on this system, and nonzero. (§6.8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.1 - State Variables</td>
@@ -355,7 +355,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L95" title="internal/component/bfd/engine/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-4">RFC5880-6.8.1-4</code></td><td colspan="3"><span class="rfc-subject">bfd.RemoteDiscr must be initialized to zero (§6.8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-4">RFC5880-6.8.1-4</code></td><td colspan="3"><span class="rfc-subject">This MUST be initialized to zero. (§6.8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.1 - State Variables</td>
@@ -364,7 +364,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L113" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880InitVariablesAreNotConstants</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-5">RFC5880-6.8.1-5</code></td><td colspan="3"><span class="rfc-subject">bfd.RemoteDiscr must be set to zero if no valid packet received for one Detection Time (§6.8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-5">RFC5880-6.8.1-5</code></td><td colspan="3"><span class="rfc-subject">If a period of a Detection Time passes without the receipt of a valid, authenticated BFD packet from the remote system, this variable MUST be set to zero. (§6.8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.1 - State Variables</td>
@@ -373,7 +373,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L180" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-6">RFC5880-6.8.1-6</code></td><td colspan="3"><span class="rfc-subject">bfd.LocalDiag must be initialized to zero (§6.8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-6">RFC5880-6.8.1-6</code></td><td colspan="3"><span class="rfc-subject">This MUST be initialized to zero (No Diagnostic). bfd.DesiredMinTxInterval (§6.8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.1 - State Variables</td>
@@ -382,7 +382,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L116" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880InitVariablesAreNotConstants</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-7">RFC5880-6.8.1-7</code></td><td colspan="3"><span class="rfc-subject">bfd.DesiredMinTxInterval must be initialized to at least 1,000,000 microseconds (§6.8.1, §6.8.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-7">RFC5880-6.8.1-7</code></td><td colspan="3"><span class="rfc-subject">This MUST be initialized to a value of at least one second (1,000,000 microseconds) according to the rules described in section 6.8.3. (§6.8.1, §6.8.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.1 - State Variables</td>
@@ -400,7 +400,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L118" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880InitVariablesAreNotConstants</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-9">RFC5880-6.8.1-9</code></td><td colspan="3"><span class="rfc-subject">bfd.RemoteDemandMode must be initialized to zero (§6.8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-9">RFC5880-6.8.1-9</code></td><td colspan="3"><span class="rfc-subject">This variable MUST be initialized to zero. (§6.8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.1 - State Variables</td>
@@ -409,7 +409,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L121" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880InitVariablesAreNotConstants</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-10">RFC5880-6.8.1-10</code></td><td colspan="3"><span class="rfc-subject">bfd.DetectMult must be a nonzero integer (§6.8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-10">RFC5880-6.8.1-10</code></td><td colspan="3"><span class="rfc-subject">This variable MUST be a nonzero integer, and is otherwise outside the scope of this specification. (§6.8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.1 - State Variables</td>
@@ -418,7 +418,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L259" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880DetectMultZeroRequestSubstituted</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-11">RFC5880-6.8.1-11</code></td><td colspan="3"><span class="rfc-subject">bfd.XmitAuthSeq must be initialized to a random 32-bit value (§6.8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-11">RFC5880-6.8.1-11</code></td><td colspan="3"><span class="rfc-subject">This variable MUST be initialized to a random 32-bit value. (§6.8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.1 - State Variables</td>
@@ -427,7 +427,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> SetAuth seeds bfd.XmitAuthSeq from the persister or leaves the Vars zero value (internal/component/bfd/session/auth.go:36) and Init never randomizes it (internal/component/bfd/session/session.go:245-259), so the initial transmit sequence is 0 rather than a random 32-bit value</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-12">RFC5880-6.8.1-12</code></td><td colspan="3"><span class="rfc-subject">bfd.AuthSeqKnown must be initialized to zero (§6.8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-12">RFC5880-6.8.1-12</code></td><td colspan="3"><span class="rfc-subject">This variable MUST be initialized to zero. (§6.8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.1 - State Variables</td>
@@ -436,7 +436,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L436" title="internal/component/bfd/auth/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880AuthSeqKnownSetAfterFirstPacket</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-13">RFC5880-6.8.1-13</code></td><td colspan="3"><span class="rfc-subject">bfd.AuthSeqKnown must be set to zero after no packets received for twice the Detection Time (§6.8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-13">RFC5880-6.8.1-13</code></td><td colspan="3"><span class="rfc-subject">This variable MUST be set to zero after no packets have been received on this session for at least twice the Detection Time. (§6.8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.1 - State Variables</td>
@@ -445,7 +445,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> bfd.AuthSeqKnown is SeqState.initialized, which only Advance sets (internal/component/bfd/auth/meticulous.go:63-66) and nothing ever clears; CheckDetection clears the detection deadline alone (internal/component/bfd/session/timers.go:82), so the flag survives twice the Detection Time of silence</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-14">RFC5880-6.8.1-14</code></td><td colspan="3"><span class="rfc-subject">Session state must be preserved for at least one Detection Time after last valid packet (§6.8.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.1-14">RFC5880-6.8.1-14</code></td><td colspan="3"><span class="rfc-subject">Once session state is created, and at least one BFD Control packet is received from the remote end, it MUST be preserved for at least one Detection Time (see section 6.8.4) subsequent to the receipt of the last BFD Control packet, regardless of the session state. (§6.8.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.1 - State Variables</td>
@@ -454,7 +454,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L308" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880DetectionExpiryDownDiagOne</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.1-1">RFC5880-6.1-1</code></td><td colspan="3"><span class="rfc-subject">Active role system must send BFD Control packets regardless of whether packets have been received (§6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.1-1">RFC5880-6.1-1</code></td><td colspan="3"><span class="rfc-subject">A system taking the Active role MUST send BFD Control packets for a particular session, regardless of whether it has received any BFD packets for that session. (§6.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.1 - Overview</td>
@@ -463,7 +463,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L410" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880PassiveRoleTransmitsAfterReception</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.1-2">RFC5880-6.1-2</code></td><td colspan="3"><span class="rfc-subject">Passive role system must not begin sending BFD packets until it has received one (§6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.1-2">RFC5880-6.1-2</code></td><td colspan="3"><span class="rfc-subject">A system taking the Passive role MUST NOT begin sending BFD packets for a particular session until it has received a BFD packet for that session, and thus has learned the remote system&#39;s discriminator value. (§6.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.1 - Overview</td>
@@ -472,7 +472,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L415" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880PassiveRoleTransmitsAfterReception</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.1-3">RFC5880-6.1-3</code></td><td colspan="3"><span class="rfc-subject">At least one system must take the Active role (§6.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.1-3">RFC5880-6.1-3</code></td><td colspan="3"><span class="rfc-subject">At least one system MUST take the Active role (possibly both). (§6.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.1 - Overview</td>
@@ -481,7 +481,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L394" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880PassiveRoleSilentUntilReception</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.3-1">RFC5880-6.8.3-1</code></td><td colspan="3"><span class="rfc-subject">When session state is not Up, bfd.DesiredMinTxInterval must be at least 1,000,000 microseconds (§6.8.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.3-1">RFC5880-6.8.3-1</code></td><td colspan="3"><span class="rfc-subject">When bfd.SessionState is not Up, the system MUST set bfd.DesiredMinTxInterval to a value of not less than one second (1,000,000 microseconds). (§6.8.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.3 - Timer Manipulation</td>
@@ -490,7 +490,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L232" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880SlowStartFloorLiftedWhenUp</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.3-2">RFC5880-6.8.3-2</code></td><td colspan="3"><span class="rfc-subject">If bfd.DesiredMinTxInterval or bfd.RequiredMinRxInterval changes, a Poll Sequence must be initiated (§6.8.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.3-2">RFC5880-6.8.3-2</code></td><td colspan="3"><span class="rfc-subject">If either bfd.DesiredMinTxInterval is changed or bfd.RequiredMinRxInterval is changed, a Poll Sequence MUST be initiated (see section 6.5). (§6.8.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.3 - Timer Manipulation</td>
@@ -499,7 +499,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L470" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880NoPollWhenIntervalsUnchanged</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.3-3">RFC5880-6.8.3-3</code></td><td colspan="3"><span class="rfc-subject">If bfd.DesiredMinTxInterval is increased while Up, the actual TX interval must not change until the Poll Sequence terminates (§6.8.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.3-3">RFC5880-6.8.3-3</code></td><td colspan="3"><span class="rfc-subject">If bfd.DesiredMinTxInterval is increased and bfd.SessionState is Up, the actual transmission interval used MUST NOT change until the Poll Sequence described above has terminated. (§6.8.3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.8.3 - Timer Manipulation</td>
@@ -508,7 +508,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ApplyEchoSlowdown raises bfd.DesiredMinTxInterval while the session is Up (internal/component/bfd/session/timers.go:235) and TransmitInterval returns the raised value on the very next call (internal/component/bfd/session/timers.go:44), so the longer interval takes effect before the Poll Sequence terminates</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.3-4">RFC5880-6.8.3-4</code></td><td colspan="3"><span class="rfc-subject">If bfd.RequiredMinRxInterval is reduced while Up, the previous value must be used for detection time until the Poll terminates (§6.8.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.3-4">RFC5880-6.8.3-4</code></td><td colspan="3"><span class="rfc-subject">If bfd.RequiredMinRxInterval is reduced and bfd.SessionState is Up, the previous value of bfd.RequiredMinRxInterval MUST be used when calculating the Detection Time for the remote system until the Poll Sequence described above has terminated. (§6.8.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.3 - Timer Manipulation</td>
@@ -535,7 +535,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> onStateChange applies both interval changes and raises exactly one Poll (internal/component/bfd/session/fsm.go:139-144), so ze always takes the single-packet option and no overlapping second Poll Sequence exists to reject</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.5-1">RFC5880-6.5-1</code></td><td colspan="3"><span class="rfc-subject">A BFD Control packet must not have both Poll (P) and Final (F) bits set (§6.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.5-1">RFC5880-6.5-1</code></td><td colspan="3"><span class="rfc-subject">A BFD Control packet MUST NOT have both the Poll (P) and Final (F) bits set. (§6.5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.5 - The Poll Sequence</td>
@@ -544,7 +544,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L586" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880FinalReplyClearsPollBit</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.5-2">RFC5880-6.5-2</code></td><td colspan="3"><span class="rfc-subject">If periodic Control packets are being sent, Poll Sequence must be performed by setting P bit on scheduled transmissions; additional packets must not be sent (§6.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.5-2">RFC5880-6.5-2</code></td><td colspan="3"><span class="rfc-subject">If periodic BFD Control packets are already being sent (the remote system is not in Demand mode), the Poll Sequence MUST be performed by setting the Poll (P) bit on those scheduled periodic transmissions; additional packets MUST NOT be sent. (§6.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.5 - The Poll Sequence</td>
@@ -562,7 +562,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L666" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880DemandBitClearWhenAnyConditionFails</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.6-2">RFC5880-6.6-2</code></td><td colspan="3"><span class="rfc-subject">When the D bit value is to be changed, a Poll Sequence must be initiated (§6.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.6-2">RFC5880-6.6-2</code></td><td colspan="3"><span class="rfc-subject">When the transmitted value of the Demand (D) bit is to be changed, the transmitting system MUST initiate a Poll Sequence in conjunction with changing the bit in order to ensure that both systems are aware of the change. (§6.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.6 - Demand mode</td>
@@ -571,7 +571,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> bfd.DemandMode has no writer in production code -- it is declared at internal/component/bfd/session/session.go:58 and read only by canSetDemand (internal/component/bfd/session/fsm.go:247) -- so no D-bit change path exists and none initiates a Poll Sequence</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.6-3">RFC5880-6.6-3</code></td><td colspan="3"><span class="rfc-subject">If Demand mode is active on either system, a Poll Sequence must be initiated whenever next packet contents would differ (except P/F bits) (§6.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.6-3">RFC5880-6.6-3</code></td><td colspan="3"><span class="rfc-subject">If Demand mode is active on either or both systems, a Poll Sequence MUST be initiated whenever the contents of the next BFD Control packet to be sent would be different than the contents of the previous packet, with the exception of the Poll (P) and Final (F) bits. (§6.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.6 - Demand mode</td>
@@ -580,7 +580,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> bfd.RemoteDemandMode is stored by Receive (internal/component/bfd/session/fsm.go:58) and read nowhere, and bfd.DemandMode has no writer (internal/component/bfd/session/session.go:58), so no code path starts a Poll when packet contents would change while Demand mode is active</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7-1">RFC5880-6.7-1</code></td><td colspan="3"><span class="rfc-subject">Implementations supporting authentication must support both types of SHA1 authentication (§6.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7-1">RFC5880-6.7-1</code></td><td colspan="3"><span class="rfc-subject">Implementations supporting authentication MUST support both types of SHA1 authentication. (§6.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.7 - Authentication</td>
@@ -589,7 +589,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L67" title="internal/component/bfd/auth/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880UnsupportedAuthTypesRejected</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-4.2-1">RFC5880-4.2-1</code></td><td colspan="3"><span class="rfc-subject">Simple Password must be 1 to 16 bytes in length (§4.2, §6.7.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-4.2-1">RFC5880-4.2-1</code></td><td colspan="3"><span class="rfc-subject">The password is a binary string, and MUST be from 1 to 16 bytes in length. (§4.2, §6.7.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.2 - Simple Password Authentication Section Format</td>
@@ -645,7 +645,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> Sign overwrites the key scratch with the computed digest before the packet is handed to the transport (internal/component/bfd/auth/sha1.go:85-87), so no key-bearing packet is ever emitted for a receiver to reject</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.3-4">RFC5880-6.7.3-4</code></td><td colspan="3"><span class="rfc-subject">Meticulous Keyed MD5: bfd.XmitAuthSeq must be incremented for each packet (§6.7.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.3-4">RFC5880-6.7.3-4</code></td><td colspan="3"><span class="rfc-subject">For Meticulous Keyed MD5, bfd.XmitAuthSeq MUST be incremented in a circular fashion (when treated as an unsigned 32-bit value). (§6.7.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication</td>
@@ -681,7 +681,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the SHA1 signer shares that producer with a 20-byte digest slot (internal/component/bfd/auth/sha1.go:85-87,193-195), so no key-bearing packet is emitted</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.4-4">RFC5880-6.7.4-4</code></td><td colspan="3"><span class="rfc-subject">Meticulous Keyed SHA1: bfd.XmitAuthSeq must be incremented for each packet (§6.7.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.4-4">RFC5880-6.7.4-4</code></td><td colspan="3"><span class="rfc-subject">For Meticulous Keyed SHA1, bfd.XmitAuthSeq MUST be incremented in a circular fashion (when treated as an unsigned 32-bit value). (§6.7.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.7.4 - Keyed SHA1 and Meticulous Keyed SHA1 Authentication</td>
@@ -717,7 +717,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L128" title="internal/component/bfd/packet/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880LengthBelowMinimumDiscarded</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.6-3">RFC5880-6.8.6-3</code></td><td colspan="3"><span class="rfc-subject">Reception: discard if Length &gt; encapsulating payload (§6.8.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.6-3">RFC5880-6.8.6-3</code></td><td colspan="3"><span class="rfc-subject">If the Length field is greater than the payload of the encapsulating protocol, the packet MUST be discarded. (§6.8.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.6 - Reception of BFD Control Packets</td>
@@ -735,7 +735,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L190" title="internal/component/bfd/packet/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880DetectMultZeroDiscarded</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.6-5">RFC5880-6.8.6-5</code></td><td colspan="3"><span class="rfc-subject">Reception: discard if M bit is nonzero (§6.8.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.6-5">RFC5880-6.8.6-5</code></td><td colspan="3"><span class="rfc-subject">If the Multipoint (M) bit is nonzero, the packet MUST be discarded. (§6.8.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.6 - Reception of BFD Control Packets</td>
@@ -753,7 +753,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/packet/rfc5880_test.go#L214" title="internal/component/bfd/packet/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880MyDiscriminatorZeroDiscarded</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.6-7">RFC5880-6.8.6-7</code></td><td colspan="3"><span class="rfc-subject">Reception: if Your Discriminator nonzero, use it to select session; discard if no session found (§6.8.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.6-7">RFC5880-6.8.6-7</code></td><td colspan="3"><span class="rfc-subject">If the Your Discriminator field is nonzero, it MUST be used to select the session with which this BFD packet is associated. (§6.8.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.6 - Reception of BFD Control Packets</td>
@@ -762,7 +762,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L140" title="internal/component/bfd/engine/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880UnknownYourDiscriminatorDiscarded</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.6-8">RFC5880-6.8.6-8</code></td><td colspan="3"><span class="rfc-subject">Reception: if Your Discriminator zero and State is not Down or AdminDown, discard (§6.8.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.6-8">RFC5880-6.8.6-8</code></td><td colspan="3"><span class="rfc-subject">If the Your Discriminator field is zero and the State field is not Down or AdminDown, the packet MUST be discarded. (§6.8.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.6 - Reception of BFD Control Packets</td>
@@ -816,7 +816,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L630" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880NonFinalDoesNotTerminatePoll</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.6-14">RFC5880-6.8.6-14</code></td><td colspan="3"><span class="rfc-subject">Reception: if remote Demand mode active (D=1, both Up), cease periodic Control packet transmission (§6.8.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.6-14">RFC5880-6.8.6-14</code></td><td colspan="3"><span class="rfc-subject">If bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up, Demand mode is active on the remote system and the local system MUST cease the periodic transmission of BFD Control packets (see section 6.8.7). (§6.8.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.6 - Reception of BFD Control Packets</td>
@@ -825,7 +825,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> tick transmits whenever the periodic deadline has passed and never consults the remote Demand state (internal/component/bfd/engine/loop.go:192-201), so periodic Control packets continue after the peer sets D=1</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.6-15">RFC5880-6.8.6-15</code></td><td colspan="3"><span class="rfc-subject">Reception: if remote Demand mode not active, send periodic Control packets (§6.8.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.6-15">RFC5880-6.8.6-15</code></td><td colspan="3"><span class="rfc-subject">If bfd.RemoteDemandMode is 0, or bfd.SessionState is not Up, or bfd.RemoteSessionState is not Up, Demand mode is not active on the remote system and the local system MUST send periodic BFD Control packets (see section 6.8.7). (§6.8.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.6 - Reception of BFD Control Packets</td>
@@ -843,7 +843,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L352" title="internal/component/bfd/engine/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880NonPollProducesNoImmediateReply</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.6-18">RFC5880-6.8.6-18</code></td><td colspan="3"><span class="rfc-subject">Reception: if Your Discriminator zero, select the session on a combination of other fields, which can include source addressing information, My Discriminator, and the ingress interface (§6.8.6)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.6-18">RFC5880-6.8.6-18</code></td><td colspan="3"><span class="rfc-subject">If the Your Discriminator field is zero, the session MUST be selected based on some combination of other fields, possibly including source addressing information, the My Discriminator field, and the interface over which the packet was received. (§6.8.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.6 - Reception of BFD Control Packets</td>
@@ -853,7 +853,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L158" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketWrongSourceDropped</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.7-1">RFC5880-6.8.7-1</code></td><td colspan="3"><span class="rfc-subject">Transmission: must not transmit at interval less than max(bfd.DesiredMinTxInterval, bfd.RemoteMinRxInterval) less jitter (§6.8.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.7-1">RFC5880-6.8.7-1</code></td><td colspan="3"><span class="rfc-subject">With the exceptions listed in the remainder of this section, a system MUST NOT transmit BFD Control packets at an interval less than the larger of bfd.DesiredMinTxInterval and bfd.RemoteMinRxInterval, less applied jitter (see below). (§6.8.7)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.8.7 - Transmitting BFD Control Packets</td>
@@ -880,7 +880,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L488" title="internal/component/bfd/engine/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880JitterFloorOnlyForDetectMultOne</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.7-4">RFC5880-6.8.7-4</code></td><td colspan="3"><span class="rfc-subject">Transmission: TX interval must be recalculated whenever bfd.DesiredMinTxInterval or bfd.RemoteMinRxInterval changes (§6.8.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.7-4">RFC5880-6.8.7-4</code></td><td colspan="3"><span class="rfc-subject">The transmit interval MUST be recalculated whenever bfd.DesiredMinTxInterval changes, or whenever bfd.RemoteMinRxInterval changes, and is equal to the greater of those two values. (§6.8.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.7 - Transmitting BFD Control Packets</td>
@@ -889,7 +889,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L538" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880TransmitIntervalFlooredByLocalDesired</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.7-5">RFC5880-6.8.7-5</code></td><td colspan="3"><span class="rfc-subject">Transmission: must not transmit if bfd.RemoteDiscr is zero and system is Passive (§6.8.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.7-5">RFC5880-6.8.7-5</code></td><td colspan="3"><span class="rfc-subject">A system MUST NOT transmit BFD Control packets if bfd.RemoteDiscr is zero and the system is taking the Passive role. (§6.8.7)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.8.7 - Transmitting BFD Control Packets</td>
@@ -898,7 +898,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L369" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880ActiveRoleTransmitsWithoutReception</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.7-6">RFC5880-6.8.7-6</code></td><td colspan="3"><span class="rfc-subject">Transmission: must not periodically transmit if bfd.RemoteMinRxInterval is zero (§6.8.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.7-6">RFC5880-6.8.7-6</code></td><td colspan="3"><span class="rfc-subject">A system MUST NOT periodically transmit BFD Control packets if bfd.RemoteMinRxInterval is zero. (§6.8.7)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.8.7 - Transmitting BFD Control Packets</td>
@@ -907,7 +907,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> TransmitInterval substitutes the slow-start interval when the negotiated maximum is zero (internal/component/bfd/session/timers.go:45-47) and tick carries no bfd.RemoteMinRxInterval == 0 suppression (internal/component/bfd/engine/loop.go:192-201), so periodic transmission continues</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.7-7">RFC5880-6.8.7-7</code></td><td colspan="3"><span class="rfc-subject">Transmission: must not periodically transmit if remote Demand mode active and no Poll in flight (§6.8.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.7-7">RFC5880-6.8.7-7</code></td><td colspan="3"><span class="rfc-subject">A system MUST NOT periodically transmit BFD Control packets if Demand mode is active on the remote system (bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up) and a Poll Sequence is not being transmitted. (§6.8.7)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.8.7 - Transmitting BFD Control Packets</td>
@@ -916,7 +916,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the same tick producer (internal/component/bfd/engine/loop.go:192-201) has no remote-Demand suppression, so periodic transmission continues while the remote Demand mode is active with no Poll in flight</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.7-8">RFC5880-6.8.7-8</code></td><td colspan="3"><span class="rfc-subject">If rate limiting Final packets, advertised Desired Min TX Interval must be &gt;= rate-limit interval (§6.8.7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.7-8">RFC5880-6.8.7-8</code></td><td colspan="3"><span class="rfc-subject">If rate limiting is in effect, the advertised value of Desired Min TX Interval MUST be greater than or equal to the interval between transmitted packets imposed by the rate limiting function. (§6.8.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.7 - Transmitting BFD Control Packets</td>
@@ -943,7 +943,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L979" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880EchoReturnClearsMissAndFailIsScoped</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.15-1">RFC5880-6.8.15-1</code></td><td colspan="3"><span class="rfc-subject">Forwarding plane reset: set bfd.LocalDiag to 4, bfd.SessionState to Down (§6.8.15)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.15-1">RFC5880-6.8.15-1</code></td><td colspan="3"><span class="rfc-subject">When the forwarding plane in the local system is reset for some reason, such that the remote system can no longer rely on the local forwarding state, the local system MUST set bfd.LocalDiag to 4 (Forwarding Plane Reset), and set bfd.SessionState to Down. (§6.8.15)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.15 - Forwarding Plane Reset</td>
@@ -961,7 +961,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L1106" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880AdministrativeCallsAreGuarded</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.8-1">RFC5880-6.8.8-1</code></td><td colspan="3"><span class="rfc-subject">Echo packets must be demultiplexed to the appropriate session (§6.8.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.8-1">RFC5880-6.8.8-1</code></td><td colspan="3"><span class="rfc-subject">A received BFD Echo packet MUST be demultiplexed to the appropriate session for processing. (§6.8.8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.8 - Reception of BFD Echo Packets</td>
@@ -970,7 +970,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L626" title="internal/component/bfd/engine/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880UnknownEchoDropped</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.8-2">RFC5880-6.8.8-2</code></td><td colspan="3"><span class="rfc-subject">A means of detecting missing Echo packets must be implemented (§6.8.8)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.8-2">RFC5880-6.8.8-2</code></td><td colspan="3"><span class="rfc-subject">A means of detecting missing Echo packets MUST be implemented, which most likely involves processing of the Echo packets that are received. (§6.8.8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.8.8 - Reception of BFD Echo Packets</td>
@@ -979,7 +979,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L974" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880EchoReturnClearsMissAndFailIsScoped</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.9-1">RFC5880-6.8.9-1</code></td><td colspan="3"><span class="rfc-subject">Echo packets must not be transmitted when bfd.SessionState is not Up (§6.8.9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.9-1">RFC5880-6.8.9-1</code></td><td colspan="3"><span class="rfc-subject">BFD Echo packets MUST NOT be transmitted when bfd.SessionState is not Up. (§6.8.9)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.8.9 - Transmission of BFD Echo Packets</td>
@@ -988,7 +988,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L564" title="internal/component/bfd/engine/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880NoEchoTransmittedWhenNotUp</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.9-2">RFC5880-6.8.9-2</code></td><td colspan="3"><span class="rfc-subject">Echo packets must not be transmitted unless remote Required Min Echo RX Interval is nonzero (§6.8.9)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.9-2">RFC5880-6.8.9-2</code></td><td colspan="3"><span class="rfc-subject">BFD Echo packets MUST NOT be transmitted unless the last BFD Control packet received from the remote system contains a nonzero value in Required Min Echo RX Interval. (§6.8.9)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>6.8.9 - Transmission of BFD Echo Packets</td>
@@ -1304,7 +1304,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L1163" title="internal/component/bfd/session/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880AuthSequenceFieldFollowsAdvance</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.2-4">RFC5880-6.7.2-4</code></td><td colspan="3"><span class="rfc-subject">Reception: if Auth Type does not match bfd.AuthType, packet MUST be discarded (§6.7.2, §6.7.3, §6.7.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.2-4">RFC5880-6.7.2-4</code></td><td colspan="3"><span class="rfc-subject">If the received BFD Control packet does not contain an Authentication Section, or the Auth Type is not 1 (Simple Password), then the received packet MUST be discarded. (§6.7.2, §6.7.3, §6.7.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.7.2 - Simple Password Authentication</td>
@@ -1313,7 +1313,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L310" title="internal/component/bfd/auth/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880AuthTypeMismatchDiscarded</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.2-5">RFC5880-6.7.2-5</code></td><td colspan="3"><span class="rfc-subject">Reception: if Auth Key ID does not match any configured authentication key, packet MUST be discarded (§6.7.2, §6.7.3, §6.7.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.2-5">RFC5880-6.7.2-5</code></td><td colspan="3"><span class="rfc-subject">If the Auth Key ID field does not match the ID of a configured password, the received packet MUST be discarded. (§6.7.2, §6.7.3, §6.7.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.7.2 - Simple Password Authentication</td>
@@ -1324,7 +1324,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L712" title="internal/component/bfd/auth/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880SimplePasswordWrongKeyIDDiscarded</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.2-6">RFC5880-6.7.2-6</code></td><td colspan="3"><span class="rfc-subject">Reception: if Auth Len does not match expected length, packet MUST be discarded (§6.7.2, §6.7.3, §6.7.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.2-6">RFC5880-6.7.2-6</code></td><td colspan="3"><span class="rfc-subject">If the Auth Len field is not equal to the length of the password selected by the key ID, plus three, the packet MUST be discarded. (§6.7.2, §6.7.3, §6.7.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.7.2 - Simple Password Authentication</td>
@@ -1333,7 +1333,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L343" title="internal/component/bfd/auth/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880AuthLenMismatchDiscarded</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.2-7">RFC5880-6.7.2-7</code></td><td colspan="3"><span class="rfc-subject">Reception: if password does not match configured password for Simple Password, packet MUST be discarded (§6.7.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.2-7">RFC5880-6.7.2-7</code></td><td colspan="3"><span class="rfc-subject">If the Password field does not match the password selected by the key ID, the packet MUST be discarded. (§6.7.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.7.2 - Simple Password Authentication</td>
@@ -1360,7 +1360,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> SeqState.Check accepts any sequence strictly greater than bfd.RcvAuthSeq for the meticulous variants (internal/component/bfd/auth/meticulous.go:47-51), so a packet whose sequence jumps past RcvAuthSeq+1 is accepted rather than discarded</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.3-11">RFC5880-6.7.3-11</code></td><td colspan="3"><span class="rfc-subject">Reception: if digest/hash does not match computed value, packet MUST be discarded (§6.7.3, §6.7.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.3-11">RFC5880-6.7.3-11</code></td><td colspan="3"><span class="rfc-subject">Otherwise (the digest does not match the Auth Key/Digest field), the received packet MUST be discarded. (§6.7.3, §6.7.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication</td>
@@ -1369,7 +1369,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/auth/rfc5880_test.go#L390" title="internal/component/bfd/auth/rfc5880_test.go" target="_blank" rel="noopener"><code>TestRFC5880DigestMismatchDiscarded</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.3-12">RFC5880-6.7.3-12</code></td><td colspan="3"><span class="rfc-subject">Reception: if bfd.AuthSeqKnown is 0, it MUST be set to 1 and bfd.RcvAuthSeq MUST be set to received Sequence Number (§6.7.3, §6.7.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.7.3-12">RFC5880-6.7.3-12</code></td><td colspan="3"><span class="rfc-subject">Otherwise (bfd.AuthSeqKnown is 0), bfd.AuthSeqKnown MUST be set to 1, and bfd.RcvAuthSeq MUST be set to the value of the received Sequence Number field. (§6.7.3, §6.7.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6.7.3 - Keyed MD5 and Meticulous Keyed MD5 Authentication</td>
@@ -1387,47 +1387,47 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc5880-6.8.1-11"><code>RFC5880-6.8.1-11</code></a> bfd.XmitAuthSeq must be initialized to a random 32-bit value (§6.8.1)</td>
+<tr><td><a href="#rfc5880-6.8.1-11"><code>RFC5880-6.8.1-11</code></a> This variable MUST be initialized to a random 32-bit value. (§6.8.1)</td>
 <td>{gap}, no test</td>
 <td>SetAuth seeds bfd.XmitAuthSeq from the persister or leaves the Vars zero value (internal/component/bfd/session/auth.go:36) and Init never randomizes it (internal/component/bfd/session/session.go:245-259), so the initial transmit sequence is 0 rather than a random 32-bit value</td>
 </tr>
-<tr><td><a href="#rfc5880-6.8.1-13"><code>RFC5880-6.8.1-13</code></a> bfd.AuthSeqKnown must be set to zero after no packets received for twice the Detection Time (§6.8.1)</td>
+<tr><td><a href="#rfc5880-6.8.1-13"><code>RFC5880-6.8.1-13</code></a> This variable MUST be set to zero after no packets have been received on this session for at least twice the Detection Time. (§6.8.1)</td>
 <td>{gap}, no test</td>
 <td>bfd.AuthSeqKnown is SeqState.initialized, which only Advance sets (internal/component/bfd/auth/meticulous.go:63-66) and nothing ever clears; CheckDetection clears the detection deadline alone (internal/component/bfd/session/timers.go:82), so the flag survives twice the Detection Time of silence</td>
 </tr>
-<tr><td><a href="#rfc5880-6.8.3-3"><code>RFC5880-6.8.3-3</code></a> If bfd.DesiredMinTxInterval is increased while Up, the actual TX interval must not change until the Poll Sequence terminates (§6.8.3)</td>
+<tr><td><a href="#rfc5880-6.8.3-3"><code>RFC5880-6.8.3-3</code></a> If bfd.DesiredMinTxInterval is increased and bfd.SessionState is Up, the actual transmission interval used MUST NOT change until the Poll Sequence described above has terminated. (§6.8.3)</td>
 <td>{gap}, no test</td>
 <td>ApplyEchoSlowdown raises bfd.DesiredMinTxInterval while the session is Up (internal/component/bfd/session/timers.go:235) and TransmitInterval returns the raised value on the very next call (internal/component/bfd/session/timers.go:44), so the longer interval takes effect before the Poll Sequence terminates</td>
 </tr>
-<tr><td><a href="#rfc5880-6.8.3-4"><code>RFC5880-6.8.3-4</code></a> If bfd.RequiredMinRxInterval is reduced while Up, the previous value must be used for detection time until the Poll terminates (§6.8.3)</td>
+<tr><td><a href="#rfc5880-6.8.3-4"><code>RFC5880-6.8.3-4</code></a> If bfd.RequiredMinRxInterval is reduced and bfd.SessionState is Up, the previous value of bfd.RequiredMinRxInterval MUST be used when calculating the Detection Time for the remote system until the Poll Sequence described above has terminated. (§6.8.3)</td>
 <td>{gap}, no test</td>
 <td>revertEchoSlowdownLocked reduces bfd.RequiredMinRxInterval while Up (internal/component/bfd/session/timers.go:249) and DetectionInterval immediately uses the reduced value (internal/component/bfd/session/timers.go:29); no previous value is retained until the Poll Sequence terminates</td>
 </tr>
-<tr><td><a href="#rfc5880-6.6-2"><code>RFC5880-6.6-2</code></a> When the D bit value is to be changed, a Poll Sequence must be initiated (§6.6)</td>
+<tr><td><a href="#rfc5880-6.6-2"><code>RFC5880-6.6-2</code></a> When the transmitted value of the Demand (D) bit is to be changed, the transmitting system MUST initiate a Poll Sequence in conjunction with changing the bit in order to ensure that both systems are aware of the change. (§6.6)</td>
 <td>{gap}, no test</td>
 <td>bfd.DemandMode has no writer in production code -- it is declared at internal/component/bfd/session/session.go:58 and read only by canSetDemand (internal/component/bfd/session/fsm.go:247) -- so no D-bit change path exists and none initiates a Poll Sequence</td>
 </tr>
-<tr><td><a href="#rfc5880-6.6-3"><code>RFC5880-6.6-3</code></a> If Demand mode is active on either system, a Poll Sequence must be initiated whenever next packet contents would differ (except P/F bits) (§6.6)</td>
+<tr><td><a href="#rfc5880-6.6-3"><code>RFC5880-6.6-3</code></a> If Demand mode is active on either or both systems, a Poll Sequence MUST be initiated whenever the contents of the next BFD Control packet to be sent would be different than the contents of the previous packet, with the exception of the Poll (P) and Final (F) bits. (§6.6)</td>
 <td>{gap}, no test</td>
 <td>bfd.RemoteDemandMode is stored by Receive (internal/component/bfd/session/fsm.go:58) and read nowhere, and bfd.DemandMode has no writer (internal/component/bfd/session/session.go:58), so no code path starts a Poll when packet contents would change while Demand mode is active</td>
 </tr>
-<tr><td><a href="#rfc5880-6.8.6-14"><code>RFC5880-6.8.6-14</code></a> Reception: if remote Demand mode active (D=1, both Up), cease periodic Control packet transmission (§6.8.6)</td>
+<tr><td><a href="#rfc5880-6.8.6-14"><code>RFC5880-6.8.6-14</code></a> If bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up, Demand mode is active on the remote system and the local system MUST cease the periodic transmission of BFD Control packets (see section 6.8.7). (§6.8.6)</td>
 <td>{gap}, no test</td>
 <td>tick transmits whenever the periodic deadline has passed and never consults the remote Demand state (internal/component/bfd/engine/loop.go:192-201), so periodic Control packets continue after the peer sets D=1</td>
 </tr>
-<tr><td><a href="#rfc5880-6.8.7-6"><code>RFC5880-6.8.7-6</code></a> Transmission: must not periodically transmit if bfd.RemoteMinRxInterval is zero (§6.8.7)</td>
+<tr><td><a href="#rfc5880-6.8.7-6"><code>RFC5880-6.8.7-6</code></a> A system MUST NOT periodically transmit BFD Control packets if bfd.RemoteMinRxInterval is zero. (§6.8.7)</td>
 <td>{gap}, no test</td>
 <td>TransmitInterval substitutes the slow-start interval when the negotiated maximum is zero (internal/component/bfd/session/timers.go:45-47) and tick carries no bfd.RemoteMinRxInterval == 0 suppression (internal/component/bfd/engine/loop.go:192-201), so periodic transmission continues</td>
 </tr>
-<tr><td><a href="#rfc5880-6.8.7-7"><code>RFC5880-6.8.7-7</code></a> Transmission: must not periodically transmit if remote Demand mode active and no Poll in flight (§6.8.7)</td>
+<tr><td><a href="#rfc5880-6.8.7-7"><code>RFC5880-6.8.7-7</code></a> A system MUST NOT periodically transmit BFD Control packets if Demand mode is active on the remote system (bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up) and a Poll Sequence is not being transmitted. (§6.8.7)</td>
 <td>{gap}, no test</td>
 <td>the same tick producer (internal/component/bfd/engine/loop.go:192-201) has no remote-Demand suppression, so periodic transmission continues while the remote Demand mode is active with no Poll in flight</td>
 </tr>
-<tr><td><a href="#rfc5880-6.8.7-8"><code>RFC5880-6.8.7-8</code></a> If rate limiting Final packets, advertised Desired Min TX Interval must be &gt;= rate-limit interval (§6.8.7)</td>
+<tr><td><a href="#rfc5880-6.8.7-8"><code>RFC5880-6.8.7-8</code></a> If rate limiting is in effect, the advertised value of Desired Min TX Interval MUST be greater than or equal to the interval between transmitted packets imposed by the rate limiting function. (§6.8.7)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze does not rate-limit Final packets -- handleInbound sends the Final unconditionally on every received Poll (internal/component/bfd/engine/loop.go:140-142) and no rate limiter exists on that path, so the conditional advertised-interval floor never applies</td>
 </tr>
-<tr><td><a href="#rfc5880-6.8.15-1"><code>RFC5880-6.8.15-1</code></a> Forwarding plane reset: set bfd.LocalDiag to 4, bfd.SessionState to Down (§6.8.15)</td>
+<tr><td><a href="#rfc5880-6.8.15-1"><code>RFC5880-6.8.15-1</code></a> When the forwarding plane in the local system is reset for some reason, such that the remote system can no longer rely on the local forwarding state, the local system MUST set bfd.LocalDiag to 4 (Forwarding Plane Reset), and set bfd.SessionState to Down. (§6.8.15)</td>
 <td>{gap}, no test</td>
 <td>packet.DiagForwardingPlaneReset (internal/component/bfd/packet/diag.go:21) has no producer, and the only external state-forcing entry points are AdminDown and AdminEnable (internal/component/bfd/session/fsm.go:180,192), which move the session to AdminDown or Down carrying the caller&#39;s diagnostic and are never called with code 4</td>
 </tr>
@@ -1474,7 +1474,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-4.1-2"><code>RFC5880-4.1-2</code></a></h3>
-<p>Multipoint (M) bit must be zero on both transmit and receipt (§4.1)</p>
+<p>It MUST be zero on both transmit and receipt. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1514,7 +1514,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.1-1"><code>RFC5880-6.8.1-1</code></a></h3>
-<p>bfd.SessionState must be initialized to Down (§6.8.1)</p>
+<p>This variable MUST be initialized to Down. (§6.8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1529,7 +1529,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.1-2"><code>RFC5880-6.8.1-2</code></a></h3>
-<p>bfd.RemoteSessionState must be initialized to Down (§6.8.1)</p>
+<p>This variable MUST be initialized to Down. (§6.8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1544,7 +1544,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.1-3"><code>RFC5880-6.8.1-3</code></a></h3>
-<p>bfd.LocalDiscr must be unique across all BFD sessions on the system, and nonzero (§6.8.1)</p>
+<p>It MUST be unique across all BFD sessions on this system, and nonzero. (§6.8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1564,7 +1564,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.1-4"><code>RFC5880-6.8.1-4</code></a></h3>
-<p>bfd.RemoteDiscr must be initialized to zero (§6.8.1)</p>
+<p>This MUST be initialized to zero. (§6.8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1584,7 +1584,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.1-5"><code>RFC5880-6.8.1-5</code></a></h3>
-<p>bfd.RemoteDiscr must be set to zero if no valid packet received for one Detection Time (§6.8.1)</p>
+<p>If a period of a Detection Time passes without the receipt of a valid, authenticated BFD packet from the remote system, this variable MUST be set to zero. (§6.8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1604,7 +1604,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.1-6"><code>RFC5880-6.8.1-6</code></a></h3>
-<p>bfd.LocalDiag must be initialized to zero (§6.8.1)</p>
+<p>This MUST be initialized to zero (No Diagnostic). bfd.DesiredMinTxInterval (§6.8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1624,7 +1624,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.1-7"><code>RFC5880-6.8.1-7</code></a></h3>
-<p>bfd.DesiredMinTxInterval must be initialized to at least 1,000,000 microseconds (§6.8.1, §6.8.3)</p>
+<p>This MUST be initialized to a value of at least one second (1,000,000 microseconds) according to the rules described in section 6.8.3. (§6.8.1, §6.8.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1664,7 +1664,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.1-9"><code>RFC5880-6.8.1-9</code></a></h3>
-<p>bfd.RemoteDemandMode must be initialized to zero (§6.8.1)</p>
+<p>This variable MUST be initialized to zero. (§6.8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1684,7 +1684,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.1-10"><code>RFC5880-6.8.1-10</code></a></h3>
-<p>bfd.DetectMult must be a nonzero integer (§6.8.1)</p>
+<p>This variable MUST be a nonzero integer, and is otherwise outside the scope of this specification. (§6.8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1704,11 +1704,11 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.1-11"><code>RFC5880-6.8.1-11</code></a></h3>
-<p>bfd.XmitAuthSeq must be initialized to a random 32-bit value (§6.8.1)</p>
+<p>This variable MUST be initialized to a random 32-bit value. (§6.8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5880-6.8.1-11, so no unit is bound to it.</p>
 <h3><a href="#rfc5880-6.8.1-12"><code>RFC5880-6.8.1-12</code></a></h3>
-<p>bfd.AuthSeqKnown must be initialized to zero (§6.8.1)</p>
+<p>This variable MUST be initialized to zero. (§6.8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1728,11 +1728,11 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.1-13"><code>RFC5880-6.8.1-13</code></a></h3>
-<p>bfd.AuthSeqKnown must be set to zero after no packets received for twice the Detection Time (§6.8.1)</p>
+<p>This variable MUST be set to zero after no packets have been received on this session for at least twice the Detection Time. (§6.8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5880-6.8.1-13, so no unit is bound to it.</p>
 <h3><a href="#rfc5880-6.8.1-14"><code>RFC5880-6.8.1-14</code></a></h3>
-<p>Session state must be preserved for at least one Detection Time after last valid packet (§6.8.1)</p>
+<p>Once session state is created, and at least one BFD Control packet is received from the remote end, it MUST be preserved for at least one Detection Time (see section 6.8.4) subsequent to the receipt of the last BFD Control packet, regardless of the session state. (§6.8.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1752,7 +1752,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.1-1"><code>RFC5880-6.1-1</code></a></h3>
-<p>Active role system must send BFD Control packets regardless of whether packets have been received (§6.1)</p>
+<p>A system taking the Active role MUST send BFD Control packets for a particular session, regardless of whether it has received any BFD packets for that session. (§6.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1772,7 +1772,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.1-2"><code>RFC5880-6.1-2</code></a></h3>
-<p>Passive role system must not begin sending BFD packets until it has received one (§6.1)</p>
+<p>A system taking the Passive role MUST NOT begin sending BFD packets for a particular session until it has received a BFD packet for that session, and thus has learned the remote system&#39;s discriminator value. (§6.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1792,7 +1792,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.1-3"><code>RFC5880-6.1-3</code></a></h3>
-<p>At least one system must take the Active role (§6.1)</p>
+<p>At least one system MUST take the Active role (possibly both). (§6.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1812,7 +1812,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.3-1"><code>RFC5880-6.8.3-1</code></a></h3>
-<p>When session state is not Up, bfd.DesiredMinTxInterval must be at least 1,000,000 microseconds (§6.8.3)</p>
+<p>When bfd.SessionState is not Up, the system MUST set bfd.DesiredMinTxInterval to a value of not less than one second (1,000,000 microseconds). (§6.8.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1832,7 +1832,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.3-2"><code>RFC5880-6.8.3-2</code></a></h3>
-<p>If bfd.DesiredMinTxInterval or bfd.RequiredMinRxInterval changes, a Poll Sequence must be initiated (§6.8.3)</p>
+<p>If either bfd.DesiredMinTxInterval is changed or bfd.RequiredMinRxInterval is changed, a Poll Sequence MUST be initiated (see section 6.5). (§6.8.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1852,11 +1852,11 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.3-3"><code>RFC5880-6.8.3-3</code></a></h3>
-<p>If bfd.DesiredMinTxInterval is increased while Up, the actual TX interval must not change until the Poll Sequence terminates (§6.8.3)</p>
+<p>If bfd.DesiredMinTxInterval is increased and bfd.SessionState is Up, the actual transmission interval used MUST NOT change until the Poll Sequence described above has terminated. (§6.8.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5880-6.8.3-3, so no unit is bound to it.</p>
 <h3><a href="#rfc5880-6.8.3-4"><code>RFC5880-6.8.3-4</code></a></h3>
-<p>If bfd.RequiredMinRxInterval is reduced while Up, the previous value must be used for detection time until the Poll terminates (§6.8.3)</p>
+<p>If bfd.RequiredMinRxInterval is reduced and bfd.SessionState is Up, the previous value of bfd.RequiredMinRxInterval MUST be used when calculating the Detection Time for the remote system until the Poll Sequence described above has terminated. (§6.8.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5880-6.8.3-4, so no unit is bound to it.</p>
 <h3><a href="#rfc5880-6.8.3-5"><code>RFC5880-6.8.3-5</code></a></h3>
@@ -1895,7 +1895,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.5-1"><code>RFC5880-6.5-1</code></a></h3>
-<p>A BFD Control packet must not have both Poll (P) and Final (F) bits set (§6.5)</p>
+<p>A BFD Control packet MUST NOT have both the Poll (P) and Final (F) bits set. (§6.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1915,7 +1915,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.5-2"><code>RFC5880-6.5-2</code></a></h3>
-<p>If periodic Control packets are being sent, Poll Sequence must be performed by setting P bit on scheduled transmissions; additional packets must not be sent (§6.5)</p>
+<p>If periodic BFD Control packets are already being sent (the remote system is not in Demand mode), the Poll Sequence MUST be performed by setting the Poll (P) bit on those scheduled periodic transmissions; additional packets MUST NOT be sent. (§6.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1955,15 +1955,15 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.6-2"><code>RFC5880-6.6-2</code></a></h3>
-<p>When the D bit value is to be changed, a Poll Sequence must be initiated (§6.6)</p>
+<p>When the transmitted value of the Demand (D) bit is to be changed, the transmitting system MUST initiate a Poll Sequence in conjunction with changing the bit in order to ensure that both systems are aware of the change. (§6.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5880-6.6-2, so no unit is bound to it.</p>
 <h3><a href="#rfc5880-6.6-3"><code>RFC5880-6.6-3</code></a></h3>
-<p>If Demand mode is active on either system, a Poll Sequence must be initiated whenever next packet contents would differ (except P/F bits) (§6.6)</p>
+<p>If Demand mode is active on either or both systems, a Poll Sequence MUST be initiated whenever the contents of the next BFD Control packet to be sent would be different than the contents of the previous packet, with the exception of the Poll (P) and Final (F) bits. (§6.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5880-6.6-3, so no unit is bound to it.</p>
 <h3><a href="#rfc5880-6.7-1"><code>RFC5880-6.7-1</code></a></h3>
-<p>Implementations supporting authentication must support both types of SHA1 authentication (§6.7)</p>
+<p>Implementations supporting authentication MUST support both types of SHA1 authentication. (§6.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1983,7 +1983,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-4.2-1"><code>RFC5880-4.2-1</code></a></h3>
-<p>Simple Password must be 1 to 16 bytes in length (§4.2, §6.7.2)</p>
+<p>The password is a binary string, and MUST be from 1 to 16 bytes in length. (§4.2, §6.7.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2108,7 +2108,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.7.3-4"><code>RFC5880-6.7.3-4</code></a></h3>
-<p>Meticulous Keyed MD5: bfd.XmitAuthSeq must be incremented for each packet (§6.7.3)</p>
+<p>For Meticulous Keyed MD5, bfd.XmitAuthSeq MUST be incremented in a circular fashion (when treated as an unsigned 32-bit value). (§6.7.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2183,7 +2183,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.7.4-4"><code>RFC5880-6.7.4-4</code></a></h3>
-<p>Meticulous Keyed SHA1: bfd.XmitAuthSeq must be incremented for each packet (§6.7.4)</p>
+<p>For Meticulous Keyed SHA1, bfd.XmitAuthSeq MUST be incremented in a circular fashion (when treated as an unsigned 32-bit value). (§6.7.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2263,7 +2263,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.6-3"><code>RFC5880-6.8.6-3</code></a></h3>
-<p>Reception: discard if Length &gt; encapsulating payload (§6.8.6)</p>
+<p>If the Length field is greater than the payload of the encapsulating protocol, the packet MUST be discarded. (§6.8.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2303,7 +2303,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.6-5"><code>RFC5880-6.8.6-5</code></a></h3>
-<p>Reception: discard if M bit is nonzero (§6.8.6)</p>
+<p>If the Multipoint (M) bit is nonzero, the packet MUST be discarded. (§6.8.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2343,7 +2343,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.6-7"><code>RFC5880-6.8.6-7</code></a></h3>
-<p>Reception: if Your Discriminator nonzero, use it to select session; discard if no session found (§6.8.6)</p>
+<p>If the Your Discriminator field is nonzero, it MUST be used to select the session with which this BFD packet is associated. (§6.8.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2363,7 +2363,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.6-8"><code>RFC5880-6.8.6-8</code></a></h3>
-<p>Reception: if Your Discriminator zero and State is not Down or AdminDown, discard (§6.8.6)</p>
+<p>If the Your Discriminator field is zero and the State field is not Down or AdminDown, the packet MUST be discarded. (§6.8.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2483,11 +2483,11 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.6-14"><code>RFC5880-6.8.6-14</code></a></h3>
-<p>Reception: if remote Demand mode active (D=1, both Up), cease periodic Control packet transmission (§6.8.6)</p>
+<p>If bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up, Demand mode is active on the remote system and the local system MUST cease the periodic transmission of BFD Control packets (see section 6.8.7). (§6.8.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5880-6.8.6-14, so no unit is bound to it.</p>
 <h3><a href="#rfc5880-6.8.6-15"><code>RFC5880-6.8.6-15</code></a></h3>
-<p>Reception: if remote Demand mode not active, send periodic Control packets (§6.8.6)</p>
+<p>If bfd.RemoteDemandMode is 0, or bfd.SessionState is not Up, or bfd.RemoteSessionState is not Up, Demand mode is not active on the remote system and the local system MUST send periodic BFD Control packets (see section 6.8.7). (§6.8.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2527,7 +2527,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.6-18"><code>RFC5880-6.8.6-18</code></a></h3>
-<p>Reception: if Your Discriminator zero, select the session on a combination of other fields, which can include source addressing information, My Discriminator, and the ingress interface (§6.8.6)</p>
+<p>If the Your Discriminator field is zero, the session MUST be selected based on some combination of other fields, possibly including source addressing information, the My Discriminator field, and the interface over which the packet was received. (§6.8.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2552,7 +2552,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.7-1"><code>RFC5880-6.8.7-1</code></a></h3>
-<p>Transmission: must not transmit at interval less than max(bfd.DesiredMinTxInterval, bfd.RemoteMinRxInterval) less jitter (§6.8.7)</p>
+<p>With the exceptions listed in the remainder of this section, a system MUST NOT transmit BFD Control packets at an interval less than the larger of bfd.DesiredMinTxInterval and bfd.RemoteMinRxInterval, less applied jitter (see below). (§6.8.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2612,7 +2612,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.7-4"><code>RFC5880-6.8.7-4</code></a></h3>
-<p>Transmission: TX interval must be recalculated whenever bfd.DesiredMinTxInterval or bfd.RemoteMinRxInterval changes (§6.8.7)</p>
+<p>The transmit interval MUST be recalculated whenever bfd.DesiredMinTxInterval changes, or whenever bfd.RemoteMinRxInterval changes, and is equal to the greater of those two values. (§6.8.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2632,7 +2632,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.7-5"><code>RFC5880-6.8.7-5</code></a></h3>
-<p>Transmission: must not transmit if bfd.RemoteDiscr is zero and system is Passive (§6.8.7)</p>
+<p>A system MUST NOT transmit BFD Control packets if bfd.RemoteDiscr is zero and the system is taking the Passive role. (§6.8.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2652,15 +2652,15 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.7-6"><code>RFC5880-6.8.7-6</code></a></h3>
-<p>Transmission: must not periodically transmit if bfd.RemoteMinRxInterval is zero (§6.8.7)</p>
+<p>A system MUST NOT periodically transmit BFD Control packets if bfd.RemoteMinRxInterval is zero. (§6.8.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5880-6.8.7-6, so no unit is bound to it.</p>
 <h3><a href="#rfc5880-6.8.7-7"><code>RFC5880-6.8.7-7</code></a></h3>
-<p>Transmission: must not periodically transmit if remote Demand mode active and no Poll in flight (§6.8.7)</p>
+<p>A system MUST NOT periodically transmit BFD Control packets if Demand mode is active on the remote system (bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up) and a Poll Sequence is not being transmitted. (§6.8.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5880-6.8.7-7, so no unit is bound to it.</p>
 <h3><a href="#rfc5880-6.8.7-8"><code>RFC5880-6.8.7-8</code></a></h3>
-<p>If rate limiting Final packets, advertised Desired Min TX Interval must be &gt;= rate-limit interval (§6.8.7)</p>
+<p>If rate limiting is in effect, the advertised value of Desired Min TX Interval MUST be greater than or equal to the interval between transmitted packets imposed by the rate limiting function. (§6.8.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5880-6.8.7-8, so no unit is bound to it.</p>
 <h3><a href="#rfc5880-6.8.4-1"><code>RFC5880-6.8.4-1</code></a></h3>
@@ -2704,7 +2704,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.15-1"><code>RFC5880-6.8.15-1</code></a></h3>
-<p>Forwarding plane reset: set bfd.LocalDiag to 4, bfd.SessionState to Down (§6.8.15)</p>
+<p>When the forwarding plane in the local system is reset for some reason, such that the remote system can no longer rely on the local forwarding state, the local system MUST set bfd.LocalDiag to 4 (Forwarding Plane Reset), and set bfd.SessionState to Down. (§6.8.15)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5880-6.8.15-1, so no unit is bound to it.</p>
 <h3><a href="#rfc5880-6.8.16-1"><code>RFC5880-6.8.16-1</code></a></h3>
@@ -2728,7 +2728,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.8-1"><code>RFC5880-6.8.8-1</code></a></h3>
-<p>Echo packets must be demultiplexed to the appropriate session (§6.8.8)</p>
+<p>A received BFD Echo packet MUST be demultiplexed to the appropriate session for processing. (§6.8.8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2748,7 +2748,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.8-2"><code>RFC5880-6.8.8-2</code></a></h3>
-<p>A means of detecting missing Echo packets must be implemented (§6.8.8)</p>
+<p>A means of detecting missing Echo packets MUST be implemented, which most likely involves processing of the Echo packets that are received. (§6.8.8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2768,7 +2768,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.9-1"><code>RFC5880-6.8.9-1</code></a></h3>
-<p>Echo packets must not be transmitted when bfd.SessionState is not Up (§6.8.9)</p>
+<p>BFD Echo packets MUST NOT be transmitted when bfd.SessionState is not Up. (§6.8.9)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2788,7 +2788,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.8.9-2"><code>RFC5880-6.8.9-2</code></a></h3>
-<p>Echo packets must not be transmitted unless remote Required Min Echo RX Interval is nonzero (§6.8.9)</p>
+<p>BFD Echo packets MUST NOT be transmitted unless the last BFD Control packet received from the remote system contains a nonzero value in Required Min Echo RX Interval. (§6.8.9)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2970,7 +2970,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.7.2-4"><code>RFC5880-6.7.2-4</code></a></h3>
-<p>Reception: if Auth Type does not match bfd.AuthType, packet MUST be discarded (§6.7.2, §6.7.3, §6.7.4)</p>
+<p>If the received BFD Control packet does not contain an Authentication Section, or the Auth Type is not 1 (Simple Password), then the received packet MUST be discarded. (§6.7.2, §6.7.3, §6.7.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -2990,7 +2990,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.7.2-5"><code>RFC5880-6.7.2-5</code></a></h3>
-<p>Reception: if Auth Key ID does not match any configured authentication key, packet MUST be discarded (§6.7.2, §6.7.3, §6.7.4)</p>
+<p>If the Auth Key ID field does not match the ID of a configured password, the received packet MUST be discarded. (§6.7.2, §6.7.3, §6.7.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -3020,7 +3020,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.7.2-6"><code>RFC5880-6.7.2-6</code></a></h3>
-<p>Reception: if Auth Len does not match expected length, packet MUST be discarded (§6.7.2, §6.7.3, §6.7.4)</p>
+<p>If the Auth Len field is not equal to the length of the password selected by the key ID, plus three, the packet MUST be discarded. (§6.7.2, §6.7.3, §6.7.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -3040,7 +3040,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.7.2-7"><code>RFC5880-6.7.2-7</code></a></h3>
-<p>Reception: if password does not match configured password for Simple Password, packet MUST be discarded (§6.7.2)</p>
+<p>If the Password field does not match the password selected by the key ID, the packet MUST be discarded. (§6.7.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -3084,7 +3084,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC5880-6.7.3-10, so no unit is bound to it.</p>
 <h3><a href="#rfc5880-6.7.3-11"><code>RFC5880-6.7.3-11</code></a></h3>
-<p>Reception: if digest/hash does not match computed value, packet MUST be discarded (§6.7.3, §6.7.4)</p>
+<p>Otherwise (the digest does not match the Auth Key/Digest field), the received packet MUST be discarded. (§6.7.3, §6.7.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -3104,7 +3104,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 </table>
 </div>
 <h3><a href="#rfc5880-6.7.3-12"><code>RFC5880-6.7.3-12</code></a></h3>
-<p>Reception: if bfd.AuthSeqKnown is 0, it MUST be set to 1 and bfd.RcvAuthSeq MUST be set to received Sequence Number (§6.7.3, §6.7.4)</p>
+<p>Otherwise (bfd.AuthSeqKnown is 0), bfd.AuthSeqKnown MUST be set to 1, and bfd.RcvAuthSeq MUST be set to the value of the received Sequence Number field. (§6.7.3, §6.7.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -3674,7 +3674,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 66.7% | 6 of 9 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 77.8% | 7 of 9 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 14.3% | 2 of 14 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -33,7 +33,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 33.3% | 3 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 22.2% | 2 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -63,12 +63,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 9 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 2 |
-| Gated with no test | 1 |
+| Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 12 |
-| Tagged units | 12 |
+| Test tags | 14 |
+| Tagged units | 14 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 2 |
 | Summary | `rfc/short/rfc5883.md` |
 | Requirement shard | `rfc/requirements/rfc5883.md` |
 | RFC text | `rfc/full/rfc5883.txt` |
@@ -95,29 +95,27 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 6 | one part of the gated population |
+| Positive and negative tests | 7 | one part of the gated population |
 | Annotated instead of tested | 2 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 1 | one part of the gated population |
+| No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **9** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (6):** [`RFC5883-3-1`](#rfc5883-3-1), [`RFC5883-4.3-1`](#rfc5883-4.3-1), [`RFC5883-4.3-2`](#rfc5883-4.3-2), [`RFC5883-5-1`](#rfc5883-5-1), [`RFC5883-5-2`](#rfc5883-5-2), [`RFC5883-x-1`](#rfc5883-x-1)
+**Positive and negative tests (7):** [`RFC5883-3-1`](#rfc5883-3-1), [`RFC5883-4.1-1`](#rfc5883-4.1-1), [`RFC5883-4.3-1`](#rfc5883-4.3-1), [`RFC5883-4.3-2`](#rfc5883-4.3-2), [`RFC5883-5-1`](#rfc5883-5-1), [`RFC5883-5-2`](#rfc5883-5-2), [`RFC5883-x-1`](#rfc5883-x-1)
 
 **Annotated instead of tested (2):** [`RFC5883-7-1`](#rfc5883-7-1), [`RFC5883-7-2`](#rfc5883-7-2)
-
-**No test and no annotation (1):** [`RFC5883-4.1-1`](#rfc5883-4.1-1)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5883-3-1` | Echo function must not be used over multihop paths (§3) | MUST NOT | 3 | **positive:** `unit/verify` [`TestRFC5883SingleHopEchoAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L114). **negative:** `unit/verify` [`TestRFC5883MultiHopEchoRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L100) |
-| `RFC5883-4.1-1` | Multiple sessions between the same pair of systems must have at least one endpoint address distinct from one another (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5883-3-1` | Finally, the Echo function MUST NOT be used over multiple hops. (§3) | MUST NOT | 3 | **positive:** `unit/verify` [`TestRFC5883SingleHopEchoAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L114). **negative:** `unit/verify` [`TestRFC5883MultiHopEchoRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L100) |
+| `RFC5883-4.1-1` | Multiple sessions between the same pair of systems must have at least one endpoint address distinct from one another (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestRFC5883MultihopSessionsNeedDistinctEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/multihop_pair_rfc5883_test.go#L35). **negative:** `unit/verify` [`TestRFC5883MultihopSessionsNeedDistinctEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/multihop_pair_rfc5883_test.go#L36) |
 | `RFC5883-4.3-1` | Unidirectional Sender must operate in the Active role (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC5883DefaultSessionActiveArmsTx`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5883_test.go#L39). **negative:** `unit/verify` [`TestRFC5883PassiveSessionDoesNotArmTx`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5883_test.go#L53) |
 | `RFC5883-4.3-2` | Unidirectional Receiver must operate in the Passive role (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC5883PassiveSessionSilentUntilRx`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5883_test.go#L68). **negative:** `unit/verify` [`TestRFC5883PassiveSessionTransmitsAfterRx`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5883_test.go#L79) |
-| `RFC5883-5-1` | UDP destination port must be 4784 for multihop BFD Control packets (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC5883MultiHopControlPort`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L20). **negative:** `unit/verify` [`TestRFC5883MultiHopControlPortNotSingleHop`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L35) |
+| `RFC5883-5-1` | The encapsulation of BFD Control packets for multihop application in IPv4 and IPv6 is identical to that defined in [BFD-1HOP], except that the UDP destination port MUST have a value of 4784. (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC5883MultiHopControlPort`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L20). **negative:** `unit/verify` [`TestRFC5883MultiHopControlPortNotSingleHop`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L35) |
 | `RFC5883-5-2` | Implementations must bind RX sockets to the correct port per session type (single-hop 3784 vs multihop 4784) (Pitfalls, §5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC5883SingleHopControlPort`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L50). **negative:** `unit/verify` [`TestRFC5883SeparatePortsPerMode`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L65) |
 | `RFC5883-x-1` | Multihop implementations must reject attempts to enable Echo on a multihop session (Pitfalls) | MUST | x | **positive:** `unit/verify` [`TestRFC5883SingleHopEchoAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L118). **negative:** `unit/verify` [`TestRFC5883MultiHopEchoRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L104) |
 | `RFC5883-7-1` | Congestion control must be implemented for multihop deployments (§7 of RFC 5880, referenced in Interop) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no BFD congestion detection or congestion-triggered transmit-rate reduction (internal/component/bfd/ has only slow-start and jitter); the RFC 5883 / RFC 5880 Section 7 congestion-control obligation is unmet |
@@ -128,7 +126,6 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC5883-4.1-1`](#rfc5883-4.1-1) Multiple sessions between the same pair of systems must have at least one endpoint address distinct from one another (§4.1) | no test | no test carries this requirement id |
 | [`RFC5883-7-1`](#rfc5883-7-1) Congestion control must be implemented for multihop deployments (§7 of RFC 5880, referenced in Interop) | {gap}, no test | ze implements no BFD congestion detection or congestion-triggered transmit-rate reduction (internal/component/bfd/ has only slow-start and jitter); the RFC 5883 / RFC 5880 Section 7 congestion-control obligation is unmet |
 | [`RFC5883-7-2`](#rfc5883-7-2) When congestion is detected, TX rate must be reduced (§7 of RFC 5880, referenced in Interop) | {gap}, no test | ze implements no BFD congestion detection or congestion-triggered transmit-rate reduction (internal/component/bfd/ has only slow-start and jitter); the RFC 5883 / RFC 5880 Section 7 congestion-control obligation is unmet |
 
@@ -138,7 +135,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC5883-3-1`](#rfc5883-3-1)
 
-Echo function must not be used over multihop paths (§3)
+Finally, the Echo function MUST NOT be used over multiple hops. (§3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -153,7 +150,10 @@ Multiple sessions between the same pair of systems must have at least one endpoi
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5883-4.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC5883MultihopSessionsNeedDistinctEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/multihop_pair_rfc5883_test.go#L36) | unit/verify | revert, verified |
+| positive | [`TestRFC5883MultihopSessionsNeedDistinctEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/multihop_pair_rfc5883_test.go#L35) | unit/verify | revert, verified |
 
 ### [`RFC5883-4.3-1`](#rfc5883-4.3-1)
 
@@ -179,7 +179,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC5883-5-1`](#rfc5883-5-1)
 
-UDP destination port must be 4784 for multihop BFD Control packets (§5)
+The encapsulation of BFD Control packets for multihop application in IPv4 and IPv6 is identical to that defined in [BFD-1HOP], except that the UDP destination port MUST have a value of 4784. (§5)
 
 Audit verdict: not audited: no reader has judged these tests
 

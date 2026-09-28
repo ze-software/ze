@@ -94,13 +94,13 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7440-3-1` | All fields in RRQ/WRQ except "opc" MUST be ASCII strings followed by a single-byte NULL character (§3) | MUST | 3 | **positive:** `unit/verify` [`TestTFTPParseRRQ`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L98). **negative:** `unit/verify` [`TestTFTPParseRRQInvalid`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L126) |
-| `RFC7440-3-2` | Valid windowsize values MUST be between 1 and 65535 blocks, inclusive (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze does not implement the RFC 7440 windowsize option; parseRRQ records the option name as a bool and discards the value (internal/plugins/tftpserver/handler.go:129-130) without range-validating it, and the option is never negotiated |
+| `RFC7440-3-1` | Note that all fields except "opc" MUST be ASCII strings followed by a single-byte NULL character. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestTFTPParseRRQ`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L98). **negative:** `unit/verify` [`TestTFTPParseRRQInvalid`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L126) |
+| `RFC7440-3-2` | The valid values range MUST be between 1 and 65535 blocks, inclusive. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze does not implement the RFC 7440 windowsize option; parseRRQ records the option name as a bool and discards the value (internal/plugins/tftpserver/handler.go:129-130) without range-validating it, and the option is never negotiated |
 | `RFC7440-3-3` | Server's acknowledged windowsize MUST be less than or equal to the client's requested value (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never acknowledges the windowsize option -- sendOACKAndWait (internal/plugins/tftpserver/handler.go:312-343) builds the OACK from blksize/tsize only, so there is no acknowledged windowsize to constrain |
-| `RFC7440-3-4` | Client MUST use the windowsize specified in the OACK or send ERROR code 8 to terminate (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this is a TFTP client obligation (use the OACK windowsize or send ERROR 8); ze is a TFTP server and does not implement the windowsize option |
-| `RFC7440-4-1` | The data sender MUST cyclically send the agreed windowsize consecutive data blocks before stopping and waiting for ACK (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's TFTP server transfers in RFC 1350 lockstep -- one DATA block per ACK (serveFile/sendAndWaitACK internal/plugins/tftpserver/handler.go:346-413) -- and implements no windowed send; it logs a fallback to lockstep when a client requests windowsize (handler.go:276-277) |
-| `RFC7440-4-2` | The data receiver MUST send ACK of the last data block of the window to confirm successful reception (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze acknowledges each single DATA block, not a window -- serveFile/sendAndWaitACK wait for the ACK of the one block just sent (internal/plugins/tftpserver/handler.go:346-413); with no negotiated windowsize there is no last-block-of-window ACK to send |
-| `RFC7440-4-3` | Traffic with windowsize=1 MUST be equivalent to traffic specified by RFC 1350 (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's default RFC 1350 lockstep is windowsize-1-equivalent by construction, but the windowsize option itself is unimplemented -- parseRRQ discards the requested value (internal/plugins/tftpserver/handler.go:129-130) and the OACK never carries windowsize (handler.go:312-343), so there is no negotiated windowsize=1 to equate |
+| `RFC7440-3-4` | The client MUST then either use the size specified in the OACK or send an ERROR packet, with error code 8, to terminate the transfer. (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this is a TFTP client obligation (use the OACK windowsize or send ERROR 8); ze is a TFTP server and does not implement the windowsize option |
+| `RFC7440-4-1` | The DSND MUST cyclically send to the DRCV the agreed windowsize consecutive data blocks before normally stopping and waiting for the ACK of the transferred window. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's TFTP server transfers in RFC 1350 lockstep -- one DATA block per ACK (serveFile/sendAndWaitACK internal/plugins/tftpserver/handler.go:346-413) -- and implements no windowed send; it logs a fallback to lockstep when a client requests windowsize (handler.go:276-277) |
+| `RFC7440-4-2` | The DRCV MUST send to the DSND the ACK of the last data block of the window in order to confirm a successful data block window reception. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze acknowledges each single DATA block, not a window -- serveFile/sendAndWaitACK wait for the ACK of the one block just sent (internal/plugins/tftpserver/handler.go:346-413); with no negotiated windowsize there is no last-block-of-window ACK to send |
+| `RFC7440-4-3` | Traffic with windowsize = 1 MUST be equivalent to traffic specified by [RFC1350]. (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's default RFC 1350 lockstep is windowsize-1-equivalent by construction, but the windowsize option itself is unimplemented -- parseRRQ discards the requested value (internal/plugins/tftpserver/handler.go:129-130) and the OACK never carries windowsize (handler.go:312-343), so there is no negotiated windowsize=1 to equate |
 | `RFC7440-4-4` | On timeout, the beginning of the next window MUST be set based on the last received ACK (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze retransmits the single unacknowledged block on timeout (sendAndWaitACK internal/plugins/tftpserver/handler.go:386-413) and computes no window start; with no windowed send there is no next-window beginning to derive from the last ACK |
 | `RFC7440-4-5` | On sequence error, the sender's new window beginning MUST be set based on the ACK received out of sequence (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze has no windowed transfer, so no out-of-sequence window recomputation exists -- sendAndWaitACK only accepts the ACK matching the block just sent and otherwise retransmits that one block (internal/plugins/tftpserver/handler.go:404-411) |
 | `RFC7440-5-1` | Operators SHOULD test various windowsize values and SHOULD be conservative when selecting (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
@@ -114,12 +114,12 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC7440-3-2`](#rfc7440-3-2) Valid windowsize values MUST be between 1 and 65535 blocks, inclusive (§3) | no test | no test carries this requirement id; annotated {not-applicable}: ze does not implement the RFC 7440 windowsize option; parseRRQ records the option name as a bool and discards the value (internal/plugins/tftpserver/handler.go:129-130) without range-validating it, and the option is never negotiated |
+| [`RFC7440-3-2`](#rfc7440-3-2) The valid values range MUST be between 1 and 65535 blocks, inclusive. (§3) | no test | no test carries this requirement id; annotated {not-applicable}: ze does not implement the RFC 7440 windowsize option; parseRRQ records the option name as a bool and discards the value (internal/plugins/tftpserver/handler.go:129-130) without range-validating it, and the option is never negotiated |
 | [`RFC7440-3-3`](#rfc7440-3-3) Server's acknowledged windowsize MUST be less than or equal to the client's requested value (§3) | no test | no test carries this requirement id; annotated {not-applicable}: ze never acknowledges the windowsize option -- sendOACKAndWait (internal/plugins/tftpserver/handler.go:312-343) builds the OACK from blksize/tsize only, so there is no acknowledged windowsize to constrain |
-| [`RFC7440-3-4`](#rfc7440-3-4) Client MUST use the windowsize specified in the OACK or send ERROR code 8 to terminate (§3) | no test | no test carries this requirement id; annotated {not-applicable}: this is a TFTP client obligation (use the OACK windowsize or send ERROR 8); ze is a TFTP server and does not implement the windowsize option |
-| [`RFC7440-4-1`](#rfc7440-4-1) The data sender MUST cyclically send the agreed windowsize consecutive data blocks before stopping and waiting for ACK (§4) | no test | no test carries this requirement id; annotated {not-applicable}: ze's TFTP server transfers in RFC 1350 lockstep -- one DATA block per ACK (serveFile/sendAndWaitACK internal/plugins/tftpserver/handler.go:346-413) -- and implements no windowed send; it logs a fallback to lockstep when a client requests windowsize (handler.go:276-277) |
-| [`RFC7440-4-2`](#rfc7440-4-2) The data receiver MUST send ACK of the last data block of the window to confirm successful reception (§4) | no test | no test carries this requirement id; annotated {not-applicable}: ze acknowledges each single DATA block, not a window -- serveFile/sendAndWaitACK wait for the ACK of the one block just sent (internal/plugins/tftpserver/handler.go:346-413); with no negotiated windowsize there is no last-block-of-window ACK to send |
-| [`RFC7440-4-3`](#rfc7440-4-3) Traffic with windowsize=1 MUST be equivalent to traffic specified by RFC 1350 (§4) | no test | no test carries this requirement id; annotated {not-applicable}: ze's default RFC 1350 lockstep is windowsize-1-equivalent by construction, but the windowsize option itself is unimplemented -- parseRRQ discards the requested value (internal/plugins/tftpserver/handler.go:129-130) and the OACK never carries windowsize (handler.go:312-343), so there is no negotiated windowsize=1 to equate |
+| [`RFC7440-3-4`](#rfc7440-3-4) The client MUST then either use the size specified in the OACK or send an ERROR packet, with error code 8, to terminate the transfer. (§3) | no test | no test carries this requirement id; annotated {not-applicable}: this is a TFTP client obligation (use the OACK windowsize or send ERROR 8); ze is a TFTP server and does not implement the windowsize option |
+| [`RFC7440-4-1`](#rfc7440-4-1) The DSND MUST cyclically send to the DRCV the agreed windowsize consecutive data blocks before normally stopping and waiting for the ACK of the transferred window. (§4) | no test | no test carries this requirement id; annotated {not-applicable}: ze's TFTP server transfers in RFC 1350 lockstep -- one DATA block per ACK (serveFile/sendAndWaitACK internal/plugins/tftpserver/handler.go:346-413) -- and implements no windowed send; it logs a fallback to lockstep when a client requests windowsize (handler.go:276-277) |
+| [`RFC7440-4-2`](#rfc7440-4-2) The DRCV MUST send to the DSND the ACK of the last data block of the window in order to confirm a successful data block window reception. (§4) | no test | no test carries this requirement id; annotated {not-applicable}: ze acknowledges each single DATA block, not a window -- serveFile/sendAndWaitACK wait for the ACK of the one block just sent (internal/plugins/tftpserver/handler.go:346-413); with no negotiated windowsize there is no last-block-of-window ACK to send |
+| [`RFC7440-4-3`](#rfc7440-4-3) Traffic with windowsize = 1 MUST be equivalent to traffic specified by [RFC1350]. (§4) | no test | no test carries this requirement id; annotated {not-applicable}: ze's default RFC 1350 lockstep is windowsize-1-equivalent by construction, but the windowsize option itself is unimplemented -- parseRRQ discards the requested value (internal/plugins/tftpserver/handler.go:129-130) and the OACK never carries windowsize (handler.go:312-343), so there is no negotiated windowsize=1 to equate |
 | [`RFC7440-4-4`](#rfc7440-4-4) On timeout, the beginning of the next window MUST be set based on the last received ACK (§4) | no test | no test carries this requirement id; annotated {not-applicable}: ze retransmits the single unacknowledged block on timeout (sendAndWaitACK internal/plugins/tftpserver/handler.go:386-413) and computes no window start; with no windowed send there is no next-window beginning to derive from the last ACK |
 | [`RFC7440-4-5`](#rfc7440-4-5) On sequence error, the sender's new window beginning MUST be set based on the ACK received out of sequence (§4) | no test | no test carries this requirement id; annotated {not-applicable}: ze has no windowed transfer, so no out-of-sequence window recomputation exists -- sendAndWaitACK only accepts the ACK matching the block just sent and otherwise retransmits that one block (internal/plugins/tftpserver/handler.go:404-411) |
 
@@ -129,7 +129,7 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 ### [`RFC7440-3-1`](#rfc7440-3-1)
 
-All fields in RRQ/WRQ except "opc" MUST be ASCII strings followed by a single-byte NULL character (§3)
+Note that all fields except "opc" MUST be ASCII strings followed by a single-byte NULL character. (§3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -140,7 +140,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7440-3-2`](#rfc7440-3-2)
 
-Valid windowsize values MUST be between 1 and 65535 blocks, inclusive (§3)
+The valid values range MUST be between 1 and 65535 blocks, inclusive. (§3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -156,7 +156,7 @@ No test carries RFC7440-3-3, so no unit is bound to it.
 
 ### [`RFC7440-3-4`](#rfc7440-3-4)
 
-Client MUST use the windowsize specified in the OACK or send ERROR code 8 to terminate (§3)
+The client MUST then either use the size specified in the OACK or send an ERROR packet, with error code 8, to terminate the transfer. (§3)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -164,7 +164,7 @@ No test carries RFC7440-3-4, so no unit is bound to it.
 
 ### [`RFC7440-4-1`](#rfc7440-4-1)
 
-The data sender MUST cyclically send the agreed windowsize consecutive data blocks before stopping and waiting for ACK (§4)
+The DSND MUST cyclically send to the DRCV the agreed windowsize consecutive data blocks before normally stopping and waiting for the ACK of the transferred window. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -172,7 +172,7 @@ No test carries RFC7440-4-1, so no unit is bound to it.
 
 ### [`RFC7440-4-2`](#rfc7440-4-2)
 
-The data receiver MUST send ACK of the last data block of the window to confirm successful reception (§4)
+The DRCV MUST send to the DSND the ACK of the last data block of the window in order to confirm a successful data block window reception. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -180,7 +180,7 @@ No test carries RFC7440-4-2, so no unit is bound to it.
 
 ### [`RFC7440-4-3`](#rfc7440-4-3)
 
-Traffic with windowsize=1 MUST be equivalent to traffic specified by RFC 1350 (§4)
+Traffic with windowsize = 1 MUST be equivalent to traffic specified by [RFC1350]. (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 

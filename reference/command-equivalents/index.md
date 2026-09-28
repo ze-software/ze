@@ -1,6 +1,6 @@
 # Command Equivalents
 
-468 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+471 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -184,6 +184,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request as112 healthcheck` | Daemon | - | - | - | - | [details](request-as112-healthcheck/) |
 | `request bgp adj-rib-in accept-routes` | Daemon | - | - | - | - | [details](request-bgp-adj-rib-in-accept-routes/) |
 | `request bgp adj-rib-in batch-validate` | Daemon | - | - | - | - | [details](request-bgp-adj-rib-in-batch-validate/) |
+| `request bgp adj-rib-in disable-validation` | Daemon | - | - | - | - | [details](request-bgp-adj-rib-in-disable-validation/) |
 | `request bgp adj-rib-in enable-validation` | Daemon | - | - | - | - | [details](request-bgp-adj-rib-in-enable-validation/) |
 | `request bgp adj-rib-in reject-routes` | Daemon | - | - | - | - | [details](request-bgp-adj-rib-in-reject-routes/) |
 | `request bgp adj-rib-in replay` | Daemon | - | - | - | - | [details](request-bgp-adj-rib-in-replay/) |
@@ -205,6 +206,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request cache retain` | Daemon | - | - | - | - | [details](request-cache-retain/) |
 | `request commit` | Daemon | - | - | - | `commit` | [details](request-commit/) |
 | `request config archive` | Daemon | - | - | - | - | [details](request-config-archive/) |
+| `request data backup` | Daemon | - | - | - | - | [details](request-data-backup/) |
+| `request data restore` | Daemon | - | - | - | - | [details](request-data-restore/) |
 | `request halt` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-halt/) |
 | `request interface down` | Daemon | - | - | - | - | [details](request-interface-down/) |
 | `request interface mac` | Daemon | - | - | - | - | [details](request-interface-mac/) |

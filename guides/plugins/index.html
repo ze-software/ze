@@ -557,7 +557,7 @@ in its <code>plugin { external &lt;name&gt; }</code> or <code>plugin { internal 
 registry name of a plugin loaded with <code>--plugin</code>.</p>
 <!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, Inspect, PeerScopedProcs -->
 <!-- source: internal/component/cmd/show/show.go -- handleShowEventDelivery -->
-<!-- source: internal/component/bgp/reactor/delivery_graph.go -- DeliveryPeersFromSettings -->
+<!-- source: internal/component/bgp/reactor/delivery_graph.go -- deliveryPeersFromSettings -->
 <h2 id="invocation-modes">Invocation Modes</h2>
 <table>
 <thead>
@@ -700,7 +700,7 @@ BEFORE ze runs (<code>docs/architecture/doctor-and-health-checks.md</code>).</p>
 <tr>
 <td><code>bgp-rpki</code></td>
 <td>RPKI origin validation (RFC 6811)</td>
-<td><code>receive [ update-received ]</code></td>
+<td><code>receive [ update-received state ]</code></td>
 </tr>
 <tr>
 <td><code>bgp-rpki-decorator</code></td>
@@ -944,8 +944,10 @@ Subscribes to <code>bgp-rib/best-change/</code> Bus topic prefix, publishes <cod
 <p>The <code>fib-kernel</code> plugin programs OS routes from the system RIB into the kernel
 via netlink (Linux). Uses a custom rtm_protocol ID (RTPROT_ZE=250) to identify
 ze-installed routes. Crash recovery marks existing ze routes as stale at startup
-and sweeps them after reconvergence. A kernel route monitor detects external
-changes and re-asserts ze routes when overwritten.</p>
+and sweeps them after reconvergence. A kernel route monitor restores externally
+deleted Ze routes with their accepted forwarding metadata. Recovery requires
+matching ownership of the prefix, table and priority, so withdrawn routes stay
+withdrawn. Conflicting foreign replacements are retained and reported.</p>
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- fibKernel, startupSweep, sweepStale -->
 <!-- source: internal/plugins/fib/kernel/monitor_linux.go -- kernel route monitor -->
 <p>Bus topics in the FIB pipeline:</p>
@@ -1869,7 +1871,7 @@ command argument, which expands the chain in the client process and answers
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

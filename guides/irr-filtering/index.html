@@ -192,7 +192,7 @@ $ ze cli -c 'clear firewall irr asn 65001'
 <!-- source: internal/component/resolve/irr/client.go -- RPSL reply classification (parseReply) -->
 <!-- source: internal/component/firewall/plugins/irr/command.go -- firewall show and clear commands -->
 <h2 id="local-demonstration">Local demonstration</h2>
-<p>The recording starts with a stored BGP peer that has no IRR plugin, server, AS-SET, or import filter. It adds all five settings with <code>ze config set</code>, then starts Ze against <code>ze-test irr</code>, a deterministic local whois server. Its <code>AS-TEST</code> object contains <code>10.0.0.0/24</code> but not <code>192.168.0.0/24</code>. A local BGP peer announces both routes. Ze constructs the list, accepts the registered route, rejects the other route, and shows only the accepted route in Adj-RIB-In.</p>
+<p>The recording starts with a stored BGP peer that has no IRR plugin, server, AS-SET, or import filter. It adds all five settings with <code>ze config set</code>, then starts Ze against <code>le test irr</code>, a deterministic local whois server. Its <code>AS-TEST</code> object contains <code>10.0.0.0/24</code> but not <code>192.168.0.0/24</code>. A local BGP peer announces both routes. Ze constructs the list, accepts the registered route, rejects the other route, and shows only the accepted route in Adj-RIB-In.</p>
 <!-- source: internal/test/mock/irr/irr.go -- deterministic AS-TEST responses -->
 <!-- source: demos/terminal/irr-filter/ze.conf -- baseline BGP configuration without IRR filtering -->
 <figure class="terminal-demo" data-terminal-demo="irr-filter">
@@ -367,7 +367,7 @@ The operational commands use Ze&#39;s default text format. Its key/value layout 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

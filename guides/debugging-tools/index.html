@@ -109,9 +109,9 @@
 <td><code>ze config dump config.conf</code>, or <code>ze cli -c "show config dump config.conf | json"</code></td>
 </tr>
 <tr>
-<td><code>ze-peer --decode</code></td>
+<td><code>le test peer --decode</code></td>
 <td>Decode BGP messages</td>
-<td><code>ze-peer --decode --sink</code></td>
+<td><code>le test peer --decode --sink</code></td>
 </tr>
 <tr>
 <td><code>ze.log.*</code></td>
@@ -126,7 +126,7 @@
 <tr>
 <td><code>--server N</code> / <code>--client N</code></td>
 <td>Interactive test debugging</td>
-<td><code>ze-test bgp encode --server 1</code></td>
+<td><code>le test bgp encode --server 1</code></td>
 </tr>
 </tbody>
 </table>
@@ -171,7 +171,7 @@ peer 10.0.0.1:
 <p>Decodes raw BGP messages (hex) into human-readable format. Used automatically by functional tests and available via <code>--decode</code> flag.</p>
 <h3 id="usage_1">Usage</h3>
 <pre><code class="language-bash"># In ze-peer, show decoded messages
-ze-peer --decode --sink --port 1790
+le test peer --decode --sink --port 1790
 </code></pre>
 <h3 id="example-output_1">Example Output</h3>
 <pre><code>msg  recv   FFFFFFFF...:0030:02:00000014400101004002060201000000014003040A000001...
@@ -415,18 +415,18 @@ ze.log.bgp.reactor.peer=debug ze.log.bgp.reactor.session=debug ze bgp server con
 </code></pre>
 <h3 id="4-test-failures">4. Test Failures</h3>
 <pre><code class="language-bash"># Run single test
-ze-test bgp encode 1
+le test bgp encode 1
 
 # Output now includes decoded diff automatically
 # Look at "Differences:" section to see what's wrong
 </code></pre>
 <h3 id="5-interactive-functional-test-debugging">5. Interactive Functional Test Debugging</h3>
 <p>Run server and client separately to see live output:</p>
-<pre><code class="language-bash"># Terminal 1: Start test server (ze-peer)
-ze-test bgp encode --server 1
+<pre><code class="language-bash"># Terminal 1: Start test server (le test peer)
+le test bgp encode --server 1
 
 # Terminal 2: Start test client (zebgp)
-ze-test bgp encode --client 1
+le test bgp encode --client 1
 </code></pre>
 <p><strong>Behavior:</strong></p>
 <ul>
@@ -436,8 +436,8 @@ ze-test bgp encode --client 1
 <p>Press Ctrl+C in the client terminal once the server has finished validating: the runner sends SIGTERM to ze for a graceful shutdown.</p>
 <!-- source: internal/test/cli/cmd_bgp.go -- zeTestRunClientOnly, clientCmd.Cancel -->
 <p><strong>Use <code>--port</code> to avoid conflicts:</strong></p>
-<pre><code class="language-bash">ze-test bgp encode --server 1 --port 11790
-ze-test bgp encode --client 1 --port 11790
+<pre><code class="language-bash">le test bgp encode --server 1 --port 11790
+le test bgp encode --client 1 --port 11790
 </code></pre>
 <hr>
 <h2 id="adding-new-logging">Adding New Logging</h2>
@@ -509,7 +509,7 @@ myLogger.Warn("unexpected state", "state", state, "expected", expected)
 <!-- source: internal/test/peer/peer.go -- test peer -->
 <!-- source: internal/test/runner/decode.go -- BGP message decoder -->
 <!-- source: internal/component/config/cli/cmd_dump.go -- config-dump command -->
-<!-- source: internal/test/cli/cmd_peer.go -- ze-test peer subcommand -->
+<!-- source: internal/test/cli/cmd_peer.go -- le test peer subcommand -->
 
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
@@ -552,7 +552,7 @@ myLogger.Warn("unexpected state", "state", state, "expected", expected)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

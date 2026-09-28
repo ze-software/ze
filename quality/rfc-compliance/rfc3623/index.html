@@ -300,7 +300,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-a-1">RFC3623-A-1</code></td><td colspan="3"><span class="rfc-subject">Additional Grace-LSA TLVs must be described in an Internet Draft and subject to OSPF WG expert review (§A)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-a-1">RFC3623-A-1</code></td><td colspan="3"><span class="rfc-subject">Additional Grace-LSA TLVs must be described in an Internet Draft and will be subject to the expert review of the OSPF Working Group. (§A)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>A</td>
@@ -354,7 +354,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> prepareRestart raises gracefulStop so suppressInstall makes the ensuing engine stop skip RemoveAll and retain the pre-restart FIB; the meaningful assertion is retention, with no negative behavior the requirement forbids (internal/plugins/ospf/gr_restarter.go:49, gr.go:235)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-5-1">RFC3623-5-1</code></td><td colspan="3"><span class="rfc-subject">An implementation providing recovery from unplanned outages must allow the operator to turn the option off (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-5-1">RFC3623-5-1</code></td><td colspan="3"><span class="rfc-subject">In any event, implementors providing the option to recover gracefully from unplanned outages must allow a network operator to turn the option off. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -381,7 +381,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> grOriginateGraceLSAs walks every active (non-passive) interface and floods each Grace-LSA via OriginateOpaque&#39;s standard LSU flooding (internal/plugins/ospf/gr_restarter.go:296, :315)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-5-4">RFC3623-5-4</code></td><td colspan="3"><span class="rfc-subject">On unplanned restart, the restart reason in grace-LSAs must be set to 0 (unknown) or 3 (switch to redundant control processor) (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-5-4">RFC3623-5-4</code></td><td colspan="3"><span class="rfc-subject">o The restart reason in the grace-LSAs must be set to 0 (unknown) or 3 (switch to redundant control processor). (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -390,7 +390,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> grUnplannedReason returns the constant 3 (redundant control processor), an in-range unplanned reason, and there is no receive-side reason rejection to test negatively (internal/plugins/ospf/gr_restarter.go:88, gr.go:36)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-3-1">RFC3623-3-1</code></td><td colspan="3"><span class="rfc-subject">When helping over a virtual link, the helper must continue to set bit V in its router-LSA for the transit area (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-3-1">RFC3623-3-1</code></td><td colspan="3"><span class="rfc-subject">When helping over a virtual link, the helper must also continue to set bit V in its router-LSA for the virtual link&#39;s transit area (Section 12.4.1 of [1]). (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
@@ -408,7 +408,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the helper entry decision has an lsdb-changed branch, but the production caller hardcodes lsdbUnchanged=true, so no production path refuses entry on a changed retransmission-list LSA; the permissive entry is only mitigated by the Section 3.2 strict-checking exit (internal/plugins/ospf/gr_helper.go:40, :128)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-3.2-1">RFC3623-3.2-1</code></td><td colspan="3"><span class="rfc-subject">If Y aggregated adjacencies on entering helper mode, it must exit helper mode for all adjacencies with X when any one exit event occurs (§3.2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3623-3.2-1">RFC3623-3.2-1</code></td><td colspan="3"><span class="rfc-subject">If Router Y aggregated adjacencies with Router X when entering helper mode (as described in section 3.1), it must also exit helper mode for all adjacencies with Router X when any one of the exit events occurs for an adjacency with Router X. (§3.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
@@ -543,11 +543,11 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc3623-a-1"><code>RFC3623-A-1</code></a> Additional Grace-LSA TLVs must be described in an Internet Draft and subject to OSPF WG expert review (§A)</td>
+<tr><td><a href="#rfc3623-a-1"><code>RFC3623-A-1</code></a> Additional Grace-LSA TLVs must be described in an Internet Draft and will be subject to the expert review of the OSPF Working Group. (§A)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze originates only the three RFC-defined TLVs (types 1/2/3) and adds none, and its decoder ignores unrecognized types, so the IETF-process obligation for additional TLVs binds no ze behavior (internal/plugins/ospf/packet/grace_lsa.go:44, :64)</td>
 </tr>
-<tr><td><a href="#rfc3623-3-1"><code>RFC3623-3-1</code></a> When helping over a virtual link, the helper must continue to set bit V in its router-LSA for the transit area (§3)</td>
+<tr><td><a href="#rfc3623-3-1"><code>RFC3623-3-1</code></a> When helping over a virtual link, the helper must also continue to set bit V in its router-LSA for the virtual link&#39;s transit area (Section 12.4.1 of [1]). (§3)</td>
 <td>{gap}, no test</td>
 <td>the helper role keeps X advertised in Router/Network-LSAs but neither gr_helper.go nor gr.go has any virtual-link/transit-area handling, so the transit-area V-bit is not preserved while helping over a virtual link (internal/plugins/ospf/gr_helper.go:279)</td>
 </tr>
@@ -555,7 +555,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <td>{gap}, no test</td>
 <td>the helper entry decision has an lsdb-changed branch, but the production caller hardcodes lsdbUnchanged=true, so no production path refuses entry on a changed retransmission-list LSA; the permissive entry is only mitigated by the Section 3.2 strict-checking exit (internal/plugins/ospf/gr_helper.go:40, :128)</td>
 </tr>
-<tr><td><a href="#rfc3623-3.2-1"><code>RFC3623-3.2-1</code></a> If Y aggregated adjacencies on entering helper mode, it must exit helper mode for all adjacencies with X when any one exit event occurs (§3.2)</td>
+<tr><td><a href="#rfc3623-3.2-1"><code>RFC3623-3.2-1</code></a> If Router Y aggregated adjacencies with Router X when entering helper mode (as described in section 3.1), it must also exit helper mode for all adjacencies with Router X when any one of the exit events occurs for an adjacency with Router X. (§3.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze tracks one helper session per (interface, router) and never aggregates adjacencies across segments, so the aggregated exit-all obligation binds a mode ze does not play (internal/plugins/ospf/gr.go:71)</td>
 </tr>
@@ -566,7 +566,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc3623-a-1"><code>RFC3623-A-1</code></a></h3>
-<p>Additional Grace-LSA TLVs must be described in an Internet Draft and subject to OSPF WG expert review (§A)</p>
+<p>Additional Grace-LSA TLVs must be described in an Internet Draft and will be subject to the expert review of the OSPF Working Group. (§A)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3623-A-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3623-a-2"><code>RFC3623-A-2</code></a></h3>
@@ -660,7 +660,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc3623-5-1"><code>RFC3623-5-1</code></a></h3>
-<p>An implementation providing recovery from unplanned outages must allow the operator to turn the option off (§5)</p>
+<p>In any event, implementors providing the option to recover gracefully from unplanned outages must allow a network operator to turn the option off. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -710,7 +710,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc3623-5-4"><code>RFC3623-5-4</code></a></h3>
-<p>On unplanned restart, the restart reason in grace-LSAs must be set to 0 (unknown) or 3 (switch to redundant control processor) (§5)</p>
+<p>o The restart reason in the grace-LSAs must be set to 0 (unknown) or 3 (switch to redundant control processor). (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -725,7 +725,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc3623-3-1"><code>RFC3623-3-1</code></a></h3>
-<p>When helping over a virtual link, the helper must continue to set bit V in its router-LSA for the transit area (§3)</p>
+<p>When helping over a virtual link, the helper must also continue to set bit V in its router-LSA for the virtual link&#39;s transit area (Section 12.4.1 of [1]). (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3623-3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3623-3.1-1"><code>RFC3623-3.1-1</code></a></h3>
@@ -733,7 +733,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3623-3.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc3623-3.2-1"><code>RFC3623-3.2-1</code></a></h3>
-<p>If Y aggregated adjacencies on entering helper mode, it must exit helper mode for all adjacencies with X when any one exit event occurs (§3.2)</p>
+<p>If Router Y aggregated adjacencies with Router X when entering helper mode (as described in section 3.1), it must also exit helper mode for all adjacencies with Router X when any one of the exit events occurs for an adjacency with Router X. (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3623-3.2-1, so no unit is bound to it.</p>
 </section>
@@ -990,7 +990,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

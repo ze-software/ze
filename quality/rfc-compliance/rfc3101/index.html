@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3101 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3101: The OSPF Not-So-Stubby Area (NSSA) Option. 25 gated MUST-level requirements, 0 declared gaps, 8 with no test." />
+        <meta name="description" content="RFC 3101: The OSPF Not-So-Stubby Area (NSSA) Option. 25 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 3101 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3101: The OSPF Not-So-Stubby Area (NSSA) Option. 25 gated MUST-level requirements, 0 declared gaps, 8 with no test." />
+        <meta property="og:description" content="RFC 3101: The OSPF Not-So-Stubby Area (NSSA) Option. 25 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3101 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3101: The OSPF Not-So-Stubby Area (NSSA) Option. 25 gated MUST-level requirements, 0 declared gaps, 8 with no test." />
+        <meta name="twitter:description" content="RFC 3101: The OSPF Not-So-Stubby Area (NSSA) Option. 25 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,10 +116,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>68.0%</strong><b>17 of 25 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>25 of 25 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>20.0%</strong><b>13 of 65 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>20.0%</strong><b>17 of 85 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -129,11 +130,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>32.0%</strong><b>8 of 25 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 25 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -163,7 +159,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -215,22 +211,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>8</td>
+<td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>65</td>
+<td>85</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>65</td>
+<td>85</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>13</td>
+<td>17</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc3101.md</code></td>
@@ -246,15 +242,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: OSPF NSSA (RFC 3101): 13 MET (N/E-bit Hello negotiation, Type-7 origination/flood-scope, P-bit boundary policy, ASBR E-bit, Type-3 import, translator election, Type-7-&gt;Type-5 translation, highest-RID duplicate suppression) + 2 gap (install-side default P-gate, unconditional default into every NSSA). The 2026-09-21 extraction walk read the document against this checklist and added 9 rows it did not carry: RFC3101-2.3-3 (re-originate the Type-7 LSA with a new forwarding address when the forwarding address&#39;s interface goes Down), RFC3101-2.5-2 through -5 (the four Section 2.5 rules on which routing table entry an ASBR match may use, and when the calculation runs), RFC3101-3.1-3 (translation by several border routers is not recommended), and RFC3101-x-3 through -x-5 (the Appendix D configuration vehicles for the P-bit, for ExternalRoutingCapability and for the default LSA&#39;s metric). None of the 9 carries a tagged test, so each is an open gap.</p>
+<p>Enrolled: Ze implements NSSA area operation, Type-7 external routing and border-router translation. The checklist includes forwarding-address lifecycle, per-area ASBR and forwarding-address eligibility, and the Appendix D configuration requirements.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Experimental</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
-Type-7 origination/flooding, redistribution into NSSA, N/E-bit Hello negotiation, Router-LSA Nt/E/B flags, translator election (Nt-bit candidates, highest-RID, always/never roles, stability grace), Type-7 to Type-5 translation with FA/metric/tag preservation and highest-RID duplicate suppression, source preference, Type-3 summary import policy. For both address families: mandatory border-router defaults with no operator gate, no-summary defaults through the summary path (Type-3 for OSPFv2, Inter-Area-Prefix for OSPFv3), no summary-LSA default where summary routes ARE imported (Section 2.7 MUST NOT), an internal router&#39;s <code>default-originate</code> held inert in a no-summary NSSA (Section 1.3 mutual exclusivity), and the P-bit and suppressed-summary-import gates on installing a received Type-7 default, each gate proven permissive on a router that is not an NSSA border router.
+Type-7 origination/flooding, N/E-bit Hello negotiation, redistribution into NSSA, translator election and Type-7 to Type-5 translation, summary import policy and mandatory border-router defaults. The external stage retains per-area ASBR reachability and enforces Type-5/Type-7 forwarding-address eligibility. Per-source <code>nssa-propagate</code> defaults to false, and interface lifecycle reconciliation replaces forwarding addresses for retained imports. The shared external calculation and origination policies serve OSPFv2 and the RFC 5838 OSPFv3 address families.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-The Section 2.4 default-route origination dispatches on address family in <code>applyNSSADefaults</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/nssa.go</code></a>), so an OSPFv3 NSSA border router originates the 0x2007 NSSA-LSA that RFC 5340 Section 4.4.3.7 defines rather than the OSPFv2 0x0007. Both halves are unit-proven in each family, both families reach the operator&#39;s <code>show ospf database nssa-external</code> subview under <a href="https://github.com/ze-software/ze/blob/main/test/ospf/ospf-nssa-abr-default.ci" target="_blank" rel="noopener"><code>test/ospf/ospf-nssa-abr-default.ci</code></a> and <a href="https://github.com/ze-software/ze/blob/main/test/ospfv3/ospfv3-nssa-abr-default.ci" target="_blank" rel="noopener"><code>test/ospfv3/ospfv3-nssa-abr-default.ci</code></a>, and OSPFv2 origination is additionally proven against FRR by <code>test/interop/scenarios/ospf-stub-nssa-frr</code>. Two things are still owed, tracked by <a href="https://github.com/ze-software/ze/blob/main/plan/immediate/spec-ospf-rfc3101-nssa-defaults.md" target="_blank" rel="noopener"><code>plan/immediate/spec-ospf-rfc3101-nssa-defaults.md</code></a>: OSPFv3 has no interop scenario, so no peer daemon has read a Ze OSPFv3 NSSA default, and neither family has an interop scenario for the two install-side gates; and three sites compute NSSA border-router status independently, so the advertised Router-LSA B-bit and the originated default can disagree across a backbone transition. Section 2.2 Type-7 address-range aggregation into one Type-5 stays unimplemented; it is a MAY. Note that the <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc3101.md" target="_blank" rel="noopener"><code>rfc/short/rfc3101.md</code></a> checklist cannot record an address-family difference: its requirement ids carry no address-family dimension, so a tagged test on either path satisfies it for both. Same OSPF experimental status. Nine further rows were added by the 2026-09-21 extraction walk and none is proven: <a href="#rfc3101-2.3-3"><code>RFC3101-2.3-3</code></a>, <a href="#rfc3101-2.5-2"><code>RFC3101-2.5-2</code></a>, <a href="#rfc3101-2.5-3"><code>RFC3101-2.5-3</code></a>, <a href="#rfc3101-2.5-4"><code>RFC3101-2.5-4</code></a>, <a href="#rfc3101-2.5-5"><code>RFC3101-2.5-5</code></a>, <a href="#rfc3101-3.1-3"><code>RFC3101-3.1-3</code></a> and RFC3101-x-3 through RFC3101-x-5.
+Current producer and tagged-test changes require the parent validation run and discrimination proofs before any revised conformance claim. The existing operator-path default scenarios and FRR scenario remain part of that verification population.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -263,7 +259,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>17</strong></td>
+<td><strong>25</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -275,7 +271,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>8</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -290,15 +286,14 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (17):</strong> <a href="#rfc3101-2.1-1"><code>RFC3101-2.1-1</code></a>, <a href="#rfc3101-2.1-2"><code>RFC3101-2.1-2</code></a>, <a href="#rfc3101-x-1"><code>RFC3101-x-1</code></a>, <a href="#rfc3101-2.3-1"><code>RFC3101-2.3-1</code></a>, <a href="#rfc3101-2.3-2"><code>RFC3101-2.3-2</code></a>, <a href="#rfc3101-2.4-1"><code>RFC3101-2.4-1</code></a>, <a href="#rfc3101-2.4-2"><code>RFC3101-2.4-2</code></a>, <a href="#rfc3101-2.4-3"><code>RFC3101-2.4-3</code></a>, <a href="#rfc3101-2.4-4"><code>RFC3101-2.4-4</code></a>, <a href="#rfc3101-2.4-5"><code>RFC3101-2.4-5</code></a>, <a href="#rfc3101-2.5-1"><code>RFC3101-2.5-1</code></a>, <a href="#rfc3101-3.1-1"><code>RFC3101-3.1-1</code></a>, <a href="#rfc3101-2.7-1"><code>RFC3101-2.7-1</code></a>, <a href="#rfc3101-3.1-2"><code>RFC3101-3.1-2</code></a>, <a href="#rfc3101-3.2-1"><code>RFC3101-3.2-1</code></a>, <a href="#rfc3101-3.2-2"><code>RFC3101-3.2-2</code></a>, <a href="#rfc3101-2.7-3"><code>RFC3101-2.7-3</code></a></p>
-<p class="rfc-id-list"><strong>No test and no annotation (8):</strong> <a href="#rfc3101-2.3-3"><code>RFC3101-2.3-3</code></a>, <a href="#rfc3101-2.5-2"><code>RFC3101-2.5-2</code></a>, <a href="#rfc3101-2.5-3"><code>RFC3101-2.5-3</code></a>, <a href="#rfc3101-2.5-4"><code>RFC3101-2.5-4</code></a>, <a href="#rfc3101-2.5-5"><code>RFC3101-2.5-5</code></a>, <a href="#rfc3101-x-3"><code>RFC3101-x-3</code></a>, <a href="#rfc3101-x-4"><code>RFC3101-x-4</code></a>, <a href="#rfc3101-x-5"><code>RFC3101-x-5</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (25):</strong> <a href="#rfc3101-2.1-1"><code>RFC3101-2.1-1</code></a>, <a href="#rfc3101-2.1-2"><code>RFC3101-2.1-2</code></a>, <a href="#rfc3101-x-1"><code>RFC3101-x-1</code></a>, <a href="#rfc3101-2.3-1"><code>RFC3101-2.3-1</code></a>, <a href="#rfc3101-2.3-2"><code>RFC3101-2.3-2</code></a>, <a href="#rfc3101-2.4-1"><code>RFC3101-2.4-1</code></a>, <a href="#rfc3101-2.4-2"><code>RFC3101-2.4-2</code></a>, <a href="#rfc3101-2.4-3"><code>RFC3101-2.4-3</code></a>, <a href="#rfc3101-2.4-4"><code>RFC3101-2.4-4</code></a>, <a href="#rfc3101-2.4-5"><code>RFC3101-2.4-5</code></a>, <a href="#rfc3101-2.5-1"><code>RFC3101-2.5-1</code></a>, <a href="#rfc3101-2.3-3"><code>RFC3101-2.3-3</code></a>, <a href="#rfc3101-2.5-2"><code>RFC3101-2.5-2</code></a>, <a href="#rfc3101-2.5-3"><code>RFC3101-2.5-3</code></a>, <a href="#rfc3101-2.5-4"><code>RFC3101-2.5-4</code></a>, <a href="#rfc3101-2.5-5"><code>RFC3101-2.5-5</code></a>, <a href="#rfc3101-3.1-1"><code>RFC3101-3.1-1</code></a>, <a href="#rfc3101-2.7-1"><code>RFC3101-2.7-1</code></a>, <a href="#rfc3101-3.1-2"><code>RFC3101-3.1-2</code></a>, <a href="#rfc3101-3.2-1"><code>RFC3101-3.2-1</code></a>, <a href="#rfc3101-3.2-2"><code>RFC3101-3.2-2</code></a>, <a href="#rfc3101-x-3"><code>RFC3101-x-3</code></a>, <a href="#rfc3101-x-4"><code>RFC3101-x-4</code></a>, <a href="#rfc3101-x-5"><code>RFC3101-x-5</code></a>, <a href="#rfc3101-2.7-3"><code>RFC3101-2.7-3</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.1-1">RFC3101-2.1-1</code></td><td colspan="3"><span class="rfc-subject">Verify N-bit and E-bit in received Hellos match the area type before adjacency (Section 2.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.1-1">RFC3101-2.1-1</code></td><td colspan="3"><span class="rfc-subject">To support the NSSA option an additional check must be made in the function that handles the receiving of the Hello packet to verify that both the N-bit and the E-bit found in the Hello packet&#39;s option field match the area type and ExternalRoutingCapability of the area of the receiving interface. (Section 2.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.1</td>
@@ -325,7 +320,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/hello_nssa_test.go#L70" title="internal/plugins/ospf/iface/hello_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSANbitMismatch</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.3-1">RFC3101-2.3-1</code></td><td colspan="3"><span class="rfc-subject">Originate Type-7 NSSA-LSAs with LS Type value 7 (Section 2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.3-1">RFC3101-2.3-1</code></td><td colspan="3"><span class="rfc-subject">To support NSSAs the link- state database must therefore be expanded to contain Type-7 LSAs. (Section 2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3</td>
@@ -343,7 +338,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/nssa_test.go#L92" title="internal/plugins/ospf/lsdb/nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFType7FloodScope</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.4-1">RFC3101-2.4-1</code></td><td colspan="3"><span class="rfc-subject">Set the P-bit on Type-7 LSAs an NSSA internal ASBR wants in the transit topology (Section 2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.4-1">RFC3101-2.4-1</code></td><td colspan="3"><span class="rfc-subject">An NSSA internal AS boundary router must set the P-bit in the LSA header&#39;s option field of any Type-7 LSA whose network it wants advertised into the OSPF domain&#39;s full transit topology. (Section 2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.4</td>
@@ -358,7 +353,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <td>2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-2.4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/nssa_pbit_test.go#L32" title="internal/plugins/ospf/lsdb/nssa_pbit_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSAPBitBoundaryPolicy</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/nssa_pbit_test.go#L24" title="internal/plugins/ospf/lsdb/nssa_pbit_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSAPBitBoundaryPolicy</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/nssa_pbit_test.go#L23" title="internal/plugins/ospf/lsdb/nssa_pbit_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSAPBitBoundaryPolicy</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/origination_v6_nssa_default_test.go#L171" title="internal/plugins/ospf/origination_v6_nssa_default_test.go" target="_blank" rel="noopener"><code>TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress</code></a></span></div>
 </div></td>
 </tr>
@@ -371,23 +366,23 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/nssa_pbit_test.go#L42" title="internal/plugins/ospf/lsdb/nssa_pbit_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSAPBitBoundaryPolicy</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.4-4">RFC3101-2.4-4</code></td><td colspan="3"><span class="rfc-subject">Clear the P-bit on a Type-7 default LSA originated by an NSSA border router; install a Type-7 default only if its P-bit is set (Section 2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.4-4">RFC3101-2.4-4</code></td><td colspan="3"><span class="rfc-subject">The Type-7 default LSA originated by an NSSA border router must have the P-bit clear. (Section 2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-2.4-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L78" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultPBit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L96" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultPBit</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_ac14_16_test.go#L37" title="internal/plugins/ospf/nssa_ac14_16_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultsEveryArea</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_install_gate_v6_test.go#L81" title="internal/plugins/ospf/nssa_install_gate_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3NSSABorderRouterDefaultPBit</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/origination_v6_nssa_default_test.go#L71" title="internal/plugins/ospf/origination_v6_nssa_default_test.go" target="_blank" rel="noopener"><code>TestOSPFv3NSSABorderRouterOriginatesDefault</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L111" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultPBit</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L138" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSANonBorderRouterInstallsPClearDefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L129" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultPBit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L157" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSANonBorderRouterInstallsPClearDefault</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_install_gate_v6_test.go#L90" title="internal/plugins/ospf/nssa_install_gate_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3NSSABorderRouterDefaultPBit</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/origination_v6_nssa_default_test.go#L191" title="internal/plugins/ospf/origination_v6_nssa_default_test.go" target="_blank" rel="noopener"><code>TestOSPFv3NSSADefaultPBitFollowsForwardingAddress</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_install_gate_v6_test.go#L112" title="internal/plugins/ospf/nssa_install_gate_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3NSSANonBorderRouterInstallsPClearDefault</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.4-5">RFC3101-2.4-5</code></td><td colspan="3"><span class="rfc-subject">Originate a default-destination LSA into every directly attached NSSA (Section 2.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.4-5">RFC3101-2.4-5</code></td><td colspan="3"><span class="rfc-subject">NSSA border routers must originate an LSA for the default destination into all their directly attached NSSAs in order to support intra-AS routing and inter-AS routing. (Section 2.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.4</td>
@@ -398,7 +393,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/origination_v6_nssa_default_test.go#L62" title="internal/plugins/ospf/origination_v6_nssa_default_test.go" target="_blank" rel="noopener"><code>TestOSPFv3NSSABorderRouterOriginatesDefault</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_ac14_16_test.go#L52" title="internal/plugins/ospf/nssa_ac14_16_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSAInternalRouterOriginatesNoBorderDefault</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/origination_v6_nssa_default_test.go#L173" title="internal/plugins/ospf/origination_v6_nssa_default_test.go" target="_blank" rel="noopener"><code>TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1263" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNSSADefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1261" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNSSADefault</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.5-1">RFC3101-2.5-1</code></td><td colspan="3"><span class="rfc-subject">Ignore Type-7 default LSAs on an NSSA border router that suppresses Type-3 summary import (Section 2.5)</span></td></tr>
@@ -406,47 +401,50 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <td>MUST</td>
 <td>2.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-2.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L94" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultPBit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L112" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultPBit</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_install_gate_v6_test.go#L96" title="internal/plugins/ospf/nssa_install_gate_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3NSSABorderRouterDefaultPBit</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L80" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultPBit</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L140" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSANonBorderRouterInstallsPClearDefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L98" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultPBit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L159" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSANonBorderRouterInstallsPClearDefault</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_install_gate_v6_test.go#L114" title="internal/plugins/ospf/nssa_install_gate_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3NSSANonBorderRouterInstallsPClearDefault</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.3-3">RFC3101-2.3-3</code></td><td colspan="3"><span class="rfc-subject">&#34;When the interface whose IP address is the LSA&#39;s forwarding address transitions to a Down state (see [OSPF] Section 9.3), the router must select a new forwarding address for the LSA and then re-originate it&#34; (Section 2.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.3-3">RFC3101-2.3-3</code></td><td colspan="3"><span class="rfc-subject">When the interface whose IP address is the LSA&#39;s forwarding address transitions to a Down state (see [OSPF] Section 9.3), the router must select a new forwarding address for the LSA and then re- originate it. (Section 2.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-2.3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_import_lifecycle_test.go#L111" title="internal/plugins/ospf/nssa_import_lifecycle_test.go" target="_blank" rel="noopener"><code>TestNSSAImportReoriginatesAfterForwardingInterfaceDown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_import_lifecycle_test.go#L152" title="internal/plugins/ospf/nssa_import_lifecycle_test.go" target="_blank" rel="noopener"><code>TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.5-2">RFC3101-2.5-2</code></td><td colspan="3"><span class="rfc-subject">&#34;Since the flooding scope of a Type-7 LSA is restricted to the originating NSSA, the routing table entry of its ASBR must be found in the originating NSSA&#34; (Section 2.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.5-2">RFC3101-2.5-2</code></td><td colspan="3"><span class="rfc-subject">Since the flooding scope of a Type-7 LSA is restricted to the originating NSSA, the routing table entry of its ASBR must be found in the originating NSSA. (Section 2.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-2.5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_scope_test.go#L93" title="internal/plugins/ospf/nssa_scope_test.go" target="_blank" rel="noopener"><code>TestNSSAASBRUsesOriginatingArea</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_recalc_test.go#L44" title="internal/plugins/ospf/spf/external_nssa_recalc_test.go" target="_blank" rel="noopener"><code>TestNSSAExternalCalculationRunsOnType7Change</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_scope_test.go#L112" title="internal/plugins/ospf/nssa_scope_test.go" target="_blank" rel="noopener"><code>TestNSSAASBRRejectsOtherArea</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_recalc_test.go#L67" title="internal/plugins/ospf/spf/external_nssa_recalc_test.go" target="_blank" rel="noopener"><code>TestNSSAExternalCalculationDropsLostASBR</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.5-3">RFC3101-2.5-3</code></td><td colspan="3"><span class="rfc-subject">&#34;For a Type-5 LSA the matching routing table entry must specify an intra-area or inter-area path through a Type-5 capable area&#34; (Section 2.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.5-3">RFC3101-2.5-3</code></td><td colspan="3"><span class="rfc-subject">For a Type-5 LSA the matching routing table entry must specify an intra-area or inter-area path through a Type-5 capable area. (Section 2.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-2.5-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L223" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestExternalForwardingPreservesInternalPreferenceAndECMP</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_scope_test.go#L128" title="internal/plugins/ospf/nssa_scope_test.go" target="_blank" rel="noopener"><code>TestExternalForwardingScopeAcceptsEligiblePaths</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_scope_test.go#L148" title="internal/plugins/ospf/nssa_scope_test.go" target="_blank" rel="noopener"><code>TestExternalForwardingScopeRejectsIneligiblePaths</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.5-4">RFC3101-2.5-4</code></td><td colspan="3"><span class="rfc-subject">&#34;For a Type-7 LSA the matching routing table entry must specify an intra-area path through the LSA&#39;s originating NSSA&#34; (Section 2.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.5-4">RFC3101-2.5-4</code></td><td colspan="3"><span class="rfc-subject">For a Type-7 LSA the matching routing table entry must specify an intra-area path through the LSA&#39;s originating NSSA. (Section 2.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-2.5-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_scope_test.go#L129" title="internal/plugins/ospf/nssa_scope_test.go" target="_blank" rel="noopener"><code>TestExternalForwardingScopeAcceptsEligiblePaths</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_scope_test.go#L149" title="internal/plugins/ospf/nssa_scope_test.go" target="_blank" rel="noopener"><code>TestExternalForwardingScopeRejectsIneligiblePaths</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.5-5">RFC3101-2.5-5</code></td><td colspan="3"><span class="rfc-subject">The NSSA ASBR routing table calculation &#34;must be run when Type-7 LSAs are processed during the AS external route calculation&#34; (Section 2.5)</span></td></tr>
@@ -454,8 +452,8 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <td>MUST</td>
 <td>2.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-2.5-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_recalc_test.go#L43" title="internal/plugins/ospf/spf/external_nssa_recalc_test.go" target="_blank" rel="noopener"><code>TestNSSAExternalCalculationRunsOnType7Change</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_recalc_test.go#L66" title="internal/plugins/ospf/spf/external_nssa_recalc_test.go" target="_blank" rel="noopener"><code>TestNSSAExternalCalculationDropsLostASBR</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-3.1-1">RFC3101-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Set the E-bit in Type-1 router-LSAs of directly attached non-stub areas (Section 3.1)</span></td></tr>
@@ -476,7 +474,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/area_type_test.go#L96" title="internal/plugins/ospf/spf/area_type_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSAType3SummaryImport</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-3.1-2">RFC3101-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Elect the translator as the reachable NSSA border router with Nt set or the highest Router ID (Section 3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-3.1-2">RFC3101-3.1-2</code></td><td colspan="3"><span class="rfc-subject">An NSSA border router whose NSSA&#39;s NSSATranslatorRole is set to Candidate must maintain a list of the NSSA&#39;s border routers that are reachable both over the NSSA and as ASBRs over the AS&#39;s transit topology. (Section 3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -513,8 +511,9 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-x-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_import_lifecycle_test.go#L187" title="internal/plugins/ospf/nssa_import_lifecycle_test.go" target="_blank" rel="noopener"><code>TestNSSAPerSourcePropagationEnabled</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_import_lifecycle_test.go#L234" title="internal/plugins/ospf/nssa_import_lifecycle_test.go" target="_blank" rel="noopener"><code>TestNSSAPerSourcePropagationCannotOverrideType5</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_import_lifecycle_test.go#L212" title="internal/plugins/ospf/nssa_import_lifecycle_test.go" target="_blank" rel="noopener"><code>TestNSSAPerSourcePropagationDisabled</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-x-4">RFC3101-x-4</code></td><td colspan="3"><span class="rfc-subject">&#34;For NSSAs the ExternalRoutingCapability area configuration parameter must be set to accept Type-7 external routes&#34; (Appendix D)</span></td></tr>
@@ -522,8 +521,8 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-x-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go#L45" title="internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go" target="_blank" rel="noopener"><code>TestRFC3101NSSAAreaAcceptsType7</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go#L55" title="internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go" target="_blank" rel="noopener"><code>TestRFC3101NormalAreaRejectsType7</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-x-5">RFC3101-x-5</code></td><td colspan="3"><span class="rfc-subject">&#34;Additionally there must be a way of configuring the metric of the default LSA that a border router advertises into its directly attached NSSAs&#34; (Appendix D)</span></td></tr>
@@ -531,8 +530,8 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-x-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_default_cost_test.go#L44" title="internal/plugins/ospf/rfc3101_default_cost_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSADefaultCarriesConfiguredMetric</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_default_cost_test.go#L55" title="internal/plugins/ospf/rfc3101_default_cost_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSADefaultMetricIsNotFixed</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-x-2">RFC3101-x-2</code></td><td colspan="3"><span class="rfc-subject">Honor the TranslatorStabilityInterval (default 40 s) before relinquishing translator duties (Appendix D)</span></td></tr>
@@ -544,7 +543,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-3.1-3">RFC3101-3.1-3</code></td><td colspan="3"><span class="rfc-subject">&#34;It is not recommended that multiple NSSA border routers perform Type-7 to Type-5 translation unless it is required to route packets efficiently through Area 0 to an NSSA partitioned by Type-7 address ranges&#34; (Section 3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-3.1-3">RFC3101-3.1-3</code></td><td colspan="3"><span class="rfc-subject">It is not recommended that multiple NSSA border routers perform Type-7 to Type-5 translation unless it is required to route packets efficiently through Area 0 to an NSSA partitioned by Type-7 address ranges. (Section 3.1)</span></td></tr>
 <tr><td></td>
 <td>NOT RECOMMENDED</td>
 <td>3.1</td>
@@ -602,50 +601,12 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
-<tbody>
-<tr><td><a href="#rfc3101-2.3-3"><code>RFC3101-2.3-3</code></a> &#34;When the interface whose IP address is the LSA&#39;s forwarding address transitions to a Down state (see [OSPF] Section 9.3), the router must select a new forwarding address for the LSA and then re-originate it&#34; (Section 2.3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3101-2.5-2"><code>RFC3101-2.5-2</code></a> &#34;Since the flooding scope of a Type-7 LSA is restricted to the originating NSSA, the routing table entry of its ASBR must be found in the originating NSSA&#34; (Section 2.5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3101-2.5-3"><code>RFC3101-2.5-3</code></a> &#34;For a Type-5 LSA the matching routing table entry must specify an intra-area or inter-area path through a Type-5 capable area&#34; (Section 2.5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3101-2.5-4"><code>RFC3101-2.5-4</code></a> &#34;For a Type-7 LSA the matching routing table entry must specify an intra-area path through the LSA&#39;s originating NSSA&#34; (Section 2.5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3101-2.5-5"><code>RFC3101-2.5-5</code></a> The NSSA ASBR routing table calculation &#34;must be run when Type-7 LSAs are processed during the AS external route calculation&#34; (Section 2.5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3101-x-3"><code>RFC3101-x-3</code></a> &#34;Implementations must provide a vehicle for setting the P-bit when external routes are imported into the NSSA as Type-7 LSAs&#34; (Appendix D)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3101-x-4"><code>RFC3101-x-4</code></a> &#34;For NSSAs the ExternalRoutingCapability area configuration parameter must be set to accept Type-7 external routes&#34; (Appendix D)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3101-x-5"><code>RFC3101-x-5</code></a> &#34;Additionally there must be a way of configuring the metric of the default LSA that a border router advertises into its directly attached NSSAs&#34; (Appendix D)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>RFC 3101 declares no gap, and every gated MUST it carries has a test bound to it.</p>
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc3101-2.1-1"><code>RFC3101-2.1-1</code></a></h3>
-<p>Verify N-bit and E-bit in received Hellos match the area type before adjacency (Section 2.1)</p>
+<p>To support the NSSA option an additional check must be made in the function that handles the receiving of the Hello packet to verify that both the N-bit and the E-bit found in the Hello packet&#39;s option field match the area type and ExternalRoutingCapability of the area of the receiving interface. (Section 2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -705,7 +666,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 </table>
 </div>
 <h3><a href="#rfc3101-2.3-1"><code>RFC3101-2.3-1</code></a></h3>
-<p>Originate Type-7 NSSA-LSAs with LS Type value 7 (Section 2.3)</p>
+<p>To support NSSAs the link- state database must therefore be expanded to contain Type-7 LSAs. (Section 2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -745,7 +706,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 </table>
 </div>
 <h3><a href="#rfc3101-2.4-1"><code>RFC3101-2.4-1</code></a></h3>
-<p>Set the P-bit on Type-7 LSAs an NSSA internal ASBR wants in the transit topology (Section 2.4)</p>
+<p>An NSSA internal AS boundary router must set the P-bit in the LSA header&#39;s option field of any Type-7 LSA whose network it wants advertised into the OSPF domain&#39;s full transit topology. (Section 2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -772,7 +733,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/nssa_pbit_test.go#L24" title="internal/plugins/ospf/lsdb/nssa_pbit_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSAPBitBoundaryPolicy</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/nssa_pbit_test.go#L23" title="internal/plugins/ospf/lsdb/nssa_pbit_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSAPBitBoundaryPolicy</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -810,7 +771,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 </table>
 </div>
 <h3><a href="#rfc3101-2.4-4"><code>RFC3101-2.4-4</code></a></h3>
-<p>Clear the P-bit on a Type-7 default LSA originated by an NSSA border router; install a Type-7 default only if its P-bit is set (Section 2.4)</p>
+<p>The Type-7 default LSA originated by an NSSA border router must have the P-bit clear. (Section 2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -832,12 +793,12 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L111" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultPBit</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L129" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultPBit</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L138" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSANonBorderRouterInstallsPClearDefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L157" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSANonBorderRouterInstallsPClearDefault</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -857,7 +818,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L78" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultPBit</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L96" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultPBit</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -865,7 +826,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 </table>
 </div>
 <h3><a href="#rfc3101-2.4-5"><code>RFC3101-2.4-5</code></a></h3>
-<p>Originate a default-destination LSA into every directly attached NSSA (Section 2.4)</p>
+<p>NSSA border routers must originate an LSA for the default destination into all their directly attached NSSAs in order to support intra-AS routing and inter-AS routing. (Section 2.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -882,7 +843,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1263" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNSSADefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1261" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNSSADefault</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -922,12 +883,12 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L80" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultPBit</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L98" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultPBit</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L140" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSANonBorderRouterInstallsPClearDefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L159" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSANonBorderRouterInstallsPClearDefault</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -937,7 +898,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L94" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultPBit</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L112" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSABorderRouterDefaultPBit</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -945,25 +906,120 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 </table>
 </div>
 <h3><a href="#rfc3101-2.3-3"><code>RFC3101-2.3-3</code></a></h3>
-<p>&#34;When the interface whose IP address is the LSA&#39;s forwarding address transitions to a Down state (see [OSPF] Section 9.3), the router must select a new forwarding address for the LSA and then re-originate it&#34; (Section 2.3)</p>
+<p>When the interface whose IP address is the LSA&#39;s forwarding address transitions to a Down state (see [OSPF] Section 9.3), the router must select a new forwarding address for the LSA and then re- originate it. (Section 2.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3101-2.3-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_import_lifecycle_test.go#L152" title="internal/plugins/ospf/nssa_import_lifecycle_test.go" target="_blank" rel="noopener"><code>TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_import_lifecycle_test.go#L111" title="internal/plugins/ospf/nssa_import_lifecycle_test.go" target="_blank" rel="noopener"><code>TestNSSAImportReoriginatesAfterForwardingInterfaceDown</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3101-2.5-2"><code>RFC3101-2.5-2</code></a></h3>
-<p>&#34;Since the flooding scope of a Type-7 LSA is restricted to the originating NSSA, the routing table entry of its ASBR must be found in the originating NSSA&#34; (Section 2.5)</p>
+<p>Since the flooding scope of a Type-7 LSA is restricted to the originating NSSA, the routing table entry of its ASBR must be found in the originating NSSA. (Section 2.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3101-2.5-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_scope_test.go#L112" title="internal/plugins/ospf/nssa_scope_test.go" target="_blank" rel="noopener"><code>TestNSSAASBRRejectsOtherArea</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_recalc_test.go#L67" title="internal/plugins/ospf/spf/external_nssa_recalc_test.go" target="_blank" rel="noopener"><code>TestNSSAExternalCalculationDropsLostASBR</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_scope_test.go#L93" title="internal/plugins/ospf/nssa_scope_test.go" target="_blank" rel="noopener"><code>TestNSSAASBRUsesOriginatingArea</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_recalc_test.go#L44" title="internal/plugins/ospf/spf/external_nssa_recalc_test.go" target="_blank" rel="noopener"><code>TestNSSAExternalCalculationRunsOnType7Change</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3101-2.5-3"><code>RFC3101-2.5-3</code></a></h3>
-<p>&#34;For a Type-5 LSA the matching routing table entry must specify an intra-area or inter-area path through a Type-5 capable area&#34; (Section 2.5)</p>
+<p>For a Type-5 LSA the matching routing table entry must specify an intra-area or inter-area path through a Type-5 capable area. (Section 2.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3101-2.5-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_scope_test.go#L148" title="internal/plugins/ospf/nssa_scope_test.go" target="_blank" rel="noopener"><code>TestExternalForwardingScopeRejectsIneligiblePaths</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_scope_test.go#L128" title="internal/plugins/ospf/nssa_scope_test.go" target="_blank" rel="noopener"><code>TestExternalForwardingScopeAcceptsEligiblePaths</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_test.go#L223" title="internal/plugins/ospf/spf/external_nssa_test.go" target="_blank" rel="noopener"><code>TestExternalForwardingPreservesInternalPreferenceAndECMP</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3101-2.5-4"><code>RFC3101-2.5-4</code></a></h3>
-<p>&#34;For a Type-7 LSA the matching routing table entry must specify an intra-area path through the LSA&#39;s originating NSSA&#34; (Section 2.5)</p>
+<p>For a Type-7 LSA the matching routing table entry must specify an intra-area path through the LSA&#39;s originating NSSA. (Section 2.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3101-2.5-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_scope_test.go#L149" title="internal/plugins/ospf/nssa_scope_test.go" target="_blank" rel="noopener"><code>TestExternalForwardingScopeRejectsIneligiblePaths</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_scope_test.go#L129" title="internal/plugins/ospf/nssa_scope_test.go" target="_blank" rel="noopener"><code>TestExternalForwardingScopeAcceptsEligiblePaths</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3101-2.5-5"><code>RFC3101-2.5-5</code></a></h3>
 <p>The NSSA ASBR routing table calculation &#34;must be run when Type-7 LSAs are processed during the AS external route calculation&#34; (Section 2.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3101-2.5-5, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_recalc_test.go#L66" title="internal/plugins/ospf/spf/external_nssa_recalc_test.go" target="_blank" rel="noopener"><code>TestNSSAExternalCalculationDropsLostASBR</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_nssa_recalc_test.go#L43" title="internal/plugins/ospf/spf/external_nssa_recalc_test.go" target="_blank" rel="noopener"><code>TestNSSAExternalCalculationRunsOnType7Change</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3101-3.1-1"><code>RFC3101-3.1-1</code></a></h3>
 <p>Set the E-bit in Type-1 router-LSAs of directly attached non-stub areas (Section 3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1005,7 +1061,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 </table>
 </div>
 <h3><a href="#rfc3101-3.1-2"><code>RFC3101-3.1-2</code></a></h3>
-<p>Elect the translator as the reachable NSSA border router with Nt set or the highest Router ID (Section 3.1)</p>
+<p>An NSSA border router whose NSSA&#39;s NSSATranslatorRole is set to Candidate must maintain a list of the NSSA&#39;s border routers that are reachable both over the NSSA and as ASBRs over the AS&#39;s transit topology. (Section 3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1092,15 +1148,68 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <h3><a href="#rfc3101-x-3"><code>RFC3101-x-3</code></a></h3>
 <p>&#34;Implementations must provide a vehicle for setting the P-bit when external routes are imported into the NSSA as Type-7 LSAs&#34; (Appendix D)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3101-x-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_import_lifecycle_test.go#L234" title="internal/plugins/ospf/nssa_import_lifecycle_test.go" target="_blank" rel="noopener"><code>TestNSSAPerSourcePropagationCannotOverrideType5</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_import_lifecycle_test.go#L212" title="internal/plugins/ospf/nssa_import_lifecycle_test.go" target="_blank" rel="noopener"><code>TestNSSAPerSourcePropagationDisabled</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_import_lifecycle_test.go#L187" title="internal/plugins/ospf/nssa_import_lifecycle_test.go" target="_blank" rel="noopener"><code>TestNSSAPerSourcePropagationEnabled</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3101-x-4"><code>RFC3101-x-4</code></a></h3>
 <p>&#34;For NSSAs the ExternalRoutingCapability area configuration parameter must be set to accept Type-7 external routes&#34; (Appendix D)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3101-x-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go#L55" title="internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go" target="_blank" rel="noopener"><code>TestRFC3101NormalAreaRejectsType7</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go#L45" title="internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go" target="_blank" rel="noopener"><code>TestRFC3101NSSAAreaAcceptsType7</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3101-x-5"><code>RFC3101-x-5</code></a></h3>
 <p>&#34;Additionally there must be a way of configuring the metric of the default LSA that a border router advertises into its directly attached NSSAs&#34; (Appendix D)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3101-x-5, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_default_cost_test.go#L55" title="internal/plugins/ospf/rfc3101_default_cost_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSADefaultMetricIsNotFixed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_default_cost_test.go#L44" title="internal/plugins/ospf/rfc3101_default_cost_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSADefaultCarriesConfiguredMetric</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3101-2.7-2"><code>RFC3101-2.7-2</code></a></h3>
 <p>Originate a Type-3 summary-LSA as the NSSA default when summary import is disabled (no-summary NSSA) (Section 2.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1470,7 +1579,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

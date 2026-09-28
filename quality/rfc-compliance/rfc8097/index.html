@@ -305,7 +305,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not decode the origin-validation-state extended community; ParseExtendedCommunities (internal/core/bgp/attribute/community.go:275) retains every extended community as an opaque 8-octet value and never interprets bytes 2-6 as a reserved field, so there is no RFC 8097 Reserved field for Ze to ignore.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-3">RFC8097-2-3</code></td><td colspan="3"><span class="rfc-subject">Disregard all instances other than the one with the numerically greatest validation state value when multiple instances received (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-3">RFC8097-2-3</code></td><td colspan="3"><span class="rfc-subject">However, if more than one instance is received, an implementation MUST disregard all instances other than the one with the numerically greatest validation state value. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -314,7 +314,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not process the origin-validation-state extended community (no type-0x43 decoder; community.go:275 keeps ext-communities opaque), so there is no validation-state value to compare across instances and no greatest-state selection code path.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-4">RFC8097-2-4</code></td><td colspan="3"><span class="rfc-subject">Drop the origin validation state extended community if received from an EBGP peer, without processing it further (default behavior) (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-4">RFC8097-2-4</code></td><td colspan="3"><span class="rfc-subject">By default, implementations MUST drop the origin validation state extended community if received from an External BGP (EBGP) peer, without processing it further. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -323,7 +323,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not recognize or process the origin-validation-state extended community (no type-0x43 handling; community.go:275), so it applies no RFC 8097 semantics -- there is no origin-validation-state community for Ze to drop-vs-process based on the eBGP/iBGP peer type.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-5">RFC8097-2-5</code></td><td colspan="3"><span class="rfc-subject">Apply attribute discard strategy per RFC 7606 if validation state value &gt; 2, discarding the erroneous community and logging the error (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8097-2-5">RFC8097-2-5</code></td><td colspan="3"><span class="rfc-subject">If the value received is greater than the largest specified value (2), the implementation MUST apply a strategy similar to attribute discard [RFC7606] by discarding the erroneous community and logging the error for further analysis. (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -394,15 +394,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Ze does not decode the origin-validation-state extended community; ParseExtendedCommunities (internal/core/bgp/attribute/community.go:275) retains every extended community as an opaque 8-octet value and never interprets bytes 2-6 as a reserved field, so there is no RFC 8097 Reserved field for Ze to ignore.</td>
 </tr>
-<tr><td><a href="#rfc8097-2-3"><code>RFC8097-2-3</code></a> Disregard all instances other than the one with the numerically greatest validation state value when multiple instances received (§2)</td>
+<tr><td><a href="#rfc8097-2-3"><code>RFC8097-2-3</code></a> However, if more than one instance is received, an implementation MUST disregard all instances other than the one with the numerically greatest validation state value. (§2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Ze does not process the origin-validation-state extended community (no type-0x43 decoder; community.go:275 keeps ext-communities opaque), so there is no validation-state value to compare across instances and no greatest-state selection code path.</td>
 </tr>
-<tr><td><a href="#rfc8097-2-4"><code>RFC8097-2-4</code></a> Drop the origin validation state extended community if received from an EBGP peer, without processing it further (default behavior) (§2)</td>
+<tr><td><a href="#rfc8097-2-4"><code>RFC8097-2-4</code></a> By default, implementations MUST drop the origin validation state extended community if received from an External BGP (EBGP) peer, without processing it further. (§2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Ze does not recognize or process the origin-validation-state extended community (no type-0x43 handling; community.go:275), so it applies no RFC 8097 semantics -- there is no origin-validation-state community for Ze to drop-vs-process based on the eBGP/iBGP peer type.</td>
 </tr>
-<tr><td><a href="#rfc8097-2-5"><code>RFC8097-2-5</code></a> Apply attribute discard strategy per RFC 7606 if validation state value &gt; 2, discarding the erroneous community and logging the error (§2)</td>
+<tr><td><a href="#rfc8097-2-5"><code>RFC8097-2-5</code></a> If the value received is greater than the largest specified value (2), the implementation MUST apply a strategy similar to attribute discard [RFC7606] by discarding the erroneous community and logging the error for further analysis. (§2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Ze does not decode the origin-validation-state extended community&#39;s validation-state octet (community.go:275 keeps the 8-octet value opaque and never reads it as a validation state), so it has no code path that could observe a state value &gt; 2 to apply the RFC 7606 discard against.</td>
 </tr>
@@ -421,15 +421,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8097-2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc8097-2-3"><code>RFC8097-2-3</code></a></h3>
-<p>Disregard all instances other than the one with the numerically greatest validation state value when multiple instances received (§2)</p>
+<p>However, if more than one instance is received, an implementation MUST disregard all instances other than the one with the numerically greatest validation state value. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8097-2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc8097-2-4"><code>RFC8097-2-4</code></a></h3>
-<p>Drop the origin validation state extended community if received from an EBGP peer, without processing it further (default behavior) (§2)</p>
+<p>By default, implementations MUST drop the origin validation state extended community if received from an External BGP (EBGP) peer, without processing it further. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8097-2-4, so no unit is bound to it.</p>
 <h3><a href="#rfc8097-2-5"><code>RFC8097-2-5</code></a></h3>
-<p>Apply attribute discard strategy per RFC 7606 if validation state value &gt; 2, discarding the erroneous community and logging the error (§2)</p>
+<p>If the value received is greater than the largest specified value (2), the implementation MUST apply a strategy similar to attribute discard [RFC7606] by discarding the erroneous community and logging the error for further analysis. (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8097-2-5, so no unit is bound to it.</p>
 </section>
@@ -585,7 +585,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

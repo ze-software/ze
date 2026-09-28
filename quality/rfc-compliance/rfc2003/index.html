@@ -305,7 +305,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this outer-header/encapsulation obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.1-3">RFC2003-3.1-3</code></td><td colspan="3"><span class="rfc-subject">If after decapsulation the inner datagram has TTL = 0, the decapsulator MUST discard the datagram (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-3.1-3">RFC2003-3.1-3</code></td><td colspan="3"><span class="rfc-subject">If, after decapsulation, the inner datagram has TTL = 0, the decapsulator MUST discard the datagram. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -350,7 +350,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.1-3">RFC2003-4.1-3</code></td><td colspan="3"><span class="rfc-subject">ICMP Port Unreachable MUST NOT be relayed to the sender of the original unencapsulated datagram (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.1-3">RFC2003-4.1-3</code></td><td colspan="3"><span class="rfc-subject">It MUST NOT be relayed to the sender of the original unencapsulated datagram. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.1</td>
@@ -359,7 +359,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.1-4">RFC2003-4.1-4</code></td><td colspan="3"><span class="rfc-subject">ICMP Source Route Failed MUST NOT be relayed to the sender of the original unencapsulated datagram (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.1-4">RFC2003-4.1-4</code></td><td colspan="3"><span class="rfc-subject">It MUST NOT be relayed to the sender of the original unencapsulated datagram. (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.1</td>
@@ -368,7 +368,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.4-1">RFC2003-4.4-1</code></td><td colspan="3"><span class="rfc-subject">ICMP Time Exceeded MUST be reported to the sender as Host Unreachable (Type 3, Code 1) (§4.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.4-1">RFC2003-4.4-1</code></td><td colspan="3"><span class="rfc-subject">Reception of Time Exceeded messages by the encapsulator MUST be reported to the sender of the original unencapsulated datagram as Host Unreachable (Type 3, Code 1). (§4.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4</td>
@@ -377,7 +377,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.3-1">RFC2003-4.3-1</code></td><td colspan="3"><span class="rfc-subject">ICMP Redirect MUST NOT be relayed to the sender of the original unencapsulated datagram (§4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-4.3-1">RFC2003-4.3-1</code></td><td colspan="3"><span class="rfc-subject">It MUST NOT not relay the Redirect to the sender of the original unencapsulated datagram. (§4.3)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>4.3</td>
@@ -395,7 +395,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.1-1">RFC2003-5.1-1</code></td><td colspan="3"><span class="rfc-subject">All encapsulator implementations MUST support Path MTU Discovery soft state within their tunnels (§5.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.1-1">RFC2003-5.1-1</code></td><td colspan="3"><span class="rfc-subject">To support sending nodes which use Path MTU Discovery, all encapsulator implementations MUST support Path MTU Discovery [5, 7] soft state within their tunnels. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
@@ -637,7 +637,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this outer-header/encapsulation obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2003-3.1-3"><code>RFC2003-3.1-3</code></a> If after decapsulation the inner datagram has TTL = 0, the decapsulator MUST discard the datagram (§3.1)</td>
+<tr><td><a href="#rfc2003-3.1-3"><code>RFC2003-3.1-3</code></a> If, after decapsulation, the inner datagram has TTL = 0, the decapsulator MUST discard the datagram. (§3.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this decapsulation obligation has no ze code path</td>
 </tr>
@@ -657,19 +657,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2003-4.1-3"><code>RFC2003-4.1-3</code></a> ICMP Port Unreachable MUST NOT be relayed to the sender of the original unencapsulated datagram (§4.1)</td>
+<tr><td><a href="#rfc2003-4.1-3"><code>RFC2003-4.1-3</code></a> It MUST NOT be relayed to the sender of the original unencapsulated datagram. (§4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2003-4.1-4"><code>RFC2003-4.1-4</code></a> ICMP Source Route Failed MUST NOT be relayed to the sender of the original unencapsulated datagram (§4.1)</td>
+<tr><td><a href="#rfc2003-4.1-4"><code>RFC2003-4.1-4</code></a> It MUST NOT be relayed to the sender of the original unencapsulated datagram. (§4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2003-4.4-1"><code>RFC2003-4.4-1</code></a> ICMP Time Exceeded MUST be reported to the sender as Host Unreachable (Type 3, Code 1) (§4.4)</td>
+<tr><td><a href="#rfc2003-4.4-1"><code>RFC2003-4.4-1</code></a> Reception of Time Exceeded messages by the encapsulator MUST be reported to the sender of the original unencapsulated datagram as Host Unreachable (Type 3, Code 1). (§4.4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2003-4.3-1"><code>RFC2003-4.3-1</code></a> ICMP Redirect MUST NOT be relayed to the sender of the original unencapsulated datagram (§4.3)</td>
+<tr><td><a href="#rfc2003-4.3-1"><code>RFC2003-4.3-1</code></a> It MUST NOT not relay the Redirect to the sender of the original unencapsulated datagram. (§4.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
 </tr>
@@ -677,7 +677,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this ICMP-handling obligation has no ze code path</td>
 </tr>
-<tr><td><a href="#rfc2003-5.1-1"><code>RFC2003-5.1-1</code></a> All encapsulator implementations MUST support Path MTU Discovery soft state within their tunnels (§5.1)</td>
+<tr><td><a href="#rfc2003-5.1-1"><code>RFC2003-5.1-1</code></a> To support sending nodes which use Path MTU Discovery, all encapsulator implementations MUST support Path MTU Discovery [5, 7] soft state within their tunnels. (§5.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go:196, Proto IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go:113), and the kernel ipip module and VPP dataplane own the outer-header construction, decapsulation, ICMP handling, path-MTU soft state, and loop prevention, so this path-MTU soft-state obligation is set by the PMtuDisc flag ze programs (tunnel_linux.go:210-214) but maintained by the kernel/VPP dataplane, not by ze</td>
 </tr>
@@ -696,7 +696,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-3.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc2003-3.1-3"><code>RFC2003-3.1-3</code></a></h3>
-<p>If after decapsulation the inner datagram has TTL = 0, the decapsulator MUST discard the datagram (§3.1)</p>
+<p>If, after decapsulation, the inner datagram has TTL = 0, the decapsulator MUST discard the datagram. (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-3.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc2003-3.2-1"><code>RFC2003-3.2-1</code></a></h3>
@@ -716,19 +716,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-4.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc2003-4.1-3"><code>RFC2003-4.1-3</code></a></h3>
-<p>ICMP Port Unreachable MUST NOT be relayed to the sender of the original unencapsulated datagram (§4.1)</p>
+<p>It MUST NOT be relayed to the sender of the original unencapsulated datagram. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-4.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc2003-4.1-4"><code>RFC2003-4.1-4</code></a></h3>
-<p>ICMP Source Route Failed MUST NOT be relayed to the sender of the original unencapsulated datagram (§4.1)</p>
+<p>It MUST NOT be relayed to the sender of the original unencapsulated datagram. (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-4.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc2003-4.4-1"><code>RFC2003-4.4-1</code></a></h3>
-<p>ICMP Time Exceeded MUST be reported to the sender as Host Unreachable (Type 3, Code 1) (§4.4)</p>
+<p>Reception of Time Exceeded messages by the encapsulator MUST be reported to the sender of the original unencapsulated datagram as Host Unreachable (Type 3, Code 1). (§4.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-4.4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2003-4.3-1"><code>RFC2003-4.3-1</code></a></h3>
-<p>ICMP Redirect MUST NOT be relayed to the sender of the original unencapsulated datagram (§4.3)</p>
+<p>It MUST NOT not relay the Redirect to the sender of the original unencapsulated datagram. (§4.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-4.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2003-4.5-1"><code>RFC2003-4.5-1</code></a></h3>
@@ -736,7 +736,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-4.5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2003-5.1-1"><code>RFC2003-5.1-1</code></a></h3>
-<p>All encapsulator implementations MUST support Path MTU Discovery soft state within their tunnels (§5.1)</p>
+<p>To support sending nodes which use Path MTU Discovery, all encapsulator implementations MUST support Path MTU Discovery [5, 7] soft state within their tunnels. (§5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2003-5.1-1, so no unit is bound to it.</p>
 </section>
@@ -941,7 +941,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

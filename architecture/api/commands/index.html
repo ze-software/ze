@@ -1161,6 +1161,8 @@ system command complete args "&lt;cmd&gt;" [&lt;completed&gt;...] "&lt;partial&g
 request reboot           # Gracefully shutdown then reboot the system
 show status              # Show process status
 request reload           # Reload the configuration
+request data backup path &lt;file&gt; [spare &lt;n&gt;] [force]   # Back up the store to a file on the daemon host
+request data restore path &lt;file&gt; config [name &lt;n&gt;]    # Restore the config from a backup through the reload
 show reload-status       # Show how many config reloads have been processed
 </code></pre>
 <h4 id="show-reload-status-the-reload-fence">show reload-status (the reload fence)</h4>
@@ -2250,6 +2252,15 @@ suggestions; keyword leaf names appear as completable tokens.</li>
 between tokenize and handler call (two-phase: keyword extraction, then
 positional matching).</li>
 </ol>
+<p>A <code>type empty</code> leaf is a flag (<code>ArgFlag</code>): the keyword alone is the argument,
+in any position, and no value follows it. <code>validateCommandArgs</code> consumes it in
+the keyword phase, and it is never an open definition, so a bare <code>force</code> never
+fills a value leaf beside it (<code>request data backup path &lt;abs&gt; force</code> once
+answered <code>invalid value "force", expected unsigned integer</code> against <code>spare</code>).
+Usage renders it <code>[force]</code>, the completer offers the keyword, and help and the
+catalog name its kind <code>flag</code>.</p>
+<!-- source: internal/component/command/argvalidate.go -- ValidateArgString -->
+<!-- source: internal/component/plugin/server/command.go -- validateCommandArgs, unmatchedDefCount -->
 <p>A command carries more grammar than its ArgDefs hold. A modifier group states a
 keyword and a value the HANDLER parses, so the dispatcher meets tokens that
 belong to no definition of its own, and it MUST NOT read one of them as a bad
@@ -2465,7 +2476,7 @@ gRPC <code>ParamInfo</code> message carries <code>short_help</code> and <code>de
 notification's <code>leaves</code> with both keys. <code>GetHelpExtension</code> is the ONE reader
 of the extension for both carriers. A command container reaches it through
 <code>Entry.Exts</code>, and an rpc through <code>gyang.RPC.Exts()</code>.
-<code>./le docvalid help-shape</code> holds the two corpora to one shape.</p>
+<code>./le doc yang-contract help-shape</code> holds the two corpora to one shape.</p>
 <p>An RPC's pair reaches an agent through the machine-readable reference.
 <code>SchemaRegistry.RegisterRPCs</code> copies both to <code>RegisteredRPC.ShortHelp</code> and
 <code>RegisteredRPC.Description</code>. <code>aihelp.Build</code> then publishes them under <code>short-help</code>
@@ -2499,7 +2510,7 @@ the summary and <code>Description</code> is the explanation, and the same empty-
 rule holds for both. <code>collectCommands</code> (<code>cmd/ze/help_command.go</code>) merges these
 registrations into <code>ze help command --json</code> after the tree, and skips one whose
 path the tree already holds, so the catalog publishes the node's texts for such
-a path and the registration's for every other. <code>./le docvalid help-shape</code> holds
+a path and the registration's for every other. <code>./le doc yang-contract help-shape</code> holds
 this third corpus to the same seven rules, reading the registrations this binary
 links from the registry and the four <code>cmd/ze</code> declares in <code>package main</code> from
 its source, which is the only way to read a package Go forbids importing.</p>
@@ -2594,7 +2605,7 @@ surfaces.</p>
 </tr>
 <tr>
 <td>The published wiki catalog</td>
-<td><code>wikicatalog.Render</code></td>
+<td><code>clicatalog.Render</code></td>
 <td><code>ShortHelp</code> in the summary table column, <code>Description</code> in the <code>###</code> detail block</td>
 </tr>
 <tr>
@@ -2614,7 +2625,7 @@ surfaces.</p>
 </tr>
 <tr>
 <td>An offline local command in any of the rows above</td>
-<td><code>registry.ListLocal</code>, merged by <code>collectCommands</code> and by <code>wikicatalog.Collect</code></td>
+<td><code>registry.ListLocal</code>, merged by <code>collectCommands</code> and by <code>clicatalog.Collect</code></td>
 <td><code>Meta.ShortHelp</code> and <code>Meta.Description</code>, in place of the node's two texts</td>
 </tr>
 </tbody>
@@ -3212,7 +3223,7 @@ report one.</p>
 <td class="cell-yes">✓</td>
 </tr>
 <tr>
-<td><code>./le command list</code></td>
+<td><code>./le cli list</code></td>
 <td>the compiled tree and <code>registry.All()</code></td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
@@ -3224,7 +3235,7 @@ report one.</p>
 <td class="cell-yes">✓</td>
 </tr>
 <tr>
-<td>the wiki catalog (<code>wikicatalog.Collect</code>)</td>
+<td>the wiki catalog (<code>clicatalog.Collect</code>)</td>
 <td>the compiled tree and <code>registry.All()</code></td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
@@ -3288,8 +3299,8 @@ one's catalog entries with it while the daemon still serves them.</p>
 <p>The wiki catalog is NOT built from <code>ze help command --json</code>. Both join the
 registries in their own process, because an <code>internal</code> package cannot import
 <code>cmd/ze</code>'s main package. <code>compareWikiCatalogProducer</code>
-(<code>internal/le/docvalid/command_surfaces.go</code>) holds what is left of that split to
-one answer: the four main-package commands <code>wikicatalog.Collect</code> carries as
+(<code>internal/le/doc/yangcontract/command_surfaces.go</code>) holds what is left of that split to
+one answer: the four main-package commands <code>clicatalog.Collect</code> carries as
 literal entries, and the <code>le </code> paths it drops.</p>
 <p>All three readers name a purely plugin-provided command. Each walks
 <code>registry.All()</code> after its own registry, because a plugin's command is
@@ -3302,7 +3313,7 @@ and an address field. It answers 313 now.</p>
 <ul>
 <li>A HIDDEN declaration is skipped by the two published catalogs, because the
 daemon already keeps one out of <code>VisibleCommandEntries</code> and out of completion.
-<code>./le command list</code> keeps it, because that inventory answers what ze
+<code>./le cli list</code> keeps it, because that inventory answers what ze
 REGISTERS. <code>request bgp adj-rib-in claim-replay</code> is the one such command.</li>
 <li>The YANG node WINS wherever one exists. A plugin command can be modeled and
 still carry no wire method, <code>show vrrp interface</code> among them, so it arrives
@@ -3317,8 +3328,8 @@ tokens verbatim and a bare identifier reads as a keyword an operator types.</li>
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.Commands -->
 <!-- source: internal/le/plugin/declarations/plugindeclarations.go -- Check -->
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp, handleBgpCommandHelp -->
-<!-- source: internal/le/command/list/commandlist.go -- Collect, Answer -->
-<!-- source: internal/le/wikicatalog/catalog.go -- Collect, operatorsFor -->
+<!-- source: internal/le/cli/list/commandlist.go -- Collect, Answer -->
+<!-- source: internal/le/cli/catalog/catalog.go -- Collect, operatorsFor -->
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 <h4 id="a-plugin-declares-its-own-answer-shape">A plugin declares its own answer shape</h4>
 <p>Each <code>CommandDecl</code> in the Stage 1 message carries three optional fields:
@@ -3717,7 +3728,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 06:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -260,6 +260,10 @@
 </tr>
 </tbody>
 </table>
+<p>The BGP-LS rows describe the general NLRI codec and route-configuration API.
+The separate <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/wire/nlri-bgpls.md#consumer-decoding-and-origination" target="_blank" rel="noopener"><code>bgp-ls-export</code></a>
+plugin originates standard SAFI 71 routes from native IGP or EPE state. It does
+not add generic text/API BGP-LS encoding or SAFI 72 origination.</p>
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/srpolicy/register.go -- SR-Policy family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- FlowSpec family registration -->
@@ -382,11 +386,11 @@ AS number is configured or typed at a command.</p>
 administrator of an extended community such as <code>target:1.10:5</code>. It also
 includes the <code>as-path</code> of <code>show bgp encode route</code>, the MVPN <code>source-as</code>, the
 <code>show bgp rib path</code> filter, the <code>AS&lt;n&gt;</code> peer selector, and <code>rpki validate</code>. The
-<code>ze-analyze</code> binary reads them on <code>--peer-asn</code> and <code>--local-as</code>.</p>
+<code>./le mrt</code> command reads them on <code>--peer-asn</code> and <code>--local-as</code>.</p>
 <p>One reader answers each of those forms. <code>selector.ParseASNSelector</code> is the
 <code>AS&lt;n&gt;</code> selector, for every peer command and for the policy filter.
 <code>attribute.ParseExtCommunityAdmin</code> is the extended-community administrator, for
-all four of its parsers. A private copy of either is what <code>./le repository check</code> now reports.</p>
+all four of its parsers. A private copy of either is what <code>./le repo check</code> now reports.</p>
 <p>The <code>L</code> suffix of an extended community forces the four-octet encoding, and it
 is orthogonal to the spelling: <code>65000L</code>, <code>0.100L</code> and <code>1.10L</code> each say it. For
 a value of more than 65535 the value forces that encoding by itself, so the
@@ -659,7 +663,7 @@ session where neither side negotiated ADD-PATH keeps its zero-copy forward.</p>
 <!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdPathIDs, fwdPathIDTable.generatePath, fwdReleaseWithdrawnPathIDs -->
 <h3 id="protocol-event-capture-and-replay">Protocol event capture and replay</h3>
 <p>A peer writes every message it receives to a bounded JSONL file, together with
-the config operations applied while the capture runs. <code>ze-test replay &lt;file&gt;</code>
+the config operations applied while the capture runs. <code>le test replay &lt;file&gt;</code>
 feeds the file back through the same read path with an injected clock.</p>
 <p>The tee sits on the complete wire message in both read paths, before message
 processing. RFC 7606 enforcement rewrites attributes and synthesizes
@@ -671,11 +675,11 @@ message. Config payloads pass a redactor, and TCP-MD5 keys never appear on the
 wire, so the file holds routing data and no local secret. <code>ze doctor</code> reports
 whether an enabled peer's capture directory is usable
 (<code>doctor-bgp-capture-directory</code>).</p>
-<pre><code class="language-bash">ze-test replay [--json] [--local-as N] [--peer-as N] [--router-id N] &lt;capture-file|-&gt;
+<pre><code class="language-bash">le test replay [--json] [--local-as N] [--peer-as N] [--router-id N] &lt;capture-file|-&gt;
 </code></pre>
 <!-- source: internal/core/capture/capture.go -- the bounded JSONL writer -->
 <!-- source: internal/component/bgp/reactor/capture_replay.go -- the session tee and the replay driver -->
-<!-- source: internal/test/cli/cmd_replay.go -- cmdReplay -->
+<!-- source: internal/test/cli/cmd_replay.go -- CmdReplay -->
 <!-- source: internal/component/bgp/config/doctor_checks.go -- doctorCheckBGPCaptureDirectory, capture directory readiness -->
 <h3 id="path-attributes">Path Attributes</h3>
 <table>
@@ -818,7 +822,7 @@ whether an enabled peer's capture directory is usable
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

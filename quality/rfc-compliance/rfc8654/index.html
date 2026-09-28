@@ -292,7 +292,7 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8654-3-1">RFC8654-3-1</code></td><td colspan="3"><span class="rfc-subject">Peers using BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per RFC 7606 (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8654-3-1">RFC8654-3-1</code></td><td colspan="3"><span class="rfc-subject">Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606]. (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3 - BGP Extended Message Capability</td>
@@ -315,7 +315,7 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>3 - BGP Extended Message Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8654-3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L467" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestCapabilityRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L502" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestCapabilityRoundTrip</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the capability&#39;s value is fixed at zero length, so the enforceable behavior is that WriteTo emits Cap Len 0 and Parse round-trips it; there is no separate malformed form of this fixed-zero-length capability for a negative to drive</p></td>
 </tr>
@@ -328,7 +328,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L256" title="internal/component/bgp/message/header_test.go" target="_blank" rel="noopener"><code>TestValidateLengthWithMax</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8654-4-2">RFC8654-4-2</code></td><td colspan="3"><span class="rfc-subject">Applications generating information encapsulated within BGP messages MUST limit the size of their payload to take the maximum message size into account (§4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8654-4-2">RFC8654-4-2</code></td><td colspan="3"><span class="rfc-subject">Applications generating information that might be encapsulated within BGP messages MUST limit the size of their payload to take the maximum message size into account. (§4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4 - Operation</td>
@@ -362,7 +362,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L248" title="internal/component/bgp/message/header_test.go" target="_blank" rel="noopener"><code>TestValidateLengthWithMax</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8654-5-1">RFC8654-5-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the capability MUST NOT accept a BGP Extended Message (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8654-5-1">RFC8654-5-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5 - Error Handling</td>
@@ -380,7 +380,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L261" title="internal/component/bgp/message/header_test.go" target="_blank" rel="noopener"><code>TestValidateLengthWithMax</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8654-5-3">RFC8654-5-3</code></td><td colspan="3"><span class="rfc-subject">If a NOTIFICATION is to be sent to a peer that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8654-5-3">RFC8654-5-3</code></td><td colspan="3"><span class="rfc-subject">However, if a NOTIFICATION is to be sent to a BGP speaker that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5 - Error Handling</td>
@@ -389,7 +389,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze never generates a NOTIFICATION near 4096 octets -- notification.go:191 sizes it as 19 + 2 + len(Data) and the Administrative Shutdown Communication is truncated to 128 octets (internal/component/bgp/message/notification.go:311-313), so there is no over-4096 NOTIFICATION code path to cap</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8654-5-4">RFC8654-5-4</code></td><td colspan="3"><span class="rfc-subject">Any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of RFC 4271 (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8654-5-4">RFC8654-5-4</code></td><td colspan="3"><span class="rfc-subject">Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - Error Handling</td>
@@ -398,7 +398,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L290" title="internal/component/bgp/message/header_test.go" target="_blank" rel="noopener"><code>TestValidateLengthWithMax</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8654-5-5">RFC8654-5-5</code></td><td colspan="3"><span class="rfc-subject">A protocol specification that defines new BGP message types MUST describe how to handle peers that can only accommodate 4,096 octet messages (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8654-5-5">RFC8654-5-5</code></td><td colspan="3"><span class="rfc-subject">Future protocol specifications MUST describe how to handle peers that can only accommodate 4,096 octet messages. (§5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5 - Error Handling</td>
@@ -452,11 +452,11 @@ No tracked gap in current source anchors.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc8654-5-3"><code>RFC8654-5-3</code></a> If a NOTIFICATION is to be sent to a peer that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets (§5)</td>
+<tr><td><a href="#rfc8654-5-3"><code>RFC8654-5-3</code></a> However, if a NOTIFICATION is to be sent to a BGP speaker that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets. (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze never generates a NOTIFICATION near 4096 octets -- notification.go:191 sizes it as 19 + 2 + len(Data) and the Administrative Shutdown Communication is truncated to 128 octets (internal/component/bgp/message/notification.go:311-313), so there is no over-4096 NOTIFICATION code path to cap</td>
 </tr>
-<tr><td><a href="#rfc8654-5-5"><code>RFC8654-5-5</code></a> A protocol specification that defines new BGP message types MUST describe how to handle peers that can only accommodate 4,096 octet messages (§5)</td>
+<tr><td><a href="#rfc8654-5-5"><code>RFC8654-5-5</code></a> Future protocol specifications MUST describe how to handle peers that can only accommodate 4,096 octet messages. (§5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this obligation binds the author of a specification that defines a new BGP message type to state its extended-message eligibility; it is not a runtime behavior ze implements</td>
 </tr>
@@ -467,7 +467,7 @@ No tracked gap in current source anchors.
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8654-3-1"><code>RFC8654-3-1</code></a></h3>
-<p>Peers using BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per RFC 7606 (§3)</p>
+<p>Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606]. (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -509,7 +509,7 @@ No tracked gap in current source anchors.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L467" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestCapabilityRoundTrip</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L502" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestCapabilityRoundTrip</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -537,7 +537,7 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc8654-4-2"><code>RFC8654-4-2</code></a></h3>
-<p>Applications generating information encapsulated within BGP messages MUST limit the size of their payload to take the maximum message size into account (§4)</p>
+<p>Applications generating information that might be encapsulated within BGP messages MUST limit the size of their payload to take the maximum message size into account. (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -632,7 +632,7 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc8654-5-1"><code>RFC8654-5-1</code></a></h3>
-<p>A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the capability MUST NOT accept a BGP Extended Message (§5)</p>
+<p>A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -672,11 +672,11 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc8654-5-3"><code>RFC8654-5-3</code></a></h3>
-<p>If a NOTIFICATION is to be sent to a peer that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets (§5)</p>
+<p>However, if a NOTIFICATION is to be sent to a BGP speaker that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8654-5-3, so no unit is bound to it.</p>
 <h3><a href="#rfc8654-5-4"><code>RFC8654-5-4</code></a></h3>
-<p>Any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of RFC 4271 (§5)</p>
+<p>Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -696,7 +696,7 @@ No tracked gap in current source anchors.
 </table>
 </div>
 <h3><a href="#rfc8654-5-5"><code>RFC8654-5-5</code></a></h3>
-<p>A protocol specification that defines new BGP message types MUST describe how to handle peers that can only accommodate 4,096 octet messages (§5)</p>
+<p>Future protocol specifications MUST describe how to handle peers that can only accommodate 4,096 octet messages. (§5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8654-5-5, so no unit is bound to it.</p>
 </section>
@@ -890,7 +890,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

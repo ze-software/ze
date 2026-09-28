@@ -296,15 +296,15 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.1-2">RFC7999-3.1-2</code></td><td colspan="3"><span class="rfc-subject">&#34;In a bilateral peering relationship, use of the BLACKHOLE community MUST be agreed upon by the two networks before advertising it&#34; (§3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.1-2">RFC7999-3.1-2</code></td><td colspan="3"><span class="rfc-subject">In a bilateral peering relationship, use of the BLACKHOLE community MUST be agreed upon by the two networks before advertising it. (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1 - IP Prefix Announcements with BLACKHOLE Community Attached</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7999-3.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L272" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeReachesAMemberOfADynamicGroup</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L96" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeReachesAnAgreedPeer</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L110" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L300" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L274" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeReachesAMemberOfADynamicGroup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L98" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeReachesAnAgreedPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L112" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L302" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.3-1">RFC7999-3.3-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker in a bilateral peering relationship using BLACKHOLE MUST only accept and honor an announcement carrying BLACKHOLE when the announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise (§3.3)</span></td></tr>
@@ -316,8 +316,8 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L104" title="internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go" target="_blank" rel="noopener"><code>TestBlackholeRouteTypeStampedOnBestPath</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L326" title="internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go" target="_blank" rel="noopener"><code>TestBlackholeRuleForDynamicGroup</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L186" title="internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go" target="_blank" rel="noopener"><code>TestBlackholeNotStampedOutsideAuthorization</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L762" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L763" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L760" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L761" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.3-2">RFC7999-3.3-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker in a bilateral peering relationship using BLACKHOLE MUST only accept and honor an announcement carrying BLACKHOLE when the receiving party agreed to honor the BLACKHOLE community on that particular BGP session (§3.3)</span></td></tr>
@@ -332,11 +332,11 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/match_test.go#L198" title="internal/component/bgp/plugins/filter_modify/match_test.go" target="_blank" rel="noopener"><code>TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L158" title="internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go" target="_blank" rel="noopener"><code>TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go#L359" title="internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go" target="_blank" rel="noopener"><code>TestBlackholeRuleForDynamicGroup</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L764" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L765" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L762" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L763" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.3-4">RFC7999-3.3-4</code></td><td colspan="3"><span class="rfc-subject">&#34;An operator MUST ensure that origin validation techniques (such as the one described in [RFC6811]) do not inadvertently block legitimate announcements carrying the BLACKHOLE community&#34; (§3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.3-4">RFC7999-3.3-4</code></td><td colspan="3"><span class="rfc-subject">An operator MUST ensure that origin validation techniques (such as the one described in [RFC6811]) do not inadvertently block legitimate announcements carrying the BLACKHOLE community. (§3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3 - Accepting Blackholed IP Prefixes</td>
@@ -465,29 +465,29 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7999-3.1-2"><code>RFC7999-3.1-2</code></a></h3>
-<p>&#34;In a bilateral peering relationship, use of the BLACKHOLE community MUST be agreed upon by the two networks before advertising it&#34; (§3.1)</p>
+<p>In a bilateral peering relationship, use of the BLACKHOLE community MUST be agreed upon by the two networks before advertising it. (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L110" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L112" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L300" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L302" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L272" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeReachesAMemberOfADynamicGroup</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L274" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeReachesAMemberOfADynamicGroup</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L96" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeReachesAnAgreedPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go#L98" title="internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go" target="_blank" rel="noopener"><code>TestAnnounceBlackholeReachesAnAgreedPeer</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -507,7 +507,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L763" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L761" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -527,7 +527,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L762" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L760" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -557,7 +557,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L765" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L763" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -582,7 +582,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L764" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L762" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -590,7 +590,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
 </table>
 </div>
 <h3><a href="#rfc7999-3.3-4"><code>RFC7999-3.3-4</code></a></h3>
-<p>&#34;An operator MUST ensure that origin validation techniques (such as the one described in [RFC6811]) do not inadvertently block legitimate announcements carrying the BLACKHOLE community&#34; (§3.3)</p>
+<p>An operator MUST ensure that origin validation techniques (such as the one described in [RFC6811]) do not inadvertently block legitimate announcements carrying the BLACKHOLE community. (§3.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -841,7 +841,7 @@ No tracked gap. Every MUST-level row is proven in both polarities. <a href="#rfc
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

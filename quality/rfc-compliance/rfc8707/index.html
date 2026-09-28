@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8707 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8707: Resource Indicators for OAuth 2.0. 3 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 8707: Resource Indicators for OAuth 2.0. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 8707 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8707: Resource Indicators for OAuth 2.0. 3 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 8707: Resource Indicators for OAuth 2.0. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8707 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8707: Resource Indicators for OAuth 2.0. 3 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 8707: Resource Indicators for OAuth 2.0. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,22 +116,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>66.7%</strong><b>2 of 3 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 4 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>50.0%</strong><b>2 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 5 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>3</strong><b>of 8 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 3 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>33.3%</strong><b>1 of 3 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>4</strong><b>of 9 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>2</strong><b>of 4 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>50.0%</strong><b>2 of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 3 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -199,13 +199,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>8</td>
+<td>9</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>3</td>
+<td>4</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>1</td>
+<td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
 <td>0</td>
@@ -217,10 +217,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>4</td>
+<td>5</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>4</td>
+<td>5</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
@@ -242,7 +242,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Resource Indicators for OAuth 2.0 (ze as an OAuth resource server): seven MUST-level requirements. Three are met with positive+negative tags in internal/component/mcp: 5-1 (reject a token whose audience does not match the resource), 5-2 (accept an array audience when at least one entry matches), and 2-3 (canonicalize the audience so a trailing-slash divergence does not mismatch). 3-1 (set the token audience when minting) and 3-2 (return invalid_target for an unknown resource) are {not-applicable}: those are authorization-server token-endpoint behaviors and ze issues no tokens. 2-1 (no fragment) and 2-2 (no query) are {not-applicable}: they govern the client-formed canonical resource request parameter, which a resource server neither emits nor consumes.</p>
+<p>Enrolled: Thomas selected &#34;Keep present OAuth roles&#34; on 2026-09-21: MCP resource server and external-AS metadata consumer, without an AS, protected-resource discovery client, response signing or signed metadata. JWT audience comparison is enforced from RFC 7519 §§2 and 4.1.3. The historical RFC8707-5-1 and RFC8707-5-2 identifiers retain their tests but explicitly cite that actual source; RFC 8707 §5 is IANA considerations and states neither obligation.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p>No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 8707.</p>
@@ -257,7 +257,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>1</strong></td>
+<td><strong>2</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -276,73 +276,74 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>3</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>4</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc8707-5-1"><code>RFC8707-5-1</code></a>, <a href="#rfc8707-5-2"><code>RFC8707-5-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc8707-2-1"><code>RFC8707-2-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (2):</strong> <a href="#rfc8707-2-1"><code>RFC8707-2-1</code></a>, <a href="#rfc8707-2-6"><code>RFC8707-2-6</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8707-3-1">RFC8707-3-1</code></td><td colspan="3"><span class="rfc-subject">The authorization server SHOULD audience-restrict issued access tokens to the resource(s) indicated by the resource parameter (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8707-3-1">RFC8707-3-1</code></td><td colspan="3"><span class="rfc-subject">The authorization server SHOULD audience-restrict issued access tokens to the resource(s) indicated by the resource parameter (RFC 8707 §2; historical section-3 ID)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>3</td>
+<td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8707-3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> setting the token audience is an authorization-server obligation performed when minting a token; ze is an OAuth resource server (internal/component/mcp) and never issues or signs tokens, so it has no audience-setting code path</p></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> §2 explicitly addresses &#34;The authorization server&#34;. Thomas excluded the AS role on 2026-09-21. internal/component/mcp/streamable_auth.go::buildAuthForMode constructs a verifier for external tokens; internal/component/mcp/streamable.go::ServeHTTP has no token-issuance endpoint</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8707-3-2">RFC8707-3-2</code></td><td colspan="3"><span class="rfc-subject">If the authorization server cannot parse the provided resource value(s) or does not consider the resource(s) acceptable, it should reject the request with the error code invalid_target (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8707-3-2">RFC8707-3-2</code></td><td colspan="3"><span class="rfc-subject">If the authorization server cannot parse the provided resource value(s) or does not consider them acceptable, it should reject the request with the error code invalid_target (RFC 8707 §2.1; historical section-3 ID; lowercase should in the source)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>3</td>
+<td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8707-3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the invalid_target error is an authorization-server token-endpoint behavior; ze has no token or authorization endpoint (grep for invalid_target in internal/component/mcp finds none)</p></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> §2.1 addresses the authorization server&#39;s response to the resource request parameter. Thomas excluded the AS role on 2026-09-21. internal/component/mcp/streamable.go::ServeHTTP publishes no authorization or token endpoint; internal/component/mcp/streamable_auth.go::buildAuthForMode verifies external tokens without processing an OAuth resource request parameter</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8707-5-1">RFC8707-5-1</code></td><td colspan="3"><span class="rfc-subject">Resource server MUST reject any token whose `aud` does not match the resource&#39;s own canonical URL (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8707-5-1">RFC8707-5-1</code></td><td colspan="3"><span class="rfc-subject">A principal processing a JWT whose `aud` is present MUST reject the JWT if no audience value identifies that principal (actual source: RFC 7519 §4.1.3, with exact StringOrURI comparison from §2; historical ID retained, not an RFC 8707 §5 requirement)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5</td>
+<td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8707-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L410" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_AcceptsSlashDivergentAudience</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_test.go#L268" title="internal/component/mcp/jwt_test.go" target="_blank" rel="noopener"><code>TestVerifyJWT_RejectAudienceMismatch</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L359" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestOAuthAudienceIdentity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L360" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestOAuthAudienceIdentity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_test.go#L294" title="internal/component/mcp/jwt_test.go" target="_blank" rel="noopener"><code>TestVerifyJWT_RejectAudienceMismatch</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8707-5-2">RFC8707-5-2</code></td><td colspan="3"><span class="rfc-subject">If `aud` is a JSON array, at least one entry MUST match; array-shape decoding is required (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8707-5-2">RFC8707-5-2</code></td><td colspan="3"><span class="rfc-subject">Each principal intended to process the JWT MUST identify itself with a value in `aud`; the general form is an array of case-sensitive StringOrURI values, and the one-audience form MAY be a string (actual source: RFC 7519 §4.1.3; historical ID retained, not an RFC 8707 §5 requirement)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5</td>
+<td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8707-5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_test.go#L278" title="internal/component/mcp/jwt_test.go" target="_blank" rel="noopener"><code>TestVerifyJWT_AudienceArrayForm</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_test.go#L482" title="internal/component/mcp/jwt_test.go" target="_blank" rel="noopener"><code>TestAudClaim_Matches</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_test.go#L304" title="internal/component/mcp/jwt_test.go" target="_blank" rel="noopener"><code>TestVerifyJWT_AudienceArrayForm</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_test.go#L508" title="internal/component/mcp/jwt_test.go" target="_blank" rel="noopener"><code>TestAudClaim_Matches</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8707-2-1">RFC8707-2-1</code></td><td colspan="3"><span class="rfc-subject">Fragment MUST be absent from the canonical resource URL (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8707-2-1">RFC8707-2-1</code></td><td colspan="3"><span class="rfc-subject">The `resource` request parameter URI MUST NOT include a fragment component (§2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8707-2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> this governs the canonical resource URI a client forms and sends as the resource request parameter; ze is a resource server that never emits or consumes that parameter (internal/component/mcp validates the token audience only)</p></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;In requests to the authorization server, a client MAY indicate the protected resource (a.k.a. resource server, application, API, etc.) to which it is requesting access by including the following parameter in the request.&#34;; Thomas&#39;s 2026-09-21 selection retains the resource-server and AS-metadata-consumer roles only. internal/component/mcp/streamable_auth.go::buildAuthForMode verifies external tokens and emits no authorization/token request or resource request parameter</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8707-2-2">RFC8707-2-2</code></td><td colspan="3"><span class="rfc-subject">The resource URI SHOULD NOT include a query component, though a query component can be a useful and necessary part of the resource parameter (§2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8707-2-2">RFC8707-2-2</code></td><td colspan="3"><span class="rfc-subject">The `resource` request parameter URI SHOULD NOT include a query component, though a query component can be a useful and necessary part of the parameter (§2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD NOT</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8707-2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> this governs the client-formed canonical resource URI; ze (resource server) never emits or consumes the resource request parameter, validating only the token audience</p></td>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;In requests to the authorization server, a client MAY indicate the protected resource (a.k.a. resource server, application, API, etc.) to which it is requesting access by including the following parameter in the request.&#34;; Thomas&#39;s 2026-09-21 selection retains resource-server and AS-metadata-consumer roles only. internal/component/mcp/streamable_auth.go::buildAuthForMode verifies tokens without sending this request parameter; audience values are not automatically canonical resource URLs</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8707-2-4">RFC8707-2-4</code></td><td colspan="3"><span class="rfc-subject">`resource` parameter MAY appear on the token endpoint (§2, §4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8707-2-4">RFC8707-2-4</code></td><td colspan="3"><span class="rfc-subject">The `resource` parameter MAY be included in an access token request to the token endpoint (§2, §2.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>2</td>
@@ -360,6 +361,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8707-2-6">RFC8707-2-6</code></td><td colspan="3"><span class="rfc-subject">Its value MUST be an absolute URI, as specified by Section 4.3 of [RFC3986]. (§2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8707-2-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{feature-declined}:</strong> &#34;In requests to the authorization server, a client MAY indicate the protected resource (a.k.a. resource server, application, API, etc.) to which it is requesting access by including the following parameter in the request.&#34;; the 2026-09-21 scope retains the resource-server and AS-metadata-consumer roles. internal/component/mcp/streamable_auth.go::buildAuthForMode verifies external tokens and emits no authorization/token request or resource request parameter</p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -369,9 +379,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc8707-2-1"><code>RFC8707-2-1</code></a> Fragment MUST be absent from the canonical resource URL (§2)</td>
+<tr><td><a href="#rfc8707-2-1"><code>RFC8707-2-1</code></a> The `resource` request parameter URI MUST NOT include a fragment component (§2)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: this governs the canonical resource URI a client forms and sends as the resource request parameter; ze is a resource server that never emits or consumes that parameter (internal/component/mcp validates the token audience only)</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;In requests to the authorization server, a client MAY indicate the protected resource (a.k.a. resource server, application, API, etc.) to which it is requesting access by including the following parameter in the request.&#34;; Thomas&#39;s 2026-09-21 selection retains the resource-server and AS-metadata-consumer roles only. internal/component/mcp/streamable_auth.go::buildAuthForMode verifies external tokens and emits no authorization/token request or resource request parameter</td>
+</tr>
+<tr><td><a href="#rfc8707-2-6"><code>RFC8707-2-6</code></a> Its value MUST be an absolute URI, as specified by Section 4.3 of [RFC3986]. (§2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {feature-declined}: &#34;In requests to the authorization server, a client MAY indicate the protected resource (a.k.a. resource server, application, API, etc.) to which it is requesting access by including the following parameter in the request.&#34;; the 2026-09-21 scope retains the resource-server and AS-metadata-consumer roles. internal/component/mcp/streamable_auth.go::buildAuthForMode verifies external tokens and emits no authorization/token request or resource request parameter</td>
 </tr>
 </tbody>
 </table>
@@ -380,19 +394,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8707-5-1"><code>RFC8707-5-1</code></a></h3>
-<p>Resource server MUST reject any token whose `aud` does not match the resource&#39;s own canonical URL (§5)</p>
+<p>A principal processing a JWT whose `aud` is present MUST reject the JWT if no audience value identifies that principal (actual source: RFC 7519 §4.1.3, with exact StringOrURI comparison from §2; historical ID retained, not an RFC 8707 §5 requirement)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_test.go#L268" title="internal/component/mcp/jwt_test.go" target="_blank" rel="noopener"><code>TestVerifyJWT_RejectAudienceMismatch</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_test.go#L294" title="internal/component/mcp/jwt_test.go" target="_blank" rel="noopener"><code>TestVerifyJWT_RejectAudienceMismatch</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L360" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestOAuthAudienceIdentity</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L410" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_AcceptsSlashDivergentAudience</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L359" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestOAuthAudienceIdentity</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -400,19 +419,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8707-5-2"><code>RFC8707-5-2</code></a></h3>
-<p>If `aud` is a JSON array, at least one entry MUST match; array-shape decoding is required (§5)</p>
+<p>Each principal intended to process the JWT MUST identify itself with a value in `aud`; the general form is an array of case-sensitive StringOrURI values, and the one-audience form MAY be a string (actual source: RFC 7519 §4.1.3; historical ID retained, not an RFC 8707 §5 requirement)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_test.go#L482" title="internal/component/mcp/jwt_test.go" target="_blank" rel="noopener"><code>TestAudClaim_Matches</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_test.go#L508" title="internal/component/mcp/jwt_test.go" target="_blank" rel="noopener"><code>TestAudClaim_Matches</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_test.go#L278" title="internal/component/mcp/jwt_test.go" target="_blank" rel="noopener"><code>TestVerifyJWT_AudienceArrayForm</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/jwt_test.go#L304" title="internal/component/mcp/jwt_test.go" target="_blank" rel="noopener"><code>TestVerifyJWT_AudienceArrayForm</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -420,9 +439,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 <h3><a href="#rfc8707-2-1"><code>RFC8707-2-1</code></a></h3>
-<p>Fragment MUST be absent from the canonical resource URL (§2)</p>
+<p>The `resource` request parameter URI MUST NOT include a fragment component (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8707-2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc8707-2-6"><code>RFC8707-2-6</code></a></h3>
+<p>Its value MUST be an absolute URI, as specified by Section 4.3 of [RFC3986]. (§2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8707-2-6, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -430,10 +453,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Reviewer</td>
-<td>claude</td>
+<td>Main integration; independent source-mapping review: OAuthMappingReview</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-09-21</td>
+<td>2026-09-22</td>
 </tr>
 <tr><td>Register</td>
 <td>prose</td>
@@ -448,10 +471,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>rfc/extraction/rfc8707.json</td>
 </tr>
 <tr><td>Mapped sentences</td>
-<td>1</td>
+<td>2</td>
 </tr>
 <tr><td>Declined as scope</td>
-<td>4</td>
+<td>3</td>
 </tr>
 <tr><td>Relocated to a spec, which Ze OWES</td>
 <td>0</td>
@@ -495,19 +518,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not stated</td>
 <td>2</td>
 <td>walked</td>
-<td>not stated</td>
+<td>Section 2 states the SHOULD audience-restriction rule under historical RFC8707-3-1, the SHOULD NOT query-component rule under RFC8707-2-2, and the MAY multiple-resource rule under RFC8707-2-5. The MUST-level modal inventory does not derive separate sites for these advisory clauses.</td>
 </tr>
 <tr><td><code>2.1</code></td>
 <td>not stated</td>
 <td>0</td>
 <td>walked</td>
-<td>not stated</td>
+<td>Section 2.1 states that an authorization server unable to parse or accept the supplied resources should reject the request with invalid_target. The historical section-3 ID records this lowercase recommendation, whose actual citation remains Section 2.1.</td>
 </tr>
 <tr><td><code>2.2</code></td>
-<td>not stated</td>
+<td>Section 2 permits including the resource parameter with MAY</td>
 <td>1</td>
 <td>walked</td>
-<td>not stated</td>
+<td>Section 2 permits including the resource parameter with MAY. Section 2.2 states: When the resource parameter is used on an access token request made to the token endpoint, for all grant types, it indicates the target service or protected resource where the client intends to use the requested access token. The retained permission row now cites Sections 2 and 2.2 rather than Section 4, which concerns privacy.</td>
 </tr>
 <tr><td><code>3</code></td>
 <td>not stated</td>
@@ -525,7 +548,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not stated</td>
 <td>0</td>
 <td>walked</td>
-<td>not stated</td>
+<td>Provenance exception, not an obligation read from Section 5: RFC 8707 Section 5 is IANA Considerations and sources neither allocated JWT audience ID. Their actual primary source is RFC 7519 Section 4.1.3 (https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3): Each principal intended to process the JWT MUST identify itself with a value in the audience claim. It also requires rejection when the processing principal is not identified and defines string/array audience forms. Exact StringOrURI comparison comes from RFC 7519 Section 2. rfc/corrections/rfc8707.md records that correction. The schema has no separate cross-document requirement-provenance field, so this historical Section 5 entry retains the IDs with their actual source stated explicitly; it must not be represented as normative RFC 8707 text.</td>
 </tr>
 <tr><td><code>5.1</code></td>
 <td>not stated</td>
@@ -567,22 +590,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><code>front:1</code></td>
 <td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
-<td>IETF Trust Legal Provisions boilerplate on the front page: it governs Code Components extracted from the document, not any protocol behavior Ze implements.</td>
+<td>The sentence about Code Components including Simplified BSD License text is IETF Trust licensing boilerplate governing reuse of document material; it states no OAuth wire or processing requirement.</td>
 <td>Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</td>
 </tr>
 <tr><td><code>1:1</code></td>
 <td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
-<td>Introduction prose describing the security assumption the resource parameter exists to protect, not an obligation placed on an implementation. The resource-server obligation it motivates is declared as RFC8707-5-1 in rfc/short/rfc8707.md and sourced from Section 3.</td>
+<td>The introductory sentence describes the security assumption motivating resource indicators: an access token must only be valid for use at a specific protected resource and scope. Section 1.1 reserves BCP 14 force for uppercase keywords. This does not remove JWT recipient audience checks: retained RFC8707-5-1 and RFC8707-5-2 identify their actual RFC 7519 Sections 2 and 4.1.3 source in the checklist and Section 5 provenance exception.</td>
 <td>To prevent misuse, several important security assumptions must hold, one of which is that an access token must only be valid for use at a specific protected resource and for a specific scope of access.</td>
-</tr>
-<tr><td><code>2:1</code></td>
-<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
-<td>The obligation shapes the value of the resource request parameter, and sending that parameter is optional: RFC 8707 Section 2 says &#34;In requests to the authorization server, a client MAY indicate the protected resource (a.k.a. resource server, application, API, etc.) to which it is requesting access by including the following parameter in the request.&#34; Ze is an OAuth resource server (internal/component/mcp) that issues no authorization or token requests, so it never forms a resource parameter value. The same scope decision gates RFC8707-2-1 and RFC8707-2-2 in rfc/short/rfc8707.md.</td>
-<td>Its value MUST be an absolute URI, as specified by Section 4.3 of [RFC3986].</td>
 </tr>
 <tr><td><code>2.2:1</code></td>
 <td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
-<td>The sentence restates an RFC 6749 obligation it cites by section: &#34;As specified in Section 5.1 of [RFC6749], the authorization server must indicate the access token&#39;s effective scope to the client in the scope response parameter value when it differs from the scope requested by the client.&#34; The obligation belongs to RFC 6749 Section 5.1.</td>
+<td>The sentence explicitly begins As specified in Section 5.1 of [RFC6749] and repeats that RFC&#39;s requirement to report the token&#39;s effective scope when it differs from the requested scope. This cross-document attribution does not create an RFC 8707 token-issuing role for Ze.</td>
 <td>As specified in Section 5.1 of [RFC6749], the authorization server must indicate the access token&#39;s effective scope to the client in the &#34;scope&#34; response parameter value when it differs from the scope requested by the client.</td>
 </tr>
 </tbody>
@@ -621,7 +639,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

@@ -17,7 +17,7 @@ None
 
 ## Dependencies
 
-- Required: [`firewall`](../firewall/index.md)
+- Required: [`firewall`](../firewall/index.md), [`bgp-rib`](../bgp-rib/index.md)
 - Optional: None
 
 ## Used by

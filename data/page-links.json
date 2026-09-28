@@ -466,7 +466,7 @@
             {
               "href": "guides/benchmarking/",
               "label": "Benchmarking guide",
-              "desc": "How to run ze-perf and read JSON output."
+              "desc": "How to run le perf and read JSON output."
             },
             {
               "href": "performance/bgp/",
@@ -476,7 +476,7 @@
             {
               "href": "use-cases/bgp-performance/",
               "label": "BGP performance testing with Ze",
-              "desc": "Use ze-perf to recreate route-server performance tests with sender, DUT, receiver, and JSON."
+              "desc": "Use le perf to recreate route-server performance tests with sender, DUT, receiver, and JSON."
             },
             {
               "href": "quality/qemu-interop-release/",
@@ -883,7 +883,7 @@
             {
               "href": "guides/benchmarking/",
               "label": "Benchmarking guide",
-              "desc": "How to run ze-perf and read JSON output."
+              "desc": "How to run le perf and read JSON output."
             },
             {
               "href": "performance/bgp/",

@@ -103,9 +103,9 @@ Same OSPF experimental status.
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC3630-1-1` | Non-TE capable nodes must flood TE LSAs as any other type 10 (area-local scope) Opaque LSAs (§1) -- the ext-1 opaque carrier floods Type 10 by scope regardless of any TE consumer (Ze: spec-ospf-ext-2) | MUST | 1 | **positive:** `unit/verify` [`TestRFC3630NonTECapableFloodsTELSAByScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3630_te_test.go#L23). **negative:** `unit/verify` [`TestRFC3630NonTECapableFloodsTELSAByScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3630_te_test.go#L28) |
-| `RFC3630-6-1` | Top-level Types in the range 32768-32777 are for experimental use, must not be mentioned by RFCs (§6) | MUST NOT | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is an implementation, not an RFC author; it neither authors RFCs nor mentions the experimental top-level Type range 32768-32777 |
+| `RFC3630-6-1` | o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6) | MUST NOT | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is an implementation, not an RFC author; it neither authors RFCs nor mentions the experimental top-level Type range 32768-32777 |
 | `RFC3630-6-2` | Top-level Types 32778-65535: before any assignment, there must be a Standards Track RFC specifying IANA Considerations covering the range (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is an implementation, not the IANA registry nor an RFC author; it neither assigns nor documents the reserved top-level Type range 32778-65535 |
-| `RFC3630-6-3` | Sub-TLV Types in the range 32768-32777 are for experimental use, must not be mentioned by RFCs (§6) | MUST NOT | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is an implementation, not an RFC author; it neither authors RFCs nor mentions the experimental sub-TLV Type range 32768-32777 |
+| `RFC3630-6-3` | o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6) | MUST NOT | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is an implementation, not an RFC author; it neither authors RFCs nor mentions the experimental sub-TLV Type range 32768-32777 |
 | `RFC3630-6-4` | Sub-TLV Types 32778-65535: before any assignment, there must be a Standards Track RFC specifying IANA Considerations covering the range (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is an implementation, not the IANA registry nor an RFC author; it neither assigns nor documents the reserved sub-TLV Type range 32778-65535 |
 | `RFC3630-2.4.1-1` | If a router advertises BGP routes with the BGP next hop attribute set to the BGP router ID, the Router Address should be the same as the BGP router ID (§2.4.1) | SHOULD | 2.4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3630-2.5.7-1` | Maximum Reservable Bandwidth should be user-configurable; default value should be the Maximum Bandwidth (§2.5.7) -- Ze: `max-reservable-bandwidth` leaf, defaulting to `max-bandwidth` (applyTELinkAttributes) | SHOULD | 2.5.7 | **positive:** no positive test. **negative:** no negative test |
@@ -117,9 +117,9 @@ Same OSPF experimental status.
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC3630-6-1`](#rfc3630-6-1) Top-level Types in the range 32768-32777 are for experimental use, must not be mentioned by RFCs (§6) | no test | no test carries this requirement id; annotated {not-applicable}: ze is an implementation, not an RFC author; it neither authors RFCs nor mentions the experimental top-level Type range 32768-32777 |
+| [`RFC3630-6-1`](#rfc3630-6-1) o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6) | no test | no test carries this requirement id; annotated {not-applicable}: ze is an implementation, not an RFC author; it neither authors RFCs nor mentions the experimental top-level Type range 32768-32777 |
 | [`RFC3630-6-2`](#rfc3630-6-2) Top-level Types 32778-65535: before any assignment, there must be a Standards Track RFC specifying IANA Considerations covering the range (§6) | no test | no test carries this requirement id; annotated {not-applicable}: ze is an implementation, not the IANA registry nor an RFC author; it neither assigns nor documents the reserved top-level Type range 32778-65535 |
-| [`RFC3630-6-3`](#rfc3630-6-3) Sub-TLV Types in the range 32768-32777 are for experimental use, must not be mentioned by RFCs (§6) | no test | no test carries this requirement id; annotated {not-applicable}: ze is an implementation, not an RFC author; it neither authors RFCs nor mentions the experimental sub-TLV Type range 32768-32777 |
+| [`RFC3630-6-3`](#rfc3630-6-3) o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6) | no test | no test carries this requirement id; annotated {not-applicable}: ze is an implementation, not an RFC author; it neither authors RFCs nor mentions the experimental sub-TLV Type range 32768-32777 |
 | [`RFC3630-6-4`](#rfc3630-6-4) Sub-TLV Types 32778-65535: before any assignment, there must be a Standards Track RFC specifying IANA Considerations covering the range (§6) | no test | no test carries this requirement id; annotated {not-applicable}: ze is an implementation, not the IANA registry nor an RFC author; it neither assigns nor documents the reserved sub-TLV Type range 32778-65535 |
 
 ## Proof state
@@ -139,7 +139,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC3630-6-1`](#rfc3630-6-1)
 
-Top-level Types in the range 32768-32777 are for experimental use, must not be mentioned by RFCs (§6)
+o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -155,7 +155,7 @@ No test carries RFC3630-6-2, so no unit is bound to it.
 
 ### [`RFC3630-6-3`](#rfc3630-6-3)
 
-Sub-TLV Types in the range 32768-32777 are for experimental use, must not be mentioned by RFCs (§6)
+o Types in the range 32768-32777 are for experimental use; these will not be registered with IANA, and MUST NOT be mentioned by RFCs. (§6)
 
 Audit verdict: not audited: no reader has judged these tests
 

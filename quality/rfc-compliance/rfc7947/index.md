@@ -105,13 +105,13 @@ Optional per-peer next-hop override and path-hiding mitigation (add-path) are op
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7947-x-1` | Route server SHOULD NOT prepend its own AS to AS_PATH nor modify it in any other way, per RFC 7947 Section 2.2.2.1 (Key Requirements) | SHOULD NOT | x | **positive:** `unit/verify` [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L440). **positive:** `unit/verify` [`TestRelayStoredRouteRSClientPreservesASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_relay_test.go#L222). **negative:** `unit/verify` [`TestReactorForwardRSEBGPPrepend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L318). **negative:** `unit/verify` [`TestRelayStoredRoutePlainEBGPPrependsLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_relay_test.go#L258). **positive:** `functional/verify` [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L4). **negative:** `functional/verify` [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L8). **positive:** `interop/nightly` [`checkRouteServerASPath`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L900) |
-| `RFC7947-x-2` | Route server must not rewrite NEXT_HOP (Key Requirements) | MUST NOT | x | **positive:** `unit/verify` [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L445). **negative:** no negative test. **{single-polarity}:** NEXT_HOP transparency is not RS-specific -- every forwarded route preserves it by default (nhModeNone, internal/component/bgp/reactor/peer_forward_facts.go:147), so unlike x-1's AS-path prepend there is no "confined" negative where a comparable non-RS peer rewrites NEXT_HOP; the only rewrite is an explicit per-peer next-hop-self/explicit override, which exercises the override feature rather than the RS-transparency MUST-NOT. The positive is proven byte-identical in TestReactorForwardRSTransparent |
-| `RFC7947-x-3` | MULTI_EXIT_DISC applied to an NLRI UPDATE sent to a route server SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value, per RFC 7947 Section 2.2.3 (Key Requirements) | SHOULD | x | **positive:** `unit/verify` [`TestForwardKeepsMEDForRouteServerClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L372). **positive:** `unit/verify` [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L447). **positive:** `functional/verify` [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L11). **negative:** `functional/verify` [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L15) |
-| `RFC7947-x-4` | Per-client import/export policy must be applied on each redistribution (Key Requirements) | MUST | x | **positive:** `unit/verify` [`TestReactorForwardRSFallback`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L241). **negative:** `unit/verify` [`TestReactorForwardRSBasic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L153) |
+| `RFC7947-x-1` | Route server SHOULD NOT prepend its own AS to AS_PATH nor modify it in any other way, per RFC 7947 Section 2.2.2.1 (Key Requirements) | SHOULD NOT | x | **positive:** `unit/verify` [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L444). **positive:** `unit/verify` [`TestRelayStoredRouteRSClientPreservesASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_relay_test.go#L222). **negative:** `unit/verify` [`TestReactorForwardRSEBGPPrepend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L322). **negative:** `unit/verify` [`TestRelayStoredRoutePlainEBGPPrependsLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_relay_test.go#L258). **positive:** `functional/verify` [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L4). **negative:** `functional/verify` [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L8). **positive:** `interop/nightly` [`checkRouteServerASPath`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L898) |
+| `RFC7947-x-2` | Route server must not rewrite NEXT_HOP (Key Requirements) | MUST NOT | x | **positive:** `unit/verify` [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L449). **negative:** no negative test. **{single-polarity}:** NEXT_HOP transparency is not RS-specific -- every forwarded route preserves it by default (nhModeNone, internal/component/bgp/reactor/peer_forward_facts.go:147), so unlike x-1's AS-path prepend there is no "confined" negative where a comparable non-RS peer rewrites NEXT_HOP; the only rewrite is an explicit per-peer next-hop-self/explicit override, which exercises the override feature rather than the RS-transparency MUST-NOT. The positive is proven byte-identical in TestReactorForwardRSTransparent |
+| `RFC7947-x-3` | MULTI_EXIT_DISC applied to an NLRI UPDATE sent to a route server SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value, per RFC 7947 Section 2.2.3 (Key Requirements) | SHOULD | x | **positive:** `unit/verify` [`TestForwardKeepsMEDForRouteServerClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L372). **positive:** `unit/verify` [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L451). **positive:** `functional/verify` [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L11). **negative:** `functional/verify` [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L15) |
+| `RFC7947-x-4` | Per-client import/export policy must be applied on each redistribution (Key Requirements) | MUST | x | **positive:** `unit/verify` [`TestReactorForwardRSFallback`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L245). **negative:** `unit/verify` [`TestReactorForwardRSBasic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L157) |
 | `RFC7947-x-5` | Route server should mitigate path hiding (e.g., multi-RIB per client or add-path) (Key Requirements) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
 | `RFC7947-x-6` | Route server may use ADD-PATH (RFC 7911) to distribute multiple paths to clients (Key Requirements) | MAY | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC7947-2.2-1` | A route server SHOULD NOT by default update the well-known or optional BGP attributes it receives from a route server client, and SHOULD pass them on unchanged to its other clients (S2.2) | SHOULD NOT | 2.2 - Attribute Transparency | **positive:** `unit/verify` [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L451). **negative:** `unit/verify` [`TestReactorForwardRSEBGPPrepend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L322) |
+| `RFC7947-2.2-1` | A route server SHOULD NOT by default update the well-known or optional BGP attributes it receives from a route server client, and SHOULD pass them on unchanged to its other clients (S2.2) | SHOULD NOT | 2.2 - Attribute Transparency | **positive:** `unit/verify` [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L455). **negative:** `unit/verify` [`TestReactorForwardRSEBGPPrepend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L326) |
 | `RFC7947-2.2.2.2-1` | A route server client BGP implementation that has implemented the RFC 4271 Section 6.3 leftmost-AS check MUST allow that check to be disabled, so an UPDATE whose leftmost AS in AS_PATH is not the AS of the route server that sent it is accepted (S2.2.2.2) | MUST | 2.2.2.2 - Route Server client AS_PATH Management | **positive:** `unit/verify` [`TestLoopIngressAcceptsNonAdjacentLeftmostAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/filter/loop_test.go#L345). **negative:** `unit/verify` [`TestLoopIngressRejectsLocalASFromRouteServer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/filter/loop_test.go#L363) |
 
 ## Gaps and untested MUSTs
@@ -130,12 +130,12 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestReactorForwardRSEBGPPrepend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L318) | unit/verify | unproven |
+| negative | [`TestReactorForwardRSEBGPPrepend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L322) | unit/verify | unproven |
 | negative | [`TestRelayStoredRoutePlainEBGPPrependsLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_relay_test.go#L258) | unit/verify | unproven |
 | negative | [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L8) | functional/verify | unproven |
-| positive | [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L440) | unit/verify | unproven |
+| positive | [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L444) | unit/verify | unproven |
 | positive | [`TestRelayStoredRouteRSClientPreservesASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_api_relay_test.go#L222) | unit/verify | unproven |
-| positive | [`checkRouteServerASPath`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L900) | interop/nightly | unproven |
+| positive | [`checkRouteServerASPath`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L898) | interop/nightly | unproven |
 | positive | [`bgp-rs-relay-aspath-transparency.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L4) | functional/verify | unproven |
 
 ### [`RFC7947-x-2`](#rfc7947-x-2)
@@ -146,7 +146,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L445) | unit/verify | unproven |
+| positive | [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L449) | unit/verify | unproven |
 
 ### [`RFC7947-x-3`](#rfc7947-x-3)
 
@@ -158,7 +158,7 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | negative | [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L15) | functional/verify | unproven |
 | positive | [`TestForwardKeepsMEDForRouteServerClient`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L372) | unit/verify | unproven |
-| positive | [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L447) | unit/verify | unproven |
+| positive | [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L451) | unit/verify | unproven |
 | positive | [`med-not-propagated-across-as.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L11) | functional/verify | unproven |
 
 ### [`RFC7947-x-4`](#rfc7947-x-4)
@@ -169,8 +169,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestReactorForwardRSBasic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L153) | unit/verify | unproven |
-| positive | [`TestReactorForwardRSFallback`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L241) | unit/verify | unproven |
+| negative | [`TestReactorForwardRSBasic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L157) | unit/verify | unproven |
+| positive | [`TestReactorForwardRSFallback`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L245) | unit/verify | unproven |
 
 ### [`RFC7947-2.2-1`](#rfc7947-2.2-1)
 
@@ -180,8 +180,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestReactorForwardRSEBGPPrepend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L322) | unit/verify | unproven |
-| positive | [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L451) | unit/verify | unproven |
+| negative | [`TestReactorForwardRSEBGPPrepend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L326) | unit/verify | unproven |
+| positive | [`TestReactorForwardRSTransparent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs_test.go#L455) | unit/verify | unproven |
 
 ### [`RFC7947-2.2.2.2-1`](#rfc7947-2.2.2.2-1)
 

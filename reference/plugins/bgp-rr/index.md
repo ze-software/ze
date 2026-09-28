@@ -17,7 +17,7 @@ None
 
 ## Dependencies
 
-- Required: [`bgp-adj-rib-in`](../bgp-adj-rib-in/index.md)
+- Required: [`bgp-adj-rib-in`](../bgp-adj-rib-in/index.md), [`bgp-rib`](../bgp-rib/index.md)
 - Optional: None
 
 ## Used by

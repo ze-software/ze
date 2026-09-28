@@ -47,13 +47,13 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="mrt-analysis">MRT Analysis</h1>
-    <p>Ze includes <code>ze-analyze</code>, a standalone tool for analysing real-world BGP data
+    <p>Ze includes <code>./le mrt</code>, a development command for analysing real-world BGP data
 from public route collectors (RIPE RIS, RouteViews). It processes MRT dump files
 to extract statistics that inform ze's internal buffer sizing, caching strategies,
 and congestion handling.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
-<li><a href="#building">Building</a></li>
+<li><a href="#running">Running</a></li>
 <li><a href="#quick-start">Quick Start</a></li>
 <li><a href="#data-sources">Data Sources</a></li>
 <li><a href="#commands">Commands</a>
@@ -80,19 +80,20 @@ and congestion handling.</p>
 <li><a href="#daemon-mrt-recording">Daemon MRT Recording</a></li>
 <li><a href="#related">Related</a></li>
 </ol></nav>
-<!-- source: internal/analyze/register.go -- ze-analyze CLI entry point -->
-<h2 id="building">Building</h2>
-<pre><code>go build -tags ze_analyze -o bin/ze-analyze ./cmd/ze
-</code></pre>
-<p>This produces <code>bin/ze-analyze</code>.</p>
+<!-- source: internal/analyze/register.go -- the subcommand registry -->
+<!-- source: internal/le/mrt/mrt.go -- Answer -->
+<h2 id="running">Running</h2>
+<p><code>./le mrt &lt;subcommand&gt; [options]</code> runs one subcommand. A bare <code>./le mrt</code> lists
+every subcommand with its description, as data, so <code>./le mrt '|' json</code> works.
+le builds itself, so no separate binary is needed.</p>
 <h2 id="quick-start">Quick Start</h2>
 <p>Download BGP data from public collectors and run an analysis:</p>
-<pre><code>bin/ze-analyze download                                    # fetch latest data
-bin/ze-analyze density test/internet/ripe-updates.*.gz     # UPDATE density + burst patterns
-bin/ze-analyze attributes test/internet/latest-bview.gz    # attribute repetition analysis
+<pre><code>./le mrt download                                    # fetch latest data
+./le mrt density test/internet/ripe-updates.*.gz     # UPDATE density + burst patterns
+./le mrt attributes test/internet/latest-bview.gz    # attribute repetition analysis
 </code></pre>
 <h2 id="data-sources">Data Sources</h2>
-<p><code>ze-analyze download</code> fetches MRT files from two public BGP collectors:</p>
+<p><code>./le mrt download</code> fetches MRT files from two public BGP collectors:</p>
 <table>
 <thead>
 <tr>
@@ -132,10 +133,10 @@ bin/ze-analyze attributes test/internet/latest-bview.gz    # attribute repetitio
 <!-- source: internal/analyze/download.go -- download URLs and conversion -->
 <p>Files are saved to <code>test/internet/</code> (gitignored). RouteViews bz2 files are
 converted to gzip on download for Go stdlib compatibility.</p>
-<pre><code>bin/ze-analyze download                     # today's data at 00:00 UTC
-bin/ze-analyze download 20260324            # specific date
-bin/ze-analyze download 20260324 1200       # specific date and time
-bin/ze-analyze download -o /tmp/mrt         # custom output directory
+<pre><code>./le mrt download                     # today's data at 00:00 UTC
+./le mrt download 20260324            # specific date
+./le mrt download 20260324 1200       # specific date and time
+./le mrt download -o /tmp/mrt         # custom output directory
 </code></pre>
 <h2 id="commands">Commands</h2>
 <h3 id="density">density</h3>
@@ -143,7 +144,7 @@ bin/ze-analyze download -o /tmp/mrt         # custom output directory
 second. Separates traffic into setup (table dumps, convergence) and maintenance
 (steady-state churn) using per-source-peer burst detection.</p>
 <!-- source: internal/analyze/density.go -- NLRI counting and burst detection -->
-<pre><code>bin/ze-analyze density test/internet/ripe-updates.*.gz
+<pre><code>./le mrt density test/internet/ripe-updates.*.gz
 </code></pre>
 <p><strong>Output sections:</strong></p>
 <ul>
@@ -160,8 +161,8 @@ second. Separates traffic into setup (table dumps, convergence) and maintenance
 per-attribute cache hit rates, bundle deduplication effectiveness, and temporal
 locality (consecutive identical bundles).</p>
 <!-- source: internal/analyze/attributes.go -- bundle hashing and community extraction -->
-<pre><code>bin/ze-analyze attributes test/internet/latest-bview.gz 2&gt;/dev/null | jq .   # JSON
-bin/ze-analyze attributes test/internet/latest-bview.gz &gt;/dev/null           # summary
+<pre><code>./le mrt attributes test/internet/latest-bview.gz 2&gt;/dev/null | jq .   # JSON
+./le mrt attributes test/internet/latest-bview.gz &gt;/dev/null           # summary
 </code></pre>
 <p><strong>Output:</strong> JSON to stdout, human summary to stderr.</p>
 <p><strong>Used for:</strong> attribute pool sizing, cache strategy decisions. Results documented
@@ -171,9 +172,9 @@ in <a href="https://github.com/ze-software/ze/blob/main/docs/research/mrt-attrib
 route from a given ASN. These defaults can be assumed present in a cache,
 encoding only exceptions (absent defaults) to save wire bytes.</p>
 <!-- source: internal/analyze/communities.go -- per-ASN frequency analysis -->
-<pre><code>bin/ze-analyze communities test/internet/latest-bview.gz
-bin/ze-analyze communities --threshold 0.90 --format json test/internet/latest-bview.gz
-bin/ze-analyze communities --post-policy test/internet/latest-bview.gz
+<pre><code>./le mrt communities test/internet/latest-bview.gz
+./le mrt communities --threshold 0.90 --format json test/internet/latest-bview.gz
+./le mrt communities --post-policy test/internet/latest-bview.gz
 </code></pre>
 <p><strong>Options:</strong></p>
 <ul>
@@ -185,57 +186,57 @@ bin/ze-analyze communities --post-policy test/internet/latest-bview.gz
 <h3 id="count-attrs">count-attrs</h3>
 <p>Counts how many path attributes each route carries. Produces a distribution
 table showing the typical attribute set size.</p>
-<pre><code>bin/ze-analyze count-attrs test/internet/latest-bview.gz
+<pre><code>./le mrt count-attrs test/internet/latest-bview.gz
 </code></pre>
 <h3 id="mrt-dump">mrt-dump</h3>
 <p>Dumps MRT records as BGP UPDATE hex, one per line. Useful for piping into
 <code>ze bgp decode</code> or other tools.</p>
-<pre><code>bin/ze-analyze mrt-dump test/internet/ripe-updates.*.gz | head -5
-bin/ze-analyze mrt-dump test/internet/latest-bview.gz | ./ze bgp decode -
+<pre><code>./le mrt mrt-dump test/internet/ripe-updates.*.gz | head -5
+./le mrt mrt-dump test/internet/latest-bview.gz | ./ze bgp decode -
 </code></pre>
 <h3 id="show">show</h3>
 <p>Human-readable MRT dump (like bgpdump). Displays record headers, peer info, and
 decoded BGP message contents including attributes, AS paths, and prefixes.</p>
 <!-- source: internal/analyze/show.go -- human-readable MRT dump -->
-<pre><code>bin/ze-analyze show test/internet/ripe-updates.*.gz | head -50
-bin/ze-analyze show test/internet/latest-bview.gz
+<pre><code>./le mrt show test/internet/ripe-updates.*.gz | head -50
+./le mrt show test/internet/latest-bview.gz
 </code></pre>
 <h3 id="routes">routes</h3>
 <p>Extracts a prefix table from TABLE_DUMP_V2 files as JSON. Each entry includes
 prefix, next-hop, AS path, origin, local-pref, MED, and communities.</p>
 <!-- source: internal/analyze/routes.go -- prefix table extraction -->
-<pre><code>bin/ze-analyze routes test/internet/latest-bview.gz | jq '.[] | select(.prefix == "1.0.0.0/24")'
+<pre><code>./le mrt routes test/internet/latest-bview.gz | jq '.[] | select(.prefix == "1.0.0.0/24")'
 </code></pre>
 <h3 id="inject">inject</h3>
 <p>Opens a BGP session to a remote peer and sends routes from an MRT file.
 Supports both TABLE_DUMP_V2 (RIB entries) and BGP4MP (UPDATE messages).</p>
 <!-- source: internal/analyze/inject.go -- BGP session injection -->
-<pre><code>bin/ze-analyze inject --local-as 65000 test/internet/latest-bview.gz 10.0.0.1:179
+<pre><code>./le mrt inject --local-as 65000 test/internet/latest-bview.gz 10.0.0.1:179
 </code></pre>
 <h3 id="replay">replay</h3>
 <p>Replays BGP4MP messages over a BGP session preserving original inter-message
 timing. Configurable speed multiplier.</p>
 <!-- source: internal/analyze/replay.go -- timed BGP4MP replay -->
-<pre><code>bin/ze-analyze replay --local-as 65000 --speed 10 test/internet/ripe-updates.*.gz 10.0.0.1:179
+<pre><code>./le mrt replay --local-as 65000 --speed 10 test/internet/ripe-updates.*.gz 10.0.0.1:179
 </code></pre>
 <h3 id="convert">convert</h3>
 <p>Converts MRT records to other formats.</p>
 <!-- source: internal/analyze/convert.go -- format conversion -->
-<pre><code>bin/ze-analyze convert pcap test/internet/ripe-updates.*.gz output.pcap      # BGP4MP to pcap (IPv4 only)
-bin/ze-analyze convert json test/internet/ripe-updates.*.gz | jq .           # record headers as JSON
+<pre><code>./le mrt convert pcap test/internet/ripe-updates.*.gz output.pcap      # BGP4MP to pcap (IPv4 only)
+./le mrt convert json test/internet/ripe-updates.*.gz | jq .           # record headers as JSON
 </code></pre>
 <h3 id="export">export</h3>
 <p>Send MRT data to network targets.</p>
 <!-- source: internal/analyze/export_bmp.go -- MRT to BMP export -->
-<pre><code>bin/ze-analyze export bmp --target 10.0.0.1:4321 test/internet/ripe-updates.*.gz
-bin/ze-analyze export bmp --target collector:4321 --peer-ip 10.0.0.1 test/internet/ripe-updates.*.gz
+<pre><code>./le mrt export bmp --target 10.0.0.1:4321 test/internet/ripe-updates.*.gz
+./le mrt export bmp --target collector:4321 --peer-ip 10.0.0.1 test/internet/ripe-updates.*.gz
 </code></pre>
 <p>Connects to a BMP collector and sends each BGP4MP message as a BMP Route
 Monitoring message. Optional <code>--peer-ip</code> filters to a single peer.</p>
 <h3 id="record">record</h3>
 <p>Record incoming protocol streams to MRT files.</p>
 <!-- source: internal/analyze/record_bmp.go -- BMP to MRT recording -->
-<pre><code>bin/ze-analyze record bmp --listen :4321 output.mrt
+<pre><code>./le mrt record bmp --listen :4321 output.mrt
 </code></pre>
 <p>Listens for incoming BMP (RFC 7854) connections. Received Route Monitoring
 messages are written as BGP4MP_MESSAGE_AS4 MRT records. Peer Up/Down
@@ -246,8 +247,8 @@ BMP connections are supported (writes are serialized).</p>
 Useful for IXP traffic replay testing: blast an entire routing table at a
 router and observe its behavior.</p>
 <!-- source: internal/analyze/serve.go -- MRT-to-BGP server -->
-<pre><code>bin/ze-analyze serve --local-as 65000 --listen :1179 test/internet/latest-bview.gz
-bin/ze-analyze serve --local-as 65000 --per-peer test/internet/ripe-updates.*.gz
+<pre><code>./le mrt serve --local-as 65000 --listen :1179 test/internet/latest-bview.gz
+./le mrt serve --local-as 65000 --per-peer test/internet/ripe-updates.*.gz
 </code></pre>
 <p>With <code>--per-peer</code>, only records matching the connecting peer's ASN are sent.
 Multiple MRT files can be specified; all are sent sequentially.</p>
@@ -255,17 +256,17 @@ Multiple MRT files can be specified; all are sent sequentially.</p>
 <p>Per-type/subtype counts, AFI breakdown, peer summary, timestamp range, and
 BGP message type distribution.</p>
 <!-- source: internal/analyze/statistics.go -- MRT statistics -->
-<pre><code>bin/ze-analyze statistics test/internet/ripe-updates.*.gz
+<pre><code>./le mrt statistics test/internet/ripe-updates.*.gz
 </code></pre>
 <h3 id="filter">filter</h3>
 <p>Select records by peer IP, peer ASN, prefix, AS-path regex, community regex,
 MRT type, or timestamp range. Writes matching records verbatim (no re-encoding)
 to a new MRT file. Multiple filters are AND-composed.</p>
 <!-- source: internal/analyze/filter.go -- MRT record filtering -->
-<pre><code>bin/ze-analyze filter --peer-asn 13335 test/internet/latest-bview.gz cloudflare.mrt
-bin/ze-analyze filter --prefix 1.0.0.0/24 --after 1780272000 test/internet/ripe-updates.*.gz filtered.mrt
-bin/ze-analyze filter --as-path "174 .* 13335" test/internet/latest-bview.gz transit.mrt
-bin/ze-analyze filter --community "13335:" test/internet/latest-bview.gz tagged.mrt
+<pre><code>./le mrt filter --peer-asn 13335 test/internet/latest-bview.gz cloudflare.mrt
+./le mrt filter --prefix 1.0.0.0/24 --after 1780272000 test/internet/ripe-updates.*.gz filtered.mrt
+./le mrt filter --as-path "174 .* 13335" test/internet/latest-bview.gz transit.mrt
+./le mrt filter --community "13335:" test/internet/latest-bview.gz tagged.mrt
 </code></pre>
 <p>AS-path regex matches against space-separated ASNs (e.g. <code>"174 1916 52888"</code>).
 AS_SET segments are rendered as <code>{asn,asn}</code>. Community regex matches per-community
@@ -347,7 +348,7 @@ yields its routes.</li>
 <p>Both <code>.gz</code> and <code>.bz2</code> compressed files are supported. HTTP and HTTPS URLs are
 accepted anywhere a file path is expected; compression is auto-detected from
 the URL suffix.</p>
-<pre><code>bin/ze-analyze statistics https://data.ris.ripe.net/rrc00/2026.06/updates.20260607.0000.gz
+<pre><code>./le mrt statistics https://data.ris.ripe.net/rrc00/2026.06/updates.20260607.0000.gz
 </code></pre>
 <h2 id="daemon-mrt-recording">Daemon MRT Recording</h2>
 <p>Ze produces MRT dumps from live BGP sessions via the <code>mrt</code> component. Configure
@@ -417,7 +418,7 @@ BGP implementations handle similar problems</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

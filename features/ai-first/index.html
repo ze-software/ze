@@ -48,7 +48,7 @@
 <!-- source: cmd/ze/help_ai.go -- ze help ai machine-readable reference -->
 <!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
 <!-- source: ai/rules/repo-maintenance.md -- Current Discovery Surfaces -->
-<!-- source: internal/le/inventory/register.go -- inventory command registration -->
+<!-- source: internal/le/repo/inventory/register.go -- inventory command registration -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Feature</span>
     <h1 id="ai-first-design">AI-First Design</h1>
@@ -94,7 +94,7 @@ ze help ai api               # daemon API endpoints (ze-show:*, ze-set:*, ...)
 from the plugin registry, YANG schemas, and RPC registrations -- it cannot go stale because
 it is generated from code, not written by hand.</p>
 <p><code>ze help command</code> is the human-facing catalog. The native
-<code>./le wiki-catalog update file &lt;destination&gt;</code> action renders the corresponding
+<code>./le cli catalog update file &lt;destination&gt;</code> action renders the corresponding
 Markdown from the live registries.</p>
 <h2 id="structured-diagnostics">Structured Diagnostics</h2>
 <pre><code>ze cli -c "validate config &lt;file&gt; | json"
@@ -128,8 +128,8 @@ must update their discovery path in the same work. The standard path is
 page for verification and usage.</p>
 <!-- source: ai/rules/repo-maintenance.md -- Required Discovery Artifacts -->
 <p>Agents should use the existing inventory and verification surfaces:
-<code>./le inventory</code>, <code>./le command list</code>, <code>./le doc check verify</code>,
-<code>./le docs-to-code update</code>, and <code>./le doc wiring</code>.</p>
+<code>./le repo inventory</code>, <code>./le cli list</code>, <code>./le doc check verify</code>,
+<code>./le doc index write</code>, and <code>./le doc wiring</code>.</p>
 <p>Commit preparation uses <code>internal/le/commit.Answer</code>: agents pass the vetted
 subject, body, and explicit file list, and the helper creates the session ID,
 message file, executable user-run script, ignored-path checks, and <code>git commit -F</code>
@@ -228,7 +228,7 @@ references, automation, authorization, audit, and diagnostics.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

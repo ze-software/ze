@@ -287,7 +287,7 @@ bind. Ze owns the API socket conversation and the FIB programming.</p>
 connects to its API socket on startup.</li>
 <li><strong>Gokrazy containers:</strong> a sidecar image bundles <code>vpp</code> and <code>ze</code>; the
 supervisor starts VPP first, then ze with <code>external true</code>.</li>
-<li><strong>Functional tests:</strong> <code>./le functional vpp</code> drives the compiled Go VPP
+<li><strong>Functional tests:</strong> <code>./le test functional vpp</code> drives the compiled Go VPP
 stub instead of a real VPP. See <code>docs/functional-tests.md</code> for the harness.</li>
 </ul>
 <!-- source: internal/test/cli/cmd_vpp_stub.go -- runVPPStub -->
@@ -329,7 +329,7 @@ the stats poll interval only when the defaults do not fit the workload.</p>
 <td><code>vpp.external</code></td>
 <td>boolean</td>
 <td><code>false</code></td>
-<td>When <code>true</code>, ze connects to an existing VPP via <code>api-socket</code> but does NOT generate <code>startup.conf</code>, bind DPDK NICs, or exec the VPP binary. Use this on systemd-managed hosts, container sidecars, or the <code>ze-test vpp</code> stub harness. Default <code>false</code> preserves the ze-owned-lifecycle behaviour.</td>
+<td>When <code>true</code>, ze connects to an existing VPP via <code>api-socket</code> but does NOT generate <code>startup.conf</code>, bind DPDK NICs, or exec the VPP binary. Use this on systemd-managed hosts, container sidecars, or the <code>le test vpp</code> stub harness. Default <code>false</code> preserves the ze-owned-lifecycle behaviour.</td>
 </tr>
 <tr>
 <td><code>vpp.api-socket</code></td>
@@ -579,7 +579,7 @@ telemetry are in the tree. The remaining phases:</p>
 <tr>
 <td>vpp-4</td>
 <td>VPP-native <code>iface.Backend</code>: managing interfaces directly via GoVPP instead of through the kernel</td>
-<td><strong>In tree.</strong> Backend registers as <code>"vpp"</code> and loads cleanly under <code>interface { backend vpp; }</code>. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (<code>ListInterfaces</code>, <code>GetInterface</code>, <code>GetMACAddress</code>, <code>SetMACAddress</code>), and monitor (<code>WantInterfaceEvents</code> -&gt; EventBus) all wired against vendored GoVPP. Tunnels (GRE/GRETAP/IPIP + VXLAN as a new kind), mirror (SPAN), wireguard, and LCP TAP pairs are now implemented (<code>spec-followup-vpp-iface</code>, GoVPP binapi vendored). GRE tunnels and wireguard interfaces are proven against real VPP 25.10 by; LCP pairs are unit- and wiring-tested but their real-VPP proof needs a VPP build shipping <code>linux_cp_plugin.so</code>/<code>linux_nl_plugin.so</code> (the <code>ligato/vpp-base</code> image does not). Iface-component reconciliation still races the vpp handshake at startup and degrades to additive-only -- tracked in <code>spec-iface-vpp-ready-gate</code>. <!-- source: internal/plugins/iface/vpp/tunnel.go -- CreateTunnel gre/gretap/ipip --> <!-- source: internal/plugins/iface/vpp/mirror.go -- SetupMirror via SPAN --> <!-- source: internal/plugins/iface/vpp/wireguard.go -- wireguard plugin binary API --> <!-- source: internal/plugins/iface/vpp/lcp.go -- SetupLCPPair via lcp_itf_pair_add_del -->. <span class="ev-src"><span class="ev-ref"><code>internal/le/deployment.Answer</code></span></span></td>
+<td><strong>In tree.</strong> Backend registers as <code>"vpp"</code> and loads cleanly under <code>interface { backend vpp; }</code>. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (<code>ListInterfaces</code>, <code>GetInterface</code>, <code>GetMACAddress</code>, <code>SetMACAddress</code>), and monitor (<code>WantInterfaceEvents</code> -&gt; EventBus) all wired against vendored GoVPP. Tunnels (GRE/GRETAP/IPIP + VXLAN as a new kind), mirror (SPAN), wireguard, and LCP TAP pairs are now implemented (<code>spec-followup-vpp-iface</code>, GoVPP binapi vendored). GRE tunnels and wireguard interfaces are proven against real VPP 25.10 by; LCP pairs are unit- and wiring-tested but their real-VPP proof needs a VPP build shipping <code>linux_cp_plugin.so</code>/<code>linux_nl_plugin.so</code> (the <code>ligato/vpp-base</code> image does not). Iface-component reconciliation still races the vpp handshake at startup and degrades to additive-only -- tracked in <code>spec-iface-vpp-ready-gate</code>. <!-- source: internal/plugins/iface/vpp/tunnel.go -- CreateTunnel gre/gretap/ipip --> <!-- source: internal/plugins/iface/vpp/mirror.go -- SetupMirror via SPAN --> <!-- source: internal/plugins/iface/vpp/wireguard.go -- wireguard plugin binary API --> <!-- source: internal/plugins/iface/vpp/lcp.go -- SetupLCPPair via lcp_itf_pair_add_del -->. <span class="ev-src"><span class="ev-ref"><code>internal/le/test/deployment.Answer</code></span></span></td>
 </tr>
 <tr>
 <td>vpp-5</td>
@@ -692,7 +692,7 @@ and converging sub-second on a full table.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>

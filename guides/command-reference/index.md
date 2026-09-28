@@ -5,7 +5,7 @@ and **runtime commands** sent to the running daemon via SSH.
 <!-- source: cmd/ze/main.go -- main dispatch -->
 
 This page explains the command model. For a live list of every command, run
-`ze help command`. `./le wiki-catalog update file <destination>` writes the
+`ze help command`. `./le cli catalog update file <destination>` writes the
 Markdown catalog from the same live registries.
 
 For the generated cross-vendor migration view (Junos MX, Cisco IOS XR,
@@ -140,7 +140,9 @@ Configuration management.
 
 ```
 ze config edit [file]            # Interactive editor
+ze config edit --backup <artifact> [name]  # Edit a config inside a backup, no daemon
 ze config set <file> <path> <value>
+ze config set --backup <artifact> <name> <path> <value>
 ze config deactivate <file> <path>  # Mark a node inactive (kept in file, skipped at apply)
 ze config activate <file> <path>    # Clear the inactive flag on a node
 ```
@@ -156,6 +158,7 @@ ze config import <file>...       # Import files into the database
 ze config import --name <n> <file>  # Import under a different name
 ze config rename <old> <new>     # Rename a config in the database
 ze config list [prefix]          # List files in database
+ze config list --backup <artifact>  # List the configs inside a backup
 ze config cat <key>              # Print database entry
 ```
 
@@ -168,7 +171,16 @@ ze config dump <file>            # Dump parsed configuration
 ze config diff <f1> <f2>         # Compare two configs
 ze config diff <N> <file>        # Compare with rollback revision
 ze config fmt <file>             # Format and normalize
+ze config show --backup <artifact> <name> [path...]  # Read a config inside a backup
+ze config diff --backup <artifact> <N> <name>        # Diff inside a backup
 ```
+
+`--backup <artifact>` points `edit`, `show`, `diff`, `set` and `list` at the
+configs inside a backup artifact instead of the live store, with no daemon. A
+commit or a `set` publishes a new version and its pointers into the artifact,
+and the artifact's lock refuses a second writer. `--backup` with `-f` is
+refused. See "Backup mode" in `docs/guide/config-editor.md`.
+<!-- source: internal/component/config/cli/backup_flag.go -- openBackup -->
 
 `show` is the one-shot, non-interactive way to inspect a config subtree:
 `ze config show ze.conf bgp peer edge1` prints only that subtree (list entries
@@ -1659,12 +1671,12 @@ That bare command answers the seven validation counters and one row for each
 cache server, as siblings. That shape is what leaves `| summary` a half to
 select. The RPKI plugin declares the alias on its `registry.Registration`, which
 every reader that links the composition root sees, so `ze help command --json`
-and `./le command list` both list `summary` on the command. Each row carries the
+and `./le cli list` both list `summary` on the command. Each row carries the
 command's summary under `description` and its long explanation under
 `description`. The full RPKI command list is in `docs/guide/rpki.md`.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
 <!-- source: cmd/ze/help_command.go -- appendPluginCommands -->
-<!-- source: internal/le/command/list/commandlist.go -- aliasesFor -->
+<!-- source: internal/le/cli/list/commandlist.go -- aliasesFor -->
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 
 `show bgp summary` was a second spelling of this command until 2026-08. It is
@@ -1942,6 +1954,7 @@ ze init                          # Interactive setup
 ze init --managed                # Fleet mode
 ze init --force --yes             # Replace an unowned store with a backup
 ze init --from database.zefs      # Import a local blob into the live store
+ze init --from https://provision.example.net/install/database.zefs --sha256 <hex>
 ```
 
 Input fields are username, password, host, port, and instance name.
@@ -1956,11 +1969,21 @@ Normal initialization discovers interfaces and stores their initial config.
 | `--web-cert <address>` | Generate a web TLS certificate |
 | `--web-cert-name <name>` | Add a DNS name to that certificate |
 | `--seed` | Build a `database.zefs` appliance seed without host interface discovery |
-| `--from <blob>` | Import a local blob into the live store and retire it as `.replaced-<stamp>`; reads no credentials; refuses `--seed`; with `--force --yes` replaces an existing store |
+| `--from <source>` | Import a blob from a local path or an `http` or `https` URL into the live store; reads no credentials; refuses `--seed`; with `--force --yes` replaces an existing store. A local blob is retired as `.replaced-<stamp>`. A URL is fetched into a `database.fetch-*` folder beside the store, and that folder is removed after the import |
+| `--sha256 <hex>` | Refuse the `--from` source unless its bytes have this SHA-256, 64 hex digits; the check runs before a key is written |
+
+Every `--from` source is checked whole (`zefs.Check`) before a key is written.
+A digest mismatch, a body that is not a blob, or a corrupt entry imports
+nothing, and the error names the reason or the key. Any other scheme is refused
+with the supported list. A redirect is followed only within the scheme and host
+of the URL. When an import stops after it recorded its intent, the fetched copy
+stays and the error names it, because the recovery command
+`ze init --from <copy>` reads it.
 
 Replacement refuses a live store owner, regardless of the selected SSH target.
 Run maintenance as the store owner, including when you have root access.
-<!-- source: internal/plugins/init/main.go -- Run, runInit, runImport, defaultHost, defaultPort -->
+<!-- source: internal/plugins/init/main.go -- Run, runInit, runImport, runFetchImport, defaultHost, defaultPort -->
+<!-- source: internal/core/fetch/scheme.go -- Resolve, Schemes -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
 <!-- source: internal/component/iface/emit.go -- EmitConfig -->
 
@@ -2202,6 +2225,9 @@ ze data rm <key>...
 ze data registered [pattern]
 ze data check
 ze data repair --output <new-path>
+ze data backup <file> [spare <n>]  # Copy every key to one blob artifact
+ze data restore <file> config [name <source-name>]  # Commit the artifact's config
+ze data restore <file> full        # Replace the whole tree with the artifact's keys
 ze data encode [--crc|--header] [--cap N] <string|->
 ```
 
@@ -2213,7 +2239,78 @@ Data commands never initialize a missing live store.
 and writes verified keys to a new tree or blob. It refuses an existing output.
 Integrity exits are `0` for success, `1` for corruption or skipped keys, and `2`
 for an I/O failure or unsafe path.
+
+`backup` copies every key of the store, at any depth and in any namespace, to
+one new blob artifact under one write lock, so a commit is in the backup whole
+or not at all. The artifact is exact-fit unless `spare <n>` names a percentage
+from 0 to 100, is created mode 0600, and holds credentials and private keys.
+It refuses an existing file and every name the live store owns in its folder
+(`database`, `database.zefs`, `*.lock`, `database.import-intent`, the
+`.replaced-*` names and the init and import stages). It is offline only: while
+a daemon owns the store it refuses, naming as `host:port` the SSH endpoint
+`ze init` recorded in `meta/ssh/default` (or saying that none is recorded, or
+that the record cannot be read) and the live route,
+`request data backup path <file>`.
+
+`restore <file> config` runs `ze data check`'s verification over the artifact, then
+commits one config from it as a new version of this device's config (the name
+in `meta/instance/name`, or `ze.conf`). The active pointer moves to the new
+version, the previous active becomes the rollback, and `file/active/<name>`
+holds the new bytes. Credentials, identity, runtime state and every other
+version are unchanged. The artifact's config is its active version, or its
+`file/active/<name>` mirror when it has no pointer (a seed). `name
+<source-name>` selects one config from an artifact that holds several. Without
+it the artifact's only config is taken, else the one named like this device;
+any other case is refused, listing the artifact's configs. A differing source
+name is printed. A staged candidate refuses the restore. It is offline only:
+while a daemon owns the store it names the live route, `request data restore
+path <file> config`.
+
+`ze data restore <file> full` replaces the whole live tree with every key of the
+artifact, history, credentials and identity included. The previous tree moves to
+`database.replaced-<stamp>`, and an unrelated `database.zefs` beside it moves to
+`database.zefs.replaced-<stamp>`. The artifact stays at its name, unchanged. An
+artifact that fails `ze data check` is refused before anything is written. The
+canonical seed name `<configdir>/database.zefs` is refused before the store lock,
+because the live store refuses that name: import it with `ze init --from`, or
+move it to another name and restore that. A full restore is offline only: while
+a daemon owns the store it names the daemon's SSH endpoint and asks you to stop
+the daemon; there is no live full restore. The restore records a durable
+`database.import-intent` before it moves anything. When it is interrupted, every
+opener, `ze start` included, refuses and prints `ze data restore <file> full`,
+and that command alone finishes the restore.
+
+The daemon answers two RPCs over SSH, for a file on its own host:
+
+```
+request data backup path <absolute-file> [spare <n>] [force]
+request data restore path <absolute-file> config [name <source-name>] [client <name>]
+```
+
+Both refuse a relative path, a `..` element and a symlink, each naming the
+rule. `backup` walks the daemon's own store under its write lock and answers
+`path`, `keys` and `bytes`. `force` replaces an existing file and never lifts
+the refusal of a name the store owns. `restore` stages the artifact's config
+as the candidate and runs the reload a SIGHUP runs: the config becomes active
+only when that reload accepts it, and a refused config leaves the active config
+and its pointers as they were. It answers `path`, `source-name`, `config-name`
+and `version`.
+
+`client <name>` restores the config a hub serves to one managed client instead
+of the hub's own. The selected config becomes a new active version of
+`client-<name>.conf` under the store guard, and `file/active/client-<name>.conf`
+holds it. The hub does not reload. The write pushes `config-changed` to the
+client, which fetches the config and applies it through its own reload. The
+source selection is the same, with `client-<name>.conf` in place of the
+device's name. A daemon that serves no managed client refuses, and so does a
+hub with no `client <name>` entry under `plugin hub server`. The answer also
+carries `client`.
 <!-- source: internal/component/config/storage/cli/main.go -- Run, openStore, cmdWrite, cmdImport -->
+<!-- source: internal/component/config/storage/cli/cmd_restore.go -- cmdRestore, parseRestoreArgs -->
+<!-- source: internal/component/config/storage/restore.go -- ReadRestoreSource, RestoreConfig -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataBackup, handleDataRestore, restoreClientConfig -->
+<!-- source: internal/component/config/storage/cli/cmd_backup.go -- cmdBackup, daemonAddress -->
+<!-- source: internal/component/config/storage/backup.go -- Backup, storeOwnedName -->
 <!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, cmdRepair, cmdEncode -->
 
 ### ze plugin
@@ -2292,23 +2389,27 @@ ze resolve rir 15169                                   # Which registry holds an
 | `--dns-server <host>` | cymru | Override DNS server for TXT queries |
 | `--url <url>` | peeringdb | Override PeeringDB API base URL <!-- source: internal/component/resolve/cli/main.go -- Run --> |
 
-### ze-perf
+### le perf
 
-BGP propagation latency benchmark tool. Separate binary from `ze`.
+BGP propagation latency benchmark tool, run by the development tool `le`.
 
-<!-- source: internal/perf/cli/register.go -- ze-perf CLI entry point -->
+<!-- source: internal/perf/cli/register.go -- perf CLI entry point -->
+
+`le perf send` runs one benchmark against a DUT, `le perf report` compares
+result files, and `le perf track` follows the history.
+<!-- source: internal/le/perf/actions.go -- programVerbs -->
 
 ```
-ze-perf <command> [flags]
+./le perf <command> [flags]
 ```
 
 | Command | Purpose |
 |---------|---------|
-| `run` | Run benchmark against a BGP DUT |
+| `send` | Run benchmark against a BGP DUT |
 | `report` | Generate comparison report from result files |
 | `track` | Track performance history and detect regressions |
 
-#### ze-perf run
+#### le perf send
 
 Run a BGP propagation benchmark against a device under test (DUT). Establishes
 sender and receiver sessions with the DUT, injects routes from the sender, and
@@ -2317,10 +2418,10 @@ measures how quickly they propagate through to the receiver.
 <!-- source: internal/perf/cli/cmd_run.go -- run subcommand -->
 
 ```
-ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000
-ze-perf run --dut-addr 172.31.0.5 --dut-asn 65000 --dut-name gobgp --routes 10000 --json
-ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --family ipv6/unicast
-ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --force-mp --repeat 10
+./le perf send --dut-addr 172.31.0.2 --dut-asn 65000
+./le perf send --dut-addr 172.31.0.5 --dut-asn 65000 --dut-name gobgp --routes 10000 --json
+./le perf send --dut-addr 172.31.0.2 --dut-asn 65000 --family ipv6/unicast
+./le perf send --dut-addr 172.31.0.2 --dut-asn 65000 --force-mp --repeat 10
 ```
 
 **DUT flags:**
@@ -2374,15 +2475,15 @@ ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --force-mp --repeat 10
 
 Exit codes: 0 = success, 1 = error (missing flags, validation failure, benchmark failure).
 
-#### ze-perf report
+#### le perf report
 
 Generate a comparison report from one or more result JSON files.
 
 <!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
 
 ```
-ze-perf report result-ze.json result-gobgp.json
-ze-perf report --html result-ze.json result-gobgp.json > report.html
+./le perf report result-ze.json result-gobgp.json
+./le perf report --html result-ze.json result-gobgp.json > report.html
 ```
 
 | Flag | Type | Default | Purpose |
@@ -2390,20 +2491,20 @@ ze-perf report --html result-ze.json result-gobgp.json > report.html
 | `--md` | bool | `true` | Markdown output |
 | `--html` | bool | `false` | HTML output (overrides `--md`) |
 
-Reads result JSON files produced by `ze-perf run --json` and generates a
+Reads result JSON files produced by `le perf send --json` and generates a
 side-by-side comparison table.
 
-#### ze-perf track
+#### le perf track
 
 Track performance history and detect regressions from an NDJSON file.
 
 <!-- source: internal/perf/cli/cmd_track.go -- track subcommand -->
 
 ```
-ze-perf track history.ndjson
-ze-perf track --check history.ndjson
-ze-perf track --html history.ndjson > trend.html
-ze-perf track --check --threshold-convergence 15 history.ndjson
+./le perf track history.ndjson
+./le perf track --check history.ndjson
+./le perf track --html history.ndjson > trend.html
+./le perf track --check --threshold-convergence 15 history.ndjson
 ```
 
 | Flag | Type | Default | Purpose |
@@ -2988,9 +3089,11 @@ The daemon handles these Unix signals directly:
 | `SIGTERM` / `SIGINT` | Graceful shutdown |
 | `SIGUSR1` | Dump status to stderr <!-- source: internal/component/bgp/reactor/signal.go -- SignalHandler, SIGTERM/SIGINT/SIGHUP/SIGUSR1 --> |
 
-## ze-chaos
+## le chaos run
 
-Chaos monkey for testing Ze BGP route server propagation.
+Chaos monkey for testing Ze BGP route server propagation. Run it as
+`./le chaos run <flags>`, which takes every flag below.
+<!-- source: internal/le/chaos/run/run.go -- Answer -->
 
 ### AI Integration Flags
 
@@ -3001,8 +3104,8 @@ Chaos monkey for testing Ze BGP route server propagation.
 | `--ai-help` | Print chaos MCP tool definitions as JSON and exit |
 
 ```bash
-ze-chaos --mcp :8001 --web :8000 --peers 4  # MCP + web dashboard
-ze-chaos --ze-mcp 9718 --peers 4             # Inject MCP into Ze config
-ze-chaos --ai-help                           # Print tool schemas
+./le chaos run --mcp :8001 --web :8000 --peers 4  # MCP + web dashboard
+./le chaos run --ze-mcp 9718 --peers 4             # Inject MCP into Ze config
+./le chaos run --ai-help                           # Print tool schemas
 ```
 <!-- source: internal/chaos/orchestrator/cli.go -- CLI flags -->

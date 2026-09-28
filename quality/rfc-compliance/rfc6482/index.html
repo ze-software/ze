@@ -287,7 +287,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-3.1-1">RFC6482-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Version number of the RouteOriginAttestation MUST be 0 (Section 3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-3.1-1">RFC6482-3.1-1</code></td><td colspan="3"><span class="rfc-subject">The version number of the RouteOriginAttestation MUST be 0. (Section 3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.1</td>
@@ -296,7 +296,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object, so it never inspects the ROA object&#39;s version field</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-2-1">RFC6482-2-1</code></td><td colspan="3"><span class="rfc-subject">The ROA content-type OID MUST appear both within the eContentType in the encapContentInfo object and the content-type signed attribute in the signerInfo object (Section 2)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-2-1">RFC6482-2-1</code></td><td colspan="3"><span class="rfc-subject">This OID MUST appear both within the eContentType in the encapContentInfo object as well as the content-type signed attribute in the signerInfo object (see [RFC6488]). (Section 2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>2</td>
@@ -314,7 +314,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; ze receives per-address-family RTR Prefix PDUs (IPv4 Type 4 / IPv6 Type 6), not ROA ipAddrBlocks with an addressFamily field</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-3.3-2">RFC6482-3.3-2</code></td><td colspan="3"><span class="rfc-subject">If present, maxLength MUST be an integer greater than or equal to the length of the accompanying prefix, and less than or equal to the address family maximum (32 for IPv4, 128 for IPv6) (Section 3.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-3.3-2">RFC6482-3.3-2</code></td><td colspan="3"><span class="rfc-subject">If present, the maxLength MUST be an integer greater than or equal to the length of the accompanying prefix, and less than or equal to the length (in bits) of an IP address in the address family (32 for IPv4 and 128 for IPv6). (Section 3.3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.3</td>
@@ -323,7 +323,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; the equivalent maxLength sanity (maxLen within prefixLen..AF-max) is enforced on the RTR PDU wire format per RFC 8210 at internal/component/bgp/plugins/rpki/rtr_pdu.go:125, not on a ROA object</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-4-1">RFC6482-4-1</code></td><td colspan="3"><span class="rfc-subject">The relying party MUST first validate the ROA before using it (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-4-1">RFC6482-4-1</code></td><td colspan="3"><span class="rfc-subject">Before a relying party can use a ROA to validate a routing announcement, the relying party MUST first validate the ROA. (Section 4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -332,7 +332,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; validating the ROA before use is a relying-party duty performed by the RPKI cache, and ze consumes only the already-validated VRPs</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-4-2">RFC6482-4-2</code></td><td colspan="3"><span class="rfc-subject">The relying party MUST perform all the validation checks specified in RFC 6488 as well as the ROA-specific validation step (Section 4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-4-2">RFC6482-4-2</code></td><td colspan="3"><span class="rfc-subject">To validate a ROA, the relying party MUST perform all the validation checks specified in [RFC6488] as well as the following additional ROA-specific validation step. (Section 4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4</td>
@@ -350,7 +350,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; checking each prefix against the EE certificate&#39;s IP delegation extension requires the ROA CMS and EE certificate that ze never handles</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-5-1">RFC6482-5-1</code></td><td colspan="3"><span class="rfc-subject">The integrity of a ROA MUST be established (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-5-1">RFC6482-5-1</code></td><td colspan="3"><span class="rfc-subject">Thus, the integrity of a ROA MUST be established. (Section 5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -359,7 +359,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; establishing ROA integrity is a relying-party/cache responsibility</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-5-2">RFC6482-5-2</code></td><td colspan="3"><span class="rfc-subject">One MUST verify the signature on the ROA using an X.509 certificate issued under this PKI, and check that the prefixes in the ROA match those in the certificate&#39;s address space extension (Section 5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6482-5-2">RFC6482-5-2</code></td><td colspan="3"><span class="rfc-subject">Specifically, one MUST verify the signature on the ROA using an X.509 certificate issued under this PKI, and check that the prefix(es) in the ROA match those in the certificate&#39;s address space extension. (Section 5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5</td>
@@ -386,11 +386,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc6482-3.1-1"><code>RFC6482-3.1-1</code></a> Version number of the RouteOriginAttestation MUST be 0 (Section 3.1)</td>
+<tr><td><a href="#rfc6482-3.1-1"><code>RFC6482-3.1-1</code></a> The version number of the RouteOriginAttestation MUST be 0. (Section 3.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object, so it never inspects the ROA object&#39;s version field</td>
 </tr>
-<tr><td><a href="#rfc6482-2-1"><code>RFC6482-2-1</code></a> The ROA content-type OID MUST appear both within the eContentType in the encapContentInfo object and the content-type signed attribute in the signerInfo object (Section 2)</td>
+<tr><td><a href="#rfc6482-2-1"><code>RFC6482-2-1</code></a> This OID MUST appear both within the eContentType in the encapContentInfo object as well as the content-type signed attribute in the signerInfo object (see [RFC6488]). (Section 2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; there is no CMS/ASN.1 ROA decode in the RPKI path, so no eContentType/content-type OID is ever checked</td>
 </tr>
@@ -398,15 +398,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; ze receives per-address-family RTR Prefix PDUs (IPv4 Type 4 / IPv6 Type 6), not ROA ipAddrBlocks with an addressFamily field</td>
 </tr>
-<tr><td><a href="#rfc6482-3.3-2"><code>RFC6482-3.3-2</code></a> If present, maxLength MUST be an integer greater than or equal to the length of the accompanying prefix, and less than or equal to the address family maximum (32 for IPv4, 128 for IPv6) (Section 3.3)</td>
+<tr><td><a href="#rfc6482-3.3-2"><code>RFC6482-3.3-2</code></a> If present, the maxLength MUST be an integer greater than or equal to the length of the accompanying prefix, and less than or equal to the length (in bits) of an IP address in the address family (32 for IPv4 and 128 for IPv6). (Section 3.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; the equivalent maxLength sanity (maxLen within prefixLen..AF-max) is enforced on the RTR PDU wire format per RFC 8210 at internal/component/bgp/plugins/rpki/rtr_pdu.go:125, not on a ROA object</td>
 </tr>
-<tr><td><a href="#rfc6482-4-1"><code>RFC6482-4-1</code></a> The relying party MUST first validate the ROA before using it (Section 4)</td>
+<tr><td><a href="#rfc6482-4-1"><code>RFC6482-4-1</code></a> Before a relying party can use a ROA to validate a routing announcement, the relying party MUST first validate the ROA. (Section 4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; validating the ROA before use is a relying-party duty performed by the RPKI cache, and ze consumes only the already-validated VRPs</td>
 </tr>
-<tr><td><a href="#rfc6482-4-2"><code>RFC6482-4-2</code></a> The relying party MUST perform all the validation checks specified in RFC 6488 as well as the ROA-specific validation step (Section 4)</td>
+<tr><td><a href="#rfc6482-4-2"><code>RFC6482-4-2</code></a> To validate a ROA, the relying party MUST perform all the validation checks specified in [RFC6488] as well as the following additional ROA-specific validation step. (Section 4)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; the RFC 6488 and ROA-specific validation checks are performed by the relying-party cache, not by ze</td>
 </tr>
@@ -414,11 +414,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; checking each prefix against the EE certificate&#39;s IP delegation extension requires the ROA CMS and EE certificate that ze never handles</td>
 </tr>
-<tr><td><a href="#rfc6482-5-1"><code>RFC6482-5-1</code></a> The integrity of a ROA MUST be established (Section 5)</td>
+<tr><td><a href="#rfc6482-5-1"><code>RFC6482-5-1</code></a> Thus, the integrity of a ROA MUST be established. (Section 5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; establishing ROA integrity is a relying-party/cache responsibility</td>
 </tr>
-<tr><td><a href="#rfc6482-5-2"><code>RFC6482-5-2</code></a> One MUST verify the signature on the ROA using an X.509 certificate issued under this PKI, and check that the prefixes in the ROA match those in the certificate&#39;s address space extension (Section 5)</td>
+<tr><td><a href="#rfc6482-5-2"><code>RFC6482-5-2</code></a> Specifically, one MUST verify the signature on the ROA using an X.509 certificate issued under this PKI, and check that the prefix(es) in the ROA match those in the certificate&#39;s address space extension. (Section 5)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze is neither a ROA producer nor a relying-party validator; it consumes Validated ROA Payloads over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go parsePrefixPDU builds VRPs) and never parses or constructs the RFC 6482 CMS-signed ROA object; verifying the ROA&#39;s X.509 signature and address-space match is a relying-party/cache responsibility ze does not perform</td>
 </tr>
@@ -429,11 +429,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc6482-3.1-1"><code>RFC6482-3.1-1</code></a></h3>
-<p>Version number of the RouteOriginAttestation MUST be 0 (Section 3.1)</p>
+<p>The version number of the RouteOriginAttestation MUST be 0. (Section 3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6482-3.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6482-2-1"><code>RFC6482-2-1</code></a></h3>
-<p>The ROA content-type OID MUST appear both within the eContentType in the encapContentInfo object and the content-type signed attribute in the signerInfo object (Section 2)</p>
+<p>This OID MUST appear both within the eContentType in the encapContentInfo object as well as the content-type signed attribute in the signerInfo object (see [RFC6488]). (Section 2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6482-2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6482-3.3-1"><code>RFC6482-3.3-1</code></a></h3>
@@ -441,15 +441,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6482-3.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6482-3.3-2"><code>RFC6482-3.3-2</code></a></h3>
-<p>If present, maxLength MUST be an integer greater than or equal to the length of the accompanying prefix, and less than or equal to the address family maximum (32 for IPv4, 128 for IPv6) (Section 3.3)</p>
+<p>If present, the maxLength MUST be an integer greater than or equal to the length of the accompanying prefix, and less than or equal to the length (in bits) of an IP address in the address family (32 for IPv4 and 128 for IPv6). (Section 3.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6482-3.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc6482-4-1"><code>RFC6482-4-1</code></a></h3>
-<p>The relying party MUST first validate the ROA before using it (Section 4)</p>
+<p>Before a relying party can use a ROA to validate a routing announcement, the relying party MUST first validate the ROA. (Section 4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6482-4-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6482-4-2"><code>RFC6482-4-2</code></a></h3>
-<p>The relying party MUST perform all the validation checks specified in RFC 6488 as well as the ROA-specific validation step (Section 4)</p>
+<p>To validate a ROA, the relying party MUST perform all the validation checks specified in [RFC6488] as well as the following additional ROA-specific validation step. (Section 4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6482-4-2, so no unit is bound to it.</p>
 <h3><a href="#rfc6482-4-3"><code>RFC6482-4-3</code></a></h3>
@@ -457,11 +457,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6482-4-3, so no unit is bound to it.</p>
 <h3><a href="#rfc6482-5-1"><code>RFC6482-5-1</code></a></h3>
-<p>The integrity of a ROA MUST be established (Section 5)</p>
+<p>Thus, the integrity of a ROA MUST be established. (Section 5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6482-5-1, so no unit is bound to it.</p>
 <h3><a href="#rfc6482-5-2"><code>RFC6482-5-2</code></a></h3>
-<p>One MUST verify the signature on the ROA using an X.509 certificate issued under this PKI, and check that the prefixes in the ROA match those in the certificate&#39;s address space extension (Section 5)</p>
+<p>Specifically, one MUST verify the signature on the ROA using an X.509 certificate issued under this PKI, and check that the prefix(es) in the ROA match those in the certificate&#39;s address space extension. (Section 5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC6482-5-2, so no unit is bound to it.</p>
 </section>
@@ -652,7 +652,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
+                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
                 </div>
             </div>
         </footer>
