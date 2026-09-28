@@ -243,17 +243,45 @@ func checkAuditFindings(requirements []Requirement, enrolled map[string]bool, au
 			errs = append(errs, tb.Str(auditRel).Byte('/').Str(req.RFC).Str(".json: the ").Str(pyRepr(oldValue)).Str(" finding on ").Str(req.RID).Str(" was DELETED. A finding is resolved by fixing the test or retiring the requirement, never by removing the record of it -- deletion is the cheapest route from red to green and is the one this ratchet exists to close").String())
 			continue
 		}
-		if verdictValue(now) != VerdictEnforced {
+		if !upgradeOverUnchangedUnits(was, now) {
 			continue
 		}
-		upgrade, _ := now["upgrade_reason"].(string)
-		if strings.TrimSpace(upgrade) != "" || !mapsEqualString(recordedMap(now, fingerprintUnits), recordedMap(was, fingerprintUnits)) {
+		if upgradeReasonGiven(now) {
 			continue
 		}
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str(auditRel).Byte('/').Str(req.RFC).Str(".json: ").Str(req.RID).Str(" went from ").Str(pyRepr(oldValue)).Str(" to 'enforced' while every tagged unit stayed byte-identical. A finding cannot become proof with nothing changed: fix the test (which moves its unit fingerprint), or record an 'upgrade_reason' saying what you re-read and why the earlier judgement was wrong").String())
 	}
 	return errs
+}
+
+// findingUpgrade reports whether a verdict moved from a finding, 'weak' or
+// 'wrong', to 'enforced'.
+func findingUpgrade(was, now map[string]any) bool {
+	oldValue := verdictValue(was)
+	if oldValue != VerdictWeak && oldValue != VerdictWrong {
+		return false
+	}
+	return verdictValue(now) == VerdictEnforced
+}
+
+// upgradeOverUnchangedUnits reports whether a finding became 'enforced' while
+// every tagged unit stayed byte-identical: the move that owes an
+// 'upgrade_reason'. It is the one test for that move. checkAuditFindings
+// applies it at commit against HEAD^, and rejudgeRefusal applies it when the
+// verdict is stamped, so the stamp cannot write what the gate refuses.
+func upgradeOverUnchangedUnits(was, now map[string]any) bool {
+	if !findingUpgrade(was, now) {
+		return false
+	}
+	return mapsEqualString(recordedMap(now, fingerprintUnits), recordedMap(was, fingerprintUnits))
+}
+
+// upgradeReasonGiven reports whether a verdict carries a non-blank
+// 'upgrade_reason'.
+func upgradeReasonGiven(verdict map[string]any) bool {
+	reason, _ := verdict[verdictFieldUpgradeReason].(string)
+	return strings.TrimSpace(reason) != ""
 }
 
 func mapsEqualString(left, right map[string]string) bool {

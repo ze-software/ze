@@ -27,7 +27,7 @@ func checkAuditBaselineTree(t *testing.T, tip func(document map[string]any) map[
 	from := stampPending(t, root, "rfc9999", map[string]any{selftestRIDSend: map[string]any{
 		"verdict": VerdictWeak, "note": "the widget test asserts nothing about the send",
 	}})
-	if _, err := auditStamp(root, "rfc9999", from, stampNow); err != nil {
+	if _, err := auditStamp(root, "rfc9999", from, stampModeNew, stampNow); err != nil {
 		t.Fatalf("stamp the base finding: %v", err)
 	}
 	if err := os.Remove(from); err != nil {

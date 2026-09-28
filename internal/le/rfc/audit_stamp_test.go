@@ -111,7 +111,7 @@ func TestAuditStampFillsNewVerdictsAndTheyReadFresh(t *testing.T) {
 		},
 	})
 
-	report, err := auditStamp(root, "rfc9999", from, stampNow)
+	report, err := auditStamp(root, "rfc9999", from, stampModeNew, stampNow)
 	if err != nil {
 		t.Fatalf("stamp refused: %v", err)
 	}
@@ -175,7 +175,7 @@ func TestAuditStampLeavesARecordedVerdictUntouched(t *testing.T) {
 	})})
 	from := filepath.Join(root, filepath.FromSlash(stampPendingRel))
 
-	report, err := auditStamp(root, "rfc9999", from, stampNow)
+	report, err := auditStamp(root, "rfc9999", from, stampModeNew, stampNow)
 	if err != nil {
 		t.Fatalf("stamp refused: %v", err)
 	}
@@ -261,7 +261,7 @@ func TestAuditStampRefusesAndWritesNothing(t *testing.T) {
 			before := readStampAudit(t, root)
 			from := stampPending(t, root, tc.stem, tc.verdicts)
 
-			_, err := auditStamp(root, "rfc9999", from, stampNow)
+			_, err := auditStamp(root, "rfc9999", from, stampModeNew, stampNow)
 			if err == nil {
 				t.Fatal("the stamp accepted the pending file")
 			}
@@ -277,7 +277,7 @@ func TestAuditStampRefusesAndWritesNothing(t *testing.T) {
 	t.Run("not-applicable over a tagged row", func(t *testing.T) {
 		root := stampTree(t, nil)
 		from := stampPending(t, root, "rfc9999", map[string]any{selftestRIDSend: valid})
-		if _, err := auditStamp(root, "rfc9999", from, stampNow); err == nil ||
+		if _, err := auditStamp(root, "rfc9999", from, stampModeNew, stampNow); err == nil ||
 			!strings.Contains(err.Error(), selftestRIDSend) {
 			t.Errorf("the refusal does not name %s: %v", selftestRIDSend, err)
 		}
@@ -289,8 +289,274 @@ func TestAuditStampRefusesAndWritesNothing(t *testing.T) {
 	t.Run("stem not enrolled", func(t *testing.T) {
 		root := stampTree(t, nil)
 		from := stampPending(t, root, "rfc8888", map[string]any{selftestRIDDrop: valid})
-		if _, err := auditStamp(root, "rfc8888", from, stampNow); err == nil {
+		if _, err := auditStamp(root, "rfc8888", from, stampModeNew, stampNow); err == nil {
 			t.Error("a stem with no summary was accepted")
 		}
 	})
+}
+
+// stampRecorded stamps the given verdicts in the default mode, so a re-judge
+// test starts from recorded verdicts that carry the fingerprints the command
+// computes, not ones a test wrote by hand.
+func stampRecorded(t *testing.T, root string, verdicts map[string]any) {
+	t.Helper()
+
+	from := stampPending(t, root, "rfc9999", verdicts)
+	if _, err := auditStamp(root, "rfc9999", from, stampModeNew, stampNow); err != nil {
+		t.Fatalf("stamp the recorded verdicts: %v", err)
+	}
+}
+
+// auditIDOrder answers the requirement ids of the audit file in the order the
+// file holds them.
+func auditIDOrder(t *testing.T, root string) []string {
+	t.Helper()
+
+	audit, err := loadAudit(root, "rfc9999")
+	if err != nil {
+		t.Fatalf("the audit file does not load: %v", err)
+	}
+	return slices.Clone(audit.Order)
+}
+
+// VALIDATES: AC-1. A re-judge replaces a recorded verdict at its position in
+// the file, recomputes its fingerprints, leaves every other verdict
+// byte-identical, and `./le rfc check`'s freshness reads it fresh.
+// METHOD: record a weak verdict whose requirement_sha no longer matches its row
+// and which carries no units, beside a not-applicable verdict, then re-judge the
+// weak one as enforced. Its units move from none to two, so no upgrade_reason is
+// owed.
+// PREVENTS: a re-judge that appends a second entry, drops the first, keeps the
+// stale fingerprints, or touches a verdict it was not given.
+func TestAuditStampRejudgeReplacesInPlaceAndReadsFresh(t *testing.T) {
+	root := stampTree(t, map[string]any{selftestRIDSend: map[string]any{
+		"verdict": VerdictWeak, "note": "judged against an older text",
+		"requirement_sha": "0000000000000000",
+	}})
+	stampRecorded(t, root, map[string]any{selftestRIDDrop: map[string]any{
+		"verdict": VerdictNotApplicable, "note": "binds the document's authors",
+		"no_code_path": "no code runs for an obligation on authors",
+	}})
+	orderBefore := auditIDOrder(t, root)
+	audit, err := loadAudit(root, "rfc9999")
+	if err != nil {
+		t.Fatalf("the recorded file does not load: %v", err)
+	}
+	untouched, _ := audit.Verdict(selftestRIDDrop)
+	untouchedBefore := pyDump(untouched)
+
+	from := stampPending(t, root, "rfc9999", map[string]any{
+		selftestRIDSend: map[string]any{"verdict": VerdictEnforced, "note": "both polarities assert the widget"},
+	})
+	report, err := auditStamp(root, "rfc9999", from, stampModeRejudge, stampNow)
+	if err != nil {
+		t.Fatalf("re-judge refused: %v", err)
+	}
+	if want := []string{selftestRIDSend}; !slices.Equal(report.Stamped, want) {
+		t.Fatalf("re-judged %v, want %v", report.Stamped, want)
+	}
+
+	if got := auditIDOrder(t, root); !slices.Equal(got, orderBefore) {
+		t.Errorf("the ids are %v after the re-judge, want the recorded order %v", got, orderBefore)
+	}
+	audit, err = loadAudit(root, "rfc9999")
+	if err != nil {
+		t.Fatalf("the re-judged file does not load: %v", err)
+	}
+	send, _ := audit.Record(selftestRIDSend)
+	if send.Verdict != VerdictEnforced || send.Note != "both polarities assert the widget" {
+		t.Errorf("the entry reads %q %q, want the re-judged verdict and note", send.Verdict, send.Note)
+	}
+	wantKeys := []string{selftestCIPath, selftestCIPath + "#2"}
+	if got := sortedKeysOf(send.Units); !slices.Equal(got, wantKeys) {
+		t.Errorf("units keys are %v, want the recomputed %v", got, wantKeys)
+	}
+	after, _ := audit.Verdict(selftestRIDDrop)
+	if got := pyDump(after); got != untouchedBefore {
+		t.Errorf("a verdict the re-judge was not given changed:\nbefore %s\nafter  %s", untouchedBefore, got)
+	}
+	states := stampFreshness(t, root)
+	for _, rid := range []string{selftestRIDSend, selftestRIDDrop} {
+		if states[rid].State != FreshState {
+			t.Errorf("%s reads %q after the re-judge, want %q", rid, states[rid].State, FreshState)
+		}
+	}
+}
+
+// VALIDATES: AC-2. In re-judge mode a pending id that carries no verdict
+// refuses the whole file by id and writes nothing, and the refusals the default
+// mode makes for a row, the vocabulary and the computed fields still hold.
+// METHOD: one pending file per defect, each beside a valid re-judge of the
+// recorded row, and the audit file's bytes compared before and after.
+// PREVENTS: a re-judge that doubles as a first stamp, which would let a first
+// judgement carry an upgrade_reason, and a partial write of the valid half.
+func TestAuditStampRejudgeRefusesAndWritesNothing(t *testing.T) {
+	rejudged := map[string]any{"verdict": VerdictWrong, "note": "the negative asserts nothing"}
+	cases := []struct {
+		name     string
+		verdicts map[string]any
+		want     string
+	}{
+		{"row not yet judged", map[string]any{
+			selftestRIDSend: rejudged,
+			selftestRIDDrop: map[string]any{
+				"verdict": VerdictNotApplicable, "note": "binds the document's authors",
+				"no_code_path": "no code runs for an obligation on authors",
+			},
+		}, selftestRIDDrop},
+		{"unknown id", map[string]any{
+			selftestRIDSend: rejudged,
+			"RFC9999-9-9":   map[string]any{"verdict": VerdictWeak, "note": "no such row"},
+		}, "RFC9999-9-9"},
+		{"verdict outside the enum", map[string]any{
+			selftestRIDSend: map[string]any{"verdict": "implemented", "note": "drift"},
+		}, selftestRIDSend},
+		{"computed field written by hand", map[string]any{
+			selftestRIDSend: map[string]any{
+				"verdict": VerdictWrong, "note": "hand sha", "requirement_sha": "0123456789abcdef",
+			},
+		}, selftestRIDSend},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := stampTree(t, nil)
+			stampRecorded(t, root, map[string]any{
+				selftestRIDSend: map[string]any{"verdict": VerdictWeak, "note": "a floor assertion"},
+			})
+			before := readStampAudit(t, root)
+			from := stampPending(t, root, "rfc9999", tc.verdicts)
+
+			_, err := auditStamp(root, "rfc9999", from, stampModeRejudge, stampNow)
+			if err == nil {
+				t.Fatal("the re-judge accepted the pending file")
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("the refusal does not name %s: %v", tc.want, err)
+			}
+			if got := readStampAudit(t, root); !bytes.Equal(got, before) {
+				t.Errorf("a refused re-judge wrote the file:\n%s", got)
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-3. A weak or wrong verdict re-judged enforced while every
+// tagged unit is byte-identical to the recorded one is refused without an
+// upgrade_reason, and stamped with one, which survives in the audit file. The
+// same move after a unit change owes no reason.
+// METHOD: record weak and wrong verdicts with the fingerprints the command
+// computes, then re-judge them enforced with and without a reason; for the unit
+// change, record units that no longer match the tags.
+// PREVENTS: the stamp writing an upgrade that the commit gate
+// (checkAuditFindings) then refuses, and a reason demanded where the test
+// itself changed.
+func TestAuditStampRejudgeUpgradeNeedsAReasonWhenUnitsAreUnchanged(t *testing.T) {
+	enforced := map[string]any{"verdict": VerdictEnforced, "note": "both polarities assert the widget"}
+	for _, finding := range []string{VerdictWeak, VerdictWrong} {
+		t.Run(finding+" without a reason", func(t *testing.T) {
+			root := stampTree(t, nil)
+			stampRecorded(t, root, map[string]any{
+				selftestRIDSend: map[string]any{"verdict": finding, "note": "a floor assertion"},
+			})
+			before := readStampAudit(t, root)
+			from := stampPending(t, root, "rfc9999", map[string]any{selftestRIDSend: enforced})
+			_, err := auditStamp(root, "rfc9999", from, stampModeRejudge, stampNow)
+			if err == nil || !strings.Contains(err.Error(), selftestRIDSend) {
+				t.Fatalf("the unchanged-units upgrade was not refused by id: %v", err)
+			}
+			if !strings.Contains(err.Error(), verdictFieldUpgradeReason) {
+				t.Errorf("the refusal does not name %s: %v", verdictFieldUpgradeReason, err)
+			}
+			if got := readStampAudit(t, root); !bytes.Equal(got, before) {
+				t.Errorf("a refused re-judge wrote the file:\n%s", got)
+			}
+		})
+		t.Run(finding+" with a reason", func(t *testing.T) {
+			root := stampTree(t, nil)
+			stampRecorded(t, root, map[string]any{
+				selftestRIDSend: map[string]any{"verdict": finding, "note": "a floor assertion"},
+			})
+			const reason = "re-read the negative: it asserts the exact gadget octets"
+			from := stampPending(t, root, "rfc9999", map[string]any{selftestRIDSend: map[string]any{
+				"verdict": VerdictEnforced, "note": "both polarities assert the widget",
+				verdictFieldUpgradeReason: reason,
+			}})
+			if _, err := auditStamp(root, "rfc9999", from, stampModeRejudge, stampNow); err != nil {
+				t.Fatalf("the upgrade with a reason was refused: %v", err)
+			}
+			audit, err := loadAudit(root, "rfc9999")
+			if err != nil {
+				t.Fatalf("the re-judged file does not load: %v", err)
+			}
+			send, _ := audit.Record(selftestRIDSend)
+			if send.Verdict != VerdictEnforced || send.UpgradeReason != reason {
+				t.Errorf("the entry reads %q with reason %q, want enforced with %q",
+					send.Verdict, send.UpgradeReason, reason)
+			}
+		})
+	}
+	t.Run("weak after a unit change", func(t *testing.T) {
+		root := stampTree(t, map[string]any{selftestRIDSend: map[string]any{
+			"verdict": VerdictWeak, "note": "a floor assertion",
+			"requirement_sha": "0000000000000000",
+			fingerprintUnits:  map[string]any{selftestCIPath: "0000000000000000"},
+		}})
+		from := stampPending(t, root, "rfc9999", map[string]any{selftestRIDSend: enforced})
+		if _, err := auditStamp(root, "rfc9999", from, stampModeRejudge, stampNow); err != nil {
+			t.Fatalf("an upgrade over changed units was refused: %v", err)
+		}
+	})
+}
+
+// VALIDATES: AC-4. An upgrade_reason on any move other than weak or wrong to
+// enforced is refused by id, and nothing is written.
+// METHOD: record a verdict with the command's own fingerprints, then re-judge
+// it with a reason for enforced to weak, weak to weak and weak to wrong.
+// PREVENTS: a reason that reads, in the file, as the justification of an
+// upgrade that never happened.
+func TestAuditStampRejudgeRefusesAReasonOffAnUpgrade(t *testing.T) {
+	cases := []struct{ from, to string }{
+		{VerdictEnforced, VerdictWeak},
+		{VerdictWeak, VerdictWeak},
+		{VerdictWeak, VerdictWrong},
+	}
+	for _, tc := range cases {
+		t.Run(tc.from+" to "+tc.to, func(t *testing.T) {
+			root := stampTree(t, nil)
+			stampRecorded(t, root, map[string]any{
+				selftestRIDSend: map[string]any{"verdict": tc.from, "note": "the first judgement"},
+			})
+			before := readStampAudit(t, root)
+			from := stampPending(t, root, "rfc9999", map[string]any{selftestRIDSend: map[string]any{
+				"verdict": tc.to, "note": "the second judgement",
+				verdictFieldUpgradeReason: "no upgrade happened",
+			}})
+			_, err := auditStamp(root, "rfc9999", from, stampModeRejudge, stampNow)
+			if err == nil || !strings.Contains(err.Error(), selftestRIDSend) {
+				t.Fatalf("a reason off an upgrade was not refused by id: %v", err)
+			}
+			if got := readStampAudit(t, root); !bytes.Equal(got, before) {
+				t.Errorf("a refused re-judge wrote the file:\n%s", got)
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-5. The default mode still refuses an upgrade_reason, because a
+// first judgement upgrades nothing.
+// METHOD: stamp a new verdict carrying a reason into a tree with no audit file.
+// PREVENTS: the re-judge mode's extra authored key leaking into the default.
+func TestAuditStampRefusesAReasonInNewMode(t *testing.T) {
+	root := stampTree(t, nil)
+	from := stampPending(t, root, "rfc9999", map[string]any{selftestRIDSend: map[string]any{
+		"verdict": VerdictEnforced, "note": "both polarities assert the widget",
+		verdictFieldUpgradeReason: "a first judgement upgrades nothing",
+	}})
+	_, err := auditStamp(root, "rfc9999", from, stampModeNew, stampNow)
+	if err == nil || !strings.Contains(err.Error(), selftestRIDSend) {
+		t.Fatalf("a reason in the default mode was not refused by id: %v", err)
+	}
+	if got := readStampAudit(t, root); got != nil {
+		t.Errorf("a refused stamp created the file:\n%s", got)
+	}
 }

@@ -126,13 +126,17 @@ var actions = leaction.New(area,
 		"there stops every load of the audits. This computes requirement_sha from the row's " +
 		"text, tests and units from the row's tags, and each cited code sha, then merges the " +
 		"entries in, creating the file when absent. It refuses, naming the id and writing " +
-		"nothing, an id that already has a verdict (re-judging is /ze-rfc-audit's work), an " +
-		"id that is no row, a word outside the closed vocabulary, 'enforced' over no tag, and " +
-		"'not-applicable' over a tagged row",
+		"nothing, an id that already has a verdict, an id that is no row, a word outside the " +
+		"closed vocabulary, 'enforced' over no tag, and 'not-applicable' over a tagged row. " +
+		"mode rejudge (default new) is for a verdict a judge has re-made after re-reading the " +
+		"tests: it refuses an id with no verdict, replaces each recorded entry in place with " +
+		"fresh fingerprints, and admits upgrade_reason, which it requires when a weak or wrong " +
+		"verdict becomes enforced over byte-identical units and refuses on any other move",
 		Writes: true,
 		Parameters: []leaction.Parameter{
 			{Keyword: keyStem, Value: keyStem, Requirement: leaction.Required},
 			{Keyword: keyFrom, Value: keyPath, Requirement: leaction.Required},
+			{Keyword: keyMode, Value: "new|rejudge", Requirement: leaction.Optional},
 		},
 		AnswerArgs: auditStampAnswer},
 	leaction.Action{Verb: "index-update", Why: "regenerate ai/RFC-REQUIREMENTS.md and one requirement table per RFC under " +
@@ -319,12 +323,17 @@ func auditStampAnswer(args leaction.Arguments) (any, int) {
 		leaction.ReportError(errors.New("rfc audit-stamp requires from <path>, the pending verdicts file"))
 		return nil, 2
 	}
+	mode, err := parseStampMode(args.One(keyMode), args.Has(keyMode))
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
 	tree, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	report, err := auditStamp(tree, args.One(keyStem), args.One(keyFrom), time.Now())
+	report, err := auditStamp(tree, args.One(keyStem), args.One(keyFrom), mode, time.Now())
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

@@ -15,12 +15,17 @@
 // derived rfc/enrolled.txt every session's shell hook builds. One half-written
 // verdict would stop every session in the checkout.
 //
-// A requirement that already has a verdict is refused, never re-stamped:
-// re-fingerprinting it would declare a judgement fresh that nobody re-made.
-// reseal owns the mechanical case and /ze-rfc-audit owns every other one.
+// By default a requirement that already has a verdict is refused, never
+// re-stamped: re-fingerprinting it would declare a judgement fresh that nobody
+// re-made. `mode rejudge` is the route for a judgement somebody DID re-make:
+// every pending id must already have a verdict, the new entry replaces the old
+// one in place with fresh fingerprints, and an `upgrade_reason` is admitted for
+// a weak or wrong verdict raised to enforced. reseal owns the mechanical case,
+// where nothing was re-judged.
 package rfc
 
 import (
+	"maps"
 	"os"
 	"time"
 
@@ -30,6 +35,41 @@ import (
 
 // keyFrom is the parameter naming the pending verdicts file.
 const keyFrom = "from"
+
+// keyMode is the parameter choosing whether a stamp adds first judgements or
+// replaces recorded ones.
+const keyMode = "mode"
+
+// stampMode is what one stamp does to the audit file. The zero value is no
+// mode, so a caller that never chose one is refused rather than read as either.
+type stampMode uint8
+
+const (
+	stampModeUnspecified stampMode = iota
+	// stampModeNew adds first judgements and refuses an id that has a verdict.
+	stampModeNew
+	// stampModeRejudge replaces recorded verdicts and refuses an id that has none.
+	stampModeRejudge
+)
+
+// stampModeNames are the words the `mode` parameter takes, one per mode.
+var stampModeNames = map[string]stampMode{"new": stampModeNew, "rejudge": stampModeRejudge}
+
+// parseStampMode reads the typed `mode` word. An absent word is the default,
+// `new`; any word that names no mode is refused, so a typo never falls back to
+// the default and refuses what the author meant to replace.
+func parseStampMode(word string, given bool) (stampMode, error) {
+	if !given {
+		return stampModeNew, nil
+	}
+	mode, known := stampModeNames[word]
+	if !known {
+		var tb textbuf.Buffer
+		return stampModeUnspecified, parseErr(tb.Str("rfc audit-stamp: mode ").Str(pyRepr(word)).
+			Str(" is not one of ").Str(pyRepr(sortedKeysOf(stampModeNames))))
+	}
+	return mode, nil
+}
 
 // pendingFileKeys are the keys a pending file may carry. The re-stamp notes
 // belong to reseal.
@@ -51,6 +91,14 @@ var authoredVerdictKeys = map[string]bool{
 	verdictFieldVerdict: true, verdictFieldNote: true, fingerprintCode: true, "no_code_path": true,
 }
 
+// rejudgeVerdictKeys are the fields an author writes in re-judge mode: the
+// authored ones, and the reason a finding became proof.
+var rejudgeVerdictKeys = func() map[string]bool {
+	keys := maps.Clone(authoredVerdictKeys)
+	keys[verdictFieldUpgradeReason] = true
+	return keys
+}()
+
 // AuditStampReport is what the command answers: the stem, and the verdicts it
 // stamped in the pending file's order.
 type AuditStampReport struct {
@@ -64,7 +112,7 @@ func (r AuditStampReport) Text() string {
 	for _, rid := range r.Stamped {
 		tb.Str("stamped ").Str(rid).Byte('\n')
 	}
-	return tb.Str("stamped ").Int(int64(len(r.Stamped))).Str(" new verdict(s) into ").Str(auditRel).
+	return tb.Str("stamped ").Int(int64(len(r.Stamped))).Str(" verdict(s) into ").Str(auditRel).
 		Byte('/').Str(r.Stem).Str(".json. The ledger now needs: ./le rfc index-update\n").String()
 }
 
@@ -75,7 +123,10 @@ func (r AuditStampReport) Text() string {
 // nothing, so a half-merged file never lands and the author fixes the whole
 // list in one pass. The write itself is staged and renamed by replaceAudit,
 // which validates the merged file before it replaces the old one.
-func auditStamp(tree, rfcStem, fromPath string, now time.Time) (AuditStampReport, error) {
+func auditStamp(tree, rfcStem, fromPath string, mode stampMode, now time.Time) (AuditStampReport, error) {
+	if mode == stampModeUnspecified {
+		return AuditStampReport{}, parseErr(new(textbuf.Buffer).Str("BUG: rfc audit-stamp called with no mode"))
+	}
 	collected, err := Collect(tree)
 	if err != nil {
 		return AuditStampReport{}, err
@@ -114,9 +165,9 @@ func auditStamp(tree, rfcStem, fromPath string, now time.Time) (AuditStampReport
 
 	var refused []string
 	for _, rid := range pending.Order {
-		_, judged := audit.Verdicts[rid]
+		recorded, judged := audit.Verdict(rid)
 		req, held := rows[rid]
-		why := stampRefusal(rid, pending.Verdicts[rid], judged, held, len(byRID[rid]), rfcStem)
+		why := stampRefusal(rid, pending.Verdicts[rid], mode, judged, held, len(byRID[rid]), rfcStem)
 		if why != "" {
 			refused = append(refused, why)
 			continue
@@ -124,6 +175,16 @@ func auditStamp(tree, rfcStem, fromPath string, now time.Time) (AuditStampReport
 		verdict, _ := pending.Verdicts[rid].(map[string]any)
 		if err := stampFingerprints(verdict, req, byRID[rid], reader, index); err != nil {
 			refused = append(refused, err.Error())
+			continue
+		}
+		// The upgrade test compares units, so it runs on the fingerprints just
+		// computed. A default-mode entry reaching here has no recorded verdict
+		// to move from, because stampRefusal refused every judged one.
+		if !judged {
+			continue
+		}
+		if why := rejudgeRefusal(rid, recorded, verdict); why != "" {
+			refused = append(refused, why)
 		}
 	}
 	if len(refused) > 0 {
@@ -136,9 +197,14 @@ func auditStamp(tree, rfcStem, fromPath string, now time.Time) (AuditStampReport
 		return AuditStampReport{}, parseErr(&tb)
 	}
 
+	// A re-judged id keeps its place in the file, so the diff of a re-judge
+	// shows one entry changed, never a deletion beside an addition, which the
+	// findings ratchet would read as a deleted finding.
 	for _, rid := range pending.Order {
+		if _, judged := audit.Verdicts[rid]; !judged {
+			audit.Order = append(audit.Order, rid)
+		}
 		audit.Verdicts[rid] = pending.Verdicts[rid]
-		audit.Order = append(audit.Order, rid)
 	}
 	audit.Document[auditFieldAudited] = pending.Audited
 	// Made here rather than when the file was found absent, so a refusal
@@ -217,11 +283,20 @@ func readPendingVerdicts(tree, rfcStem, fromPath string, now time.Time) (pending
 // exercises. The remaining schema -- a non-empty note, `no_code_path` only on
 // `not-applicable` -- is judged by validateVerdict when the merged file is
 // staged, before anything is written.
-func stampRefusal(rid string, entry any, judged, held bool, tagCount int, rfcStem string) string {
+//
+// The mode decides only the first test and the authored keys. The default mode
+// refuses a row that already has a verdict, and re-judge mode refuses a row that
+// has none, so a first judgement never carries an `upgrade_reason`.
+func stampRefusal(rid string, entry any, mode stampMode, judged, held bool, tagCount int, rfcStem string) string {
 	var tb textbuf.Buffer
-	if judged {
+	if judged && mode == stampModeNew {
 		return tb.Str(rid).Str(" already has a verdict in ").Str(auditRel).Byte('/').Str(rfcStem).
-			Str(".json. Re-judging a recorded verdict is /ze-rfc-audit's work, not a stamp").String()
+			Str(".json. A re-judgement nobody made must not look fresh: re-read the tests, then ").
+			Str("replace the verdict with `mode rejudge`").String()
+	}
+	if !judged && mode == stampModeRejudge {
+		return tb.Str(rid).Str(" has no verdict in ").Str(auditRel).Byte('/').Str(rfcStem).
+			Str(".json to re-judge. A first judgement is stamped without `mode rejudge`").String()
 	}
 	if !held {
 		return tb.Str(rid).Str(" is not a requirement row of rfc/short/").Str(rfcStem).
@@ -231,11 +306,15 @@ func stampRefusal(rid string, entry any, judged, held bool, tagCount int, rfcSte
 	if !isObject {
 		return tb.Str(rid).Str(" must be an object, got ").Str(pyTypeName(entry)).String()
 	}
+	authored := authoredVerdictKeys
+	if mode == stampModeRejudge {
+		authored = rejudgeVerdictKeys
+	}
 	for _, key := range sortedKeysOf(verdict) {
-		if !authoredVerdictKeys[key] {
+		if !authored[key] {
 			return tb.Str(rid).Str(" carries ").Str(pyRepr(key)).Str(", which an author does not ").
-				Str("write here: the fingerprints are computed by this command, and the rest belong ").
-				Str("to a re-judgement. Write only ").Str(pyRepr(sortedKeysOf(authoredVerdictKeys))).String()
+				Str("write here: the fingerprints are computed by this command, and 'upgrade_reason' ").
+				Str("belongs to `mode rejudge`. Write only ").Str(pyRepr(sortedKeysOf(authored))).String()
 		}
 	}
 	if code, isMap := verdict[fingerprintCode].(map[string]any); isMap {
@@ -263,6 +342,39 @@ func stampRefusal(rid string, entry any, judged, held bool, tagCount int, rfcSte
 			Str("a verdict citing no test would read stale over the tests that do").String()
 	}
 	return ""
+}
+
+// rejudgeRefusal answers why one re-judged verdict cannot replace the recorded
+// one, or "" when it can. It reads the fingerprints stampFingerprints has just
+// computed, because the upgrade test compares units.
+//
+// A weak or wrong verdict raised to `enforced` over units byte-identical to the
+// recorded ones needs an `upgrade_reason`: upgradeOverUnchangedUnits is the
+// test `./le rfc check` applies to the same move, so the stamp refuses here
+// what the gate would refuse at commit. A reason on any other move is refused,
+// because in the file it reads as the justification of an upgrade that never
+// happened.
+func rejudgeRefusal(rid string, recorded, verdict map[string]any) string {
+	var tb textbuf.Buffer
+	_, carriesReason := verdict[verdictFieldUpgradeReason]
+	if !findingUpgrade(recorded, verdict) {
+		if !carriesReason {
+			return ""
+		}
+		return tb.Str(rid).Str(" carries 'upgrade_reason' but moves ").Str(pyRepr(verdictValue(recorded))).
+			Str(" to ").Str(pyRepr(verdictValue(verdict))).Str(". A reason is written only when a ").
+			Str("'weak' or 'wrong' verdict becomes 'enforced'").String()
+	}
+	if !upgradeOverUnchangedUnits(recorded, verdict) {
+		return ""
+	}
+	if upgradeReasonGiven(verdict) {
+		return ""
+	}
+	return tb.Str(rid).Str(" moves ").Str(pyRepr(verdictValue(recorded))).Str(" to 'enforced' while every ").
+		Str("tagged unit is byte-identical to the recorded one. Fix the test, which moves its unit ").
+		Str("fingerprint, or write 'upgrade_reason': what you re-read and why the earlier judgement ").
+		Str("was wrong").String()
 }
 
 // stampFingerprints writes the fingerprints of one pending verdict in place.

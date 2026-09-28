@@ -1112,11 +1112,17 @@ depend on this page being read.
 moved. The unit is the enclosing top-level Go function or the whole `.ci`,
 `.et`, or native interop fixture.
 
-`./le rfc reseal` is the only thing that re-stamps a recorded verdict without a
-human edit. `./le rfc audit-stamp stem <stem> from <path>` adds new verdicts an
+`./le rfc reseal` is the only thing that re-stamps a recorded verdict nobody
+re-judged. `./le rfc audit-stamp stem <stem> from <path>` adds new verdicts an
 author judged in a pending file outside `rfc/audit/`, computing their
-fingerprints, and refuses a requirement that already has one.
+fingerprints, and refuses a requirement that already has one. With
+`mode rejudge` it replaces the verdicts a judge re-made after re-reading the
+tests. Each id MUST already have a verdict, and each new entry takes the place of
+the old one with fresh fingerprints. An `upgrade_reason` is accepted in this mode
+alone. It is required when a `weak` or `wrong` verdict becomes `enforced` over
+byte-identical units, and refused on any other move.
 <!-- source: internal/le/rfc/audit_stamp.go -- auditStamp -->
+<!-- source: internal/le/rfc/audit_stamp.go -- rejudgeRefusal -->
 `./le rfc check` is read-only, and `./le rfc index-update` writes the five derived
 outputs alone (`IndexUpdate`, `internal/le/rfc/write.go`): `ai/RFC-REQUIREMENTS.md`,
 `rfc/requirements/`, `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and

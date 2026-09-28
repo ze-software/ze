@@ -83,6 +83,8 @@ const (
 	auditFieldRequirements = "requirements"
 	verdictFieldVerdict    = "verdict"
 	verdictFieldNote       = "note"
+
+	verdictFieldUpgradeReason = "upgrade_reason"
 )
 
 var auditFileKeys = map[string]bool{
@@ -101,7 +103,7 @@ const (
 var verdictKeys = map[string]bool{
 	verdictFieldVerdict: true, verdictFieldNote: true, "requirement_sha": true,
 	fingerprintTests: true, fingerprintUnits: true, fingerprintCode: true,
-	"upgrade_reason": true, "no_code_path": true,
+	verdictFieldUpgradeReason: true, "no_code_path": true,
 }
 
 // fingerprintMaps are the three fields whose keys become filesystem reads.
@@ -321,8 +323,8 @@ func validateVerdict(rid string, verdict any, order *keyOrder, where string) err
 			return err
 		}
 	}
-	if data["upgrade_reason"] != nil {
-		if _, err := strField(data, "upgrade_reason", at, false); err != nil {
+	if data[verdictFieldUpgradeReason] != nil {
+		if _, err := strField(data, verdictFieldUpgradeReason, at, false); err != nil {
 			return err
 		}
 	}
@@ -407,7 +409,7 @@ func (a Audit) Record(rid string) (VerdictRecord, bool) {
 	}
 	record.Note, _ = verdict[verdictFieldNote].(string)
 	record.RequirementSHA, _ = verdict["requirement_sha"].(string)
-	record.UpgradeReason, _ = verdict["upgrade_reason"].(string)
+	record.UpgradeReason, _ = verdict[verdictFieldUpgradeReason].(string)
 	record.NoCodePath, _ = verdict["no_code_path"].(string)
 	return record, true
 }

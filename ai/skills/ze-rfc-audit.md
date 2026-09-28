@@ -29,7 +29,9 @@ audit; everything below serves it.
 5. For EACH gated requirement, open every tagged test and judge it (see below).
 6. WRITE each new verdict to a pending file OUTSIDE `rfc/audit/` (this session's scratch),
    then run `./le rfc audit-stamp stem $ARGUMENTS from <pending file>`. It computes the
-   fingerprints and merges the verdicts into `rfc/audit/$ARGUMENTS.json`.
+   fingerprints and merges the verdicts into `rfc/audit/$ARGUMENTS.json`. A verdict you
+   re-made over a requirement that already has one goes in its own pending file, stamped with
+   `mode rejudge` (see "Re-judging a recorded verdict").
 7. Run `./le rfc check`.
 
 ## The judgement
@@ -124,9 +126,29 @@ the checkout, so one half-written verdict stops them all.
 
 The stamp refuses the whole file, naming each id and writing nothing, when an entry names an id
 that already has a verdict, an id that is no row, a word outside the vocabulary, a field it
-computes, `enforced` over a row no test tags, or `not-applicable` over a row a test tags. It
-never re-stamps a recorded verdict: that would declare a judgement fresh that nobody re-made.
+computes, `enforced` over a row no test tags, or `not-applicable` over a row a test tags. In
+the default mode it never re-stamps a recorded verdict: that would declare a judgement fresh
+that nobody re-made.
 <!-- source: internal/le/rfc/audit_stamp.go -- auditStamp, stampRefusal -->
+
+### Re-judging a recorded verdict
+
+When you have re-read the tests of a requirement that already has a verdict, and your
+judgement changed or the tests changed under it, write the new verdict in a pending file and
+run `./le rfc audit-stamp stem <stem> from <path> mode rejudge`. Never delete the old entry by
+hand and stamp again: the diff then shows a deleted finding, which the findings ratchet refuses.
+
+- Every id in the file MUST already have a verdict. One id with none refuses the whole file.
+  A first judgement is stamped without `mode rejudge`.
+- Each entry replaces the recorded one at the same place in the file, with fingerprints
+  computed fresh. The other verdicts stay byte-identical.
+- `upgrade_reason` is accepted in this mode alone. It is REQUIRED when a `weak` or `wrong`
+  verdict becomes `enforced` while every tagged unit is byte-identical to the recorded one,
+  and it is REFUSED on any other move. The stamp applies the same test as `./le rfc check`
+  (`upgradeOverUnchangedUnits`), so it refuses at stamp time what the gate refuses at commit.
+- The same refusals as the default mode apply to the vocabulary, the rows and the fields
+  the command computes.
+<!-- source: internal/le/rfc/audit_stamp.go -- rejudgeRefusal -->
 
 ## Recording a finding never fails the build
 
@@ -137,7 +159,7 @@ public CLAIM, not on your honesty.
 What IS red: deleting a `weak` or `wrong` verdict, upgrading one to `enforced` with nothing
 changed, and removing any verdict that existed at HEAD. Audit coverage is monotonic per
 requirement id, so a judgement that has been made cannot be un-made by erasing it. If you
-believe a finding was wrong, record `upgrade_reason`.
+believe a finding was wrong, re-judge it with `mode rejudge` and record `upgrade_reason`.
 
 An `unimplemented` verdict records missing behavior, not permission to implement it.
 Record the explicit gap with its RFC source. First close testing gaps for implemented
@@ -171,9 +193,10 @@ written note. And each one taught the reflex that re-stamping is what you do whe
 red. That is the failure mode at fleet scale, so the class is now automated away.
 
 Two commands write `rfc/audit/`, and neither one judges anything. `./le rfc audit-stamp` adds
-the verdicts an author has just judged, with their fingerprints, and refuses a requirement that
-already has one. `./le rfc reseal` is the ONLY thing that re-stamps a recorded verdict without
-a human editing it.
+the verdicts an author has just judged, with their fingerprints. By default it refuses a
+requirement that already has one; with `mode rejudge` it replaces the verdict a judge has
+re-made, and refuses a requirement that has none. `./le rfc reseal` is the ONLY thing that
+re-stamps a recorded verdict nobody re-judged.
 `./le rfc check` is read-only, and `./le rfc index-update` writes the five DERIVED outputs
 alone (`IndexUpdate`, `internal/le/rfc/write.go`): `ai/RFC-REQUIREMENTS.md`,
 `rfc/requirements/`, `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and
@@ -209,6 +232,7 @@ in a commit.
 | Which requirements are audited, proven, or carry a finding | the **Audit coverage** section of `ai/RFC-REQUIREMENTS.md` (derived, never hand-maintained) |
 | Which tags carry a replayable proof that the test discriminates its claim | `./le rfc discriminate stem <stem>`, and the **Claim discrimination** section of `ai/RFC-REQUIREMENTS.md` |
 | Record new verdicts | a pending file, then `./le rfc audit-stamp stem <stem> from <path>`, then `./le rfc index-update` |
+| Replace a verdict you re-judged | a pending file, then `./le rfc audit-stamp stem <stem> from <path> mode rejudge`, then `./le rfc index-update` |
 | Clear a `shifted` verdict | `./le rfc reseal`, then `./le rfc index-update` |
 | Write or re-author a summary | `/ze-rfc <rfc>` |
 | Public support claims | The `Support` rows of `rfc/short/<stem>.md`; `./le rfc index-update` renders `docs/features/rfc-status.md` from them |

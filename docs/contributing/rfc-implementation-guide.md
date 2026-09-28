@@ -613,7 +613,8 @@ never sums the two, because a nightly tier is not merge-gate proof.
   - `./le rfc extraction-status` prints the sign-off counts.
   - `./le rfc reseal` re-stamps an audit verdict after a mechanical edit.
   - `./le rfc audit-stamp stem <stem> from <path>` adds new audit verdicts from a
-    pending file, computing their fingerprints.
+    pending file, computing their fingerprints. With `mode rejudge` it replaces
+    recorded verdicts a judge re-made, in place, and accepts `upgrade_reason`.
 
   For an enrolled RFC the gate fails unless every MUST has its pair or a
   reasoned annotation. Writing a summary does not enrol an RFC.

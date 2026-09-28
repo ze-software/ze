@@ -1,8 +1,11 @@
 package rfc
 
 import (
+	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // VALIDATES: the `discriminate` verb is published by the action table, takes its selectors
@@ -115,5 +118,68 @@ func TestCheckAnswerRendersItsOwnPage(t *testing.T) {
 	}
 	if !strings.HasPrefix(page.Text(), "rfc-requirements") {
 		t.Errorf("the rendered page does not open with the gate's own summary:\n%s", page.Text())
+	}
+}
+
+// VALIDATES: the wiring of `./le rfc audit-stamp ... mode rejudge`. The typed
+// words reach the re-judge path through Answer; no mode and `mode new` reach
+// the default path, which refuses a judged id; `mode rejudge` refuses an
+// unjudged one; any other mode is refused with exit 2 and writes nothing.
+// METHOD: one fixture tree per invocation, rooted through ZE_REPO_ROOT, holding
+// one recorded verdict, and a pending file re-judging it or judging the other
+// row. The exit code and the audit file's bytes tell the paths apart.
+// PREVENTS: a mode parameter the action table publishes and the answer never
+// reads, and an unknown mode silently read as the default.
+func TestRFCActionsAuditStampRejudgeMode(t *testing.T) {
+	judged := map[string]any{selftestRIDSend: map[string]any{
+		"verdict": VerdictWrong, "note": "the negative asserts nothing",
+	}}
+	unjudged := map[string]any{selftestRIDDrop: map[string]any{
+		"verdict": VerdictNotApplicable, "note": "binds the document's authors",
+		"no_code_path": "no code runs for an obligation on authors",
+	}}
+	cases := []struct {
+		name    string
+		mode    []string
+		pending map[string]any
+		code    int
+	}{
+		{"rejudge over a judged id", []string{"mode", "rejudge"}, judged, 0},
+		{"no mode over a judged id", nil, judged, 2},
+		{"new over a judged id", []string{"mode", "new"}, judged, 2},
+		{"new over an unjudged id", []string{"mode", "new"}, unjudged, 0},
+		{"rejudge over an unjudged id", []string{"mode", "rejudge"}, unjudged, 2},
+		{"unknown mode", []string{"mode", "replace"}, judged, 2},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := stampTree(t, nil)
+			stampRecorded(t, root, map[string]any{
+				selftestRIDSend: map[string]any{"verdict": VerdictWeak, "note": "a floor assertion"},
+			})
+			// env.Get answers from a cache built once from os.Environ(), so
+			// the Setenv alone would leave Answer on the developer's checkout.
+			t.Setenv("ZE_REPO_ROOT", root)
+			env.ResetCache()
+			t.Cleanup(env.ResetCache)
+			before := readStampAudit(t, root)
+			from := stampPending(t, root, "rfc9999", tc.pending)
+
+			args := append([]string{"audit-stamp", keyStem, "rfc9999", keyFrom, from}, tc.mode...)
+			answer, code := Answer(args)
+			if code != tc.code {
+				t.Fatalf("%v answered %d, want %d", tc.mode, code, tc.code)
+			}
+			wrote := !bytes.Equal(readStampAudit(t, root), before)
+			if wrote != (tc.code == 0) {
+				t.Errorf("%v answered %d and wrote the audit file: %v", tc.mode, code, wrote)
+			}
+			if tc.code != 0 {
+				return
+			}
+			if _, isReport := answer.(AuditStampReport); !isReport {
+				t.Errorf("the answer is %T, want an AuditStampReport", answer)
+			}
+		})
 	}
 }
