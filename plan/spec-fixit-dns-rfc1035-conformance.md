@@ -624,6 +624,7 @@ Record the outcome in the table below. Escalate only what survives.
 | AC-25 | `./le rfc check` and `./le verify current mode full` | Both exit 0. `ai/RFC-REQUIREMENTS.md` is regenerated and committed alongside the tag changes. |
 | AC-26 | The published status row | `docs/features/rfc-status.md` no longer claims obligations with no code path, and its coverage text carries source anchors to the producing lines. |
 | AC-27 | Controlled DNSSEC answers consumed by a firewall DNS source: a valid signed answer and an otherwise equivalent answer with an invalid signature, both returned upstream as NOERROR | Ze validates the signature locally using the designed trust-anchor policy. Only the valid answer may replace accepted membership; a bogus answer follows the source-failure path and cannot install its addresses. The proof must distinguish local validation from reliance on upstream SERVFAIL. This criterion stays paused pending the owner reopening DNS work |
+| AC-28 | the `weak` R-7 verdicts of RFC1035-2.3.4-1, RFC1035-4.1.1-1, RFC1035-4.1.4-5 and RFC1035-4.2.2-1 | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it through `./le rfc audit-stamp`. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-services.md` (parent P-3, 2026-09-28). This criterion is paused with the spec |
 
 ## End-to-End User Stories
 

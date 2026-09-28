@@ -84,6 +84,7 @@ HEAD on 2026-09-27.
 |-------|-------------------|-------------------|
 | AC-1 | peer's IKE arrives from port Y behind a NAT | ESP encapsulated to port Y |
 | AC-2 | D2 | as the owner rules |
+| AC-3 | the `wrong` verdicts of RFC3948-2.1-2 and RFC5216-2.1.1-4, after this spec's producer fix | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-ike-eap.md` (parent P-3, 2026-09-28) |
 
 ## 🧪 TDD Test Plan
 

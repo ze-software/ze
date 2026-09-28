@@ -84,6 +84,7 @@ one that cannot actually translate, and the external route goes missing.
 |-------|-------------------|-------------------|
 | AC-1 | higher-RID equivalent translator unreachable over area 0 | Ze originates the Type-5 |
 | AC-2 | the same translator reachable over both | Ze yields |
+| AC-3 | the `weak` verdict of RFC3101-3.2-2, after this spec's producer fix | the verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-ospf.md` (parent P-3, 2026-09-28) |
 
 ## 🧪 TDD Test Plan
 

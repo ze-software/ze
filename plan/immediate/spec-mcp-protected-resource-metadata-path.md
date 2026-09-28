@@ -102,6 +102,7 @@ keeps the path spelled as given.
 | AC-1 | identifier `https://host/mcp/` | metadata advertised and served at `/.well-known/oauth-protected-resource/mcp/`; `resource` equals the identifier |
 | AC-2 | identifier `https://host/` or `https://host` | metadata at `/.well-known/oauth-protected-resource` |
 | AC-3 | identifier `https://host/a/?q` | metadata at `/.well-known/oauth-protected-resource/a/?q` |
+| AC-4 | the `wrong` verdict of RFC9728-3.1-3, after this spec's producer fix | the verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-services.md` (parent P-3, 2026-09-28) |
 
 ## 🧪 TDD Test Plan
 

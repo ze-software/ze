@@ -95,6 +95,7 @@ backup, a different protection method; neither spec depends on the other).
 | AC-1 | node protection desired, only a link bypass at the NHOP | the link bypass is armed; RRO protection-available set, node protection clear |
 | AC-2 | node protection desired, node bypass at the NNHOP and link bypass at the NHOP | the node bypass is armed; RRO node protection set |
 | AC-3 | node protection desired, no bypass at either hop | nothing armed; protection flags clear |
+| AC-4 | the `weak` verdict of RFC4090-6-6, after this spec's producer fix | the verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-routing.md` (parent P-3, 2026-09-28) |
 
 ## 🧪 TDD Test Plan
 

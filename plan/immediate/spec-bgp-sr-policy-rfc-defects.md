@@ -89,6 +89,7 @@ D2 has no row of its own in `rfc/short/rfc9830.md`; adding one follows the quote
 | AC-1 | any announced SR Policy with a Binding SID | Flags octet carries only defined bits |
 | AC-2 | `binding-sid mpls 1048576` | refused with a reason |
 | AC-3 | received SR Policy NLRI of length other than 12 or 24 | handled as malformed per RFC 9830 |
+| AC-4 | the `weak` verdicts of RFC9830-4.2.1-2 and RFC9830-2.4.2-6 (the D1 row: its quote is the row text), after this spec's producer fix | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (parent P-3, 2026-09-28) |
 
 ## 🧪 TDD Test Plan
 

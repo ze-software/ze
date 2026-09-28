@@ -105,6 +105,7 @@ owed because an operator meets it, and its journal row is its record.
 | AC-1 | capabilities totalling 254 or 255 octets | OPEN uses the RFC 9072 form with two-octet parameter lengths |
 | AC-2 | reload changing a plugin-declared capability | the next OPEN carries the new capability, or the reload is refused with a reason |
 | AC-3 | peer answers Ze's OPEN with a NOTIFICATION | one line at WARN or INFO naming the peer, code and subcode |
+| AC-4 | the `weak` verdicts of RFC6286-2.1-1 and RFC9072-2-1, after this spec's producer fix | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (parent P-3, 2026-09-28) |
 
 ## 🧪 TDD Test Plan
 

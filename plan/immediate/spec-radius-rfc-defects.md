@@ -86,6 +86,7 @@ its producer in HEAD on 2026-09-27.
 | AC-1 | Access-Request with EAP-Message and ARAP-Password | refused |
 | AC-2 | CoA retransmitted from the same IP and port with the same Identifier | answered once |
 | AC-3 | accounting after a restart | no repeated Acct-Session-Id |
+| AC-4 | the `weak` verdicts of RFC3579-3.3-2, RFC5176-2.3-2 and RFC2866-5.5-1 (the D3 row), after this spec's producer fix | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-access.md` (parent P-3, 2026-09-28) |
 
 ## 🧪 TDD Test Plan
 

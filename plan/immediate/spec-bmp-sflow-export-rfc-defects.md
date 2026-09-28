@@ -83,6 +83,7 @@ in HEAD on 2026-09-27.
 |-------|-------------------|-------------------|
 | AC-1 | monitored peer closes TCP with no NOTIFICATION | Peer Down reason 4 |
 | AC-2 | sample pool crossing 2^32 | wraps modulo 2^32 |
+| AC-3 | the `weak` verdict of SFLOW-V5-x-11, after this spec's D2 producer fix | the verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. The row correction stays with `plan/pre-release/spec-rfc-verdict-fix-services.md`, whose "Blocked by" table moved the verdict here (parent P-3, 2026-09-28) |
 
 ## 🧪 TDD Test Plan
 

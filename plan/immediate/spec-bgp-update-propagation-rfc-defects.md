@@ -100,6 +100,7 @@ at its producer in HEAD on 2026-09-27.
 | AC-2 | LARGE_COMMUNITY with a repeated value | forwarded once per value |
 | AC-3 | MUP ST1 route with truncated mandatory fields or a bad TLV | treat-as-withdraw |
 | AC-4 | D4, D5 | as the owner rules |
+| AC-5 | the `weak` verdicts of RFC4271-4.3-3, RFC4271-4.3-4, RFC8092-3-1, DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6, DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7, DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10, RFC9234-3.1-1, RFC7999-3.1-2 and DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2, after this spec's producer fix | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (parent P-3, 2026-09-28) |
 
 ## 🧪 TDD Test Plan
 
