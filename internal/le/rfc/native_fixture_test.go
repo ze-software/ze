@@ -363,7 +363,12 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// ones, so an unquoted row is refused. The unquoted ratchet is gone. The
 	// corpus was quoted and its moved extraction artifacts re-walked first. No
 	// discrimination verdict moved.
-	const want = "98d124400ce1207990b104a06f2f3a2e6aa3c2a62abba675381d9a169f07fcbc"
+	//
+	// Re-sealed 2026-09-28 for 2d078935e3, which adds `mode rejudge` to
+	// `./le rfc audit-stamp` and extracts the unchanged-units upgrade predicate
+	// that checkAuditFindings and the stamp share. The gate's refusal is the
+	// same test in a function of its own. No verdict moved.
+	const want = "7f028059ff74c854f1744005a881e6b894cc2bc5dfd5aa81d709c22e7c4fbcc3"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it
