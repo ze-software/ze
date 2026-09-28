@@ -2116,7 +2116,8 @@ An IKE proposal requires `hash` beside every cipher, because it names the PRF th
 RFC 7296 Section 3.3.3 makes mandatory. An ESP proposal requires `hash` beside a non-AEAD
 cipher and refuses it beside an AEAD cipher, because an AEAD cipher carries its own
 integrity.
-DH groups: 1-31 (14 = MODP-2048 recommended minimum).
+DH groups: the schema accepts 1-31, and Ze implements 14 (MODP-2048), 19 (ECP-256) and
+20 (ECP-384); a proposal naming any other group is refused at commit.
 Authentication modes: `pre-shared-secret` (with a `$9$`-encoded key), `x509` (PKI store
 references), `eap-tls`, `eap-mschapv2`, or `eap-md5`. RFC 7296 Section 2.16 discourages
 `eap-md5`, which establishes no shared key, and the daemon warns once when a configuration
