@@ -19,6 +19,10 @@ negotiation is supported.
   write attack surface.
 - **One ephemeral port per transfer.** RFC 1350 section 4 pairs transfer IDs
   this way. It also keeps the port-69 listener free for new requests.
+- **Only the ACK timeout causes a retransmission.** A duplicate or stale ACK
+  gets no DATA in answer (RFC 1350 section 5, the Sorcerer's Apprentice fix):
+  `sendAndWaitACK` keeps reading until the same deadline. After four sends
+  without the expected ACK the transfer ends and its slot is released.
 - **A channel semaphore bounds concurrency.** The `select` with a `default` arm
   rejects instantly instead of blocking, which a wait group or an atomic counter
   would not give.
@@ -36,8 +40,8 @@ negotiation is supported.
 - **A file truncated mid-transfer produces either an error packet or a short
   data block**, depending on timing: a read can return zero bytes or an error.
   Both outcomes are correct and a test must accept both.
-- The retransmit test waits for the real ACK timeout and takes about 5 seconds
-  of wall clock. Making the timeout configurable to shorten it would add an
+- The retransmit tests wait for the real ACK timeout. The abort test takes
+  about 27 seconds of wall clock, four 5-second timeouts and a quiet window. Making the timeout configurable to shorten it would add an
   option nothing else needs.
 
 ## Related

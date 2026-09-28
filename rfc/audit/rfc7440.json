@@ -1,18 +1,22 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-28",
   "requirements": {
     "RFC7440-3-1": {
-      "note": "'All fields except opc MUST be ASCII strings followed by a single-byte NULL.' TestTFTPParseRRQ/TestTFTPParseRRQInvalid (tftpserver) prove the NUL terminator for filename and mode only: 'no filename NUL' and 'no mode NUL' are rejected. No assertion covers the ASCII clause (a non-ASCII byte in a field is accepted untested), and the windowsize option name/value fields this section defines are not exercised, since ze does not implement the option.",
+      "note": "The sentence formats the RRQ/WRQ, so its ASCII clause binds the request's sender; Ze only receives requests, and no receiver obligation to refuse non-ASCII follows from it. Receiver side, TestRFC7440FieldsAreNULTerminatedASCIIStrings: the Section 3 example parses to foobar/octet/windowsize; a windowsize whose #blocks lacks its NUL is not recognized, and a filename without its NUL is refused (red on a parser taking an unterminated field). Supplementary: every field of the OACK Ze sends is printable ASCII with one NUL (four fields).",
       "requirement_sha": "a77b5523293d4a80",
       "tests": {
         "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQ": "a94a3042c4c6352a",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQInvalid": "a94a3042c4c6352a"
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQInvalid": "a94a3042c4c6352a",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC7440FieldsAreNULTerminatedASCIIStrings": "402f4bee572c1a29",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC7440FieldsAreNULTerminatedASCIIStrings#2": "402f4bee572c1a29"
       },
       "units": {
         "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQ": "f7a3a6ab540f1ba9",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQInvalid": "7f6ed0b3630ad29a"
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQInvalid": "7f6ed0b3630ad29a",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC7440FieldsAreNULTerminatedASCIIStrings": "bfebd9646cea0db0",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC7440FieldsAreNULTerminatedASCIIStrings#2": "bfebd9646cea0db0"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc7440"

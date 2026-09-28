@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-28",
   "requirements": {
     "RFC2348-x-1": {
       "note": "(a) OACK blksize above the client's request; (b) 'above cap' subtest t.Errorf when acked > 60000, and the within-cap subtest pins 1200 == requested 1200, so an ack that ignores a smaller request also goes red.",
@@ -15,43 +15,55 @@
       "verdict": "enforced"
     },
     "RFC2348-x-3": {
-      "note": "Only 5 and 70000 (rejected) and 512 (accepted) are exercised. The 'inclusive' bounds are never asserted: a parseRRQ that used n > 8 or n < 65464 (rejecting 8 or 65464) or accepted 7 or 65465 stays green. No tagged assertion at 7/8/65464/65465.",
+      "note": "TestRFC2348BlksizeBoundsAreInclusive asserts both inclusive bounds and one past each: 8 is acked as 8 and block 1 carries 8 octets; 65464 is acked (as the 1468 cap, which x-1 allows), red on n<65464; 7 and 65465 beside tsize are absent from the OACK, red on n>=7 or n<=65465. Every off-by-one at either bound goes red.",
       "requirement_sha": "b42e8a8edc2a6d51",
       "tests": {
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348BlksizeBoundsAreInclusive": "402f4bee572c1a29",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348BlksizeBoundsAreInclusive#2": "402f4bee572c1a29",
         "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced": "bba4d4b528cac222",
         "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced#2": "bba4d4b528cac222"
       },
       "units": {
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348BlksizeBoundsAreInclusive": "28caab4674300bdf",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348BlksizeBoundsAreInclusive#2": "28caab4674300bdf",
         "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced": "e4fefc034d73019e",
         "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced#2": "e4fefc034d73019e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2348-x-4": {
-      "note": "TestTFTPReadLargeFile reads exactly three blocks and never checks that nothing follows the short block, so a server that kept sending after the short block (not treating it as final) stays green. Both units run at the default 512 without negotiating blksize, so a server that compared against 512 instead of the negotiated blocksize stays green. The negative (TestTFTPReadExact512 continues after a full block) holds.",
+      "note": "TestRFC2348ShortBlockIsTheFinalPacket at a negotiated 1024: a 600-octet file must be exactly [600] with silence after its ACK (a server comparing against 512 sends a block 2 and goes red), and 2500 must be [1024,1024,452] then silence (red on DATA after the short block). Negative: full 1024 blocks are followed by the next block.",
       "requirement_sha": "6c06103dac56424f",
       "tests": {
         "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "a94a3042c4c6352a",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "a94a3042c4c6352a"
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "a94a3042c4c6352a",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ShortBlockIsTheFinalPacket": "402f4bee572c1a29",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ShortBlockIsTheFinalPacket#2": "402f4bee572c1a29"
       },
       "units": {
         "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "98ffa756092d4fbe",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "968d8635be3cc45b"
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "968d8635be3cc45b",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ShortBlockIsTheFinalPacket": "2e2d2f3569240d7a",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ShortBlockIsTheFinalPacket#2": "2e2d2f3569240d7a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2348-x-5": {
-      "note": "Positive TestTFTPReadExact512 asserts the zero-length block 2 after a 512-byte file. The negative claims no extra zero-length packet follows a short final block, but TestTFTPReadLargeFile never reads after block 3, so that polarity asserts nothing. Neither unit negotiates a blksize, so 'the blocksize' is only the 512 default.",
+      "note": "TestRFC2348ZeroLengthBlockEndsAnExactMultiple at a negotiated 1024: 2048 must be [1024,1024,0] (red with no empty terminator), and 1500 must be [1024,476] and 512 must be [512], each followed by 1 s of silence (red on an extra empty packet, including one computed against 512 instead of the negotiated size).",
       "requirement_sha": "d886c63462d6f09f",
       "tests": {
         "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "a94a3042c4c6352a",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "a94a3042c4c6352a"
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "a94a3042c4c6352a",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ZeroLengthBlockEndsAnExactMultiple": "402f4bee572c1a29",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ZeroLengthBlockEndsAnExactMultiple#2": "402f4bee572c1a29"
       },
       "units": {
         "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "98ffa756092d4fbe",
-        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "968d8635be3cc45b"
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "968d8635be3cc45b",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ZeroLengthBlockEndsAnExactMultiple": "7ac97cc460e5ff36",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ZeroLengthBlockEndsAnExactMultiple#2": "7ac97cc460e5ff36"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc2348"

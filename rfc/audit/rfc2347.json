@@ -1,31 +1,39 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-28",
   "requirements": {
     "RFC2347-x-1": {
-      "note": "Forbidden: an OACK carrying an option the client did not request, and a server initiating negotiation. The server can emit two options (sendOACKAndWait, handler.go: blksize and tsize). TestRFC2347ServerOACKOnlyRequestedOptions requests only blksize and asserts opts[\"tsize\"] is absent, red if the server volunteers tsize. No tagged case requests only tsize (or no option) and asserts blksize is absent, so a server that always added blksize stays green; and no case sends a plain RRQ and asserts no OACK comes back (the hasOptions guard, handler.go:280), the 'only the client may initiate option negotiation' clause.",
+      "note": "TestRFC2347OnlyTheClientInitiatesNegotiation: a tsize-only RRQ gets an OACK with tsize=1500 and fails if blksize is present (the case the old verdict found missing); a plain RRQ and a windowsize-only RRQ must get DATA block 1 as the first reply (expectData fails on an OACK), so the server never initiates negotiation. With TestRFC2347ServerOACKOnlyRequestedOptions (blksize-only, no tsize) both emittable options are pinned absent when unrequested.",
       "requirement_sha": "6fc794781f7d1ec5",
       "tests": {
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation": "402f4bee572c1a29",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation#2": "402f4bee572c1a29",
         "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions": "ed641cc88f895378",
         "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions#2": "ed641cc88f895378"
       },
       "units": {
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation": "6468196a176bd648",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation#2": "6468196a176bd648",
         "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions": "0071a09f93f3c5db",
         "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions#2": "0071a09f93f3c5db"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2347-x-3": {
-      "note": "Forbidden: the server acting on an option it did not acknowledge (e.g. streaming windowsize-windowed DATA, or using an out-of-range blksize it declined). TestRFC2347ServerIgnoresUnacknowledgedOption asserts only the OACK contents: windowsize absent, blksize present. That is red on acknowledging windowsize, the x-1/OACK rule, not on using it: no assertion reads the DATA/ACK exchange after the OACK, so a server that omitted windowsize from the OACK but then sent windowed blocks stays green. The declined-blksize case (value outside 8..65464, parseRRQ) is untested. The client half governs a TFTP client, which Ze does not have.",
+      "note": "Server half: TestRFC2347UnacknowledgedOptionIsNotUsed reads past the OACK. windowsize 4 beside blksize 1024: windowsize absent from the OACK and no block 2 within 1 s before ACK 1 (red on a windowed send); declined blksize 7 and 65465 are absent and block 1 is the default 512 (red on using the declined size). Negative: the acked blksize 1024 is used (block 1 = 1024), so the ignore is not a blanket drop. The client half binds a TFTP client, which Ze does not have.",
       "requirement_sha": "e4b9f0ce82cbdb63",
       "tests": {
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed": "402f4bee572c1a29",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed#2": "402f4bee572c1a29",
         "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption": "ed641cc88f895378",
         "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption#2": "ed641cc88f895378"
       },
       "units": {
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed": "38d351c54dba5606",
+        "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347UnacknowledgedOptionIsNotUsed#2": "38d351c54dba5606",
         "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption": "218d5a2faf690f7d",
         "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption#2": "218d5a2faf690f7d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc2347"

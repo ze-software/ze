@@ -383,6 +383,9 @@ func serveFile(conn *net.UDPConn, filePath string, blksize int, log *slog.Logger
 	}
 }
 
+// sendAndWaitACK sends data and waits for the ACK of block. It retransmits
+// only when ackTimeout expires, at most maxRetransmit times, and returns false
+// when the peer never acknowledges or the socket fails.
 func sendAndWaitACK(conn *net.UDPConn, data []byte, block uint16, ackBuf []byte) bool {
 	for attempt := 0; attempt <= maxRetransmit; attempt++ {
 		if _, err := conn.Write(data); err != nil {
@@ -392,22 +395,39 @@ func sendAndWaitACK(conn *net.UDPConn, data []byte, block uint16, ackBuf []byte)
 		if err := conn.SetReadDeadline(time.Now().Add(ackTimeout)); err != nil {
 			return false
 		}
-		ackN, err := conn.Read(ackBuf)
-		if err != nil {
-			var netErr net.Error
-			if errors.As(err, &netErr) && netErr.Timeout() {
-				continue
-			}
-			return false
-		}
 
-		if ackN >= 4 {
-			ackOp := binary.BigEndian.Uint16(ackBuf[:2])
-			ackBlock := binary.BigEndian.Uint16(ackBuf[2:4])
-			if ackOp == opACK && ackBlock == block {
+		// The read deadline bounds this loop: every Read returns by it.
+		for {
+			ackN, err := conn.Read(ackBuf)
+			if err != nil {
+				var netErr net.Error
+				if errors.As(err, &netErr) && netErr.Timeout() {
+					break
+				}
+				return false
+			}
+
+			if isACKFor(ackBuf[:ackN], block) {
 				return true
 			}
+			// RFC 1350 Section 5: "All packets other than duplicate ACK's and
+			// those used for termination are acknowledged unless a timeout
+			// occurs [4]. Sending a DATA packet is an acknowledgment for the
+			// first ACK packet of the previous DATA packet."
+			// A duplicate or stale ACK is not acknowledged, so it triggers no
+			// DATA: the wait continues until the same deadline.
 		}
 	}
 	return false
+}
+
+// isACKFor reports whether pkt is an ACK of block.
+func isACKFor(pkt []byte, block uint16) bool {
+	if len(pkt) < 4 {
+		return false
+	}
+	if binary.BigEndian.Uint16(pkt[:2]) != opACK {
+		return false
+	}
+	return binary.BigEndian.Uint16(pkt[2:4]) == block
 }

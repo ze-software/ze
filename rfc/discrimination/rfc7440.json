@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc7440",
+  "records": [
+    {
+      "rid": "RFC7440-3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC7440FieldsAreNULTerminatedASCIIStrings",
+      "unit-sha": "6c5e61cdec6e425d",
+      "claim-sha": "d90299299571e2f4",
+      "route": "revert",
+      "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
+      "producer-sha": "07f7177cd121dd6c",
+      "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7440-3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC7440FieldsAreNULTerminatedASCIIStrings",
+      "unit-sha": "6c5e61cdec6e425d",
+      "claim-sha": "0385b5a09f961c14",
+      "route": "revert",
+      "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
+      "producer-sha": "07f7177cd121dd6c",
+      "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
