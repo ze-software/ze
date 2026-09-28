@@ -765,6 +765,47 @@ func TestRESTDescribeCommand(t *testing.T) {
 	assert.Len(t, cmd.Params, 1)
 }
 
+// VALIDATES: the command list and a described command carry kebab-case keys
+// (name, short-help, read-only, params, and the param's name, type,
+// short-help, required), the key set the rest of the REST API uses.
+// PREVENTS: Go field names (ShortHelp, ReadOnly) leaking onto the wire. The
+// test decodes into maps, so a struct round-trip cannot hide a key mismatch.
+func TestRESTCommandKeysAreKebabCase(t *testing.T) {
+	srv := testServer(t)
+
+	r := do(t, srv, "GET", "/api/v1/commands", "")
+	require.Equal(t, http.StatusOK, r.Status)
+	var list []map[string]any
+	require.NoError(t, json.Unmarshal([]byte(r.Body), &list))
+	require.NotEmpty(t, list)
+	assert.Equal(t, "show bgp", list[0]["name"])
+	assert.Equal(t, "Show BGP summary", list[0]["short-help"])
+	assert.Equal(t, true, list[0]["read-only"])
+
+	r = do(t, srv, "GET", "/api/v1/commands/request/reload", "")
+	require.Equal(t, http.StatusOK, r.Status)
+	var reload map[string]any
+	require.NoError(t, json.Unmarshal([]byte(r.Body), &reload))
+	assert.Equal(t, false, reload["read-only"], "read-only false MUST be sent, not omitted")
+
+	r = do(t, srv, "GET", "/api/v1/commands/show/bgp/rib", "")
+	require.Equal(t, http.StatusOK, r.Status)
+	var rib map[string]any
+	require.NoError(t, json.Unmarshal([]byte(r.Body), &rib))
+	for _, goName := range []string{"Name", "ShortHelp", "Description", "ReadOnly", "Params"} {
+		assert.NotContains(t, rib, goName)
+	}
+	params, ok := rib["params"].([]any)
+	require.True(t, ok, "params must be a JSON array, got %T", rib["params"])
+	require.Len(t, params, 1)
+	param, ok := params[0].(map[string]any)
+	require.True(t, ok, "param must be a JSON object, got %T", params[0])
+	assert.Equal(t, "family", param["name"])
+	assert.Equal(t, "string", param["type"])
+	assert.Equal(t, "Address family", param["short-help"])
+	assert.Equal(t, false, param["required"], "required false MUST be sent, not omitted")
+}
+
 // VALIDATES: GET /api/v1/commands/{unknown} returns 404.
 // PREVENTS: unknown command returns 200.
 func TestRESTDescribeCommandNotFound(t *testing.T) {

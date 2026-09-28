@@ -26,33 +26,35 @@ func IsLoopbackAddr(addr string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-// CommandMeta describes a registered command for API consumers.
+// CommandMeta describes a registered command for API consumers. REST
+// `GET /api/v1/commands` serializes it as is, so every field carries a
+// kebab-case json tag. ReadOnly has no omitempty: false is an answer.
 type CommandMeta struct {
-	Name string // Dispatch path, e.g. "show bgp rib status"
+	Name string `json:"name"` // Dispatch path, e.g. "show bgp rib status"
 	// ShortHelp is the one-line summary, from the YANG ze:help extension
 	// or from the plugin's registration. It is the OpenAPI operation `summary`.
-	ShortHelp string
+	ShortHelp string `json:"short-help,omitempty"`
 	// Description is the explanation the command declares with the YANG
 	// description statement, or that a
 	// plugin sends as CommandDecl.Description. It is the OpenAPI operation
 	// `description`, which OpenAPI defines as the long form. Empty means the
 	// command declares no explanation, and the operation then carries no
 	// description key at all.
-	Description string
-	ReadOnly    bool        // True if read-only command
-	Params      []ParamMeta // Input parameters from YANG RPC (nil = no typed params)
+	Description string      `json:"description,omitempty"`
+	ReadOnly    bool        `json:"read-only"`        // True if read-only command
+	Params      []ParamMeta `json:"params,omitempty"` // Input parameters from YANG RPC (nil = no typed params)
 }
 
 // ParamMeta describes a single input parameter from YANG RPC metadata.
 // ShortHelp is the JSON Schema `title` and Description the JSON Schema
 // `description`; neither is derived from the other, and an empty one writes
-// no key.
+// no key. The json tags are kebab-case, and Required has no omitempty.
 type ParamMeta struct {
-	Name        string // Parameter name (kebab-case from YANG)
-	Type        string // YANG type: "string", "uint32", "boolean", etc.
-	ShortHelp   string // One-line summary, from the ze:help extension
-	Description string // Long explanation, from the YANG description
-	Required    bool   // Mandatory in YANG
+	Name        string `json:"name"`                  // Parameter name (kebab-case from YANG)
+	Type        string `json:"type"`                  // YANG type: "string", "uint32", "boolean", etc.
+	ShortHelp   string `json:"short-help,omitempty"`  // One-line summary, from the ze:help extension
+	Description string `json:"description,omitempty"` // Long explanation, from the YANG description
+	Required    bool   `json:"required"`              // Mandatory in YANG
 }
 
 // ExecResult is the standard API response envelope. It is an alias for the

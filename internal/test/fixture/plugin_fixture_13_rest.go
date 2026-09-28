@@ -93,7 +93,7 @@ func restAPICommands13(ctx context.Context, args []string) error {
 		}
 		advertised := false
 		for _, command := range commands {
-			if command["Name"] == cmdShowBGP {
+			if command["name"] == cmdShowBGP {
 				advertised = true
 				break
 			}
