@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
@@ -35,9 +35,9 @@ Thomas asked for these transforms to be implemented:
 3DES (`3des`, ENCR 3) is NOT in scope. There is no reason to add it: RFC 8221
 Section 5 rates ENCR_3DES "SHOULD NOT" for ESP, RFC 8247 Section 2.1 downgrades it
 to "MAY" for IKEv2 and says "there is no need to keep support for the much slower
-ENCR_3DES", and no interop need asks for it. Whether its YANG enum stays (refused
-at commit, as today) or is removed is an open decision for Thomas (Key Design
-Decisions, D-3). MODP 6144 (group 17) was not asked for and stays out (Known
+ENCR_3DES", and no interop need asks for it. Its YANG enum stays named and
+refused at commit, as today; removing it is not part of this spec (Key Design
+Decisions, D-3, decided by Thomas 2026-09-28). MODP 6144 (group 17) was not asked for and stays out (Known
 Limitations).
 
 The goal: an operator configures any of the five transforms in an `ike-group` or
@@ -71,7 +71,7 @@ strongSwan, traffic flows through the installed SA, and `show vpn ipsec sa` name
   → Constraint: RFC 7634 Appendix B is a complete IKEv2 INFORMATIONAL known-answer vector (key 0x80..0x9f, salt a0a1a2a3, iSPI c0..c7, rSPI d0..d7, Message ID 9). It is the IKE-side unit oracle.
 - [ ] `rfc/short/rfc3526.md` - DOES NOT EXIST. Created in Phase 1 with `/ze-rfc`.
   → Constraint: RFC 3526 Sections 4, 5 and 7: "This group is assigned id 15." / "id 16." / "id 18.", each with "The generator is: 2."
-  → Constraint: RFC 3526 Section 8 gives strength estimates and exponent sizes (group 15: "130 | 260-" and "210 | 420-"; group 18: "190 | 380-" and "310 | 620-"). It states no MUST on exponent length (decision D-2).
+  → Constraint: RFC 3526 Section 8 gives strength estimates and exponent sizes (group 15: "130 | 260-" and "210 | 420-"; group 18: "190 | 380-" and "310 | 620-"). It states no MUST on exponent length; D-2 keeps full-length exponents.
 - [ ] `rfc/short/rfc5903.md` - DOES NOT EXIST although `crypto/rfc5903_ecp_test.go` cites it. Created in Phase 1 with `/ze-rfc`.
   → Constraint: RFC 5903 Section 7: "Each component MUST have bit length as given in the following table" with "521-bit Random ECP Group 528", so a group 21 public value is 2 x 66 = 132 octets and carries no SEC 1 tag.
   → Constraint: RFC 5903 Section 7: "The Diffie-Hellman shared secret value consists of the x value of the Diffie-Hellman common value." For P-521 that is 66 octets; `crypto/ecdh` answers it.
@@ -126,7 +126,7 @@ The DH group is declared in seven places today:
 - Groups 14, 19, 20 and every existing cipher negotiate byte-identically: same KE lengths, same KEYMAT sizes, same wire attributes.
 - The parse-time refusal for anything the registry lacks (3des, sha1, groups outside the registry) and its error text listing the implemented set.
 - `EncryptionImplementedESP` still refuses AES CCM for ESP.
-- MODP private exponent range 2..p-2 and public validation rejecting 0, 1, p-1 (unless D-2 decides otherwise for the new groups).
+- MODP private exponent range 2..p-2 and public validation rejecting 0, 1, p-1, extended unchanged to groups 15, 16 and 18 (D-2).
 - ECP: refusal of the SEC 1 tagged form and of a wrong-length value.
 - `show vpn ipsec sa` JSON keys and existing values.
 
@@ -163,7 +163,7 @@ The DH group is declared in seven places today:
 - `crypto.acceptEncryption` - gains the fixed-key refusal.
 - New DH group table in `crypto` - the seven sites above derive from it.
 - `engine/reconcile.go` - `ESPKeyBits` reads the effective key bits.
-- `internal/le/interoplab/ipsec/checkers.go` - new named scenarios (count is D-1).
+- `internal/le/interoplab/ipsec/checkers.go` - five new named scenarios: `chacha20poly1305-ike-esp` and one per DH group (D-1).
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -185,7 +185,7 @@ The DH group is declared in seven places today:
 | A-3 | The appliance runtime kernel does not yet enable CONFIG_CRYPTO_CHACHA20POLY1305 | Absent from `gokrazy/kernel/runtime.config`; the gokrazy base config was not read | If already on, the added line is redundant but harmless; the require entry still pins it | Read the built kernel `.config`, or boot the QEMU image and read `/proc/crypto` | unvalidated |
 | A-4 | `golang.org/x/crypto/chacha20poly1305.New` answers a 12-octet nonce and 16-octet overhead, matching RFC 7634 | Package contract; already vendored for `internal/appliance/crypto.go` | Constructor refuses; the mode constructor's size check catches it | the size check in the new mode constructor plus the RFC 7634 Appendix B vector | unvalidated |
 | A-5 | Go `crypto/ecdh.P521` public key bytes are 133 octets (tag plus 2 x 66) and ECDH answers 66 octets | Go documentation; RFC 5903 Section 7 | ECP helpers refuse the value | RFC 5903 Section 8.3 vector test | unvalidated |
-| A-6 | strongSwan uses full-length MODP exponents by default | `src/libstrongswan/crypto/key_exchange.c` on strongSwan master: the `dh_exponent_ansi_x9_42` setting defaults to TRUE and then sets `exp_len` to the prime length (read 2026-09-28) | D-2's comparison with strongSwan is wrong | Re-read at implementation against the lab's 5.9.14 | validated |
+| A-6 | strongSwan uses full-length MODP exponents by default | `src/libstrongswan/crypto/key_exchange.c` on strongSwan master: the `dh_exponent_ansi_x9_42` setting defaults to TRUE and then sets `exp_len` to the prime length (read 2026-09-28) | D-2's rationale ("as strongSwan's default") is wrong; the decision itself stands on Ze's documented rule | Re-read at implementation against the lab's 5.9.14 | validated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -193,7 +193,7 @@ The DH group is declared in seven places today:
 | R-1 | A mistyped MODP prime digit gives a silent key-agreement failure against other peers while Ze-to-Ze works | Interop scenario for that group fails at IKE_AUTH decrypt; two-Ze tests stay green | `TestRFC3526MODPPrimesAreSafePrimes` (prime, safe prime, 64 one-bits top and bottom, exact bit length) plus a strongSwan scenario per group |
 | R-2 | ChaCha20 KEYMAT sized from the wire Key Length (0) gives 4-octet keys | `TestRFC7634KeymatIs36Octets` red; XFRM install EINVAL; strongSwan AUTHENTICATION_FAILED | Key size taken from the transform identity (D-A), never from the attribute |
 | R-3 | A peer offers ENCR 28 with a Key Length attribute and Ze echoes it back, violating RFC 7296 Section 3.3.5 | `TestRFC7296FixedKeyTransformRefusesKeyLength` red | `acceptEncryption` refuses the transform; `encAttrs` never emits it for a fixed-key transform |
-| R-4 | MODP 8192 costs about 149 ms per modular exponentiation on the development machine (measured 2026-09-28, Go 1.27.1 darwin/arm64, full-length exponent; 9.5 ms with a 512-bit exponent; 3072 costs 8.6 ms, 4096 costs 18.9 ms, P-521 keygen twice plus ECDH 1.6 ms), so about 300 ms of CPU per responder IKE_SA_INIT, more on appliance hardware | `BenchmarkDHExchange/modp8192`; IKE_SA_INIT latency | The existing cookie threshold bounds half-open SAs; D-2 decides the exponent length |
+| R-4 | MODP 8192 costs about 149 ms per modular exponentiation on the development machine (measured 2026-09-28, Go 1.27.1 darwin/arm64, full-length exponent; 9.5 ms with a 512-bit exponent; 3072 costs 8.6 ms, 4096 costs 18.9 ms, P-521 keygen twice plus ECDH 1.6 ms), so about 300 ms of CPU per responder IKE_SA_INIT, more on appliance hardware | `BenchmarkDHExchange/modp8192`; IKE_SA_INIT latency | The existing cookie threshold bounds half-open SAs. Full-length exponents are kept (D-2, decided 2026-09-28): the cost is accepted, not engineered away, and `BenchmarkDHExchange` records it |
 | R-5 | `show vpn ipsec sa` renders `unknown` for a new ID, or ESP key bits 0 for ChaCha20 | Functional `.ci` asserting the rendered names | Names derive from the tables; `ESPKeyBits` reads the effective key bits |
 | R-6 | Changing the `aeadTransform` mode constructor from an AES block to a key changes AES GCM / CCM keying | Existing RFC 5282 GCM/CCM tests red | The AES constructors build the block themselves; existing tests run unchanged |
 | R-7 | Tests that pin today's refusal go red: `TestParseRejectsUnimplementedEncryption` iterates `chacha20poly1305`; `TestTransformRegistryUnknown` asserts group 21 absent | Red on first run | These assert behaviour this spec changes. The chacha row goes and 3des stays (still refused); the group-21 row moves to a group still absent (17). No refusal assertion is dropped |
@@ -229,12 +229,12 @@ The DH group is declared in seven places today:
 | AC-6 | IKE SA negotiated with ENCR 28 | SK_ei and SK_er are 36 octets each, SK_ai and SK_ar are 0 octets; the Encrypted payload carries an 8-octet IV, Pad Length 0 and a 16-octet ICV |
 | AC-7 | RFC 7634 Appendix B inputs | `OpenIKEAEAD` over the appendix's ciphertext and AAD answers the appendix's plaintext; one flipped ICV bit answers `ErrDecryptionFailed` |
 | AC-8 | Child SA negotiated with ENCR 28 | Each direction's encryption key is 36 octets (32 key, 4 salt) with no integrity key; XFRM receives `rfc7539esp(chacha20,poly1305)`, ICV 128, key length 288 bits |
-| AC-9 | Each MODP group 15, 16, 18 | KE public value is exactly 384 / 512 / 1024 octets; a shorter or longer value, and the values 0, 1 and p-1, are refused; two exchanges agree on the secret |
+| AC-9 | Each MODP group 15, 16, 18 | KE public value is exactly 384 / 512 / 1024 octets; a shorter or longer value, and the values 0, 1 and p-1, are refused; two exchanges agree on the secret; the private exponent is drawn from 2..p-2, full length (D-2) |
 | AC-10 | Group 21 | KE public value is 132 octets (X then Y, 66 each, no tag); a 133-octet SEC 1 value is refused; the RFC 5903 Section 8.3 vector reproduces both public values and the 66-octet shared secret |
 | AC-11 | Each new transform against strongSwan | IKE SA ESTABLISHED, charon logs the selected proposal naming the transform, Child SA installed on both sides, ESP flows in both directions |
 | AC-12 | `show vpn ipsec sa` for an SA using the new transforms | `encryption` names ChaCha20-Poly1305, `dh-group` names the group (never `unknown`), ESP key bits report 256 |
 | AC-13 | Groups 14, 19, 20 and AES CBC/GCM/CCM | All existing tests pass unchanged; KE and KEYMAT lengths unchanged |
-| AC-14 | Config naming `3des` | Still refused at load with the implemented set listed (unless D-3 removes the enum, in which case YANG refuses it) |
+| AC-14 | Config naming `3des` | Still refused at load with the implemented set listed; the enum stays in the YANG (D-3) |
 
 ## End-to-End User Stories
 
@@ -255,6 +255,7 @@ The DH group is declared in seven places today:
 | `TestRFC7296MODPPublicValueMatchesModulusLength` (extend) | `internal/component/ike/crypto/rfc7296_dh_test.go` | rows for 15, 16, 18 (384, 512, 1024 octets) | |
 | `TestRFC7296MODPShortPublicValueIsRefusedOnReceipt` (extend) | `internal/component/ike/crypto/rfc7296_dh_test.go` | rows for 15, 16, 18 | |
 | `TestDHInvalidPublicKey` (extend) | `internal/component/ike/crypto/dh_test.go` | 0, 1, p-1 refused for each MODP group | |
+| `TestMODPPrivateExponentIsFullLength` | `internal/component/ike/crypto/dh_test.go` | D-2, AC-9: for each MODP group, every private exponent drawn over repeated exchanges lies in 2..p-2 and at least one has a bit length within 64 bits of p's, so a short-exponent regression goes red | |
 | `TestECPPublicValueOctetLength` (extend) | `internal/component/ike/crypto/rfc5903_ecp_test.go` | group 21 answers 132 | |
 | `TestECPKEPayloadMatchesRFC5903Vector` (extend) | `internal/component/ike/crypto/rfc5903_ecp_test.go` | Section 8.3 vector | |
 | `TestECPRejectsNonConformingLength` (extend) | `internal/component/ike/crypto/rfc5903_ecp_test.go` | 131 and 133 octets refused for group 21 | |
@@ -298,7 +299,7 @@ The DH group is declared in seven places today:
 | `ike-modp8192` | `test/interop-ipsec/scenarios/ike-modp8192/` | strongSwan | same for `MODP_8192` | |
 | `ike-ecp521` | `test/interop-ipsec/scenarios/ike-ecp521/` | strongSwan | same for `ECP_521` | |
 
-Each scenario owes a recorded red: remove its registry row, rebuild `test/interop-ipsec/ze-linux`, confirm the scenario fails (charon NO_PROPOSAL_CHOSEN), restore, confirm green. Whether the four DH scenarios stay separate is decision D-1.
+Each scenario owes a recorded red: remove its registry row, rebuild `test/interop-ipsec/ze-linux`, confirm the scenario fails (charon NO_PROPOSAL_CHOSEN), restore, confirm green. The four DH groups each get their own scenario and their own recorded red (D-1): a red for one group proves nothing about another group's transcribed prime.
 
 ## Files to Modify
 - `internal/component/ike/crypto/transform.go` - `ENCR_CHACHA20_POLY1305` (28); `DH_MODP_3072`, `DH_MODP_4096`, `DH_MODP_8192`, `DH_ECP_521` constants; `encryptionRegistry` gains `chacha20poly1305`; `EncryptionID.String` gains ENCR 28; `DHGroupID.String`, `dhGroupRegistry`, `SupportedDHGroupIDs`, `LookupDHGroup` derive from the DH table
@@ -381,7 +382,7 @@ Each scenario owes a recorded red: remove its registry row, rebuild `test/intero
 4. **Phase: engine and reporting** - `ESPKeyBits`; `show` names
    - Tests: `TestESPKeyBitsReportsFixedKey`, `TestXfrmChaCha20KeyIs36Octets`, both `.ci` green
 5. **Phase: YANG text, kernel config, docs** - every page in the checklist, in this phase
-6. **Phase: interop** - A-1 and A-2 measured first; scenarios and checkers; each with a recorded red
+6. **Phase: interop** - A-1 and A-2 measured first; the five scenarios (`chacha20poly1305-ike-esp`, `ike-modp3072`, `ike-modp4096`, `ike-modp8192`, `ike-ecp521`) and their checkers; each with its own recorded red (D-1)
 7. **Phase: RFC discrimination** - `./le rfc discriminate-record` for each tagged test
 
 ### Critical Review Checklist
@@ -437,9 +438,9 @@ Each scenario owes a recorded red: remove its registry row, rebuild `test/intero
 | D-B: one DH group table replaces seven lists | Add a case to each switch and map | Four groups times seven sites is the central-enumeration defect `ai/rules/principles.md` forbids; the table also serves `spec-ike-post-quantum` |
 | D-C: the encryption lists each gain one entry rather than being collapsed | Collapse `String`, `specifiedEncryption` and `encryptionRegistry` into one table | Those lists are already bound by `aead_predicate_test.go`, `TestAcceptedAlgorithmsResolveToTransforms` and `TestVocabularyMatchesModel`; collapsing them is a refactor this feature does not need |
 | D-D: `golang.org/x/crypto/chacha20poly1305` | Write ChaCha20-Poly1305 in `internal/core`, as was done for CCM | Already vendored and used by the appliance; the standard library has none; a hand-written AEAD adds risk and nothing else |
-| D-1 (OPEN, Thomas): one interop scenario per DH group (four) | `ike-modp8192` plus `ike-ecp521` only, relying on the safe-prime unit test for 3072 and 4096 | Recommended: four. Only a foreign peer proves a transcribed prime matches everyone else's; each scenario is one strongSwan run |
-| D-2 (OPEN, Thomas): MODP private exponent stays full length (2..p-2) for the new groups | Short exponents from RFC 3526 Section 8, as strongSwan's non-default table does (48 octets for 3072, 64 for 4096 and 8192) | Recommended: full length. It is strongSwan's default and Ze's documented rule; cost measured at about 149 ms per exponentiation for 8192 (R-4) |
-| D-3 (OPEN, Thomas): `3des` stays out of the build | Remove the `3des` enum (with `Encryption3DES` and the XFRM and VPP entries) from the model; or keep it named and refused at commit as today | No reason found to implement it (RFC 8221 SHOULD NOT for ESP). Removing is a separate model change; this spec does neither unless Thomas says remove |
+| D-1 (RESOLVED, Thomas 2026-09-28): one strongSwan interop scenario per new DH group: `ike-modp3072`, `ike-modp4096`, `ike-modp8192`, `ike-ecp521`, beside `chacha20poly1305-ike-esp`; each owes a recorded red | - | Only a foreign peer proves a transcribed prime matches everyone else's; each scenario is one strongSwan run |
+| D-2 (RESOLVED, Thomas 2026-09-28): MODP private exponents stay full length (2..p-2) for groups 15, 16 and 18 | - | Ze's documented rule today and strongSwan's default (A-6). Measured cost about 149 ms per exponentiation for 8192 (R-4) |
+| D-3 (RESOLVED, Thomas 2026-09-28): 3DES stays out of the build; the `3des` enum stays named in the schema and refused at commit as today | - | No reason found to implement it (RFC 8221 SHOULD NOT for ESP). Removing the enum is not part of this spec |
 
 ## Known Limitations
 
