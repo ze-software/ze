@@ -2,6 +2,127 @@
   "rfc": "rfc5880",
   "records": [
     {
+      "rid": "RFC5880-4.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880ReservedByteZeroedOnTransmit",
+      "unit-sha": "18f218c148e4d235",
+      "claim-sha": "64a49e0820371c16",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/sha1.go::Sign",
+      "producer-sha": "b934a94ef59e0b8a",
+      "break": "body of Sign replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7-1",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SHA1TypesEnforcedDistinctly",
+      "unit-sha": "d3e179d33dbb93f5",
+      "claim-sha": "b2dadb43cee3ec3b",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/sha1.go::Verify",
+      "producer-sha": "a96f098f3c6f9288",
+      "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.2-3",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSignerNeedsPassword",
+      "unit-sha": "8714c6f64b05aa2a",
+      "claim-sha": "84bba9dcadc05089",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/simple.go::simplePasswordLenValid",
+      "producer-sha": "e766491848062f10",
+      "break": "body of simplePasswordLenValid replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.2-4",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordMissingSectionOrOtherTypeDiscarded",
+      "unit-sha": "010a3bb8bfa0ecc1",
+      "claim-sha": "78331032c167157a",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/simple.go::Verify",
+      "producer-sha": "a10c28df7f3da2fa",
+      "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.2-4",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSectionOfTypeOneAccepted",
+      "unit-sha": "1755ccb9dec9b1d7",
+      "claim-sha": "054c0322ccb32a57",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/simple.go::Verify",
+      "producer-sha": "a10c28df7f3da2fa",
+      "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.2-6",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordAuthLenNotPlusThreeDiscarded",
+      "unit-sha": "f99a97dc1341d814",
+      "claim-sha": "81967e3e35c6cbac",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/simple.go::Verify",
+      "producer-sha": "a10c28df7f3da2fa",
+      "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.2-6",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordAuthLenPlusThreeAccepted",
+      "unit-sha": "b4005d63505ba711",
+      "claim-sha": "130e420ebc37b37c",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/simple.go::Verify",
+      "producer-sha": "a10c28df7f3da2fa",
+      "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.2-8",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSectionOutsideProperLengthNotBuilt",
+      "unit-sha": "19081341f462721f",
+      "claim-sha": "d83730f2be4a60cb",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/simple.go::simplePasswordLenValid",
+      "producer-sha": "e766491848062f10",
+      "break": "body of simplePasswordLenValid replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5OversizedKeyNotSigned",
+      "unit-sha": "6c34eea8dea185ca",
+      "claim-sha": "2455b9779f2df04b",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/signer.go::NewSigner",
+      "producer-sha": "74964565965a495f",
+      "break": "body of NewSigner replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.3-10",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousOutsideWindowDiscarded",
+      "unit-sha": "4248b1e63c76d7e0",
+      "claim-sha": "3cfe514b884f1fdf",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/meticulous.go::Check",
+      "producer-sha": "0d7ec3911e063f57",
+      "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.3-10",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousWindowFollowsReceivedDetectMult",
+      "unit-sha": "bb3fdde7aa04c99b",
+      "claim-sha": "db70a3a10dc8bede",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/meticulous.go::Check",
+      "producer-sha": "0d7ec3911e063f57",
+      "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5880-6.7.3-10",
       "polarity": "positive",
       "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousSequenceInsideWindowAccepted",
@@ -26,9 +147,53 @@
     {
       "rid": "RFC5880-6.7.3-11",
       "polarity": "negative",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5DigestMismatchDiscarded",
+      "unit-sha": "d52b6fe2ac54cdfc",
+      "claim-sha": "01e292c8e5f849ef",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/md5.go::newMD5Verifier",
+      "producer-sha": "d2174e8a586ddfa2",
+      "break": "body of newMD5Verifier replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.3-11",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5IndependentDigestAccepted",
+      "unit-sha": "de1c4921d45d0bf8",
+      "claim-sha": "1a49db87f0c2b33d",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/md5.go::newMD5Verifier",
+      "producer-sha": "d2174e8a586ddfa2",
+      "break": "body of newMD5Verifier replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.3-11",
+      "polarity": "negative",
       "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestMismatchDiscarded",
       "unit-sha": "ada9ea1acd8f2233",
       "claim-sha": "529173ebff963c61",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/meticulous.go::Advance",
+      "producer-sha": "9944f78355d62382",
+      "break": "body of Advance replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.3-12",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5FirstPacketSeedsReplayFloor",
+      "unit-sha": "ad0576522104da6b",
+      "claim-sha": "59b3c97099ceeddb",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/meticulous.go::Advance",
+      "producer-sha": "9944f78355d62382",
+      "break": "body of Advance replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.3-12",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5KnownFloorNotReseeded",
+      "unit-sha": "be6ed6a0123b734c",
+      "claim-sha": "52fbf255f7d07cb9",
       "route": "revert",
       "producer": "internal/component/bfd/auth/meticulous.go::Advance",
       "producer-sha": "9944f78355d62382",
@@ -123,6 +288,61 @@
       "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5880-6.7.3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestOverPartialPacketDiscarded",
+      "unit-sha": "ae3bb70c7b421c92",
+      "claim-sha": "12980098869f2550",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/sha1.go::Verify",
+      "producer-sha": "a96f098f3c6f9288",
+      "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestSpansEntirePacket",
+      "unit-sha": "74200761bf24a59e",
+      "claim-sha": "f6636aad762075bb",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/sha1.go::Sign",
+      "producer-sha": "b934a94ef59e0b8a",
+      "break": "body of Sign replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.3-4",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits",
+      "unit-sha": "7b52866ed949d7d4",
+      "claim-sha": "691aedd30518fa21",
+      "route": "revert",
+      "producer": "internal/component/bfd/session/auth.go::AdvanceAuthSeq",
+      "producer-sha": "2ec2d770c43827cf",
+      "break": "body of AdvanceAuthSeq replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.3-9",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedOutsideWindowDiscarded",
+      "unit-sha": "2cd3d53d5f3c85d9",
+      "claim-sha": "9103be0d946e4eb1",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/meticulous.go::Check",
+      "producer-sha": "0d7ec3911e063f57",
+      "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.3-9",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedWindowFollowsReceivedDetectMult",
+      "unit-sha": "50ef1e92926bf9b3",
+      "claim-sha": "2b9b8f71322c84bb",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/meticulous.go::Check",
+      "producer-sha": "0d7ec3911e063f57",
+      "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5880-6.7.3-9",
       "polarity": "positive",
       "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceAtOrAboveFloorAccepted",
@@ -165,6 +385,50 @@
       "producer": "internal/component/bfd/auth/meticulous.go::Check",
       "producer-sha": "0d7ec3911e063f57",
       "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedSHA1OversizedKeyNotSigned",
+      "unit-sha": "fa166aec778f69c6",
+      "claim-sha": "c321aa9251237d5e",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/signer.go::NewSigner",
+      "producer-sha": "74964565965a495f",
+      "break": "body of NewSigner replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.4-2",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestOverPartialPacketDiscarded",
+      "unit-sha": "ae3bb70c7b421c92",
+      "claim-sha": "2a2a9d36be20acc5",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/sha1.go::Verify",
+      "producer-sha": "a96f098f3c6f9288",
+      "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.4-2",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestSpansEntirePacket",
+      "unit-sha": "74200761bf24a59e",
+      "claim-sha": "1e990b9671f0c8f4",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/sha1.go::Sign",
+      "producer-sha": "b934a94ef59e0b8a",
+      "break": "body of Sign replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.7.4-4",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits",
+      "unit-sha": "7b52866ed949d7d4",
+      "claim-sha": "3e1ab49b7635ae04",
+      "route": "revert",
+      "producer": "internal/component/bfd/session/auth.go::AdvanceAuthSeq",
+      "producer-sha": "2ec2d770c43827cf",
+      "break": "body of AdvanceAuthSeq replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5880-6.7.4-7",
@@ -220,6 +484,28 @@
       "producer": "internal/component/bfd/config.go::parseAuthConfig",
       "producer-sha": "c1d0c0daa05c14d8",
       "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.1-12",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880AuthSeqKnownOneDiscardsFirstPacket",
+      "unit-sha": "70ae3a85d5a47ed6",
+      "claim-sha": "a3b3c122b9d5e7eb",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/meticulous.go::Check",
+      "producer-sha": "0d7ec3911e063f57",
+      "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-6.8.1-12",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880NewSessionAuthSeqKnownZero",
+      "unit-sha": "084ade98ccf4ae69",
+      "claim-sha": "0bf4b0f051550739",
+      "route": "revert",
+      "producer": "internal/component/bfd/auth/meticulous.go::Check",
+      "producer-sha": "0d7ec3911e063f57",
+      "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5880-6.8.1-5",
